@@ -46,6 +46,7 @@ interface BridgeStoreState {
   stop: () => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
   setSessionAccess: (sessionId: string, enabled: boolean) => Promise<void>;
+  revokeAllAccess: () => Promise<void>;
   setPolicy: (policy: ApprovalPolicy) => Promise<void>;
   respond: (requestId: string, decision: ApprovalDecision) => Promise<void>;
   clearConsole: () => void;
@@ -199,6 +200,17 @@ export const useBridge = create<BridgeStoreState>((set, get) => ({
       set({ status });
     } catch (e) {
       toastError(e, "Couldn't update agent access");
+    }
+  },
+
+  revokeAllAccess: async () => {
+    try {
+      const status = await ipc.bridgeRevokeAllAccess();
+      set({ status, approvals: [] });
+      toast.success("Agent Bridge permissions revoked", "Saved credentials and profiles were not deleted.");
+    } catch (error) {
+      toastError(error, "Couldn't persist Agent Bridge revocation");
+      void get().refresh();
     }
   },
 

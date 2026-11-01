@@ -634,6 +634,29 @@ impl BridgeState {
         }
     }
 
+    /// Revoke active/persisted profile access, reset approvals, and stop the
+    /// localhost endpoint while preserving saved connections and credentials.
+    /// A failed persistence write must never be reported as successful revocation.
+    pub async fn revoke_all_access(&self) -> Result<BridgeStatus> {
+        *self.enabled_master.lock().await = false;
+        self.enabled.lock().await.clear();
+        self.enabled_profiles.lock().await.clear();
+        *self.policy.lock().await = ApprovalPolicy::default();
+        self.stop().await;
+        self.persist().await;
+        if let Some(path) = &self.config_path {
+            let bytes = std::fs::read(path).context("reading revoked bridge configuration")?;
+            let config: PersistedConfig =
+                serde_json::from_slice(&bytes).context("parsing revoked bridge configuration")?;
+            if config.enabled || !config.enabled_profiles.is_empty()
+                || config.policy != ApprovalPolicy::default()
+            {
+                return Err(anyhow!("Agent Bridge revocation did not persist"));
+            }
+        }
+        Ok(self.status().await)
+    }
+
     /// The master on/off switch the UI exposes (persisted, default off). Turning
     /// it on starts the bridge (binding a port, minting a token, publishing the
     /// discovery file) and makes it auto-start on the next launch; turning it
@@ -6859,6 +6882,24 @@ async fn write_jsonrpc_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn revoke_all_access_clears_runtime_profiles_and_approval_policy() {
+        let bridge = BridgeState::new();
+        *bridge.enabled_master.lock().await = true;
+        bridge.enabled.lock().await.insert("session-1".to_string());
+        bridge.enabled_profiles.lock().await.insert("profile-1".to_string());
+        *bridge.policy.lock().await = ApprovalPolicy {
+            allow_all: true, auto_read: true, auto_safe_exec: true, allow_sudo: true,
+        };
+        let status = bridge.revoke_all_access().await.expect("revocation succeeds");
+        assert!(!status.running);
+        assert!(!status.enabled);
+        assert!(status.enabled_sessions.is_empty());
+        assert!(bridge.enabled_profiles.lock().await.is_empty());
+        assert_eq!(*bridge.policy.lock().await, ApprovalPolicy::default());
+    }
+
 
     // Plan 10 Phase 1: the CLI base64-encodes a script's raw bytes; the bridge
     // decodes them back. Prove that hop is byte-exact for a heredoc + nested

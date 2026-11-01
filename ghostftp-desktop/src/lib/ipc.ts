@@ -430,6 +430,7 @@ export const ipc = {
   bridgeStatus: () => invoke<BridgeStatus>("bridge_status"),
   bridgeSetSessionAccess: (sessionId: SessionId, enabled: boolean) =>
     invoke<BridgeStatus>("bridge_set_session_access", { sessionId, enabled }),
+  bridgeRevokeAllAccess: () => invoke<BridgeStatus>("bridge_revoke_all_access"),
   bridgeSetPolicy: (policy: ApprovalPolicy) =>
     invoke<BridgeStatus>("bridge_set_policy", { policy }),
   bridgeSetActiveSession: (sessionId: SessionId | null) =>
