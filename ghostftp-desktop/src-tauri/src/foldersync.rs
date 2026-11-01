@@ -411,6 +411,12 @@ impl FolderSync {
             pair.poll_interval_secs = DEFAULT_POLL_SECS;
         }
         Self::validate_pair(&pair)?;
+        if pair.mode == SyncMode::OnDemand {
+            anyhow::ensure!(
+                app.state::<AppState>().virtualfs.supported(),
+                "On-demand folders are unavailable on this Windows installation"
+            );
+        }
         {
             let mut s = self.settings.lock().await;
             let previous = s.clone();
@@ -458,6 +464,12 @@ impl FolderSync {
                     // re-enable must not leave an inert pair marked enabled.
                     if enabled {
                         Self::validate_pair(p)?;
+                        if p.mode == SyncMode::OnDemand {
+                            anyhow::ensure!(
+                                app.state::<AppState>().virtualfs.supported(),
+                                "On-demand folders are unavailable on this Windows installation"
+                            );
+                        }
                     }
                     p.enabled = enabled;
                     p.clone()
@@ -514,8 +526,8 @@ impl FolderSync {
         // stands them up; nothing to spawn here.
         if pair.mode == SyncMode::OnDemand {
             anyhow::ensure!(
-                cfg!(all(windows, feature = "virtualfs")),
-                "On-demand folders require Windows with VirtualFs enabled"
+                app.state::<AppState>().virtualfs.supported(),
+                "On-demand folders require a supported Windows Cloud Filter provider"
             );
             return Ok(());
         }
