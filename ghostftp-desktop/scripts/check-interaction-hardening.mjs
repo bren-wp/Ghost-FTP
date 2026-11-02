@@ -240,6 +240,16 @@ requireIncludes(
 requireIncludes(
   "src/components/SyncSettings.tsx",
   [
+    'pair.state === "error"',
+    "Virtual folder unavailable — resolve the error first",
+    "On-demand unavailable",
+  ],
+  "unsupported Cloud Filter root status and safe action gating"
+);
+
+requireIncludes(
+  "src/components/SyncSettings.tsx",
+  [
     "if (!canSubmit || busy) return;",
     'toastError(error, "Couldn\'t create sync pair")',
     'placeholder="Local folder path"',
