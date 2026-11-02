@@ -40,5 +40,5 @@ test("README links to all public Previews, never stable-only /releases/latest",(
   // published. Never require README to call an unpublished tag "verified".
   // Release promotion itself separately checks the real immutable tag.
   assert.equal(version.previousPublishedVersion, version.previousVersion);
-  assert.ok(readme.includes(`Previous source edition: v${version.previousPublishedVersion}.`));
+  assert.ok(readme.includes(`Previously published: v${version.previousPublishedVersion}`));
 });
