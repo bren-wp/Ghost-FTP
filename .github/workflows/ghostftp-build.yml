@@ -323,7 +323,12 @@ jobs:
 
       - name: Validate native Linux visual/release mapping
         if: runner.os == 'Linux'
-        run: node --test .github/scripts/check-linux-native-matrix.test.mjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test .github/scripts/check-linux-native-matrix.test.mjs
+          # python3-pil was installed with the real Linux screenshot dependencies.
+          python3 tools/visual/test_pixel_compare.py
 
       - name: Capture genuine Linux 1290x852 workspaces (seven native views)
         if: runner.os == 'Linux'
