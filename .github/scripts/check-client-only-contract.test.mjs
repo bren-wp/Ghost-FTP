@@ -55,7 +55,7 @@ test("current client-only development candidate remains Preview until mandatory 
   // Compare against the canonical release progression instead of a frozen
   // source version: the previously published tag must remain immutable while
   // the next Preview edition advances by exactly one patch.
-  assert.match(config.version, /^0\\.99\\.\\d+$/);
+  assert.match(config.version, /^0\.99\.\d+$/);
   assert.equal(config.previousPublishedVersion, config.previousVersion);
   const prev = config.previousVersion.split(".").map(Number);
   const current = config.version.split(".").map(Number);
