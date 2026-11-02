@@ -49,6 +49,13 @@ Move files, manage connections and keep important server work organized with an 
 
 **The gallery contains real Windows application captures, not generated marketing mockups.** The 1290×852 screenshot geometry is a design acceptance reference; newer desktop builds need their own native visual comparison and manual QA before 1:1 fidelity can be confirmed.
 
+### Linux — real Tauri/WebKit captures
+
+Linux visuals are captured from the **actual running Ghost FTP executable**, not the supplied designs. The [native Linux QA artifact (v0.99.19)](https://github.com/bren-wp/Ghost-FTP/actions/runs/40793685872/artifacts/12862768368) contains the original **1290×852 Files and Sync screenshots**, including SHA-256 checksums and launch logs. See the [evidence and measured differences](docs/qa/PHASE3_REAL_WINDOWS_LINUX_SYNC_V0_99_19_2026_10_29.md). Historical artifact availability is subject to GitHub Actions retention.
+
+The next native Linux CI run records **seven genuine workspaces**: Files, Sites, New Connection, Transfers, Settings, Sync and About. It uploads the images as a separate, reviewable QA artifact. They will not be inserted into README as current-release screenshots until the corresponding native pixels and source commit have been captured, checked, and promoted. Reference mockups are **never** repurposed as product screenshots.
+
+
 ## Install Ghost FTP on macOS without paid Apple signing
 
 Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel x86_64** installable DMG Preview, as well as ZIP. No Apple Developer account or Developer ID signing certificate is required. Download the matching package from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open its DMG in Finder, drag **Ghost FTP Desktop.app** to **Applications**, then open the installed app. Because this development Preview is not notarized, you may need **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper. The embedded code uses only free ad-hoc signing for Apple Silicon integrity. Full [Croatian/English installation instructions](docs/guides/MACOS_INSTALLATION.md).
@@ -98,7 +105,7 @@ The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/
 | Platform | Package options | Supported connections |
 | --- | --- | --- |
 | **🪟 Windows x64** | Portable EXE, Setup EXE, MSI | FTP, explicit FTPS, SFTP |
-| **🐧 Linux x86-64** | AppImage, DEB, RPM, standalone binary | FTP, explicit FTPS, SFTP |
+| **🐧 Linux x86-64** | AppImage, DEB (Debian/Ubuntu family), RPM (Fedora/openSUSE/RHEL family), standalone ELF; [distro/package matrix](docs/distribution/LINUX_PACKAGE_MATRIX.md) | FTP, explicit FTPS, SFTP |
 | **🤖 Android** | Installable Preview APK; separate unsigned APK/AAB for release signing | FTP, explicit FTPS, SFTP |
 | **🍎 macOS — Shared Desktop candidate (0.99.4)** | Separate Preview ZIP after exact-source CI passes | Shared Rust FTP, explicit FTPS and SFTP; real-machine acceptance pending |
 | **🍎 macOS — legacy SwiftUI** | Existing Preview ZIP | FTP only; FTPS/SFTP intentionally unavailable |
