@@ -91,6 +91,17 @@ struct Settings {
     registered: Vec<RegisteredRoot>,
 }
 
+/// Read the registration journal without discarding evidence on parse,
+/// permissions or I/O errors. Only a genuinely absent file is empty.
+fn read_settings(path: &Path) -> Result<Settings> {
+    match std::fs::read(path) {
+        Ok(data) => serde_json::from_slice(&data)
+            .context("virtual filesystem registration journal is corrupt; restore from backup"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Settings::default()),
+        Err(error) => Err(error).context("read virtual filesystem registration journal"),
+    }
+}
+
 // ---------- live status ----------
 
 #[derive(Debug, Clone, Serialize)]
@@ -120,12 +131,11 @@ impl VirtualFs {
             .path()
             .app_data_dir()
             .context("resolving app_data_dir")?;
-        std::fs::create_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).context("create virtual filesystem settings directory")?;
         let settings_path = dir.join("virtualfs.json");
-        let settings: Settings = std::fs::read(&settings_path)
-            .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
+        // A corrupt/unreadable registration journal is NOT an empty journal.
+        // Losing it could strand Cloud Filter roots with no orphan cleanup.
+        let settings = read_settings(&settings_path)?;
         Ok(Self {
             settings_path,
             settings: Mutex::new(settings),
@@ -430,6 +440,26 @@ mod tests {
             pair_id: id.into(),
             local_root: format!("C:/x/{id}"),
         }
+    }
+
+    #[test]
+    fn damaged_registration_journal_is_not_silently_reset() {
+        let path = std::env::temp_dir().join(format!(
+            "ghostftp-virtualfs-journal-{}.json",
+            uuid::Uuid::new_v4()
+        ));
+        assert!(read_settings(&path).unwrap().registered.is_empty());
+        std::fs::write(&path, b"{invalid-json").unwrap();
+        assert!(read_settings(&path).is_err());
+        std::fs::write(&path, br#"{"registered":[{"pairId":"existing","localRoot":"C:/sync"}]}"#)
+            .unwrap();
+        let loaded = read_settings(&path).unwrap();
+        assert_eq!(loaded.registered, vec![root_with_path("existing", "C:/sync")]);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    fn root_with_path(id: &str, path: &str) -> RegisteredRoot {
+        RegisteredRoot { pair_id: id.into(), local_root: path.into() }
     }
 
     #[test]
