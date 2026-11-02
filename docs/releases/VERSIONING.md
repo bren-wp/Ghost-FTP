@@ -1,8 +1,8 @@
-> Active source/release cycle: **0.99.29 Preview**. Previous canonical release: **0.99.28**. Client-only packages required.
+> Active source/release cycle: **0.99.30 Preview**. Previous canonical release: **0.99.29**. Client-only packages required.
 
 # Ghost FTP Versioning
 
-Current development edition: **0.99.29 Preview**. Previous published canonical release: **v0.99.28**.
+Current development edition: **0.99.30 Preview**. Previous published canonical release: **v0.99.29**.
 
 Ghost FTP uses semantic versioning with a pre-1.0 development train.
 

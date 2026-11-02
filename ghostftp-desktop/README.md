@@ -1,10 +1,10 @@
-> **Authoritative current state (2 November 2026):** Ghost FTP **0.99.29 development Preview**; v0.99.28 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
+> **Authoritative current state (2 November 2026):** Ghost FTP **0.99.30 development Preview**; v0.99.29 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
 
 <p align="center">
 
-> Current development source: **0.99.4**; latest verified published release: **0.99.3**. The desktop application remains on the shared Windows/Linux codebase.
+> Current development source: **0.99.30**; latest publicly published release: **0.99.29**. The desktop application remains on the shared Windows/Linux codebase.
   <img src="branding/ghostftp-logo.svg" alt="Ghost FTP" width="520">
 </p>
 
