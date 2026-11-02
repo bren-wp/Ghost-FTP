@@ -260,13 +260,20 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
 }
 
 function ConnectionModeStatus({protocol}:{protocol:Protocol}) {
-  const ftp = protocol === "ftp" || protocol === "ftps";
-  return <div className="flex items-center gap-2 text-[12px] text-text-muted">
+  const insecureFtp = protocol === "ftp";
+  const ftpTransport = protocol === "ftp" || protocol === "ftps";
+  return <div className="flex flex-wrap items-center gap-2 text-[12px] text-text-muted" role="status">
     <Radio size={15}/>
-    <span>{ftp ? "Passive mode" : "SSH transport"}</span>
-    <span className="rounded border border-success/25 bg-success/10 px-2 py-0.5 text-[10px] text-success">
-      {ftp ? "Recommended" : "Secure"}
-    </span>
+    <span>{ftpTransport ? "Passive mode" : "SSH transport"}</span>
+    {insecureFtp ? (
+      <span className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">
+        Unencrypted FTP — credentials and file contents are sent in cleartext. Use FTPS or SFTP.
+      </span>
+    ) : (
+      <span className="rounded border border-success/25 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+        {protocol === "ftps" ? "TLS certificate verification required" : "SSH host-key verification required"}
+      </span>
+    )}
   </div>;
 }
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-text-muted">{label}</span><div className="ghost-ref-field">{children}</div></label>}
