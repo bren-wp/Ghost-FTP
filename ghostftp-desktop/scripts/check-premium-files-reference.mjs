@@ -26,7 +26,12 @@ requireText(chrome, "await connectTemporary(profile)", "Quick Connect does not c
 requireText(chrome, 'type="password"', "Quick Connect must collect a masked transient password");
 requireText(chrome, 'setPassword("")', "Quick Connect does not clear the transient credential on success");
 if (chrome.includes("openNewConnection(")) violations.push("Quick Connect still launches the saved-profile editor");
-if (chrome.includes("New connection</span>")) violations.push("Duplicate New connection button in Files chrome");
+// The wide Windows/Linux reference places the only *visible* New connection
+// action in the Files heading, rather than in the left navigation rail.
+// Compact layouts retain the sidebar button for discoverability.
+requireText(chrome, 'onClick={openNewConnection}', "Files reference heading lacks a live new-profile action");
+requireText(chrome, 'aria-label="Create a new saved connection"', "Files reference CTA has no accessible label");
+requireText(css, '.ghost-primary-sidebar > .ghost-sidebar-new { display: none; }', "Desktop layout has duplicate visible New connection buttons");
 requireText(savedSiteDialog, "await saveProfile(profile)", "New connection does not save a reusable profile");
 requireText(savedSiteDialog, "Save profile", "New connection editor lacks a visible Save profile action");
 if (savedSiteDialog.includes("await connectTemporary(") || savedSiteDialog.includes("await connectProfile(")) {
@@ -87,4 +92,4 @@ if (violations.length > 0) {
   for (const violation of violations) console.error(" - " + violation);
   process.exit(1);
 }
-console.log("Real Windows/Linux Files header, immediate ephemeral Quick Connect, one saved-profile action and live transfer strip: contract passed. Pixel acceptance still pending.");
+console.log("Real Windows/Linux Files reference CTA, immediate ephemeral Quick Connect, responsive single visible saved-profile action and factual transfer strip: contract passed. Pixel acceptance still pending.");
