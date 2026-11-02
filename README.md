@@ -53,7 +53,7 @@ Move files, manage connections and keep important server work organized with an 
 
 Linux visuals are captured from the **actual running Ghost FTP executable**, not the supplied designs. The [native Linux QA artifact (v0.99.19)](https://github.com/bren-wp/Ghost-FTP/actions/runs/40793685872/artifacts/12862768368) contains the original **1290×852 Files and Sync screenshots**, including SHA-256 checksums and launch logs. See the [evidence and measured differences](docs/qa/PHASE3_REAL_WINDOWS_LINUX_SYNC_V0_99_19_2026_10_29.md). Historical artifact availability is subject to GitHub Actions retention.
 
-The next native Linux CI run records **seven genuine workspaces**: Files, Sites, New Connection, Transfers, Settings, Sync and About. It uploads the images as a separate, reviewable QA artifact. They will not be inserted into README as current-release screenshots until the corresponding native pixels and source commit have been captured, checked, and promoted. Reference mockups are **never** repurposed as product screenshots.
+The current Preview README gallery includes **eight genuine Linux windows**: Splash, Files, Sites, New Connection, Transfers, Settings, Sync and About. These are byte-verified native QA captures from GitHub Actions run 41524829466 at source SHA 01d816df5bdd3c76a8fa9c062371777cd345aa28, **not screenshots from the published v0.99.29 release**. They are evidence for comparison, not proof of pixel-perfect 1:1 design acceptance. Reference mockups are **never** repurposed as product screenshots.
 
 
 ## Install Ghost FTP on macOS without paid Apple signing

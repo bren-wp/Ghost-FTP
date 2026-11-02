@@ -173,6 +173,55 @@ const isVerified09553Capture = (manifest, file, digest) =>
   manifest.images?.[file] === digest &&
   verified09553WindowsCaptures.get(file) === digest;
 
+// Preview-only Linux images are permitted ONLY when they match the eight
+// exact, authentic Tauri/WebKit 1290x852 PNG blobs from successful native
+// GitHub Actions run 41524829466, source SHA 01d816df5bdd3c76a8fa9c062371777cd345aa28.
+// The run completed Linux native build and screenshot promotion successfully.
+// This does not relax validation of other documentation images, and the
+// photos are explicitly labeled Preview QA, not latest published release.
+// Update these fixed Git blob identities only after a newly verified native run.
+const verifiedPreviewLinuxSource = "01d816df5bdd3c76a8fa9c062371777cd345aa28";
+const verifiedPreviewLinuxRun = "41524829466";
+const verifiedPreviewLinuxImages = new Map([
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-about.png", "c53721adaac07e69a27d5e315c8eafca11189dca"],
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-files.png", "16cdbf4a9f8d2ece1d89e7e6a71faf477b92ed5e"],
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png", "77de8d13da8e4cdc6e55d401128e105a7c96c0d3"],
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-settings.png", "9b92a4cc219346688e2caafa94fa709d761c3561"],
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-sites.png", "0897e84fd72822af47a30c2a26f5a3c69309313d"],
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-splash.png", "03d5a8cf2d2b4ec90926363003ab3840b22c1a65"],
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-sync.png", "1bb0a6182514b8a27551cda2d940e8415faa3698"],
+  ["docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png", "526d45c348f3b5c87520fe57733172296aede857"],
+]);
+const currentReadme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+const linuxSection = currentReadme.match(/<!-- BEGIN:real-linux-native-captures -->([\s\S]*?)<!-- END:real-linux-native-captures -->/)?.[1] ?? "";
+const linuxSourceEvidence = linuxSection.includes(`actions/runs/${verifiedPreviewLinuxRun}`) &&
+  linuxSection.includes(`source SHA <code>${verifiedPreviewLinuxSource}</code>`) &&
+  linuxSection.includes("real Linux Tauri/WebKit UI");
+const linuxPreviewFailures = [];
+for (const [imagePath, gitBlob] of verifiedPreviewLinuxImages) {
+  const absolute = path.join(root, imagePath);
+  if (!linuxSection.includes(`src="${imagePath}"`)) {
+    linuxPreviewFailures.push(`${imagePath}: missing from verified README Linux preview gallery`);
+    continue;
+  }
+  if (!fs.existsSync(absolute)) {
+    linuxPreviewFailures.push(`${imagePath}: pinned native screenshot missing`);
+    continue;
+  }
+  const actual = execFileSync("git", ["hash-object", "--", imagePath], { cwd: root, encoding: "utf8" }).trim();
+  if (actual !== gitBlob) {
+    linuxPreviewFailures.push(`${imagePath}: changed from verified native QA PNG`);
+  }
+  const buf = fs.readFileSync(absolute);
+  if (buf.length < 30000 || !buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+      buf.readUInt32BE(16) !== 1290 || buf.readUInt32BE(20) !== 852) {
+    linuxPreviewFailures.push(`${imagePath}: invalid or incorrectly sized native PNG`);
+  }
+}
+if (!linuxSourceEvidence) {
+  linuxPreviewFailures.push("README Linux preview gallery lacks fixed successful source/build provenance");
+}
+
 const manifestPath = path.join(screenshotDir, "README-NATIVE-CAPTURE.json");
 const captureManifest = fs.existsSync(manifestPath)
   ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
@@ -230,11 +279,21 @@ if (captureManifest) {
     }
   }
 }
-const failures = [];
+const failures = [...linuxPreviewFailures];
 for (const [relative, refs] of [...candidates.entries()].sort(([a], [b]) => a.localeCompare(b))) {
   const absolute = path.join(root, relative);
   if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
     failures.push(`${relative}: referenced by ${refs.join(", ")} but missing from current tree`);
+    continue;
+  }
+
+  // Only eight byte-verified, successful-run native Linux Preview captures
+  // are allowed to exist ahead of the latest published release. All other
+  // documentation images retain the immutable release-tag requirement.
+  if (relative.startsWith("docs/assets/screenshots/native-linux/")) {
+    if (!verifiedPreviewLinuxImages.has(relative)) {
+      failures.push(`${relative}: unverified Linux Preview capture`);
+    }
     continue;
   }
 
