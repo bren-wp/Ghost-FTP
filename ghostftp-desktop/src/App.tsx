@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ReferenceSiteSidebar } from "./components/ReferenceSiteSidebar";
 import { ReferenceStatusBar } from "./components/ReferenceStatusBar";
 import { DualPaneBrowser } from "./components/DualPaneBrowser";
@@ -8,6 +8,7 @@ import { TerminalDock } from "./components/Terminal";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
+import { StartupSplash } from "./components/StartupSplash";
 import { PremiumFilesChrome, PremiumLiveTransferStrip } from "./components/PremiumFilesChrome";
 import { useConnections } from "./stores/connectionsStore";
 import { useTransfers } from "./stores/transfersStore";
@@ -49,6 +50,14 @@ import { resolveWorkspaceDialog } from "./lib/workspaces";
 import { messageOf, toastError } from "./lib/errors";
 
 export default function App() {
+  const qaSplash = (globalThis as typeof globalThis & { __GHOSTFTP_QA_VIEW__?: string }).__GHOSTFTP_QA_VIEW__ === "splash";
+  const [startupVisible, setStartupVisible] = useState(true);
+  useEffect(() => {
+    if (qaSplash) return; // capture the genuine native splash, without a timed race
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => setStartupVisible(false), reduceMotion ? 0 : 620);
+    return () => window.clearTimeout(timer);
+  }, [qaSplash]);
   const activeSessionId = useConnections((s) => s.activeSessionId);
   const activeProfileId = useConnections((s) => s.activeProfileId);
   const profiles = useConnections((s) => s.profiles);
@@ -193,6 +202,7 @@ export default function App() {
 
   return (
     <div className="ghost-app-shell flex h-full w-full flex-col">
+      {startupVisible && <StartupSplash />}
       <TitleBar />
       <DeepLinkListener />
 
