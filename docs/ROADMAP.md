@@ -66,4 +66,4 @@ This roadmap separates the current **0.99.30 development Preview** state from fu
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
 
 
-Current development line: 0.99.29. Previous canonical release: 0.99.28. See `docs/releases/0.99.28.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.30. Previous canonical release: 0.99.29. See `docs/releases/0.99.29.md` for the latest published Ghost FTP Preview and its acceptance limits.
