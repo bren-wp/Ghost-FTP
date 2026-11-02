@@ -27,7 +27,7 @@ requireText(chrome, 'type="password"', "Quick Connect must collect a masked tran
 requireText(chrome, 'setPassword("")', "Quick Connect does not clear the transient credential on success");
 // Allow the explicit Files-header New connection CTA. Only the Quick
 // Connect submission path is forbidden from opening the profile editor.
-const quickConnectHandler = chrome.split("const connectNow = async () => {")[1]?.split("\\n  return (")[0] ?? "";
+const quickConnectHandler = chrome.split("const connectNow = async () => {")[1]?.split("\n  return (")[0] ?? "";
 if (quickConnectHandler.includes("openNewConnection(")) {
   violations.push("Quick Connect still launches the saved-profile editor");
 }
