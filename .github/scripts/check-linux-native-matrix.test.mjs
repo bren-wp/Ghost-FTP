@@ -85,3 +85,17 @@ test("Windows/Linux Quick Connect warns on FTP cleartext and resets passwords on
   assert.ok(connection.includes("Unencrypted FTP"), "saved-profile editor must also warn on cleartext FTP");
   assert.ok(!connection.includes('{ftp ? "Recommended" : "Secure"}'), "plain FTP cannot be advertised Recommended");
 });
+
+
+test("Windows/Linux Sites shows real saved-profile cards with separate keyboard actions", () => {
+  const sites = read("ghostftp-desktop/src/components/SiteManagerDialog.tsx");
+  const styles = read("ghostftp-desktop/src/styles.css");
+  assert.ok(sites.includes('className="ghost-site-row-main"'));
+  assert.ok(sites.includes('className="ghost-site-row-favorite"'));
+  assert.ok(sites.includes('aria-current={active ? "true" : undefined}'));
+  assert.ok(sites.includes("await connect(selected.id)"));
+  assert.ok(sites.includes("await deleteProfile(selected.id)"));
+  assert.ok(sites.includes("profiles.filter("));
+  assert.ok(styles.includes(".ghost-site-row.is-selected"));
+  assert.ok(styles.includes(".ghost-site-row-main:focus-visible"));
+});
