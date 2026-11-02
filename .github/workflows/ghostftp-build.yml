@@ -140,7 +140,7 @@ jobs:
             $process = Start-Process -FilePath $Executable -ArgumentList $Arguments -PassThru
             try {
               if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-                Write-Error "$Label exceeded $TimeoutSeconds seconds (PID $($process.Id))."
+                Write-Warning "$Label exceeded $TimeoutSeconds seconds (PID $($process.Id)); terminating hung installer."
                 try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
                 throw "$Label timeout: installation/uninstallation did not complete"
               }
