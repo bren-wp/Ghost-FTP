@@ -98,5 +98,5 @@ test("all four maintained native platform security configurations fail closed on
   weaken(paths[3], '<exclude domain="file" path="." />', '<include domain="file" path="." />', "file");
   weaken(paths[4], '.followSslRedirects(false)', '.followSslRedirects(true)', "trusted cloud");
   weaken(paths[5], 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly', 'kSecAttrAccessibleAfterFirstUnlock', "Keychain");
-  weaken(paths[6], 'dec.Decode(&struct{}{})', 'decoderSkipsExtraJSON()', "JSON");
+  weaken(paths[6], 'dec.Decode(&struct{}{})', 'decoderSkipsExtraJSON()', "Go local runtime");
 });
