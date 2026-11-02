@@ -71,3 +71,14 @@ test("Linux README screenshots come only from checksummed native PR artifacts", 
   assert.ok(promotion.includes("No design mockups") || promotion.includes("no design mockups"));
   assert.ok(!promotion.includes("screens/linux/"), "must not publish concept art as native screenshots");
 });
+
+test("Windows/Linux Quick Connect warns on FTP cleartext and resets passwords on protocol switch", () => {
+  const chrome = read("ghostftp-desktop/src/components/PremiumFilesChrome.tsx");
+  const connection = read("ghostftp-desktop/src/components/QuickConnectionDialog.tsx");
+  assert.ok(chrome.includes('protocol === "ftp"'), "plain FTP must have a visible warning");
+  assert.ok(chrome.includes("Plain FTP is unencrypted"), "plain FTP warning must be explicit");
+  assert.ok(chrome.includes("if (value !== protocol) {"), "switching protocol must clear temporary secrets");
+  assert.ok(chrome.includes('setPassword("");'), "Quick Connect must clear stale password");
+  assert.ok(connection.includes("Unencrypted FTP"), "saved-profile editor must also warn on cleartext FTP");
+  assert.ok(!connection.includes('{ftp ? "Recommended" : "Secure"}'), "plain FTP cannot be advertised Recommended");
+});
