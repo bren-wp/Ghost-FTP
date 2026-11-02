@@ -186,10 +186,10 @@ export function PremiumFilesChrome() {
       {inputError && <p role="alert" className="ghost-premium-connection-error">{inputError}</p>}
       <div className="ghost-premium-connection-state" role="status" aria-live="polite">
         {activeSessionId && profile?.protocol === "ftp"
-          ? <ShieldAlert size={14} aria-hidden="true" className="text-amber-400" />
+          ? <ShieldAlert size={14} aria-hidden="true" className="ghost-connection-insecure-icon" />
           : activeSessionId && profile
-            ? <ShieldCheck size={14} aria-hidden="true" />
-            : <XCircle size={14} aria-hidden="true" />}
+            ? <ShieldCheck size={14} aria-hidden="true" className="ghost-connection-safe-icon" />
+            : <XCircle size={14} aria-hidden="true" className="ghost-connection-error-icon" />}
         {connectionStatus}
         <span>Quick Connect is temporary. Use New connection to save a site.</span>
       </div>
