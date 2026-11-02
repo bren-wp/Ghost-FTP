@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Link2, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, Link2, Plus, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import { useTransfers } from "@/stores/transfersStore";
@@ -17,6 +17,7 @@ type QuickProtocol = Extract<Protocol, "sftp" | "ftps" | "ftp">;
 export function PremiumFilesChrome() {
   const activeSessionId = useConnections((state) => state.activeSessionId);
   const connecting = useConnections((state) => state.connecting);
+  const openNewConnection = useLayout((state) => state.openNewConnection);
   const connectionError = useConnections((state) => state.error);
   const connectTemporary = useConnections((state) => state.connectTemporary);
   const activeProfileId = useConnections((state) => state.activeProfileId);
@@ -80,6 +81,16 @@ export function PremiumFilesChrome() {
           <h1>Files</h1>
           <p>Manage local and remote files in one secure workspace</p>
         </div>
+        <button
+          type="button"
+          className="ghost-premium-files-cta"
+          onClick={openNewConnection}
+          aria-label="Create a new saved connection"
+          title="New connection"
+        >
+          <Plus size={16} aria-hidden="true" />
+          <span>New connection</span>
+        </button>
       </div>
       <form
         className="ghost-premium-quickconnect"
