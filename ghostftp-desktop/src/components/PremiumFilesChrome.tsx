@@ -84,7 +84,7 @@ export function PremiumFilesChrome() {
         <button
           type="button"
           className="ghost-premium-files-cta"
-          onClick={openNewConnection}
+          onClick={() => openNewConnection()}
           aria-label="Create a new saved connection"
           title="New connection"
         >
