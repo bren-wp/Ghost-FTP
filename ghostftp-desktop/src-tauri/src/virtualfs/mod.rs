@@ -204,11 +204,7 @@ impl VirtualFs {
         // starts; OS unregister is idempotent and can reconcile them later.
         {
             let mut s = self.settings.lock().await;
-            s.registered = next_registration_journal(
-                &persisted,
-                &pairs,
-                &failed_unregistrations,
-            );
+            s.registered = next_registration_journal(&persisted, &pairs, &failed_unregistrations);
         }
         if let Err(error) = self.persist().await {
             tracing::error!("virtualfs: registration journal persistence failed: {error:#}");
@@ -493,15 +489,24 @@ mod tests {
         assert!(read_settings(&path).unwrap().registered.is_empty());
         std::fs::write(&path, b"{invalid-json").unwrap();
         assert!(read_settings(&path).is_err());
-        std::fs::write(&path, br#"{"registered":[{"pairId":"existing","localRoot":"C:/sync"}]}"#)
-            .unwrap();
+        std::fs::write(
+            &path,
+            br#"{"registered":[{"pairId":"existing","localRoot":"C:/sync"}]}"#,
+        )
+        .unwrap();
         let loaded = read_settings(&path).unwrap();
-        assert_eq!(loaded.registered, vec![root_with_path("existing", "C:/sync")]);
+        assert_eq!(
+            loaded.registered,
+            vec![root_with_path("existing", "C:/sync")]
+        );
         std::fs::remove_file(path).unwrap();
     }
 
     fn root_with_path(id: &str, path: &str) -> RegisteredRoot {
-        RegisteredRoot { pair_id: id.into(), local_root: path.into() }
+        RegisteredRoot {
+            pair_id: id.into(),
+            local_root: path.into(),
+        }
     }
 
     #[test]
@@ -521,7 +526,10 @@ mod tests {
             plan_reconcile(&journal, &["active".to_string()]).to_unregister,
             vec!["orphan".to_string()]
         );
-        assert_eq!(next_registration_journal(&old, &pairs, &Default::default()), vec![root("active")]);
+        assert_eq!(
+            next_registration_journal(&old, &pairs, &Default::default()),
+            vec![root("active")]
+        );
     }
 
     #[test]
