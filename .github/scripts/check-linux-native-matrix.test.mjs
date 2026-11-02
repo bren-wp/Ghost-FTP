@@ -29,7 +29,7 @@ test("seven Linux QA captures are mapped to real Tauri and React views", () => {
     assert.ok(build.includes(`${view}) label=${label} ;;`), view);
     assert.ok(rust.includes(`"${view}"`), `Tauri did not allow-list ${view}`);
     if (view !== "main") {
-      assert.ok(react.includes(`qaView === "${view}"`) || react.includes(`qaView === "newConnection"`), `React did not route ${view}`);
+      assert.ok(react.includes(`qaView === "${view}"`), `React did not route ${view}`);
     }
   }
   assert.ok(!capture.includes("WEBKIT_DISABLE_SANDBOX"));
