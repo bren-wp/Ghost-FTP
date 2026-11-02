@@ -107,7 +107,7 @@ else
   RELEASE_NOTES_WITH_LINUX="$(mktemp)"
   {
     cat "$NOTES_FILE"
-    printf '\\n\\n---\\n\\n'
+    printf '\n\n---\n\n'
     cat "$LINUX_PACKAGE_MATRIX"
   } > "$RELEASE_NOTES_WITH_LINUX"
   RELEASE_JSON="$(jq -n --arg tag "$TAG" --arg sha "$SOURCE_SHA" \
