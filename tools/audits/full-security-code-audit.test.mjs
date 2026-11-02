@@ -3,7 +3,7 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {scanDangerous,audit} from "./full-security-code-audit.mjs";
+import {scanDangerous,audit,inspectPlatformSecurityConfig} from "./full-security-code-audit.mjs";
 
 test("detects explicit TLS and SSH trust verification bypasses in shipping paths",()=>{
   const cases=[
@@ -70,4 +70,33 @@ test("PEM format mention is not mistaken for a committed private key", () => {
       '/// OpenSSH uses -----BEGIN OPENSSH PRIVATE KEY----- as a header.'),
     [],
   );
+});
+
+test("all four maintained native platform security configurations fail closed on weakening", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const paths = [
+    "ghostftp-desktop/src-tauri/tauri.conf.json",
+    "ghostftp-desktop/src-tauri/capabilities/default.json",
+    "android/app/src/main/AndroidManifest.xml",
+    "android/app/src/main/res/xml/data_extraction_rules.xml",
+    "android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt",
+    "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift",
+    "tools/ghostftp-runtime/security.go",
+  ];
+  const baseline = Object.fromEntries(paths.map(p => [p, fs.readFileSync(path.join(root,p),"utf8")]));
+  assert.deepEqual(inspectPlatformSecurityConfig(baseline), []);
+  const weaken = (file, before, after, expected) => {
+    assert.ok(baseline[file].includes(before), "test fixture missing: " + file);
+    const candidate = {...baseline, [file]: baseline[file].replace(before, after)};
+    assert.ok(inspectPlatformSecurityConfig(candidate).some(x => x.path === file && x.required.includes(expected)),
+      "weakening undetected: " + file + " " + expected);
+  };
+  weaken(paths[0], "requireSignedVersion\": true", "requireSignedVersion\": false", "signed updater");
+  weaken(paths[0], "script-src 'self'", "script-src *", "strict CSP");
+  weaken(paths[1], '"dialog:default"', '"shell:allow-execute"', "without broad shell");
+  weaken(paths[2], 'android:allowBackup="false"', 'android:allowBackup="true"', "backups disabled");
+  weaken(paths[3], '<exclude domain="file" path="." />', '<include domain="file" path="." />', "file");
+  weaken(paths[4], '.followSslRedirects(false)', '.followSslRedirects(true)', "trusted cloud");
+  weaken(paths[5], 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly', 'kSecAttrAccessibleAfterFirstUnlock', "Keychain");
+  weaken(paths[6], 'dec.Decode(&struct{}{})', 'decoderSkipsExtraJSON()', "JSON");
 });
