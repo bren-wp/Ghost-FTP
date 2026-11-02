@@ -321,40 +321,48 @@ jobs:
             exit 1
           fi
 
-      - name: Capture genuine Linux 1290x852 Files window
+      - name: Capture genuine Linux 1290x852 workspaces (seven native views)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
           chmod +x .github/scripts/capture-linux-premium.sh
-          # A disposable session bus lets GTK/WebKit initialize its normal
-          # window/rendering services without reducing its sandbox policy.
-          mkdir -p qa/linux
-          # Give Xvfb time to initialize before entering the script; the
-          # script independently verifies the live authenticated display.
-          # Retain server stderr in the QA artifact when startup fails.
-          dbus-run-session -- xvfb-run -a -w 2 -e qa/linux/xvfb-stderr.log \
-            -s '-screen 0 1290x852x24' bash .github/scripts/capture-linux-premium.sh \
-            ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux
-          test -s qa/linux/Linux-Files-1290x852.png
-          test -s qa/linux/SHA256SUMS.txt
-          # Separate genuine Xvfb/WebKit session for the idle Sync & Backup
-          # workspace. This is a real application screenshot, not a concept
-          # image or a mock transfer. Do not count it as accepted until reviewed.
-          mkdir -p qa/linux/sync
-          dbus-run-session -- xvfb-run -a -w 2 -e qa/linux/sync/xvfb-stderr.log \
-            -s '-screen 0 1290x852x24' env GHOSTFTP_QA_VIEW=sync \
-            bash .github/scripts/capture-linux-premium.sh \
-            ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux/sync
-          test -s qa/linux/sync/Linux-Sync-1290x852.png
-          test -s qa/linux/sync/SHA256SUMS.txt
+          # Every capture starts the real binary under a disposable X11,
+          # D-Bus, HOME, and native WebKit session. No synthetic FTP traffic
+          # or credentials are used to match the concept artwork.
+          for view in main siteManager newConnection transferCenter settings sync about; do
+            case "$view" in
+              main) label=Files ;;
+              siteManager) label=Sites ;;
+              newConnection) label=New-Connection ;;
+              transferCenter) label=Transfers ;;
+              settings) label=Settings ;;
+              sync) label=Sync ;;
+              about) label=About ;;
+              *) echo "Unapproved native QA view: $view" >&2; exit 2 ;;
+            esac
+            if [ "$view" = "main" ]; then
+              target='qa/linux'
+            else
+              target="qa/linux/$view"
+            fi
+            mkdir -p "$target"
+            dbus-run-session -- xvfb-run -a -w 2 -e "$target/xvfb-stderr.log" \
+              -s '-screen 0 1290x852x24' env GHOSTFTP_QA_VIEW="$view" \
+              bash .github/scripts/capture-linux-premium.sh \
+              ghostftp-desktop/src-tauri/target/release/ghostftp "$target"
+            test -s "$target/Linux-$label-1290x852.png"
+            test -s "$target/SHA256SUMS.txt"
+            (cd "$target" && sha256sum --check SHA256SUMS.txt)
+            echo "Verified native Linux $view screenshot: $target/Linux-$label-1290x852.png"
+          done
 
       - name: Upload genuine Linux visual QA evidence
         if: runner.os == 'Linux' && always()
         uses: actions/upload-artifact@v7
         with:
           name: GhostFTP-Linux-x86_64-Preview-QA
-          path: qa/linux/*
+          path: qa/linux/**
           if-no-files-found: warn
           retention-days: 14
 
