@@ -49,7 +49,7 @@ func TestLocalHostGuardBlocksRebindingBeforeSessionToken(t *testing.T) {
 func TestDecodeJSONRejectsTrailingPayloads(t *testing.T) {
     cases := []struct{ body string; accept bool }{
         {`{"action":"open"}`, true},
-        {"{\"action\":\"open\"}  \\n\\t", true},
+        {"{\"action\":\"open\"}  \n\t", true},
         {`{"action":"open"}{"action":"delete"}`, false},
         {`{"action":"open"} true`, false},
         {`{"unknown":"x"}`, false},
