@@ -243,8 +243,8 @@ function PairRow({ pair }: { pair: PairView }) {
             <button
               type="button"
               onClick={freeUpSpace}
-              disabled={!pair.enabled || freeing || mutating !== null}
-              title="Free up space — evict downloaded files back to placeholders"
+              disabled={!pair.enabled || pair.state === "error" || freeing || mutating !== null}
+              title={pair.state === "error" ? "Virtual folder unavailable — resolve the error first" : "Free up space — evict downloaded files back to placeholders"}
               className="flex items-center gap-1 rounded-md border border-border bg-bg-panel px-2 py-1 text-[11px] text-text-muted hover:bg-bg-hover hover:text-text disabled:opacity-40"
             >
               <CloudOff size={11} className={cn(freeing && "animate-pulse")} />

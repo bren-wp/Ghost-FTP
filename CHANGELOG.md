@@ -1,3 +1,10 @@
+## 0.99.29 — Windows/Linux Cloud Filter registration integrity (development Preview; 2 November 2026)
+
+- Fail closed when the Windows Cloud Filter registration journal is corrupt or unreadable, rather than silently discarding historical sync-root identities.
+- Add a regression test for absent, malformed and valid persisted virtual filesystem registration records.
+- Review Windows/Linux desktop UI action contracts, existing security/dead-code scanners and release gate coverage. Exact-head validation is required before merge.
+- See [0.99.29 release notes](docs/releases/0.99.29.md) and [audit findings](docs/audits/REPOSITORY_AUDIT_0.99.29.md).
+
 ## 0.99.28 — Windows/Linux Folder Sync and credential-service reliability (development Preview; 1 November 2026)
 
 - Reject unsupported Windows/Linux on-demand sync in the backend and prevent enabling inert imported configurations.

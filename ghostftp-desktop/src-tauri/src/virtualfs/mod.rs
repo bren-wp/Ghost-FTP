@@ -91,6 +91,17 @@ struct Settings {
     registered: Vec<RegisteredRoot>,
 }
 
+/// Read the registration journal without discarding evidence on parse,
+/// permissions or I/O errors. Only a genuinely absent file is empty.
+fn read_settings(path: &Path) -> Result<Settings> {
+    match std::fs::read(path) {
+        Ok(data) => serde_json::from_slice(&data)
+            .context("virtual filesystem registration journal is corrupt; restore from backup"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Settings::default()),
+        Err(error) => Err(error).context("read virtual filesystem registration journal"),
+    }
+}
+
 // ---------- live status ----------
 
 #[derive(Debug, Clone, Serialize)]
@@ -120,12 +131,11 @@ impl VirtualFs {
             .path()
             .app_data_dir()
             .context("resolving app_data_dir")?;
-        std::fs::create_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).context("create virtual filesystem settings directory")?;
         let settings_path = dir.join("virtualfs.json");
-        let settings: Settings = std::fs::read(&settings_path)
-            .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
+        // A corrupt/unreadable registration journal is NOT an empty journal.
+        // Losing it could strand Cloud Filter roots with no orphan cleanup.
+        let settings = read_settings(&settings_path)?;
         Ok(Self {
             settings_path,
             settings: Mutex::new(settings),
@@ -165,12 +175,17 @@ impl VirtualFs {
         } = plan_reconcile(&persisted, &live_ids);
 
         // 1) Tear down orphans first — the safety-critical half.
+        // A failed OS unregistration MUST remain in the journal so a later
+        // launch can retry cleanup instead of stranding an invisible root.
+        let mut failed_unregistrations = std::collections::HashSet::new();
         for pair_id in &to_unregister {
             let root = persisted
                 .iter()
                 .find(|r| &r.pair_id == pair_id)
                 .map(|r| PathBuf::from(&r.local_root));
-            self.teardown(pair_id, root.as_deref()).await;
+            if !self.teardown(pair_id, root.as_deref()).await {
+                failed_unregistrations.insert(pair_id.clone());
+            }
         }
 
         // 2) Stand up any pair not already running.
@@ -184,30 +199,40 @@ impl VirtualFs {
             }
         }
 
-        // 3) Persist the new registered set = the live pairs we didn't tear down.
+        // 3) Preserve failed orphan unregistrations, even across restarts.
+        // The journal conservatively includes failed/partially registered
+        // starts; OS unregister is idempotent and can reconcile them later.
         {
             let mut s = self.settings.lock().await;
-            s.registered = pairs
-                .iter()
-                .map(|p| RegisteredRoot {
-                    pair_id: p.id.clone(),
-                    local_root: p.local_root.clone(),
-                })
-                .collect();
+            s.registered = next_registration_journal(&persisted, &pairs, &failed_unregistrations);
         }
-        let _ = self.persist().await;
+        if let Err(error) = self.persist().await {
+            tracing::error!("virtualfs: registration journal persistence failed: {error:#}");
+            self.errors.lock().await.insert(
+                "__registration_journal__".into(),
+                "Virtual folder registration journal could not be saved".into(),
+            );
+        } else {
+            self.errors.lock().await.remove("__registration_journal__");
+        }
         let _ = app.emit("virtualfs://changed", ());
     }
 
     /// Disconnect + unregister one root, dropping its running provider.
-    async fn teardown(&self, pair_id: &str, local_root: Option<&Path>) {
+    async fn teardown(&self, pair_id: &str, local_root: Option<&Path>) -> bool {
         if let Some(p) = self.running.lock().await.remove(pair_id) {
             p.stop();
         }
         self.errors.lock().await.remove(pair_id);
         if let Err(e) = platform::unregister_root(pair_id, local_root) {
             tracing::warn!("virtualfs: unregister '{pair_id}': {e:#}");
+            self.errors.lock().await.insert(
+                pair_id.to_string(),
+                "Windows Cloud Filter root removal failed; cleanup will be retried".into(),
+            );
+            return false;
         }
+        true
     }
 
     async fn start_pair(&self, app: &AppHandle, pair: &OnDemandPair) -> Result<()> {
@@ -257,7 +282,10 @@ impl VirtualFs {
             .into_iter()
             .map(|r| RootStatus {
                 running: running.contains_key(&r.pair_id),
-                last_error: errors.get(&r.pair_id).cloned(),
+                last_error: errors
+                    .get(&r.pair_id)
+                    .or_else(|| errors.get("__registration_journal__"))
+                    .cloned(),
                 pair_id: r.pair_id,
                 local_root: r.local_root,
             })
@@ -289,6 +317,31 @@ fn plan_reconcile(persisted: &[RegisteredRoot], live_ids: &[String]) -> Plan {
         to_unregister,
         to_start,
     }
+}
+
+/// Keep failed OS unregistrations in the recovery journal and retain
+/// conservatively tracked attempted registrations. This is a pure function so
+/// Windows/Linux test runners can validate cleanup without OS Cloud Filter.
+fn next_registration_journal(
+    old: &[RegisteredRoot],
+    pairs: &[OnDemandPair],
+    failed_unregistrations: &std::collections::HashSet<String>,
+) -> Vec<RegisteredRoot> {
+    let mut next: Vec<RegisteredRoot> = pairs
+        .iter()
+        .map(|p| RegisteredRoot {
+            pair_id: p.id.clone(),
+            local_root: p.local_root.clone(),
+        })
+        .collect();
+    for root in old {
+        if failed_unregistrations.contains(&root.pair_id)
+            && !next.iter().any(|entry| entry.pair_id == root.pair_id)
+        {
+            next.push(root.clone());
+        }
+    }
+    next
 }
 
 // ---------- Hydrator over a live Session ----------
@@ -430,6 +483,58 @@ mod tests {
             pair_id: id.into(),
             local_root: format!("C:/x/{id}"),
         }
+    }
+
+    #[test]
+    fn damaged_registration_journal_is_not_silently_reset() {
+        let path = std::env::temp_dir().join(format!(
+            "ghostftp-virtualfs-journal-{}.json",
+            uuid::Uuid::new_v4()
+        ));
+        assert!(read_settings(&path).unwrap().registered.is_empty());
+        std::fs::write(&path, b"{invalid-json").unwrap();
+        assert!(read_settings(&path).is_err());
+        std::fs::write(
+            &path,
+            br#"{"registered":[{"pairId":"existing","localRoot":"C:/sync"}]}"#,
+        )
+        .unwrap();
+        let loaded = read_settings(&path).unwrap();
+        assert_eq!(
+            loaded.registered,
+            vec![root_with_path("existing", "C:/sync")]
+        );
+        std::fs::remove_file(path).unwrap();
+    }
+
+    fn root_with_path(id: &str, path: &str) -> RegisteredRoot {
+        RegisteredRoot {
+            pair_id: id.into(),
+            local_root: path.into(),
+        }
+    }
+
+    #[test]
+    fn failed_cloud_filter_unregister_is_retried_after_restart() {
+        let old = vec![root("orphan"), root("active")];
+        let pairs = vec![OnDemandPair {
+            id: "active".into(),
+            name: "Active".into(),
+            local_root: "C:/x/active".into(),
+            profile_id: "profile".into(),
+            remote_root: "/files".into(),
+        }];
+        let failed = std::collections::HashSet::from(["orphan".to_string()]);
+        let journal = next_registration_journal(&old, &pairs, &failed);
+        assert_eq!(journal, vec![root("active"), root("orphan")]);
+        assert_eq!(
+            plan_reconcile(&journal, &["active".to_string()]).to_unregister,
+            vec!["orphan".to_string()]
+        );
+        assert_eq!(
+            next_registration_journal(&old, &pairs, &Default::default()),
+            vec![root("active")]
+        );
     }
 
     #[test]

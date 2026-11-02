@@ -63,6 +63,10 @@ export function scanDangerous(file, content) {
 const REQUIRED = [
   ["macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift", ["O_NOFOLLOW", "O_EXCL", "PrivateUploadSource.verifyUnchanged", "FTPControlCodec.appendListingChunk", "expectedDownloadSize", "verifyUploadSize"]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
+  ["ghostftp-desktop/src-tauri/src/virtualfs/mod.rs", [
+    "fn read_settings(", "std::io::ErrorKind::NotFound", "next_registration_journal(",
+    "failed_unregistrations", "if !self.teardown(", "registration journal persistence failed",
+  ]],
   [".github/scripts/publish-release.sh", ["--data-binary", "uploads.github.com", "sha256sum", "draft:false,prerelease:true"]],
   [".github/workflows/ghostftp-release.yml", ["workflow_run:", "SOURCE_SHA", "wait_for_gate", "ghostftp-android.yml"]],
   [".github/scripts/check-release-governance.test.mjs", ["released editions and tags must never be automatically pruned"]],

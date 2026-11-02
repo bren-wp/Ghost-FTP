@@ -1,6 +1,6 @@
 # Ghost FTP documentation
 
-> Current development: **0.99.28 Preview** · latest verified public release: **v0.99.27**. The standalone Server, CLI and Demo have been retired from current builds. Documentation is deliberately restricted to supported client operations and essential verification records.
+> Current development: **0.99.29 Preview** · latest verified public release: **v0.99.28**. The standalone Server, CLI and Demo have been retired from current builds. Documentation is deliberately restricted to supported client operations and essential verification records.
 
 ## Start here
 
