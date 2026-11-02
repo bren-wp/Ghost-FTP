@@ -29,7 +29,7 @@ if (chrome.includes("openNewConnection(")) violations.push("Quick Connect still 
 // The wide Windows/Linux reference places the only *visible* New connection
 // action in the Files heading, rather than in the left navigation rail.
 // Compact layouts retain the sidebar button for discoverability.
-requireText(chrome, 'onClick={openNewConnection}', "Files reference heading lacks a live new-profile action");
+requireText(chrome, 'onClick={() => openNewConnection()}', "Files reference heading lacks a correctly typed new-profile action");
 requireText(chrome, 'aria-label="Create a new saved connection"', "Files reference CTA has no accessible label");
 requireText(css, '.ghost-primary-sidebar > .ghost-sidebar-new { display: none; }', "Desktop layout has duplicate visible New connection buttons");
 requireText(savedSiteDialog, "await saveProfile(profile)", "New connection does not save a reusable profile");
