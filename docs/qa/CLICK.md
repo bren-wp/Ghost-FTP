@@ -48,3 +48,17 @@ For the pre-1.0 0.19.0 release, automated exact-SHA gates are mandatory and manu
 ## 0.95.10 connection workflow regression
 
 See [Connection actions](CONNECTION_WORKFLOW_0.95.10.md): desktop Connect submits to a temporary backend session without a new-profile modal; only an explicit saved-profile Save persists New Connection. macOS Files supports immediate temporary FTP and New Connection begins as an unsaved draft. Android Connect stays separate from saving/loading password-free reusable site metadata. Source contracts are checked automatically, but actual installed-app click-through and real-server checks remain necessary.
+
+## Windows/Linux click-through coverage matrix (v0.99.29 candidate)
+
+| Workspace/action | Automated source contract | Still required on target OS |
+|---|---|---|
+| Splash/launch, navigation rail, Files, Sites, Transfers, Settings, Help | React production build, desktop interaction contract and recorded Windows screenshots | Native click/keyboard, focus, Wayland/X11, 100–200% DPI, reference pixel comparisons |
+| Quick Connect, saved-site create/edit/delete, host-key prompts | Store/IPC action checks, Rust connection tests, FTP/FTPS/SFTP E2E | Invalid credentials, certificate trust, cancellation, locked vault, secret persistence after restart |
+| Local/remote dual-pane browse and file mutations | LocalFs atomic no-replace tests, directory listing limits, guarded dialogs | Symlinks, permission denied, concurrent rename/delete, Windows paths and non-UTF8 Linux names |
+| Upload/download/pause/resume/cancel/retry/conflicts | Transfer state and real local protocol E2E | Large/partial files, proxy/VPN, power-loss recovery, cloud account rate limits |
+| Sync, mirror/additive, on-demand placeholder lifecycle | FolderSync safety tests and VirtualFs registration journal regression | Real Windows Cloud Filter hydrate/evict and orphan cleanup; Linux rejects unsupported mode |
+| Search/diff/dedupe/disk usage/terminal/agent | CLI/Rust tests and bounded backend scans | Per-provider correctness, privileges, file counts, end-user errors |
+| Theme/language/shortcuts/updater/install/uninstall | i18n parity, bundling and native CI smoke | Visual comparison, accessible focus, signed upgrade, GUI uninstall on Windows/Linux |
+
+Passing static/CI checks is **not** evidence that every button was clicked on a physical machine.

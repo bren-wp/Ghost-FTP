@@ -91,3 +91,7 @@ Must pass Rust fmt/check/clippy/test; TypeScript check/build/lint/i18n/interacti
 The Windows/Linux shared desktop now validates Folder Sync on-demand support **in Rust**, not only in the React selector. Without a compiled and supported Windows Cloud Filter provider, attempts to import or enable on-demand virtual folders return an actionable error rather than storing an apparently active but inert sync pair. Previously imported enabled configurations show an error in Folder Sync, and unsupported virtual roots are not registered. Normal mirrored folder synchronization remains available.
 
 Windows release builds include NSIS, MSI and portable distributions. Automated CI is evidence of buildability, not physical-device installation, certificate signing, full UI reference fidelity or every cloud account flow. The Windows Cloud Filter provider must still be enabled and validated with real placeholder/hydration operations before On-demand is advertised as functional.
+
+## 0.99.29 Cloud Filter integrity requirement
+
+A broken `virtualfs.json` must fail closed at startup. Resetting it to an empty state silently forgets sync-root registration identity and can strand Explorer placeholders without an accountable cleanup path. Recover the journal from a trusted backup after diagnosing the cause; do not delete it to make the startup error disappear. Test registration, restart, disconnect, upgrade and orphan removal on a real supported Windows desktop before Stable release.

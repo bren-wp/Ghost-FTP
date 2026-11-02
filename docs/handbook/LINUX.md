@@ -89,3 +89,7 @@ Linux Secret Service subprocess calls (lookup, write, removal) now have a 30-sec
 On-demand virtual folders remain a Windows-only feature requiring the Cloud Filter build. Existing Linux profiles cannot be silently marked as synchronized using an unsupported on-demand mode; the backend rejects configuration and reactivation, while imported enabled pairs display an error. Normal Linux mirror sync continues unchanged.
 
 Linux AppImage, DEB and RPM artifacts require distro-specific install/open, Linux desktop session keyring and transfer recovery acceptance beyond generic CI. GNOME, KDE, Wayland/X11, mounted drives and portal behavior remain part of target-machine QA.
+
+## 0.99.29 Linux and shared desktop QA
+
+The Cloud Filter registration journal code is shared by desktop builds but only Windows enables the native provider. Linux must still reject unsupported on-demand mode and must not alter prior saved profiles. Verify Secret Service responsiveness/locking, AppImage/DEB/RPM launch and uninstall, multi-window focus, keyboard navigation and FTP/FTPS/SFTP transfer cancellation on target distributions. These are device acceptance obligations rather than claims of completed click-through.
