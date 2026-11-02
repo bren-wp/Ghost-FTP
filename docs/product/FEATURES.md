@@ -1,4 +1,4 @@
-> Active source/release cycle: **0.99.31 Preview**. Previous canonical release: **0.99.31**.
+> Active source/release cycle: **0.99.31 Preview**. Previous canonical release: **0.99.30**.
 
 > Active source/release cycle: **0.99.31 Preview**. Previous canonical release: **0.99.30**.
 
