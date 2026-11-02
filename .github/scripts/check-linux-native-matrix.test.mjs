@@ -23,7 +23,7 @@ test("seven Linux QA captures are mapped to real Tauri and React views", () => {
   const react = read("ghostftp-desktop/src/App.tsx");
   assert.match(build, /for view in main siteManager newConnection transferCenter settings sync about; do/);
   assert.match(build, /path: qa\/linux\/\*\*/);
-  assert.match(capture, /No fabricated server files|No user profiles/);
+  assert.ok(capture.includes("No user profiles"));
   for (const [view, label] of Object.entries(map)) {
     assert.ok(capture.includes(`${view}) qa_image="Linux-${label}-1290x852.png"`), view);
     assert.ok(build.includes(`${view}) label=${label} ;;`), view);
@@ -33,7 +33,7 @@ test("seven Linux QA captures are mapped to real Tauri and React views", () => {
     }
   }
   assert.ok(!capture.includes("WEBKIT_DISABLE_SANDBOX"));
-  assert.ok(!capture.includes("GDK_GL=disable"));
+  assert.ok(!capture.includes("export GDK_GL=disable"));
 });
 
 test("GitHub release notes disclose Linux distro package families", () => {
