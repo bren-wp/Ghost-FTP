@@ -1,3 +1,12 @@
+## 0.99.30 — Windows/Linux genuine UI evidence, Linux package names and secret handling (Preview; 2 November 2026)
+
+- Repair GitHub CI version progression after v0.99.29 was publicly released, without rewriting published tags.
+- Extend Linux native Tauri/WebKit screenshot coverage to seven real app workspaces, with CI capture digests and separate image promotion to README.
+- Label target Linux distro families on release metadata and document x86_64 limitations.
+- Clear inactive connection credentials on FTP/FTPS/SFTP or authentication-mode switches.
+- Keep Windows/Linux pixel-accurate and security acceptance pending until exact-source native test and reference comparisons pass.
+- [Development release notes](docs/releases/0.99.30.md).
+
 ## 0.99.29 — Windows/Linux Cloud Filter registration integrity (development Preview; 2 November 2026)
 
 - Fail closed when the Windows Cloud Filter registration journal is corrupt or unreadable, rather than silently discarding historical sync-root identities.

@@ -5920,3 +5920,416 @@ input.ghost-pane-address:focus-visible {
 .ghost-app-header.ghost-macos-native-titlebar .ghost-window-title-spacer {
   min-width: 0;
 }
+
+
+/* 0.99.30 Windows/Linux Files view: reference-derived geometry, genuine actions.
+   No image overlays or fabricated connected-server states. Match the 1290x852
+   desktop baseline while preserving a keyboard-operable compact layout. */
+.ghost-premium-files-workspace {
+  background: #080f1c;
+}
+.ghost-premium-files-chrome {
+  background: #080f1c;
+  border-bottom-color: rgba(112, 153, 192, .12);
+}
+.ghost-premium-files-heading h1 {
+  color: #f0f6ff;
+  letter-spacing: -.035em;
+}
+.ghost-premium-files-cta {
+  min-height: 37px;
+  background: linear-gradient(145deg, #62ceff, #2698ef);
+  border-color: #50c3ff;
+  color: #05152c;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .38),
+              0 7px 22px rgba(24, 125, 230, .18);
+  transition: background-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.ghost-premium-files-cta:hover {
+  background: linear-gradient(145deg, #85dbff, #38abff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .42),
+              0 9px 24px rgba(24, 125, 230, .26);
+}
+.ghost-premium-files-cta:active,
+.ghost-premium-review:active { transform: translateY(1px); }
+.ghost-premium-quickconnect {
+  background: linear-gradient(180deg, #101f34, #0d1b2f);
+  border-color: rgba(109, 168, 216, .26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025),
+              0 3px 12px rgba(0, 0, 0, .14);
+}
+.ghost-premium-quickconnect :is(input, select) {
+  background: #08182b;
+  border-color: rgba(124, 167, 216, .26);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.ghost-premium-quickconnect :is(input, select):hover {
+  border-color: rgba(124, 200, 250, .55);
+}
+.ghost-premium-quickconnect :is(input, select):focus-visible {
+  border-color: #61c4ff;
+  box-shadow: 0 0 0 3px rgba(56, 171, 255, .12);
+}
+.ghost-premium-review {
+  background: linear-gradient(150deg, #54bdff, #228fe0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22),
+              0 3px 10px rgba(36, 132, 230, .17);
+}
+.ghost-premium-review:disabled {
+  opacity: .48;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.ghost-premium-connection-state > svg.ghost-connection-safe-icon { color: #22d69c; }
+.ghost-premium-connection-state > svg.ghost-connection-insecure-icon { color: #ffbf65; }
+.ghost-premium-connection-state > svg.ghost-connection-error-icon { color: #8498af; }
+.ghost-premium-transfer-strip {
+  background: #0e1b2e;
+  border-top-color: rgba(124, 167, 216, .16);
+}
+.ghost-premium-transfer-item:hover {
+  background: #152e4c;
+}
+.ghost-premium-transfer-item:active {
+  background: #1a395d;
+}
+@media (min-width: 1101px) and (min-height: 720px) {
+  .ghost-premium-files-chrome {
+    padding: 20px 26px 14px;
+  }
+  .ghost-premium-files-heading {
+    min-height: 68px;
+    margin-bottom: 13px;
+  }
+  .ghost-premium-files-heading h1 {
+    font-size: 26px;
+    line-height: 1.18;
+  }
+  .ghost-premium-files-heading p { font-size: 12px; }
+  /* The primary New connection action is now in the Files heading at
+     reference desktop size; retain the sidebar action on compact windows. */
+  .ghost-primary-sidebar > .ghost-sidebar-new { display: none; }
+}
+@media (max-width: 580px) {
+  .ghost-premium-files-heading { align-items: flex-start; }
+  .ghost-premium-files-heading h1 { font-size: 19px; }
+  .ghost-premium-files-cta { min-height: 34px; padding: 6px 9px; }
+  .ghost-premium-files-cta > span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-premium-files-cta,
+  .ghost-premium-quickconnect :is(input, select) { transition: none; }
+  .ghost-premium-files-cta:active,
+  .ghost-premium-review:active { transform: none; }
+}
+
+
+/* Real command palette entry at the reference header's search position. */
+.ghost-app-header .ghost-title-command-palette {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  height: 30px;
+  min-width: 83px;
+  padding: 0 10px;
+  margin: 0 11px 0 6px;
+  color: #b8d3ec;
+  background: #0b2038;
+  border: 1px solid rgba(104, 164, 222, .35);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+  font-size: 11px;
+  cursor: pointer;
+}
+.ghost-app-header .ghost-title-command-palette:hover {
+  background: #153452;
+  border-color: rgba(126, 222, 255, .7);
+  color: #eef7ff;
+}
+.ghost-app-header .ghost-title-command-palette:focus-visible {
+  outline: 2px solid #7edeff;
+  outline-offset: 2px;
+}
+@media (max-width: 700px) {
+  .ghost-app-header .ghost-title-command-palette {
+    margin-inline: 4px;
+    min-width: 32px;
+    width: 34px;
+    padding: 0;
+  }
+  .ghost-app-header .ghost-title-command-palette span { display: none; }
+}
+
+
+/* Desktop startup branding is rendered by the actual Tauri app, not a concept PNG.
+   Sibling QA splash routes preserve it for capture without blocking the real UI. */
+.ghost-app-shell { position: relative; }
+.ghost-startup-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: clamp(14px, 4vw, 48px);
+  background: radial-gradient(ellipse 72% 54% at 50% 48%, #0c213b 0%, #071324 52%, #050d19 100%);
+  color: #edf6ff;
+}
+.ghost-startup-card {
+  width: min(760px, 100%);
+  max-width: 100%;
+  padding: clamp(26px, 5vw, 50px);
+  border: 1px solid rgba(75, 155, 230, .33);
+  border-radius: 25px;
+  background: linear-gradient(155deg, rgba(20, 48, 78, .96), rgba(8, 26, 49, .98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055),
+              0 24px 80px rgba(0, 0, 0, .27),
+              0 0 46px rgba(31, 132, 231, .08);
+}
+.ghost-startup-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(17px, 3vw, 27px);
+}
+.ghost-startup-brand svg { flex: 0 0 auto; filter: drop-shadow(0 10px 20px rgba(5, 16, 33, .4)); }
+.ghost-startup-name {
+  font-size: clamp(31px, 5.4vw, 65px);
+  font-weight: 800;
+  letter-spacing: -.055em;
+  line-height: 1.03;
+}
+.ghost-startup-name span { color: #67bdff; }
+.ghost-startup-tagline {
+  margin-top: 10px;
+  color: #a0bdd7;
+  font-size: clamp(9px, 1.25vw, 13px);
+  letter-spacing: .18em;
+  font-weight: 550;
+}
+.ghost-startup-rule {
+  height: 1px;
+  margin: clamp(26px, 5vw, 43px) 0 17px;
+  background: linear-gradient(90deg, transparent, rgba(126, 222, 255, .37), transparent);
+}
+.ghost-startup-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #7497b9;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .13em;
+}
+.ghost-startup-version { color: #8edbff; font-variant-numeric: tabular-nums; }
+@media (max-width: 540px) {
+  .ghost-startup-brand { flex-direction: column; text-align: center; }
+  .ghost-startup-card { border-radius: 18px; }
+  .ghost-startup-tagline { letter-spacing: .1em; }
+  .ghost-startup-footer { flex-wrap: wrap; justify-content: center; text-align: center; }
+}
+
+
+/* User-reference Sites screen: factual profile cards on Windows/Linux. */
+.ghost-site-manager-hero {
+  min-height: 104px;
+  background: #07101e;
+  padding: 16px 22px !important;
+}
+.ghost-site-manager-workspace {
+  gap: 14px !important;
+  padding: 12px 16px 16px;
+  background: #07101e;
+}
+.ghost-site-manager-workspace > .ghost-site-manager-table,
+.ghost-site-manager-workspace > .ghost-site-manager-details {
+  min-width: 0;
+  border: 1px solid rgba(118, 170, 218, .19) !important;
+  border-radius: 13px;
+  padding: 13px !important;
+  background: #101e31;
+}
+.ghost-sites-column-sorts {
+  min-height: 38px;
+  margin-bottom: 11px;
+  padding-bottom: 9px !important;
+  border-bottom-color: rgba(118, 170, 218, .13) !important;
+}
+.ghost-sites-column-sorts > button { flex: 0 0 auto; padding: 4px 7px; border-radius: 6px; }
+.ghost-sites-column-sorts > button[aria-pressed="true"] { color: #80ceff; background: #173553; }
+.ghost-sites-column-sorts > button:focus-visible { outline: 2px solid #7edeff; }
+.ghost-site-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 70px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid #244463;
+  border-radius: 12px;
+  background: #0a1c2e;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+  transition: background-color .14s ease, border-color .14s ease, box-shadow .14s ease;
+}
+.ghost-site-row:hover { background: #102940; border-color: #3879ad; }
+.ghost-site-row.is-selected {
+  background: #123453;
+  border-color: #35a5ef;
+  box-shadow: inset 0 1px 0 rgba(147,215,255,.08), 0 0 0 1px rgba(53,165,239,.12);
+}
+.ghost-site-row-main {
+  display: flex; align-items: center; gap: 12px;
+  min-width: 0; flex: 1 1 0%;
+  padding: 9px 8px 9px 15px;
+  border: 0; color: #eaf5ff; background: transparent;
+  text-align: left; cursor: pointer;
+}
+.ghost-site-row-main:focus-visible,
+.ghost-site-row-favorite:focus-visible {
+  outline: 2px solid #7edeff;
+  outline-offset: -2px;
+}
+.ghost-site-row-avatar {
+  display: grid; place-items: center; flex: 0 0 37px;
+  width: 37px; height: 37px; border-radius: 9px;
+  background: #164160; color: #76ccff;
+  font-size: 15px; font-weight: 750;
+}
+.ghost-site-row-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.ghost-site-row-name { font-size: 12px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ghost-site-row-subtitle { font-size: 10px; color: #8faecb; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ghost-site-row-extra { display: flex; align-items: center; gap: 7px; font-size: 9px; color: #7896b2; }
+.ghost-site-row-tag { overflow: hidden; max-width: 100px; padding: 1px 5px; border-width: 1px; border-style: solid; border-radius: 99px; text-overflow: ellipsis; white-space: nowrap; font-style: normal; }
+.ghost-site-row-favorite { display: grid; place-items: center; flex: 0 0 42px; border: 0; color: #85acc8; background: transparent; cursor: pointer; }
+.ghost-site-row-favorite:hover { color: #ffcf71; background: rgba(70,153,218,.12); }
+.ghost-site-row-favorite[aria-pressed="true"] { color: #ffd371; }
+.ghost-site-row-favorite:disabled { opacity: .45; cursor: progress; }
+.ghost-site-manager-workspace .ghost-site-table-footer { color: #85a3bc; background: #101e31; border-color: rgba(118,170,218,.13); }
+@media (max-width: 820px) {
+  .ghost-site-manager-hero { flex-wrap: wrap; padding: 10px 13px !important; }
+  .ghost-site-manager-workspace { gap: 9px !important; padding: 9px; }
+  .ghost-site-manager-workspace > .ghost-site-manager-table,
+  .ghost-site-manager-workspace > .ghost-site-manager-details { padding: 10px !important; }
+}
+@media (prefers-reduced-motion: reduce) { .ghost-site-row { transition: none; } }
+
+/* Native Windows/Linux New Connection reference: two substantive groups, real
+   inputs, security warning, separate save/test behavior and keyboard focus.
+   Responsive geometry matches the reference 660px panel at 1290×852. */
+.ghost-new-connection-dialog {
+  max-height: min(630px, calc(100vh - 32px));
+  background: #101f34 !important;
+  border: 1px solid #356184 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 75px rgba(0,0,0,.6), 0 0 0 1px rgba(92,170,229,.08),
+              inset 0 1px 0 rgba(255,255,255,.035);
+}
+.ghost-new-connection-head {
+  min-height: 76px;
+  padding: 14px 24px !important;
+  border-bottom-color: #284864 !important;
+}
+.ghost-new-connection-head .text-text-muted {
+  color: #94b0c7;
+  line-height: 1.5;
+}
+.ghost-new-connection-body {
+  padding: 22px 25px 16px !important;
+  scrollbar-width: thin;
+  scrollbar-color: #335d81 #102136;
+}
+.ghost-new-connection-panel {
+  padding: 16px;
+  margin-bottom: 13px;
+  background: #0b1c2e;
+  border: 1px solid #284c6b;
+  border-radius: 12px;
+}
+.ghost-new-connection-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 11px;
+  color: #71d4ff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.ghost-new-connection-server-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(80px, 1fr);
+  gap: 12px;
+}
+.ghost-new-connection-auth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.ghost-new-connection-host { margin-top: 11px; }
+.ghost-new-connection-panel .ghost-ref-field :is(input, select) {
+  min-width: 0;
+  height: 39px;
+  border: 1px solid #315372;
+  border-radius: 9px;
+  background: #0b192b;
+  color: #e5f3ff;
+  font-size: 12px;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.ghost-new-connection-panel .ghost-ref-field :is(input, select):hover {
+  border-color: #4d83ac;
+}
+.ghost-new-connection-panel .ghost-ref-field :is(input, select):focus-visible {
+  outline: 2px solid #6ed8ff;
+  outline-offset: 1px;
+  border-color: #6ed8ff;
+}
+.ghost-new-connection-panel .ghost-ref-field input::placeholder { color: #819bb6; }
+.ghost-new-connection-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 9px;
+  color: #83c9ef;
+}
+.ghost-new-connection-security-note > svg { flex: 0 0 auto; margin-top: 2px; }
+.ghost-new-connection-actions {
+  min-height: 68px;
+  padding: 13px 24px !important;
+  background: #0f2035 !important;
+  border-top-color: #284864 !important;
+}
+.ghost-new-connection-actions .ghost-primary-button {
+  min-height: 37px;
+  border: 1px solid #69c7ff;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #8cdeff, #359ff0);
+  color: #08203b;
+  font-weight: 750;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.43), 0 5px 16px rgba(36,134,223,.2);
+}
+.ghost-new-connection-actions .ghost-primary-button:hover:enabled {
+  background: linear-gradient(145deg, #b0eaff, #55b8ff);
+}
+.ghost-new-connection-dialog :is(button, input, select):focus-visible {
+  outline: 2px solid #6ed8ff;
+  outline-offset: 2px;
+}
+.ghost-new-connection-dialog button:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 630px), (max-height: 650px) {
+  .ghost-new-connection-dialog { max-height: calc(100vh - 20px); }
+  .ghost-new-connection-head { padding: 11px 14px !important; }
+  .ghost-new-connection-body { padding: 12px 14px !important; }
+  .ghost-new-connection-panel { padding: 12px; }
+  .ghost-new-connection-actions { padding: 10px 14px !important; }
+}
+@media (max-width: 410px) {
+  .ghost-new-connection-server-grid,
+  .ghost-new-connection-auth-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-new-connection-panel .ghost-ref-field :is(input, select) { transition: none; }
+}

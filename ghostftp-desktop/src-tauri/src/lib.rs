@@ -92,6 +92,7 @@ fn build_settings_init_script(db: &db::Db) -> String {
             matches!(
                 view.as_str(),
                 "main"
+                    | "splash"
                     | "siteManager"
                     | "settings"
                     | "transferCenter"
@@ -303,6 +304,7 @@ original user data and staged restore were preserved for repair"
                     matches!(
                         view.as_str(),
                         "main"
+                            | "splash"
                             | "siteManager"
                             | "settings"
                             | "transferCenter"

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Link2, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, Link2, Plus, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import { useTransfers } from "@/stores/transfersStore";
@@ -17,6 +17,7 @@ type QuickProtocol = Extract<Protocol, "sftp" | "ftps" | "ftp">;
 export function PremiumFilesChrome() {
   const activeSessionId = useConnections((state) => state.activeSessionId);
   const connecting = useConnections((state) => state.connecting);
+  const openNewConnection = useLayout((state) => state.openNewConnection);
   const connectionError = useConnections((state) => state.error);
   const connectTemporary = useConnections((state) => state.connectTemporary);
   const activeProfileId = useConnections((state) => state.activeProfileId);
@@ -80,6 +81,16 @@ export function PremiumFilesChrome() {
           <h1>Files</h1>
           <p>Manage local and remote files in one secure workspace</p>
         </div>
+        <button
+          type="button"
+          className="ghost-premium-files-cta"
+          onClick={() => openNewConnection()}
+          aria-label="Create a new saved connection"
+          title="New connection"
+        >
+          <Plus size={16} aria-hidden="true" />
+          <span>New connection</span>
+        </button>
       </div>
       <form
         className="ghost-premium-quickconnect"
@@ -145,6 +156,11 @@ export function PremiumFilesChrome() {
             value={protocol}
             onChange={(event) => {
               const value = event.target.value as QuickProtocol;
+              if (value !== protocol) {
+                // A password typed for one protocol must never be silently reused
+                // when the transport changes, especially when switching to FTP.
+                setPassword("");
+              }
               setProtocol(value);
               setPort(String(PROTOCOL_DEFAULT_PORT[value]));
             }}
@@ -161,11 +177,19 @@ export function PremiumFilesChrome() {
           {submitting || connecting ? "Connecting…" : "Connect"}
         </button>
       </form>
+      {(protocol === "ftp" || (activeSessionId && profile?.protocol === "ftp")) && (
+        <p role="alert" className="ghost-premium-connection-error">
+          Plain FTP is unencrypted: passwords and transferred files may be exposed.
+          Prefer FTPS or SFTP.
+        </p>
+      )}
       {inputError && <p role="alert" className="ghost-premium-connection-error">{inputError}</p>}
       <div className="ghost-premium-connection-state" role="status" aria-live="polite">
-        {activeSessionId && profile
-          ? <ShieldCheck size={14} aria-hidden="true" />
-          : <XCircle size={14} aria-hidden="true" />}
+        {activeSessionId && profile?.protocol === "ftp"
+          ? <ShieldAlert size={14} aria-hidden="true" className="ghost-connection-insecure-icon" />
+          : activeSessionId && profile
+            ? <ShieldCheck size={14} aria-hidden="true" className="ghost-connection-safe-icon" />
+            : <XCircle size={14} aria-hidden="true" className="ghost-connection-error-icon" />}
         {connectionStatus}
         <span>Quick Connect is temporary. Use New connection to save a site.</span>
       </div>

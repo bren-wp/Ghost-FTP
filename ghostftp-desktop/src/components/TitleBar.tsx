@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Pencil,
   RefreshCw,
+  Search,
   Server,
   Square,
   Trash2,
@@ -57,6 +58,7 @@ export function TitleBar() {
   const dialog = useLayout((s) => s.dialog);
   const returnDialog = useLayout((s) => s.returnDialog);
   const openDialog = useLayout((s) => s.openDialog);
+  const openCommandPalette = useLayout((s) => s.setPaletteOpen);
   const browseLocal = useLayout((s) => s.browseLocal);
   const setBrowseLocal = useLayout((s) => s.setBrowseLocal);
   const browserLayout = useSettings((s) => s.browserLayout);
@@ -193,6 +195,17 @@ export function TitleBar() {
         </div>
         <div className="ghost-current-workspace" data-tauri-drag-region>{workspace}</div>
         <div className="ghost-window-title-spacer" data-tauri-drag-region />
+        <button
+          type="button"
+          className="ghost-title-command-palette"
+          onClick={() => openCommandPalette(true)}
+          aria-label="Open command palette"
+          aria-keyshortcuts={nativeMac ? "Meta+K" : "Control+K"}
+          title="Search commands and files"
+        >
+          <Search size={13} aria-hidden="true" />
+          <span>{nativeMac ? "⌘" : "Ctrl"} + K</span>
+        </button>
         {!nativeMac && (
           <div className="ghost-window-controls">
             <button aria-label="Minimize" onClick={() => void safeWindowAction("minimize")}><Minus size={14}/></button>

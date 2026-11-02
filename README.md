@@ -1,4 +1,4 @@
-> **Current development (2 November 2026): Ghost FTP 0.99.29 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.28 is the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
+> **Current development (2 November 2026): Ghost FTP 0.99.30 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.29 is the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
 
 <div align="center">
 
@@ -14,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.29 (development Preview) · Previous source edition: v0.99.28. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.30 (development Preview) · Previously published: v0.99.29. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -49,15 +49,22 @@ Move files, manage connections and keep important server work organized with an 
 
 **The gallery contains real Windows application captures, not generated marketing mockups.** The 1290×852 screenshot geometry is a design acceptance reference; newer desktop builds need their own native visual comparison and manual QA before 1:1 fidelity can be confirmed.
 
+### Linux — real Tauri/WebKit captures
+
+Linux visuals are captured from the **actual running Ghost FTP executable**, not the supplied designs. The [native Linux QA artifact (v0.99.19)](https://github.com/bren-wp/Ghost-FTP/actions/runs/40793685872/artifacts/12862768368) contains the original **1290×852 Files and Sync screenshots**, including SHA-256 checksums and launch logs. See the [evidence and measured differences](docs/qa/PHASE3_REAL_WINDOWS_LINUX_SYNC_V0_99_19_2026_10_29.md). Historical artifact availability is subject to GitHub Actions retention.
+
+The current Preview README gallery includes **eight genuine Linux windows**: Splash, Files, Sites, New Connection, Transfers, Settings, Sync and About. These are byte-verified native QA captures from GitHub Actions run 41524829466 at source SHA 01d816df5bdd3c76a8fa9c062371777cd345aa28, **not screenshots from the published v0.99.29 release**. They are evidence for comparison, not proof of pixel-perfect 1:1 design acceptance. Reference mockups are **never** repurposed as product screenshots.
+
+
 ## Install Ghost FTP on macOS without paid Apple signing
 
 Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel x86_64** installable DMG Preview, as well as ZIP. No Apple Developer account or Developer ID signing certificate is required. Download the matching package from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open its DMG in Finder, drag **Ghost FTP Desktop.app** to **Applications**, then open the installed app. Because this development Preview is not notarized, you may need **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper. The embedded code uses only free ad-hoc signing for Apple Silicon integrity. Full [Croatian/English installation instructions](docs/guides/MACOS_INSTALLATION.md).
 
-## Client-only distribution (0.99.29 development Preview)
+## Client-only distribution (0.99.30 development Preview)
 
 Only the **Ghost FTP graphical client** is distributed for Windows, Linux, macOS and Android. Installers, binaries and source packages for the previously separate Server, Demo and CLI have been removed from this source train. FTP, FTPS, SFTP and the existing client-side transfer engines are retained where supported by each platform.
 
-The existing v0.99.27 release and older downloads remain immutable. See [platform packages](docs/distribution/PLATFORM_PACKAGES.md), [published v0.99.27 release notes](docs/releases/0.99.27.md), and [0.99.28 Windows/Linux reliability changes](docs/releases/0.99.28.md).
+Published v0.99.29 and earlier releases remain immutable. See [platform packages](docs/distribution/PLATFORM_PACKAGES.md), [published v0.99.27 release notes](docs/releases/0.99.27.md), and [0.99.28 Windows/Linux reliability changes](docs/releases/0.99.28.md).
 
 ## Designed for your workflow
 
@@ -98,7 +105,7 @@ The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/
 | Platform | Package options | Supported connections |
 | --- | --- | --- |
 | **🪟 Windows x64** | Portable EXE, Setup EXE, MSI | FTP, explicit FTPS, SFTP |
-| **🐧 Linux x86-64** | AppImage, DEB, RPM, standalone binary | FTP, explicit FTPS, SFTP |
+| **🐧 Linux x86-64** | AppImage, DEB (Debian/Ubuntu family), RPM (Fedora/openSUSE/RHEL family), standalone ELF; [distro/package matrix](docs/distribution/LINUX_PACKAGE_MATRIX.md) | FTP, explicit FTPS, SFTP |
 | **🤖 Android** | Installable Preview APK; separate unsigned APK/AAB for release signing | FTP, explicit FTPS, SFTP |
 | **🍎 macOS — Shared Desktop candidate (0.99.4)** | Separate Preview ZIP after exact-source CI passes | Shared Rust FTP, explicit FTPS and SFTP; real-machine acceptance pending |
 | **🍎 macOS — legacy SwiftUI** | Existing Preview ZIP | FTP only; FTPS/SFTP intentionally unavailable |
@@ -134,3 +141,29 @@ For instructions, troubleshooting, updates and product information, use these of
 Made by **Brendigo**.
 
 </div>
+
+<!-- BEGIN:real-linux-native-captures -->
+
+### Linux — eight real native Ghost FTP screens
+
+<table>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png" alt="Genuine Linux Ghost FTP Splash window" width="390" /></a><br /><strong>Splash</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-files.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-files.png" alt="Genuine Linux Ghost FTP Files window" width="390" /></a><br /><strong>Files</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png" alt="Genuine Linux Ghost FTP Sites window" width="390" /></a><br /><strong>Sites</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png" alt="Genuine Linux Ghost FTP New-Connection window" width="390" /></a><br /><strong>New-Connection</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png" alt="Genuine Linux Ghost FTP Transfers window" width="390" /></a><br /><strong>Transfers</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png" alt="Genuine Linux Ghost FTP Settings window" width="390" /></a><br /><strong>Settings</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png" alt="Genuine Linux Ghost FTP Sync window" width="390" /></a><br /><strong>Sync</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-about.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-about.png" alt="Genuine Linux Ghost FTP About window" width="390" /></a><br /><strong>About</strong></td>
+</tr>
+</table>
+<p>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>; source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. Captured at 1290×852 in Xvfb, no fabricated FTP connections, no design mockups. Native capture does not establish pixel-perfect 1:1 design parity.</p>
+
+<!-- END:real-linux-native-captures -->

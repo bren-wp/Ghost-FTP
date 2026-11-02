@@ -7,9 +7,11 @@ VERSION="$(node -p 'require("./version.json").version')"
 TAG="v${VERSION}"
 RELEASE_NAME="Ghost FTP ${VERSION}"
 NOTES_FILE="docs/releases/${VERSION}.md"
+LINUX_PACKAGE_MATRIX="docs/distribution/LINUX_PACKAGE_MATRIX.md"
 CHECKSUM_FILE="GhostFTP-v${VERSION}-SHA256SUMS.txt"
 
 test -f "$NOTES_FILE"
+test -s "$LINUX_PACKAGE_MATRIX"
 test -d dist
 test -s "dist/$CHECKSUM_FILE"
 (cd dist && sha256sum -c "$CHECKSUM_FILE")
@@ -99,9 +101,19 @@ if [ -n "$EXISTING_RELEASE" ]; then
     exit 1
   fi
 else
+  # Every NEW release explicitly labels DEB/RPM/AppImage/native Linux packages
+  # by distro family. Never mutate the body/assets of an already-public release.
+  # The footer is centrally maintained so future release notes cannot omit it.
+  RELEASE_NOTES_WITH_LINUX="$(mktemp)"
+  {
+    cat "$NOTES_FILE"
+    printf '\n\n---\n\n'
+    cat "$LINUX_PACKAGE_MATRIX"
+  } > "$RELEASE_NOTES_WITH_LINUX"
   RELEASE_JSON="$(jq -n --arg tag "$TAG" --arg sha "$SOURCE_SHA" \
-    --arg name "$RELEASE_NAME" --rawfile notes "$NOTES_FILE" \
+    --arg name "$RELEASE_NAME" --rawfile notes "$RELEASE_NOTES_WITH_LINUX" \
     '{tag_name:$tag,target_commitish:$sha,name:$name,body:$notes,draft:true,prerelease:true}')"
+  rm -f "$RELEASE_NOTES_WITH_LINUX"
   RELEASE_ID="$(printf '%s' "$RELEASE_JSON" |
     gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input - --jq '.id')"
 fi

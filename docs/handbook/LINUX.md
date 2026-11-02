@@ -1,6 +1,8 @@
+> **Current Ghost FTP source: 0.99.30 Preview; latest published: v0.99.29.** Historical content below preserves previous release records.
+
 # Ghost FTP for Linux — complete source feature and acceptance guide
 
-**Current development:** 0.99.28 Preview · published predecessor v0.99.27 · **Platform:** Linux x86_64; tested packaging targets AppImage, DEB and RPM · **Stack:** React/TypeScript, Tauri 2, Rust, system WebKitGTK. This shares much of the desktop feature source with Windows but has different OS credential storage, package lifecycle, file permissions and runtime dependencies. Passing a Windows test does not certify Linux.
+**Current development:** 0.99.29 Preview · published predecessor v0.99.27 · **Platform:** Linux x86_64; tested packaging targets AppImage, DEB and RPM · **Stack:** React/TypeScript, Tauri 2, Rust, system WebKitGTK. This shares much of the desktop feature source with Windows but has different OS credential storage, package lifecycle, file permissions and runtime dependencies. Passing a Windows test does not certify Linux.
 
 ## 1. Surface and capability inventory
 

@@ -527,7 +527,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
             className="ghost-site-manager-table min-w-0 overflow-auto p-3"
             aria-label="Saved sites"
           >
-            <div className="grid grid-cols-[minmax(180px,1.4fr)_minmax(150px,1fr)_90px_120px_110px] border-b border-border px-3 py-2 text-[11px] font-semibold text-text-dim">
+            <div className="ghost-sites-column-sorts flex flex-wrap items-center gap-3 border-b border-border px-3 py-2 text-[11px] font-semibold text-text-dim">
               <SiteSortHeader label="Name" field="name" activeField={sortField} direction={sortDirection} onSort={toggleSort}/>
               <SiteSortHeader label="Host" field="host" activeField={sortField} direction={sortDirection} onSort={toggleSort}/>
               <SiteSortHeader label="Protocol" field="protocol" activeField={sortField} direction={sortDirection} onSort={toggleSort}/>
@@ -921,82 +921,43 @@ function SiteSortHeader({
 }
 
 function SiteRow({
-  profile,
-  active,
-  favorite,
-  favoriteBusy,
-  connected,
-  onClick,
-  onFavorite,
+  profile, active, favorite, favoriteBusy, connected, onClick, onFavorite,
 }: {
-  profile: ConnectionProfile;
-  active: boolean;
-  favorite: boolean;
-  favoriteBusy: boolean;
-  connected: boolean;
-  onClick: () => void;
-  onFavorite: () => void;
+  profile: ConnectionProfile; active: boolean; favorite: boolean;
+  favoriteBusy: boolean; connected: boolean;
+  onClick: () => void; onFavorite: () => void;
 }) {
   const tag = profile.tags?.[0] || profile.group || "Sites";
-  const activateFromKeyboard = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onClick();
-    }
-  };
-
+  const initials = profile.name.trim().split(/\s+/).slice(0, 2)
+    .map((part) => part.charAt(0)).join("").toUpperCase() || "S";
+  const subtitle = profile.defaultRemotePath?.trim() || profile.host;
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={active}
-      onClick={onClick}
-      onKeyDown={activateFromKeyboard}
-      className={`grid w-full cursor-pointer grid-cols-[minmax(180px,1.4fr)_minmax(150px,1fr)_90px_120px_110px] items-center border-b border-border-subtle px-3 py-2.5 text-left text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent ${
-        active
-          ? "bg-accent/15 outline outline-1 outline-accent/60"
-          : "hover:bg-bg-hover/70"
-      }`}
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onFavorite();
-          }}
-          onKeyDown={(event) => event.stopPropagation()}
-          className="rounded p-0.5 text-text-dim outline-none hover:bg-bg-hover hover:text-warning focus-visible:ring-1 focus-visible:ring-accent"
-          disabled={favoriteBusy}
-          aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
-          aria-pressed={favorite}
-        >
-          <Star
-            size={14}
-            className={
-              favorite
-                ? "shrink-0 fill-warning text-warning"
-                : "shrink-0 text-text-dim"
-            }
-          />
-        </button>
-        <Server size={14} className="shrink-0 text-accent" />
-        <span className="truncate font-medium">{profile.name}</span>
-      </span>
-      <span className="truncate text-text-muted">{profile.host}</span>
-      <span className="text-text-muted">{profile.protocol.toUpperCase()}</span>
-      <span>
-        <em className={`not-italic rounded-full border px-2 py-1 text-[10px] ${tagToneClass(tag)}`}>
-          {tag}
-        </em>
-      </span>
-      <span className={connected ? "text-success" : "text-text-dim"}>
-        {connected ? "Connected" : formatLastUsed(profile.lastUsed)}
-      </span>
+    <div className={`ghost-site-row ${active ? "is-selected" : ""}`} role="group"
+      aria-label={`Saved site: ${profile.name}`}>
+      <button type="button" className="ghost-site-row-main"
+        onClick={onClick} aria-current={active ? "true" : undefined}
+        title={`${profile.name} — ${profile.protocol.toUpperCase()} — ${profile.host}`}>
+        <span className="ghost-site-row-avatar" aria-hidden="true">{initials}</span>
+        <span className="ghost-site-row-copy">
+          <strong className="ghost-site-row-name">{profile.name}</strong>
+          <span className="ghost-site-row-subtitle">{profile.protocol.toUpperCase()} · {subtitle}</span>
+          <span className="ghost-site-row-extra">
+            <em className={`ghost-site-row-tag ${tagToneClass(tag)}`}>{tag}</em>
+            <span className={connected ? "text-success" : "text-text-dim"}>
+              {connected ? "Connected" : formatLastUsed(profile.lastUsed)}
+            </span>
+          </span>
+        </span>
+      </button>
+      <button type="button" className="ghost-site-row-favorite"
+        onClick={onFavorite} disabled={favoriteBusy} aria-pressed={favorite}
+        aria-label={favorite ? `Remove ${profile.name} from favorites` : `Add ${profile.name} to favorites`}
+        title={favorite ? "Remove favorite" : "Add to favorites"}>
+        <Star size={16} fill={favorite ? "currentColor" : "none"} />
+      </button>
     </div>
   );
 }
-
 
 function tagToneClass(label: string) {
   const normalized = label.trim().toLowerCase();

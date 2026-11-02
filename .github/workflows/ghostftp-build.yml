@@ -127,6 +127,30 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          # Fail closed with a diagnostic instead of leaving a hosted Windows
+          # runner blocked indefinitely inside NSIS or Windows Installer.
+          function Invoke-BoundedInstaller {
+            param(
+              [Parameter(Mandatory=$true)][string]$Executable,
+              [Parameter(Mandatory=$true)][string[]]$Arguments,
+              [Parameter(Mandatory=$true)][string]$Label,
+              [int]$TimeoutSeconds = 240
+            )
+            Write-Host "Starting $Label (hard timeout: $TimeoutSeconds seconds)"
+            $process = Start-Process -FilePath $Executable -ArgumentList $Arguments -PassThru
+            try {
+              if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+                Write-Warning "$Label exceeded $TimeoutSeconds seconds (PID $($process.Id)); terminating hung installer."
+                try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
+                throw "$Label timeout: installation/uninstallation did not complete"
+              }
+              $code = $process.ExitCode
+              Write-Host "$Label exited with code $code"
+              return $code
+            } finally {
+              $process.Dispose()
+            }
+          }
           $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
             Sort-Object Length -Descending |
             Select-Object -First 1
@@ -135,8 +159,8 @@ jobs:
           $installDir = Join-Path $env:RUNNER_TEMP 'GhostFTP-Setup-Smoke'
           Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
 
-          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
-          if ($install.ExitCode -ne 0) { throw "Ghost FTP Setup failed with exit code $($install.ExitCode)" }
+          $installCode = Invoke-BoundedInstaller -Executable $setup.FullName -Arguments @('/S', "/D=$installDir") -Label 'NSIS silent install'
+          if ($installCode -ne 0) { throw "Ghost FTP Setup failed with exit code $installCode" }
 
           $installedExe = Get-ChildItem $installDir -Filter '*.exe' -Recurse |
             Where-Object { $_.Name -notmatch 'uninstall' } |
@@ -192,8 +216,8 @@ jobs:
           $uninstaller = Get-ChildItem $installDir -Filter '*uninstall*.exe' -Recurse | Select-Object -First 1
           if (-not $uninstaller) { throw 'Ghost FTP uninstaller was not installed.' }
 
-          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
-          if ($uninstall.ExitCode -ne 0) { throw "Ghost FTP uninstaller failed with exit code $($uninstall.ExitCode)" }
+          $uninstallCode = Invoke-BoundedInstaller -Executable $uninstaller.FullName -Arguments @('/S') -Label 'NSIS silent uninstall'
+          if ($uninstallCode -ne 0) { throw "Ghost FTP uninstaller failed with exit code $uninstallCode" }
 
           # Windows AV/indexing and NSIS's temporary self-copy can delay file
           # removal after an exit-code-0 uninstall. Keep the assertion strict:
@@ -202,7 +226,7 @@ jobs:
             Start-Sleep -Milliseconds 500
           }
           if (Test-Path $installedExe.FullName) {
-            Write-Host "NSIS uninstall returned $($uninstall.ExitCode), but executable is still present: $($installedExe.FullName)"
+            Write-Host "NSIS uninstall returned $uninstallCode, but executable is still present: $($installedExe.FullName)"
             Get-ChildItem $installDir -Recurse -Force -ErrorAction SilentlyContinue |
               Select-Object -First 40 FullName,Length,LastWriteTime | Format-Table -AutoSize
             Get-CimInstance Win32_Process -Filter "Name = '$($installedExe.Name)'" |
@@ -217,31 +241,31 @@ jobs:
           if (-not $msi -or $msi.Length -le 0) { throw 'MSI installer was not produced.' }
 
           $msiInstallLog = Join-Path $env:RUNNER_TEMP 'GhostFTP-MSI-install.log'
-          $msiInstall = Start-Process -FilePath 'msiexec.exe' -ArgumentList @(
-            '/i',
-            ('"' + $msi.FullName + '"'),
-            '/qn',
-            '/norestart',
-            '/L*v',
-            ('"' + $msiInstallLog + '"')
-          ) -PassThru -Wait
-          if ($msiInstall.ExitCode -notin @(0, 3010)) {
+          try {
+            $msiInstallCode = Invoke-BoundedInstaller -Executable 'msiexec.exe' -Arguments @(
+              '/i', ('"' + $msi.FullName + '"'), '/qn', '/norestart',
+              '/L*v', ('"' + $msiInstallLog + '"')
+            ) -Label 'MSI silent install' -TimeoutSeconds 240
+            if ($msiInstallCode -notin @(0, 3010)) {
+              throw "Ghost FTP MSI install failed with exit code $msiInstallCode"
+            }
+          } catch {
             Get-Content $msiInstallLog -Tail 120 -ErrorAction SilentlyContinue
-            throw "Ghost FTP MSI install failed with exit code $($msiInstall.ExitCode)"
+            throw
           }
 
           $msiUninstallLog = Join-Path $env:RUNNER_TEMP 'GhostFTP-MSI-uninstall.log'
-          $msiUninstall = Start-Process -FilePath 'msiexec.exe' -ArgumentList @(
-            '/x',
-            ('"' + $msi.FullName + '"'),
-            '/qn',
-            '/norestart',
-            '/L*v',
-            ('"' + $msiUninstallLog + '"')
-          ) -PassThru -Wait
-          if ($msiUninstall.ExitCode -notin @(0, 3010)) {
+          try {
+            $msiUninstallCode = Invoke-BoundedInstaller -Executable 'msiexec.exe' -Arguments @(
+              '/x', ('"' + $msi.FullName + '"'), '/qn', '/norestart',
+              '/L*v', ('"' + $msiUninstallLog + '"')
+            ) -Label 'MSI silent uninstall' -TimeoutSeconds 240
+            if ($msiUninstallCode -notin @(0, 3010)) {
+              throw "Ghost FTP MSI uninstall failed with exit code $msiUninstallCode"
+            }
+          } catch {
             Get-Content $msiUninstallLog -Tail 120 -ErrorAction SilentlyContinue
-            throw "Ghost FTP MSI uninstall failed with exit code $($msiUninstall.ExitCode)"
+            throw
           }
 
       - name: Linux package lifecycle smoke
@@ -321,40 +345,58 @@ jobs:
             exit 1
           fi
 
-      - name: Capture genuine Linux 1290x852 Files window
+      - name: Validate native Linux visual/release mapping
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test .github/scripts/check-linux-native-matrix.test.mjs
+          # python3-pil was installed with the real Linux screenshot dependencies.
+          /usr/bin/python3 tools/visual/test_pixel_compare.py
+
+      - name: Capture genuine Linux 1290x852 workspaces (seven native views)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
           chmod +x .github/scripts/capture-linux-premium.sh
-          # A disposable session bus lets GTK/WebKit initialize its normal
-          # window/rendering services without reducing its sandbox policy.
-          mkdir -p qa/linux
-          # Give Xvfb time to initialize before entering the script; the
-          # script independently verifies the live authenticated display.
-          # Retain server stderr in the QA artifact when startup fails.
-          dbus-run-session -- xvfb-run -a -w 2 -e qa/linux/xvfb-stderr.log \
-            -s '-screen 0 1290x852x24' bash .github/scripts/capture-linux-premium.sh \
-            ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux
-          test -s qa/linux/Linux-Files-1290x852.png
-          test -s qa/linux/SHA256SUMS.txt
-          # Separate genuine Xvfb/WebKit session for the idle Sync & Backup
-          # workspace. This is a real application screenshot, not a concept
-          # image or a mock transfer. Do not count it as accepted until reviewed.
-          mkdir -p qa/linux/sync
-          dbus-run-session -- xvfb-run -a -w 2 -e qa/linux/sync/xvfb-stderr.log \
-            -s '-screen 0 1290x852x24' env GHOSTFTP_QA_VIEW=sync \
-            bash .github/scripts/capture-linux-premium.sh \
-            ghostftp-desktop/src-tauri/target/release/ghostftp qa/linux/sync
-          test -s qa/linux/sync/Linux-Sync-1290x852.png
-          test -s qa/linux/sync/SHA256SUMS.txt
+          # Every capture starts the real binary under a disposable X11,
+          # D-Bus, HOME, and native WebKit session. No synthetic FTP traffic
+          # or credentials are used to match the concept artwork.
+          for view in splash main siteManager newConnection transferCenter settings sync about; do
+            case "$view" in
+              splash) label=Splash ;;
+              main) label=Files ;;
+              siteManager) label=Sites ;;
+              newConnection) label=New-Connection ;;
+              transferCenter) label=Transfers ;;
+              settings) label=Settings ;;
+              sync) label=Sync ;;
+              about) label=About ;;
+              *) echo "Unapproved native QA view: $view" >&2; exit 2 ;;
+            esac
+            if [ "$view" = "main" ]; then
+              target='qa/linux'
+            else
+              target="qa/linux/$view"
+            fi
+            mkdir -p "$target"
+            dbus-run-session -- xvfb-run -a -w 2 -e "$target/xvfb-stderr.log" \
+              -s '-screen 0 1290x852x24' env GHOSTFTP_QA_VIEW="$view" \
+              bash .github/scripts/capture-linux-premium.sh \
+              ghostftp-desktop/src-tauri/target/release/ghostftp "$target"
+            test -s "$target/Linux-$label-1290x852.png"
+            test -s "$target/SHA256SUMS.txt"
+            (cd "$target" && sha256sum --check SHA256SUMS.txt)
+            echo "Verified native Linux $view screenshot: $target/Linux-$label-1290x852.png"
+          done
 
       - name: Upload genuine Linux visual QA evidence
         if: runner.os == 'Linux' && always()
         uses: actions/upload-artifact@v7
         with:
           name: GhostFTP-Linux-x86_64-Preview-QA
-          path: qa/linux/*
+          path: qa/linux/**
           if-no-files-found: warn
           retention-days: 14
 
@@ -663,6 +705,7 @@ jobs:
           $SWP_SHOWWINDOW = 0x0040
           $PW_RENDERFULLCONTENT = 0x00000002
           $views = @(
+            @{ key = 'splash'; label = 'Splash' },
             @{ key = 'main'; label = 'Native-Window' },
             @{ key = 'siteManager'; label = 'Site-Manager' },
             @{ key = 'newConnection'; label = 'New-Connection' },
@@ -1146,3 +1189,40 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'docs(qa): replace README gallery with real current-build Windows captures'
           git push origin "HEAD:refs/heads/$PR_BRANCH"
+
+  # Real Linux README screenshots may be promoted only from a successful
+  # same-repository PR build, never from the user-supplied design archive.
+  promote_real_linux_native_readme:
+    needs: build
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'improve/windows-linux-native-qa-distro-matrix' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+      - uses: actions/download-artifact@v7
+        with:
+          name: GhostFTP-Linux-x86_64-Preview-QA
+          path: qa/linux
+      - name: Promote native Linux captures only after full screenshot QA
+        shell: bash
+        env:
+          GHOSTFTP_CAPTURE_COMMIT: ${{ github.event.pull_request.head.sha }}
+          GHOSTFTP_CAPTURE_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GHOSTFTP_CAPTURE_COMMIT"
+          bash .github/scripts/promote-real-linux-readme.sh qa/linux "$GHOSTFTP_CAPTURE_RUN_ID" "$GHOSTFTP_CAPTURE_COMMIT"
+          git add README.md docs/assets/screenshots/native-linux/
+          if git diff --cached --quiet; then
+            echo 'Real Linux screenshot gallery is already committed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(qa): promote actual Linux native screenshots'
+          git push origin 'HEAD:refs/heads/improve/windows-linux-native-qa-distro-matrix'
