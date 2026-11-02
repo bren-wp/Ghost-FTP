@@ -321,6 +321,10 @@ jobs:
             exit 1
           fi
 
+      - name: Validate native Linux visual/release mapping
+        if: runner.os == 'Linux'
+        run: node --test .github/scripts/check-linux-native-matrix.test.mjs
+
       - name: Capture genuine Linux 1290x852 workspaces (seven native views)
         if: runner.os == 'Linux'
         shell: bash
