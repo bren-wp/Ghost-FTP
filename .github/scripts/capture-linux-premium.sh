@@ -167,7 +167,7 @@ if [ "$valid_capture" -ne 1 ]; then
   echo "Openbox window evidence and the invalid PNG are preserved in the QA artifact." >&2
   exit 1
 fi
-sha256sum "$output/$qa_image" > "$output/SHA256SUMS.txt"
+(cd "$output" && sha256sum "$qa_image" > SHA256SUMS.txt)
 cat > "$output/README.txt" <<TEXT
 Ghost FTP actual Linux Tauri/WebKit native capture: $qa_view
 Source: the running application; isolated GitHub Actions Xvfb session.
