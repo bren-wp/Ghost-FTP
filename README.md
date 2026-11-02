@@ -141,3 +141,29 @@ For instructions, troubleshooting, updates and product information, use these of
 Made by **Brendigo**.
 
 </div>
+
+<!-- BEGIN:real-linux-native-captures -->
+
+### Linux — eight real native Ghost FTP screens
+
+<table>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png" alt="Genuine Linux Ghost FTP Splash window" width="390" /></a><br /><strong>Splash</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-files.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-files.png" alt="Genuine Linux Ghost FTP Files window" width="390" /></a><br /><strong>Files</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png" alt="Genuine Linux Ghost FTP Sites window" width="390" /></a><br /><strong>Sites</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png" alt="Genuine Linux Ghost FTP New-Connection window" width="390" /></a><br /><strong>New-Connection</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png" alt="Genuine Linux Ghost FTP Transfers window" width="390" /></a><br /><strong>Transfers</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png" alt="Genuine Linux Ghost FTP Settings window" width="390" /></a><br /><strong>Settings</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png" alt="Genuine Linux Ghost FTP Sync window" width="390" /></a><br /><strong>Sync</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-about.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-about.png" alt="Genuine Linux Ghost FTP About window" width="390" /></a><br /><strong>About</strong></td>
+</tr>
+</table>
+<p>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>; source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. Captured at 1290×852 in Xvfb, no fabricated FTP connections, no design mockups. Native capture does not establish pixel-perfect 1:1 design parity.</p>
+
+<!-- END:real-linux-native-captures -->
