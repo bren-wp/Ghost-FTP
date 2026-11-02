@@ -145,6 +145,11 @@ export function PremiumFilesChrome() {
             value={protocol}
             onChange={(event) => {
               const value = event.target.value as QuickProtocol;
+              if (value !== protocol) {
+                // A password typed for one protocol must never be silently reused
+                // when the transport changes, especially when switching to FTP.
+                setPassword("");
+              }
               setProtocol(value);
               setPort(String(PROTOCOL_DEFAULT_PORT[value]));
             }}
@@ -161,6 +166,12 @@ export function PremiumFilesChrome() {
           {submitting || connecting ? "Connecting…" : "Connect"}
         </button>
       </form>
+      {protocol === "ftp" && (
+        <p role="alert" className="ghost-premium-connection-error">
+          Plain FTP is unencrypted: passwords and transferred files may be exposed.
+          Prefer FTPS or SFTP.
+        </p>
+      )}
       {inputError && <p role="alert" className="ghost-premium-connection-error">{inputError}</p>}
       <div className="ghost-premium-connection-state" role="status" aria-live="polite">
         {activeSessionId && profile
