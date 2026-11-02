@@ -25,7 +25,12 @@ for (const component of ["PremiumFilesChrome", "PremiumLiveTransferStrip"]) {
 requireText(chrome, "await connectTemporary(profile)", "Quick Connect does not create a real ephemeral backend session");
 requireText(chrome, 'type="password"', "Quick Connect must collect a masked transient password");
 requireText(chrome, 'setPassword("")', "Quick Connect does not clear the transient credential on success");
-if (chrome.includes("openNewConnection(")) violations.push("Quick Connect still launches the saved-profile editor");
+// Allow the explicit Files-header New connection CTA. Only the Quick
+// Connect submission path is forbidden from opening the profile editor.
+const quickConnectHandler = chrome.split("const connectNow = async () => {")[1]?.split("\\n  return (")[0] ?? "";
+if (quickConnectHandler.includes("openNewConnection(")) {
+  violations.push("Quick Connect still launches the saved-profile editor");
+}
 // The wide Windows/Linux reference places the only *visible* New connection
 // action in the Files heading, rather than in the left navigation rail.
 // Compact layouts retain the sidebar button for discoverability.
