@@ -212,6 +212,8 @@ impl VirtualFs {
                 "__registration_journal__".into(),
                 "Virtual folder registration journal could not be saved".into(),
             );
+        } else {
+            self.errors.lock().await.remove("__registration_journal__");
         }
         let _ = app.emit("virtualfs://changed", ());
     }
@@ -280,7 +282,10 @@ impl VirtualFs {
             .into_iter()
             .map(|r| RootStatus {
                 running: running.contains_key(&r.pair_id),
-                last_error: errors.get(&r.pair_id).cloned(),
+                last_error: errors
+                    .get(&r.pair_id)
+                    .or_else(|| errors.get("__registration_journal__"))
+                    .cloned(),
                 pair_id: r.pair_id,
                 local_root: r.local_root,
             })
