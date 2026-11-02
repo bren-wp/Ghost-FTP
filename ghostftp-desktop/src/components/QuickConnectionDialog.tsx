@@ -50,6 +50,19 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
       onClose();
     }
   };
+  // Never retain a hidden secret after switching SFTP authentication methods.
+  // This affects only in-memory form state; credentials remain under native
+  // OS-keyring control after an explicitly saved profile.
+  const switchAuth = (nextUseKey: boolean) => {
+    if (nextUseKey) {
+      setPassword("");
+      setShowPassword(false);
+    } else {
+      setKeyPassphrase("");
+      setShowKeyPassphrase(false);
+    }
+    setUseKey(nextUseKey);
+  };
   useDialog(panelRef, { onClose: closeIfIdle });
 
   const validPort = Number.isInteger(port) && port >= 1 && port <= 65535;
@@ -132,7 +145,7 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
         <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
           {<Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Site name" disabled={actionBusy}/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
-            <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
+            <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);if(p!=="sftp"){switchAuth(false);}}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
             <Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="Hostname or IP address"/></Field>
             <Field label="Port"><input type="number" min={1} max={65535} value={port} disabled={actionBusy} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
           </div>
@@ -146,7 +159,7 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
                     disabled={actionBusy}
                     className={!useKey ? "active" : ""}
                     aria-pressed={!useKey}
-                    onClick={()=>setUseKey(false)}
+                    onClick={()=>switchAuth(false)}
                   >
                     Password
                   </button>
@@ -155,14 +168,14 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
                     disabled={actionBusy}
                     className={useKey ? "active" : ""}
                     aria-pressed={useKey}
-                    onClick={()=>setUseKey(true)}
+                    onClick={()=>switchAuth(true)}
                   >
                     <KeyRound size={13}/> Private key
                   </button>
                 </div>
               </Field>
             ) : (
-              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/><button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
+              <Field label="Password"><div className="relative"><input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" autoComplete="off" className="pr-10"/><button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></Field>
             )}
           </div>
 
@@ -170,7 +183,7 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
             <div className="mt-3">
               <Field label="Password">
                 <div className="relative">
-                  <input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" className="pr-10"/>
+                  <input type={showPassword?'text':'password'} value={password} disabled={actionBusy} onChange={(e)=>setPassword(e.target.value)} placeholder="Enter password" autoComplete="off" className="pr-10"/>
                   <button type="button" disabled={actionBusy} aria-label={showPassword?"Hide password":"Show password"} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-dim disabled:cursor-not-allowed disabled:opacity-50" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button>
                 </div>
               </Field>
@@ -201,6 +214,7 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
                 <input
                   className="ghost-ref-input pr-10"
                   type={showKeyPassphrase?"text":"password"}
+                  autoComplete="off"
                   value={keyPassphrase}
                   disabled={actionBusy}
                   onChange={(e)=>setKeyPassphrase(e.target.value)}
