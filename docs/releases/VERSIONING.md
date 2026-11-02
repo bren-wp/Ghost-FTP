@@ -1,3 +1,5 @@
+> Active source/release cycle: **0.99.31 Preview**. Previous canonical release: **0.99.30**. Client-only packages required.
+
 > Active source/release cycle: **0.99.30 Preview**. Previous canonical release: **0.99.29**. Client-only packages required.
 
 # Ghost FTP Versioning

@@ -1,3 +1,5 @@
+> Active source/release cycle: **0.99.31 Preview**. Previous canonical release: **0.99.30**.
+
 > Active source/release cycle: **0.99.30 Preview**. Previous canonical release: **0.99.29**.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.16 Preview**; latest published version **v0.99.15**. Versioned details below may describe older releases.

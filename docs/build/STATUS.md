@@ -1,3 +1,5 @@
+> **Audit development cycle (3 November 2026):** Ghost FTP 0.99.31 Preview follows publicly released v0.99.30. Installed-device acceptance and security certification are pending.
+
 # Ghost FTP Build Status — 18 October 2026
 
 ## Authoritative current state
