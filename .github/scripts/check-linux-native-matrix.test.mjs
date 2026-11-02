@@ -99,3 +99,25 @@ test("Windows/Linux Sites shows real saved-profile cards with separate keyboard 
   assert.ok(styles.includes(".ghost-site-row.is-selected"));
   assert.ok(styles.includes(".ghost-site-row-main:focus-visible"));
 });
+
+test("Windows/Linux New Connection follows reference groups and retains secret-safe actions", () => {
+  const dialog = read("ghostftp-desktop/src/components/QuickConnectionDialog.tsx");
+  const css = read("ghostftp-desktop/src/styles.css");
+  const required = [
+    'aria-labelledby="ghost-new-connection-title"',
+    'ghost-new-connection-server-grid',
+    'ghost-new-connection-auth-grid',
+    'ghost-new-connection-panel-heading',
+    'await saveProfile(profile)',
+    'await ipc.testEphemeralConnection(makeProfile())',
+    'setPassword("")',
+    'setKeyPassphrase("")',
+    'Unencrypted FTP',
+    'type="number"',
+  ];
+  for (const value of required) assert.ok(dialog.includes(value), "New Connection missing: " + value);
+  assert.ok(css.includes(".ghost-new-connection-panel"));
+  assert.ok(css.includes(".ghost-new-connection-actions .ghost-primary-button"));
+  assert.ok(!dialog.includes("localStorage"));
+  assert.ok(!dialog.includes("sessionStorage"));
+});

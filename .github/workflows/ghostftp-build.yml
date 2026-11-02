@@ -127,6 +127,30 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          # Fail closed with a diagnostic instead of leaving a hosted Windows
+          # runner blocked indefinitely inside NSIS or Windows Installer.
+          function Invoke-BoundedInstaller {
+            param(
+              [Parameter(Mandatory=$true)][string]$Executable,
+              [Parameter(Mandatory=$true)][string[]]$Arguments,
+              [Parameter(Mandatory=$true)][string]$Label,
+              [int]$TimeoutSeconds = 240
+            )
+            Write-Host "Starting $Label (hard timeout: $TimeoutSeconds seconds)"
+            $process = Start-Process -FilePath $Executable -ArgumentList $Arguments -PassThru
+            try {
+              if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+                Write-Error "$Label exceeded $TimeoutSeconds seconds (PID $($process.Id))."
+                try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
+                throw "$Label timeout: installation/uninstallation did not complete"
+              }
+              $code = $process.ExitCode
+              Write-Host "$Label exited with code $code"
+              return $code
+            } finally {
+              $process.Dispose()
+            }
+          }
           $setup = Get-ChildItem 'ghostftp-desktop/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -Recurse |
             Sort-Object Length -Descending |
             Select-Object -First 1
@@ -135,8 +159,8 @@ jobs:
           $installDir = Join-Path $env:RUNNER_TEMP 'GhostFTP-Setup-Smoke'
           Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
 
-          $install = Start-Process -FilePath $setup.FullName -ArgumentList @('/S', "/D=$installDir") -PassThru -Wait
-          if ($install.ExitCode -ne 0) { throw "Ghost FTP Setup failed with exit code $($install.ExitCode)" }
+          $installCode = Invoke-BoundedInstaller -Executable $setup.FullName -Arguments @('/S', "/D=$installDir") -Label 'NSIS silent install'
+          if ($installCode -ne 0) { throw "Ghost FTP Setup failed with exit code $installCode" }
 
           $installedExe = Get-ChildItem $installDir -Filter '*.exe' -Recurse |
             Where-Object { $_.Name -notmatch 'uninstall' } |
@@ -192,8 +216,8 @@ jobs:
           $uninstaller = Get-ChildItem $installDir -Filter '*uninstall*.exe' -Recurse | Select-Object -First 1
           if (-not $uninstaller) { throw 'Ghost FTP uninstaller was not installed.' }
 
-          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -PassThru -Wait
-          if ($uninstall.ExitCode -ne 0) { throw "Ghost FTP uninstaller failed with exit code $($uninstall.ExitCode)" }
+          $uninstallCode = Invoke-BoundedInstaller -Executable $uninstaller.FullName -Arguments @('/S') -Label 'NSIS silent uninstall'
+          if ($uninstallCode -ne 0) { throw "Ghost FTP uninstaller failed with exit code $uninstallCode" }
 
           # Windows AV/indexing and NSIS's temporary self-copy can delay file
           # removal after an exit-code-0 uninstall. Keep the assertion strict:
@@ -202,7 +226,7 @@ jobs:
             Start-Sleep -Milliseconds 500
           }
           if (Test-Path $installedExe.FullName) {
-            Write-Host "NSIS uninstall returned $($uninstall.ExitCode), but executable is still present: $($installedExe.FullName)"
+            Write-Host "NSIS uninstall returned $uninstallCode, but executable is still present: $($installedExe.FullName)"
             Get-ChildItem $installDir -Recurse -Force -ErrorAction SilentlyContinue |
               Select-Object -First 40 FullName,Length,LastWriteTime | Format-Table -AutoSize
             Get-CimInstance Win32_Process -Filter "Name = '$($installedExe.Name)'" |
@@ -217,31 +241,31 @@ jobs:
           if (-not $msi -or $msi.Length -le 0) { throw 'MSI installer was not produced.' }
 
           $msiInstallLog = Join-Path $env:RUNNER_TEMP 'GhostFTP-MSI-install.log'
-          $msiInstall = Start-Process -FilePath 'msiexec.exe' -ArgumentList @(
-            '/i',
-            ('"' + $msi.FullName + '"'),
-            '/qn',
-            '/norestart',
-            '/L*v',
-            ('"' + $msiInstallLog + '"')
-          ) -PassThru -Wait
-          if ($msiInstall.ExitCode -notin @(0, 3010)) {
+          try {
+            $msiInstallCode = Invoke-BoundedInstaller -Executable 'msiexec.exe' -Arguments @(
+              '/i', ('"' + $msi.FullName + '"'), '/qn', '/norestart',
+              '/L*v', ('"' + $msiInstallLog + '"')
+            ) -Label 'MSI silent install' -TimeoutSeconds 240
+            if ($msiInstallCode -notin @(0, 3010)) {
+              throw "Ghost FTP MSI install failed with exit code $msiInstallCode"
+            }
+          } catch {
             Get-Content $msiInstallLog -Tail 120 -ErrorAction SilentlyContinue
-            throw "Ghost FTP MSI install failed with exit code $($msiInstall.ExitCode)"
+            throw
           }
 
           $msiUninstallLog = Join-Path $env:RUNNER_TEMP 'GhostFTP-MSI-uninstall.log'
-          $msiUninstall = Start-Process -FilePath 'msiexec.exe' -ArgumentList @(
-            '/x',
-            ('"' + $msi.FullName + '"'),
-            '/qn',
-            '/norestart',
-            '/L*v',
-            ('"' + $msiUninstallLog + '"')
-          ) -PassThru -Wait
-          if ($msiUninstall.ExitCode -notin @(0, 3010)) {
+          try {
+            $msiUninstallCode = Invoke-BoundedInstaller -Executable 'msiexec.exe' -Arguments @(
+              '/x', ('"' + $msi.FullName + '"'), '/qn', '/norestart',
+              '/L*v', ('"' + $msiUninstallLog + '"')
+            ) -Label 'MSI silent uninstall' -TimeoutSeconds 240
+            if ($msiUninstallCode -notin @(0, 3010)) {
+              throw "Ghost FTP MSI uninstall failed with exit code $msiUninstallCode"
+            }
+          } catch {
             Get-Content $msiUninstallLog -Tail 120 -ErrorAction SilentlyContinue
-            throw "Ghost FTP MSI uninstall failed with exit code $($msiUninstall.ExitCode)"
+            throw
           }
 
       - name: Linux package lifecycle smoke
