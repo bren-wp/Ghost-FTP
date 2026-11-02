@@ -193,22 +193,13 @@ func main() {
 		if !decodeJSON(w, r, &v) || strings.TrimSpace(v.Path) == "" {
 			return
 		}
-		if v.Mode > 0777 || (v.Recursive && dangerousDestructivePath(v.Path)) {
+		if v.Mode > 0777 || dangerousDestructivePath(v.Path) {
 			writeJSON(w, map[string]any{"ok": false, "error": "unsafe permission request"})
 			return
 		}
-		v.Path = filepath.Clean(v.Path)
-		var err error
-		if v.Recursive {
-			err = filepath.Walk(v.Path, func(path string, info os.FileInfo, walkErr error) error {
-				if walkErr != nil {
-					return walkErr
-				}
-				return os.Chmod(path, os.FileMode(v.Mode&0777))
-			})
-		} else {
-			err = os.Chmod(v.Path, os.FileMode(v.Mode&0777))
-		}
+		// Reject symbolic links for both direct and recursive chmod, so a
+		// local operation cannot silently alter unrelated target permissions.
+		err := chmodWithoutLinks(v.Path, os.FileMode(v.Mode&0777), v.Recursive)
 		writeJSON(w, map[string]any{"ok": err == nil, "error": errString(err)})
 	})
 	mux.HandleFunc("/api/fs/checksum", func(w http.ResponseWriter, r *http.Request) {
