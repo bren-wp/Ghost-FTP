@@ -6023,3 +6023,42 @@ input.ghost-pane-address:focus-visible {
   .ghost-premium-files-cta:active,
   .ghost-premium-review:active { transform: none; }
 }
+
+
+/* Real command palette entry at the reference header's search position. */
+.ghost-app-header .ghost-title-command-palette {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  height: 30px;
+  min-width: 83px;
+  padding: 0 10px;
+  margin: 0 11px 0 6px;
+  color: #b8d3ec;
+  background: #0b2038;
+  border: 1px solid rgba(104, 164, 222, .35);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+  font-size: 11px;
+  cursor: pointer;
+}
+.ghost-app-header .ghost-title-command-palette:hover {
+  background: #153452;
+  border-color: rgba(126, 222, 255, .7);
+  color: #eef7ff;
+}
+.ghost-app-header .ghost-title-command-palette:focus-visible {
+  outline: 2px solid #7edeff;
+  outline-offset: 2px;
+}
+@media (max-width: 700px) {
+  .ghost-app-header .ghost-title-command-palette {
+    margin-inline: 4px;
+    min-width: 32px;
+    width: 34px;
+    padding: 0;
+  }
+  .ghost-app-header .ghost-title-command-palette span { display: none; }
+}
