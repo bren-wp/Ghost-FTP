@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Link2, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, Link2, ShieldAlert, ShieldCheck, XCircle } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import { useTransfers } from "@/stores/transfersStore";
@@ -166,7 +166,7 @@ export function PremiumFilesChrome() {
           {submitting || connecting ? "Connecting…" : "Connect"}
         </button>
       </form>
-      {protocol === "ftp" && (
+      {(protocol === "ftp" || (activeSessionId && profile?.protocol === "ftp")) && (
         <p role="alert" className="ghost-premium-connection-error">
           Plain FTP is unencrypted: passwords and transferred files may be exposed.
           Prefer FTPS or SFTP.
@@ -174,9 +174,11 @@ export function PremiumFilesChrome() {
       )}
       {inputError && <p role="alert" className="ghost-premium-connection-error">{inputError}</p>}
       <div className="ghost-premium-connection-state" role="status" aria-live="polite">
-        {activeSessionId && profile
-          ? <ShieldCheck size={14} aria-hidden="true" />
-          : <XCircle size={14} aria-hidden="true" />}
+        {activeSessionId && profile?.protocol === "ftp"
+          ? <ShieldAlert size={14} aria-hidden="true" className="text-amber-400" />
+          : activeSessionId && profile
+            ? <ShieldCheck size={14} aria-hidden="true" />
+            : <XCircle size={14} aria-hidden="true" />}
         {connectionStatus}
         <span>Quick Connect is temporary. Use New connection to save a site.</span>
       </div>
