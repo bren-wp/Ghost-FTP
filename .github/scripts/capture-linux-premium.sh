@@ -9,11 +9,18 @@ if [ "$#" -ne 2 ]; then
 fi
 binary="$(realpath "$1")"
 output="$(realpath -m "$2")"
-# Whitelisted true application view; no fabricated data or user profiles.
+# Only actual application workspaces are capturable. All views are routed by
+# the same Tauri initialization script and React components as Windows QA.
+# Never inject synthetic server data, success states, or authentication.
 qa_view="${GHOSTFTP_QA_VIEW:-main}"
 case "$qa_view" in
   main) qa_image="Linux-Files-1290x852.png" ;;
+  siteManager) qa_image="Linux-Sites-1290x852.png" ;;
+  newConnection) qa_image="Linux-New-Connection-1290x852.png" ;;
+  transferCenter) qa_image="Linux-Transfers-1290x852.png" ;;
+  settings) qa_image="Linux-Settings-1290x852.png" ;;
   sync) qa_image="Linux-Sync-1290x852.png" ;;
+  about) qa_image="Linux-About-1290x852.png" ;;
   *) echo "Unsupported native Linux QA screen: $qa_view" >&2; exit 2 ;;
 esac
 test -x "$binary"
@@ -161,11 +168,10 @@ if [ "$valid_capture" -ne 1 ]; then
   exit 1
 fi
 sha256sum "$output/$qa_image" > "$output/SHA256SUMS.txt"
-cat > "$output/README.txt" <<'TEXT'
-Ghost FTP real Linux native QA screenshot at 1290 x 852 from Tauri/WebKit
-running in an isolated GitHub Actions Xvfb session with no user profiles.
-Files and Sync are captured only from real product navigation; no mock UI.
-This is evidence for comparison, not a claim of 1:1 pixel parity with the
-user-supplied premium 29-screen Linux concept. No fabricated server files,
-connections, transfer history, credentials or screenshots are injected.
+cat > "$output/README.txt" <<TEXT
+Ghost FTP actual Linux Tauri/WebKit native capture: $qa_view
+Source: the running application; isolated GitHub Actions Xvfb session.
+Image: $qa_image (1290x852). No user profiles, credentials, fabricated
+server data or mocked transfer states are inserted.
+This is visual evidence, NOT a claim of pixel-perfect acceptance.
 TEXT
