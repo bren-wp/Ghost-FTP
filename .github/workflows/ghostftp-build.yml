@@ -1158,3 +1158,40 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'docs(qa): replace README gallery with real current-build Windows captures'
           git push origin "HEAD:refs/heads/$PR_BRANCH"
+
+  # Real Linux README screenshots may be promoted only from a successful
+  # same-repository PR build, never from the user-supplied design archive.
+  promote_real_linux_native_readme:
+    needs: build
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'improve/windows-linux-native-qa-distro-matrix' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+      - uses: actions/download-artifact@v7
+        with:
+          name: GhostFTP-Linux-x86_64-Preview-QA
+          path: qa/linux
+      - name: Promote native Linux captures only after full screenshot QA
+        shell: bash
+        env:
+          GHOSTFTP_CAPTURE_COMMIT: ${{ github.event.pull_request.head.sha }}
+          GHOSTFTP_CAPTURE_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GHOSTFTP_CAPTURE_COMMIT"
+          bash .github/scripts/promote-real-linux-readme.sh qa/linux "$GHOSTFTP_CAPTURE_RUN_ID" "$GHOSTFTP_CAPTURE_COMMIT"
+          git add README.md docs/assets/screenshots/native-linux/
+          if git diff --cached --quiet; then
+            echo 'Real Linux screenshot gallery is already committed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(qa): promote actual Linux native screenshots'
+          git push origin 'HEAD:refs/heads/improve/windows-linux-native-qa-distro-matrix'
