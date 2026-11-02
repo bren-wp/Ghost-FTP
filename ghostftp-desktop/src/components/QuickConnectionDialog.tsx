@@ -145,7 +145,7 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
         <div className="ghost-new-connection-body min-h-0 overflow-y-auto p-5">
           {<Field label="Site name"><input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Site name" disabled={actionBusy}/></Field>}
           <div className="grid grid-cols-[1.1fr_1.7fr_.55fr] gap-3">
-            <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);if(p!=="sftp"){switchAuth(false);}}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
+            <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;if(p!==protocol){clearSecrets();}setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);if(p!=="sftp"){setUseKey(false);}}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
             <Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="Hostname or IP address"/></Field>
             <Field label="Port"><input type="number" min={1} max={65535} value={port} disabled={actionBusy} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
           </div>
