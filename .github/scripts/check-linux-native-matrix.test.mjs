@@ -59,3 +59,15 @@ test("shared Windows/Linux connection editor clears secrets on auth and protocol
   assert.ok(dialog.includes("setKeyPassphrase(\"\")"));
   assert.ok(dialog.includes("setPassword(\"\")"));
 });
+
+test("Linux README screenshots come only from checksummed native PR artifacts", () => {
+  const build = read(".github/workflows/ghostftp-build.yml");
+  const promotion = read(".github/scripts/promote-real-linux-readme.sh");
+  assert.ok(build.includes("promote_real_linux_native_readme:"));
+  assert.ok(build.includes("name: GhostFTP-Linux-x86_64-Preview-QA"));
+  assert.ok(build.includes("needs: build"));
+  assert.ok(promotion.includes('sha256sum "$source_path/$filename"'));
+  assert.ok(promotion.includes("real-linux-native-captures"));
+  assert.ok(promotion.includes("No design mockups") || promotion.includes("no design mockups"));
+  assert.ok(!promotion.includes("screens/linux/"), "must not publish concept art as native screenshots");
+});
