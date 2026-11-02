@@ -14,7 +14,7 @@
 
 > Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.99.4** and latest public release **0.99.3**.
 
-This prioritized improvement backlog covers Ghost FTP **0.99.29**. Previous canonical release: **0.99.29**. Items here are recommendations, not claims of completed functionality.
+This prioritized improvement backlog covers Ghost FTP **0.99.30**. Previous canonical release: **0.99.30**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
@@ -140,4 +140,4 @@ User-facing and release-facing names should use:
 Framework-specific words such as Tauri should be kept only where technically required by the build ecosystem. Renaming `src-tauri` purely for appearance is not recommended because it increases maintenance/build risk without improving the user experience.
 
 
-Current development line: 0.99.30. Previous canonical release: 0.99.29. See `docs/releases/0.99.29.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.31. Previous canonical release: 0.99.30. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.

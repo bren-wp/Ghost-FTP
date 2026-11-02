@@ -10,7 +10,7 @@
 
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.99.30 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.29**.
+This roadmap separates the current **0.99.31 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.30**.
 
 ## Implemented
 
@@ -68,4 +68,4 @@ This roadmap separates the current **0.99.30 development Preview** state from fu
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
 
 
-Current development line: 0.99.30. Previous canonical release: 0.99.29. See `docs/releases/0.99.29.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.31. Previous canonical release: 0.99.30. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.
