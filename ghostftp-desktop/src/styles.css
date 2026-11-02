@@ -5920,3 +5920,106 @@ input.ghost-pane-address:focus-visible {
 .ghost-app-header.ghost-macos-native-titlebar .ghost-window-title-spacer {
   min-width: 0;
 }
+
+
+/* 0.99.30 Windows/Linux Files view: reference-derived geometry, genuine actions.
+   No image overlays or fabricated connected-server states. Match the 1290x852
+   desktop baseline while preserving a keyboard-operable compact layout. */
+.ghost-premium-files-workspace {
+  background: #080f1c;
+}
+.ghost-premium-files-chrome {
+  background: #080f1c;
+  border-bottom-color: rgba(112, 153, 192, .12);
+}
+.ghost-premium-files-heading h1 {
+  color: #f0f6ff;
+  letter-spacing: -.035em;
+}
+.ghost-premium-files-cta {
+  min-height: 37px;
+  background: linear-gradient(145deg, #62ceff, #2698ef);
+  border-color: #50c3ff;
+  color: #05152c;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .38),
+              0 7px 22px rgba(24, 125, 230, .18);
+  transition: background-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.ghost-premium-files-cta:hover {
+  background: linear-gradient(145deg, #85dbff, #38abff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .42),
+              0 9px 24px rgba(24, 125, 230, .26);
+}
+.ghost-premium-files-cta:active,
+.ghost-premium-review:active { transform: translateY(1px); }
+.ghost-premium-quickconnect {
+  background: linear-gradient(180deg, #101f34, #0d1b2f);
+  border-color: rgba(109, 168, 216, .26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025),
+              0 3px 12px rgba(0, 0, 0, .14);
+}
+.ghost-premium-quickconnect :is(input, select) {
+  background: #08182b;
+  border-color: rgba(124, 167, 216, .26);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.ghost-premium-quickconnect :is(input, select):hover {
+  border-color: rgba(124, 200, 250, .55);
+}
+.ghost-premium-quickconnect :is(input, select):focus-visible {
+  border-color: #61c4ff;
+  box-shadow: 0 0 0 3px rgba(56, 171, 255, .12);
+}
+.ghost-premium-review {
+  background: linear-gradient(150deg, #54bdff, #228fe0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22),
+              0 3px 10px rgba(36, 132, 230, .17);
+}
+.ghost-premium-review:disabled {
+  opacity: .48;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.ghost-premium-connection-state > svg.ghost-connection-safe-icon { color: #22d69c; }
+.ghost-premium-connection-state > svg.ghost-connection-insecure-icon { color: #ffbf65; }
+.ghost-premium-connection-state > svg.ghost-connection-error-icon { color: #8498af; }
+.ghost-premium-transfer-strip {
+  background: #0e1b2e;
+  border-top-color: rgba(124, 167, 216, .16);
+}
+.ghost-premium-transfer-item:hover {
+  background: #152e4c;
+}
+.ghost-premium-transfer-item:active {
+  background: #1a395d;
+}
+@media (min-width: 1101px) and (min-height: 720px) {
+  .ghost-premium-files-chrome {
+    padding: 20px 26px 14px;
+  }
+  .ghost-premium-files-heading {
+    min-height: 68px;
+    margin-bottom: 13px;
+  }
+  .ghost-premium-files-heading h1 {
+    font-size: 26px;
+    line-height: 1.18;
+  }
+  .ghost-premium-files-heading p { font-size: 12px; }
+  /* The primary New connection action is now in the Files heading at
+     reference desktop size; retain the sidebar action on compact windows. */
+  .ghost-primary-sidebar > .ghost-sidebar-new { display: none; }
+}
+@media (max-width: 580px) {
+  .ghost-premium-files-heading { align-items: flex-start; }
+  .ghost-premium-files-heading h1 { font-size: 19px; }
+  .ghost-premium-files-cta { min-height: 34px; padding: 6px 9px; }
+  .ghost-premium-files-cta > span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-premium-files-cta,
+  .ghost-premium-quickconnect :is(input, select) { transition: none; }
+  .ghost-premium-files-cta:active,
+  .ghost-premium-review:active { transform: none; }
+}
