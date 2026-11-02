@@ -48,3 +48,14 @@ test("GitHub release notes disclose Linux distro package families", () => {
     assert.ok(doc.includes(family), `missing Linux compatibility qualification: ${family}`);
   }
 });
+
+test("shared Windows/Linux connection editor clears secrets on auth and protocol switches", () => {
+  const dialog = read("ghostftp-desktop/src/components/QuickConnectionDialog.tsx");
+  assert.ok(dialog.includes("const switchAuth = (nextUseKey: boolean) => {"));
+  assert.ok(dialog.includes("onClick={()=>switchAuth(true)}"));
+  assert.ok(dialog.includes("onClick={()=>switchAuth(false)}"));
+  assert.ok(dialog.includes("if(p!==protocol){clearSecrets();}"), "switching to plain FTP must not reuse another protocol password");
+  assert.ok(dialog.includes('autoComplete="off"'), "password inputs must disable browser autocomplete");
+  assert.ok(dialog.includes("setKeyPassphrase(\"\")"));
+  assert.ok(dialog.includes("setPassword(\"\")"));
+});
