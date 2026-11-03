@@ -1,4 +1,6 @@
-> Active source/release cycle: **0.99.30 Preview**. Previous canonical release: **0.99.29**. Client-only packages required.
+> Active source/release cycle: **0.99.31 Preview**. Previous canonical release: **0.99.30**. Client-only packages required.
+
+> Active source/release cycle: **0.99.31 Preview**. Previous canonical release: **0.99.30**. Client-only packages required.
 
 # Ghost FTP Versioning
 
@@ -29,8 +31,8 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.29**
-- Previous canonical release: **0.99.28**
+- Active source/release cycle: **0.99.31**
+- Previous canonical release: **0.99.30**
 - Previous source version: **0.99.8** (verified prior published release).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.

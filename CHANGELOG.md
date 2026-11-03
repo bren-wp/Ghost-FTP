@@ -1,3 +1,9 @@
+## 0.99.31 — cross-platform security, privacy, stability and dead-code audit (Preview; 3 November 2026)
+
+- Conservative static code inventory plus targeted runtime hardening across Windows/Linux, Android, macOS, Go compatibility services, CI and the release pipeline.
+- Add regression coverage for unsafe local API JSON and symlink-sensitive permission changes; preserve OS keyrings and verified protocol trust policies.
+- Maintain explicit limitations: no penetration-test attestation, all-features-on-all-platforms guarantee, or unattended deletion of presumed dead modules.
+
 ## 0.99.30 — Windows/Linux genuine UI evidence, Linux package names and secret handling (Preview; 2 November 2026)
 
 - Repair GitHub CI version progression after v0.99.29 was publicly released, without rewriting published tags.

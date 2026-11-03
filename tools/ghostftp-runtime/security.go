@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"errors"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
@@ -93,12 +94,59 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 		}
 		return false
 	}
+	// Do not accept a second JSON value or non-whitespace trailing data.
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		http.Error(w, "invalid trailing request data", http.StatusBadRequest)
+		return false
+	}
 	return true
+}
+
+// A link in *any* ancestor can redirect local destructive operations
+// outside the user's selected folder, not only the final path component.
+// This conservative preflight does not replace atomic OS no-follow handles.
+func pathContainsSymlink(p string) bool {
+    absolute, err := filepath.Abs(p)
+    if err != nil { return true }
+    for current := filepath.Clean(absolute); ; current = filepath.Dir(current) {
+        info, statErr := os.Lstat(current)
+        if statErr == nil {
+            if info.Mode()&os.ModeSymlink != 0 { return true }
+        } else if !errors.Is(statErr, os.ErrNotExist) {
+            return true
+        }
+        parent := filepath.Dir(current)
+        if parent == current { break }
+    }
+    return false
+}
+
+// Preflight all entries before touching permissions. Never follow symlinks
+// within a directory tree, which would mutate targets outside the folder.
+func chmodWithoutLinks(p string, mode os.FileMode, recursive bool) error {
+    if pathContainsSymlink(p) { return fmt.Errorf("unsafe symbolic-link path") }
+    target := filepath.Clean(p)
+    if !recursive { return os.Chmod(target, mode) }
+    var entries []string
+    err := filepath.WalkDir(target, func(name string, item os.DirEntry, walkErr error) error {
+        if walkErr != nil { return walkErr }
+        if item.Type()&os.ModeSymlink != 0 || pathContainsSymlink(name) {
+            return fmt.Errorf("recursive chmod contains symbolic link")
+        }
+        entries = append(entries, name)
+        return nil
+    })
+    if err != nil { return err }
+    for _, name := range entries {
+        if pathContainsSymlink(name) { return fmt.Errorf("path changed during chmod") }
+        if err := os.Chmod(name, mode); err != nil { return err }
+    }
+    return nil
 }
 
 func dangerousDestructivePath(p string) bool {
 	p = filepath.Clean(strings.TrimSpace(p))
-	if p == "" || p == "." {
+	if p == "" || p == "." || pathContainsSymlink(p) {
 		return true
 	}
 	if home, err := os.UserHomeDir(); err == nil && samePath(p, home) {

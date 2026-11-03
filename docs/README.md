@@ -1,3 +1,5 @@
+> Current Ghost FTP development Preview **0.99.31**, following published v0.99.30; cross-platform security and dead-code assessment is ongoing and not production certification.
+
 # Ghost FTP documentation
 
 > Current development: **0.99.30 Preview** · latest verified public release: **v0.99.29**. The standalone Server, CLI and Demo have been retired from current builds. Documentation is deliberately restricted to supported client operations and essential verification records.

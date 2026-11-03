@@ -42,7 +42,8 @@ export const dangerousPatterns = [
 export function isRuntimeCode(file) {
   const production = [
     "ghostftp-desktop/src-tauri/src/", "ghostftp-desktop/src/lib/",
-    "ghostftp-desktop/src/components/", "android/app/src/main/java/",
+    "ghostftp-desktop/src/components/", "ghostftp-desktop/src/stores/",
+    "ghostftp-desktop/src/hooks/", "android/app/src/main/java/",
     "macos/Sources/", "tools/ghostftp-runtime/", "tools/ghostftp-installer/"
   ];
   return production.some(p => file.startsWith(p)) &&
@@ -80,6 +81,72 @@ const REQUIRED = [
     "if req.has_origin", "create_new(true)", ".mode(0o600)",
   ]]
 ];
+/** Structured/high-value native platform privacy contracts. These checks
+ * intentionally reject unsafe release configurations rather than pretending
+ * source-pattern scanning proves all code paths safe. */
+export function inspectPlatformSecurityConfig(source) {
+  const failures = [];
+  const requireText = (file, value, label) => {
+    if (!source[file]?.includes(value)) failures.push({ path: file, required: label });
+  };
+  const parse = (file) => {
+    try { return JSON.parse(source[file] ?? ""); }
+    catch { failures.push({ path: file, required: "valid JSON" }); return {}; }
+  };
+  const config = "ghostftp-desktop/src-tauri/tauri.conf.json";
+  const tauri = parse(config);
+  const csp = tauri.app?.security?.csp ?? "";
+  for (const policy of ["script-src 'self'", "object-src 'none'", "frame-src 'none'", "form-action 'self'"]) {
+    if (!csp.includes(policy)) failures.push({ path: config, required: "strict CSP: " + policy });
+  }
+  if (tauri.plugins?.updater?.allowDowngrades !== false ||
+      tauri.plugins?.updater?.requireSignedVersion !== true) {
+    failures.push({ path: config, required: "signed updater, downgrade prevention" });
+  }
+  if (!Array.isArray(tauri.plugins?.updater?.endpoints) ||
+      tauri.plugins.updater.endpoints.some(endpoint => !/^https:\/\/[a-z0-9.-]+\//i.test(endpoint))) {
+    failures.push({ path: config, required: "HTTPS-only updater endpoints" });
+  }
+
+  const capsPath = "ghostftp-desktop/src-tauri/capabilities/default.json";
+  const capabilities = parse(capsPath);
+  const permissions = capabilities.permissions ?? [];
+  const broad = ["shell:allow-execute", "shell:allow-spawn", "fs:allow-write-all", "fs:allow-read-all"];
+  if (!Array.isArray(permissions) || permissions.some(x => broad.includes(x)) ||
+      JSON.stringify(capabilities.windows) !== JSON.stringify(["main"])) {
+    failures.push({ path: capsPath, required: "single main window without broad shell/filesystem capabilities" });
+  }
+
+  const manifest = "android/app/src/main/AndroidManifest.xml";
+  requireText(manifest, 'android:allowBackup="false"', "Android backups disabled");
+  requireText(manifest, 'android:usesCleartextTraffic="false"', "Android cleartext prohibited");
+  if (!/<activity\s+[^>]*android:name="\.MainActivity"[^>]*android:exported="false"/s.test(source[manifest] ?? "")) {
+    failures.push({ path: manifest, required: "MainActivity must not be exported" });
+  }
+  const extraction = "android/app/src/main/res/xml/data_extraction_rules.xml";
+  for (const domain of ["sharedpref", "database", "file"]) {
+    const count = (source[extraction] ?? "").match(new RegExp('<exclude domain="' + domain + '" path="\\." \\/>', "g"))?.length ?? 0;
+    if (count !== 2) failures.push({ path: extraction, required: "cloud and device-transfer exclusion: " + domain });
+  }
+
+  const cloud = "android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt";
+  for (const check of [".dns(PublicCloudDns())", ".proxy(Proxy.NO_PROXY)",
+    ".followRedirects(false)", ".followSslRedirects(false)"]) {
+    requireText(cloud, check, "trusted cloud request policy: " + check);
+  }
+  const keychain = "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift";
+  for (const check of ["kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
+    "kSecAttrSynchronizable", "kCFBooleanFalse", "SecItemUpdate", "SecItemAdd"]) {
+    requireText(keychain, check, "local-only Keychain: " + check);
+  }
+
+  const go = "tools/ghostftp-runtime/security.go";
+  for (const check of ["dec.Decode(&struct{}{})", "pathContainsSymlink(", "chmodWithoutLinks("]) {
+    requireText(go, check, "Go local runtime safety: " + check);
+  }
+  return failures;
+}
+
 export function audit(root = ROOT) {
   const sourceFiles = trackedSourceFiles(root);
   const offenders = [];
@@ -99,6 +166,20 @@ export function audit(root = ROOT) {
       missingGuards.push({path:file, required:guard});
     }
   }
+  const configPaths = [
+    "ghostftp-desktop/src-tauri/tauri.conf.json",
+    "ghostftp-desktop/src-tauri/capabilities/default.json",
+    "android/app/src/main/AndroidManifest.xml",
+    "android/app/src/main/res/xml/data_extraction_rules.xml",
+    "android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt",
+    "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift",
+    "tools/ghostftp-runtime/security.go",
+  ];
+  const configSource = Object.fromEntries(configPaths.map(file => {
+    const absolute = path.join(root, file);
+    return [file, fs.existsSync(absolute) ? fs.readFileSync(absolute, "utf8") : ""];
+  }));
+  const platformConfigBlockers = inspectPlatformSecurityConfig(configSource);
   const counts = Object.fromEntries(["rs","ts","tsx","kt","swift","go","js","mjs","sh","yml","yaml","kts"]
     .map(ext=>[ext, sourceFiles.filter(file=>file.endsWith("."+ext)).length]));
   const findings = [
@@ -114,8 +195,9 @@ export function audit(root = ROOT) {
     inventory:{sourceFileCount:sourceFiles.length,byExtension:counts},
     blockingPatterns:offenders,
     missingSecurityGuards:missingGuards,
+    platformConfigBlockers,
     findings,
-    passed:offenders.length===0 && missingGuards.length===0
+    passed:offenders.length===0 && missingGuards.length===0 && platformConfigBlockers.length===0
   };
 }
 if (process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
