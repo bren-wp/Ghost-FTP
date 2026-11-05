@@ -1,3 +1,5 @@
+> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+
 **Current 0.99.31 audit:** [Cross-platform security and source-reachability assessment](REPOSITORY_AUDIT_0.99.31.md). This documents baseline counts, confirmed source changes, audit blind spots and device-level residual risks; it is not a penetration-test certification.
 
 > **Authoritative current state (3 November 2026):** Ghost FTP **0.99.31 development Preview**; v0.99.30 is the latest publicly published version. The new cycle audits active Windows/Linux, Android and macOS code, plus maintained Go compatibility tools, security/privacy controls, dead-code reachability and regressions. Older notes retain historical context; no claim of total vulnerability freedom or complete device acceptance.
@@ -16,7 +18,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.30**.
+Previous canonical release: **0.99.31**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -119,4 +121,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.31. Previous canonical release: 0.99.30. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.32. Previous canonical release: 0.99.31. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.
