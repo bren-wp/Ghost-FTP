@@ -6363,3 +6363,9 @@ input.ghost-pane-address:focus-visible {
   border: 0;
   box-shadow: none;
 }
+
+/* Never show a reassuring secure badge beside plaintext FTP. */
+.ghost-new-connection-security-note > svg.ghost-ftp-warning-icon {
+  color: #ffbf65;
+  filter: drop-shadow(0 0 4px rgba(255, 191, 101, .10));
+}

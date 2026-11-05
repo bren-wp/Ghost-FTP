@@ -28,14 +28,28 @@ export function ReferenceStatusBar() {
         void checkHealth(activeSessionId);
       }
     };
-    const interval = window.setInterval(probe, 30_000);
+    // A minimized desktop window must not wake every 30 seconds just to
+    // check a transport that the user cannot see. Foreground returns start
+    // polling again and run one immediate fresh check.
+    let healthInterval: number | undefined;
+    let initial = true;
+    const syncVisibility = () => {
+      if (healthInterval !== undefined) window.clearInterval(healthInterval);
+      healthInterval = undefined;
+      if (document.visibilityState === "visible") {
+        if (!initial) probe();
+        healthInterval = window.setInterval(probe, 30_000);
+      }
+      initial = false;
+    };
+    syncVisibility();
     window.addEventListener("focus", probe);
-    document.addEventListener("visibilitychange", probe);
+    document.addEventListener("visibilitychange", syncVisibility);
 
     return () => {
-      window.clearInterval(interval);
+      if (healthInterval !== undefined) window.clearInterval(healthInterval);
       window.removeEventListener("focus", probe);
-      document.removeEventListener("visibilitychange", probe);
+      document.removeEventListener("visibilitychange", syncVisibility);
     };
   }, [activeSessionId, healthSupported, checkHealth]);
 

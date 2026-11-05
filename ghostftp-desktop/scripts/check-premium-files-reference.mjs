@@ -120,6 +120,15 @@ if (detailsStart < 0 || detailsEnd < detailsStart ||
 requireText(css, "padding-left: 230px !important", "Modal remains centered over Linux/Windows navigation rail");
 requireText(css, "transform: translateY(51px)", "Modal lacks workspace-aligned reference Y offset");
 
+
+// The native modal's warning icon must match the actual transport: plaintext
+// FTP has no TLS/SSH peer confidentiality, regardless of successful login.
+requireText(savedSiteDialog, 'protocol === "ftp"\n              ? <ShieldAlert', "Plain FTP editor incorrectly shows a green verified-transport icon");
+requireText(css, ".ghost-ftp-warning-icon", "Plain FTP warning has no dedicated amber icon style");
+const healthSection = statusBar.split("  useEffect(() => {")[1]?.split("  const healthLabel =")[0] ?? "";
+requireText(healthSection, "if (healthInterval !== undefined) window.clearInterval(healthInterval)", "Native session health probe continues polling in hidden windows");
+requireText(healthSection, 'document.addEventListener("visibilitychange", syncVisibility)', "Health polling fails to resume on visibility changes");
+
 if (violations.length > 0) {
   console.error("Premium Windows/Linux Files UI contract failed:");
   for (const violation of violations) console.error(" - " + violation);

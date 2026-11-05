@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { open as openNativeDialog } from "@tauri-apps/plugin-dialog";
-import { Bookmark, ChevronDown, Eye, EyeOff, FolderOpen, KeyRound, Radio, Server, Settings2, ShieldCheck, X } from "lucide-react";
+import { Bookmark, ChevronDown, Eye, EyeOff, FolderOpen, KeyRound, Radio, Server, Settings2, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { useConnections } from "@/stores/connectionsStore";
@@ -237,7 +237,9 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
 
           </section>
           <div className="ghost-new-connection-security-note" aria-live="polite">
-            <ShieldCheck size={15} aria-hidden="true"/>
+            {protocol === "ftp"
+              ? <ShieldAlert size={15} className="ghost-ftp-warning-icon" aria-hidden="true"/>
+              : <ShieldCheck size={15} aria-hidden="true"/>}
             <ConnectionModeStatus protocol={protocol}/>
           </div>
 
