@@ -122,8 +122,10 @@ struct KeyInstallResponse {
 #[derive(Debug, Deserialize)]
 struct KeyInstallFailure {
     name: String,
-    #[serde(default)]
-    error: String,
+    // Ignore untrusted issuer-supplied diagnostic text. A remote service
+    // could reflect the one-time grant token or other credentials here.
+    #[serde(default, rename = "error")]
+    _error: String,
 }
 
 // ---------- Validation (pure, unit-testable) ----------
@@ -476,19 +478,12 @@ pub async fn accept_grant(
     let installed: Vec<String> = reply
         .installed
         .unwrap_or_else(|| manifest.connections.iter().map(connection_label).collect());
-    let mut failed: Vec<GrantImportFailure> = reply
-        .failed
-        .into_iter()
-        .map(|f| GrantImportFailure {
-            name: f.name,
-            error: f.error,
-        })
-        .collect();
+    let mut failed = normalized_issuer_failures(reply.failed, &manifest);
 
     let mut imported: Vec<ConnectionProfile> = Vec::new();
     for conn in &manifest.connections {
         let label = connection_label(conn);
-        if !installed.iter().any(|n| n == &label) {
+        if !issuer_confirmed_install(&label, &installed, &failed) {
             if !failed.iter().any(|f| f.name == label) {
                 failed.push(GrantImportFailure {
                     name: label,
@@ -586,6 +581,40 @@ async fn import_connection(
     Ok(profile)
 }
 
+/// Map external key-install failures only to labels the consent dialog
+/// actually showed. Never relay issuer-provided error bodies: they could
+/// contain bearer grant tokens, private server paths or terminal controls.
+fn normalized_issuer_failures(
+    reported: Vec<KeyInstallFailure>,
+    manifest: &GrantManifest,
+) -> Vec<GrantImportFailure> {
+    reported
+        .into_iter()
+        .filter_map(|failure| {
+            let label = manifest
+                .connections
+                .iter()
+                .map(connection_label)
+                .find(|label| label == &failure.name)?;
+            Some(GrantImportFailure {
+                name: label,
+                error: "issuer could not install the key on this server".to_string(),
+            })
+        })
+        .collect()
+}
+
+/// A conflicting response must fail closed. Without this check, an omitted
+/// installed list defaulted to every server—even one listed as failed.
+fn issuer_confirmed_install(
+    label: &str,
+    installed: &[String],
+    failed: &[GrantImportFailure],
+) -> bool {
+    installed.iter().any(|name| name == label)
+        && !failed.iter().any(|failure| failure.name == label)
+}
+
 /// Map an issuer error status to a structured error with the optional detail.
 fn grant_http_error(context: &str, status: reqwest::StatusCode, detail: &str) -> GhostFTPError {
     let suffix = if detail.is_empty() {
@@ -649,6 +678,46 @@ mod tests {
     }
 
     // ---- validate_token ----
+
+    #[test]
+    fn remote_failure_messages_never_echo_bearer_tokens() {
+        let manifest = good_manifest();
+        let failures = normalized_issuer_failures(
+            vec![
+                KeyInstallFailure {
+                    name: "web-1".into(),
+                    _error: "token=gr_private_bearer_token".into(),
+                },
+                KeyInstallFailure {
+                    name: "forged-extra-server".into(),
+                    _error: "private-server: /etc/shadow".into(),
+                },
+            ],
+            &manifest,
+        );
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].name, "web-1");
+        let rendered = serde_json::to_string(&failures).unwrap();
+        assert!(!rendered.contains("gr_private_bearer_token"));
+        assert!(!rendered.contains("forged-extra-server"));
+        assert!(!rendered.contains("etc/shadow"));
+    }
+
+    #[test]
+    fn conflicting_remote_key_install_response_must_not_import_server() {
+        let manifest = good_manifest();
+        let installed = vec!["web-1".into(), "10.0.0.12".into()];
+        let failed = normalized_issuer_failures(
+            vec![KeyInstallFailure {
+                name: "web-1".into(),
+                _error: "failure".into(),
+            }],
+            &manifest,
+        );
+        assert!(!issuer_confirmed_install("web-1", &installed, &failed));
+        assert!(issuer_confirmed_install("10.0.0.12", &installed, &failed));
+        assert!(!issuer_confirmed_install("unrecognized", &installed, &failed));
+    }
 
     #[test]
     fn token_charset_and_length() {
