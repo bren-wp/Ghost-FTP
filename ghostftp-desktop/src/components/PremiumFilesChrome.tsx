@@ -21,6 +21,9 @@ export function PremiumFilesChrome() {
   const connectionError = useConnections((state) => state.error);
   const connectTemporary = useConnections((state) => state.connectTemporary);
   const activeProfileId = useConnections((state) => state.activeProfileId);
+  const activeSession = useConnections((state) =>
+    state.sessions.find((session) => session.sessionId === state.activeSessionId)
+  );
   const profiles = useConnections((state) => state.profiles);
   const profile = profiles.find((item) => item.id === activeProfileId);
   const [protocol, setProtocol] = useState<QuickProtocol>("sftp");
@@ -36,11 +39,15 @@ export function PremiumFilesChrome() {
     Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535;
   const connectionStatus = submitting || connecting
     ? "Connecting…"
-    : activeSessionId && profile
-      ? `Connected: ${profile.name} (${profile.protocol.toUpperCase()})`
-      : inputError || connectionError
-        ? "Failed — check connection details"
-        : "Disconnected — enter connection details or select a saved site";
+    : activeSessionId && activeSession?.health === "unhealthy"
+      ? "Connection needs attention — check server health"
+      : activeSessionId && profile
+        ? `Connected: ${profile.name} (${profile.protocol.toUpperCase()})`
+        : activeSessionId
+          ? "Connected — active temporary session"
+          : inputError || connectionError
+            ? "Failed — check connection details"
+            : "Disconnected — enter connection details or select a saved site";
 
   // Quick Connect must open a real ephemeral backend session. It never
   // creates a saved Site or launches the new-profile editor.
@@ -70,6 +77,9 @@ export function PremiumFilesChrome() {
       // The store already shows a redacted backend error; never echo secrets.
       setInputError("Connection failed. Check the server and authentication details.");
     } finally {
+      // A failed handshake must not leave a plaintext password in the form.
+      // This is a temporary session; re-entry is intentional after failure.
+      setPassword("");
       setSubmitting(false);
     }
   };
@@ -185,11 +195,15 @@ export function PremiumFilesChrome() {
       )}
       {inputError && <p role="alert" className="ghost-premium-connection-error">{inputError}</p>}
       <div className="ghost-premium-connection-state" role="status" aria-live="polite">
-        {activeSessionId && profile?.protocol === "ftp"
-          ? <ShieldAlert size={14} aria-hidden="true" className="ghost-connection-insecure-icon" />
-          : activeSessionId && profile
-            ? <ShieldCheck size={14} aria-hidden="true" className="ghost-connection-safe-icon" />
-            : <XCircle size={14} aria-hidden="true" className="ghost-connection-error-icon" />}
+        {activeSessionId && activeSession?.health === "unhealthy"
+          ? <ShieldAlert size={14} aria-hidden="true" className="ghost-connection-health-warning-icon" />
+          : activeSessionId && profile?.protocol === "ftp"
+            ? <ShieldAlert size={14} aria-hidden="true" className="ghost-connection-insecure-icon" />
+            : activeSessionId && profile && activeSession?.health === "healthy"
+              ? <ShieldCheck size={14} aria-hidden="true" className="ghost-connection-safe-icon" />
+              : activeSessionId
+                ? <Link2 size={14} aria-hidden="true" className="ghost-connection-checking-icon" />
+                : <XCircle size={14} aria-hidden="true" className="ghost-connection-error-icon" />}
         {connectionStatus}
         <span>Quick Connect is temporary. Use New connection to save a site.</span>
       </div>

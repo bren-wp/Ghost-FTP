@@ -92,6 +92,19 @@ for (const cssClass of [
 for (const dangerous of ['localStorage', 'sessionStorage', 'fakeTransfer', 'mockTransfer', 'example.com']) {
   if (chrome.includes(dangerous)) violations.push(`Credential/demo logic in inline quick-connect: ${dangerous}`);
 }
+
+// The native health badge is driven by the real session probe. A broken
+// connection may not be represented by the green secure-transport icon.
+const statusBar = source("ghostftp-desktop/src/components/ReferenceStatusBar.tsx");
+requireText(chrome, 'activeSession?.health === "unhealthy"', "Files status ignores failing native connection probes");
+requireText(chrome, 'ghost-connection-health-warning-icon', "Failed session still uses a green connection badge");
+requireText(chrome, 'activeSession?.health === "healthy"', "Secure badge is not conditional on known health");
+requireText(chrome, 'finally {\n      // A failed handshake', "Quick Connect does not clear passwords after failed connection attempts");
+requireText(css, ".ghost-connection-health-warning-icon", "Missing prominent failed session styling");
+const clock = statusBar.split("function StatusClock() {")[1]?.split("function formatSpeed(")[0] ?? "";
+requireText(clock, 'document.visibilityState === "visible"', "Hidden Windows/Linux window still updates the status clock every second");
+requireText(clock, 'window.clearInterval(interval)', "Clock interval cannot be stopped while hidden");
+
 if (violations.length > 0) {
   console.error("Premium Windows/Linux Files UI contract failed:");
   for (const violation of violations) console.error(" - " + violation);

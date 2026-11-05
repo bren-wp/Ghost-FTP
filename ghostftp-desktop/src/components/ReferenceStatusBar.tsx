@@ -138,8 +138,28 @@ function TransferMetrics({
 function StatusClock() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    // Native desktop windows may stay minimized for hours. Stop the clock's
+    // 1-second wakeups while hidden, then refresh immediately on foreground.
+    let interval: number | undefined;
+    const refresh = () => {
+      if (document.visibilityState === "visible") setNow(Date.now());
+    };
+    const syncVisibility = () => {
+      if (interval !== undefined) window.clearInterval(interval);
+      interval = undefined;
+      if (document.visibilityState === "visible") {
+        refresh();
+        interval = window.setInterval(refresh, 1000);
+      }
+    };
+    syncVisibility();
+    document.addEventListener("visibilitychange", syncVisibility);
+    window.addEventListener("focus", refresh);
+    return () => {
+      if (interval !== undefined) window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", syncVisibility);
+      window.removeEventListener("focus", refresh);
+    };
   }, []);
   return <span>Local time: {new Date(now).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})}</span>;
 }

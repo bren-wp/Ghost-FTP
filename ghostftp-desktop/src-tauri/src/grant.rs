@@ -28,6 +28,11 @@ pub const GRANT_KEY_PREFIX: &str = "grant-key:";
 const SUPPORTED_VERSION: u32 = 1;
 /// Spec limit: 1–64 connections per grant.
 const MAX_CONNECTIONS: usize = 64;
+/// Bound attacker-controlled grant HTTP responses before JSON parsing. A
+/// manifest can describe up to 64 servers; 256 KiB is intentionally ample
+/// without permitting arbitrary memory use or gzip expansion attacks.
+const MAX_GRANT_MANIFEST_BYTES: usize = 256 * 1024;
+const MAX_GRANT_KEY_REPLY_BYTES: usize = 256 * 1024;
 
 // ---------- Wire types ----------
 
@@ -220,8 +225,22 @@ pub fn validate_manifest(manifest: &GrantManifest) -> Result<(), GhostFTPError> 
             ));
         }
         validate_host(&conn.host)?;
+        if conn.port == Some(0)
+            || conn.username.trim().is_empty()
+            || conn.username.len() > 255
+            || conn.username.chars().any(char::is_control)
+        {
+            return Err(GhostFTPError::other("grant connection has invalid login details"));
+        }
         if let Some(jump) = &conn.jump {
             validate_host(&jump.host)?;
+            if jump.port == Some(0)
+                || jump.username.as_deref().is_some_and(|user| {
+                    user.trim().is_empty() || user.len() > 255 || user.chars().any(char::is_control)
+                })
+            {
+                return Err(GhostFTPError::other("grant bastion has invalid login details"));
+            }
         }
     }
     Ok(())
@@ -229,13 +248,20 @@ pub fn validate_manifest(manifest: &GrantManifest) -> Result<(), GhostFTPError> 
 
 /// A manifest host must be a DNS name or IP — never a URL.
 fn validate_host(host: &str) -> Result<(), GhostFTPError> {
-    if host.trim().is_empty() {
-        return Err(GhostFTPError::other("grant connection has an empty host"));
-    }
-    if host.contains("://") || host.contains('/') {
-        return Err(GhostFTPError::other(format!(
-            "grant connection host '{host}' looks like a URL, not a host"
-        )));
+    // These values arrive from an untrusted issuer and become SSH targets.
+    // Never pass userinfo, paths, whitespace, or terminal controls through.
+    if host.is_empty()
+        || host != host.trim()
+        || host.len() > 255
+        || host.contains("://")
+        || host.chars().any(|c| {
+            c.is_control() || c.is_whitespace() || matches!(c, '/' | '\\' | '@' | '?' | '#')
+        })
+    {
+        // Do not echo the untrusted host into logs or an error dialog.
+        return Err(GhostFTPError::other(
+            "grant connection host must be a DNS name or IP address",
+        ));
     }
     Ok(())
 }
@@ -295,6 +321,10 @@ async fn http_client(issuer: &str) -> Result<reqwest::Client, GhostFTPError> {
             GhostFTPError::other("grant issuer resolves to a prohibited local or reserved address")
         })?;
     reqwest::Client::builder()
+        // A proxy can resolve the hostname itself, bypassing the pinned
+        // public-IP check and receiving one-time grant tokens in the URL.
+        // Direct-only connections preserve the validated DNS destination.
+        .no_proxy()
         .timeout(Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::none())
         .resolve(host, resolved)
@@ -318,6 +348,40 @@ async fn error_body(resp: reqwest::Response) -> String {
     // External error text can echo the bearer grant token. Never return it.
     let _ = resp;
     String::new()
+}
+
+/// Read untrusted issuer JSON incrementally. Content-Length alone is not
+/// sufficient: HTTP streams can be chunked and encoded responses expand.
+fn parse_bounded_grant_json<T: serde::de::DeserializeOwned>(
+    data: &[u8],
+    max_bytes: usize,
+) -> Result<T, GhostFTPError> {
+    if data.len() > max_bytes {
+        return Err(GhostFTPError::other("grant response exceeds the safe size limit"));
+    }
+    serde_json::from_slice(data)
+        .map_err(|_| GhostFTPError::other("grant response contains invalid JSON"))
+}
+
+async fn read_bounded_grant_json<T: serde::de::DeserializeOwned>(
+    mut response: reqwest::Response,
+    max_bytes: usize,
+) -> Result<T, GhostFTPError> {
+    if response.content_length().is_some_and(|n| n > max_bytes as u64) {
+        return Err(GhostFTPError::other("grant response exceeds the safe size limit"));
+    }
+    let mut bytes = Vec::with_capacity(max_bytes.min(16 * 1024));
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| GhostFTPError::other("could not read grant response"))?
+    {
+        if chunk.len() > max_bytes.saturating_sub(bytes.len()) {
+            return Err(GhostFTPError::other("grant response exceeds the safe size limit"));
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    parse_bounded_grant_json(&bytes, max_bytes)
 }
 
 // ---------- Commands ----------
@@ -344,10 +408,8 @@ pub async fn fetch_grant_manifest(
         let detail = error_body(resp).await;
         return Err(grant_http_error("fetch grant manifest", status, &detail));
     }
-    let manifest: GrantManifest = resp
-        .json()
-        .await
-        .map_err(|e| GhostFTPError::other(format!("parse grant manifest: {e}")))?;
+    let manifest: GrantManifest =
+        read_bounded_grant_json(resp, MAX_GRANT_MANIFEST_BYTES).await?;
     validate_manifest(&manifest)?;
     Ok(manifest)
 }
@@ -390,10 +452,8 @@ pub async fn accept_grant(
         // Total failure — import nothing, store nothing.
         return Err(grant_http_error("upload grant key", status, &detail));
     }
-    let reply: KeyInstallResponse = resp
-        .json()
-        .await
-        .map_err(|e| GhostFTPError::other(format!("parse grant key response: {e}")))?;
+    let reply: KeyInstallResponse =
+        read_bounded_grant_json(resp, MAX_GRANT_KEY_REPLY_BYTES).await?;
 
     let group = manifest
         .group
@@ -712,4 +772,44 @@ mod tests {
         let m2: GrantManifest = serde_json::from_str(&serde_json::to_string(&m).unwrap()).unwrap();
         assert!(validate_manifest(&m2).is_ok());
     }
+    #[test]
+    fn untrusted_manifest_hosts_and_accounts_cannot_inject_controls() {
+        for host in [
+            "bad\r\nHost: attacker", " server.example", "server.example ",
+            "alice@server.example", "server.example\\share", "server.example?token=x",
+            "server.example#fragment", &"a".repeat(256),
+        ] {
+            let mut manifest = good_manifest();
+            manifest.connections[0].host = host.to_string();
+            assert!(validate_manifest(&manifest).is_err(), "unsafe host accepted: {host:?}");
+        }
+        for bad_user in ["", "  ", "user\r\nother", &"x".repeat(256)] {
+            let mut manifest = good_manifest();
+            manifest.connections[0].username = bad_user.to_string();
+            assert!(validate_manifest(&manifest).is_err(), "unsafe username accepted");
+        }
+        let mut manifest = good_manifest();
+        manifest.connections[0].port = Some(0);
+        assert!(validate_manifest(&manifest).is_err());
+        let mut manifest = good_manifest();
+        manifest.connections[0].jump.as_mut().unwrap().port = Some(0);
+        assert!(validate_manifest(&manifest).is_err());
+    }
+
+    #[test]
+    fn grant_json_size_limits_and_malformed_responses_fail_closed() {
+        let small: serde_json::Value =
+            parse_bounded_grant_json(br#"{"ok":true}"#, 32).unwrap();
+        assert_eq!(small["ok"], true);
+        assert!(parse_bounded_grant_json::<serde_json::Value>(
+            br#"{"ok":true}"#, 4
+        ).is_err());
+        assert!(parse_bounded_grant_json::<serde_json::Value>(
+            br#"{"ok":true}{"another":true}"#, 128
+        ).is_err());
+        assert!(parse_bounded_grant_json::<serde_json::Value>(
+            &vec![b'a'; MAX_GRANT_MANIFEST_BYTES + 1], MAX_GRANT_MANIFEST_BYTES
+        ).is_err());
+    }
+
 }

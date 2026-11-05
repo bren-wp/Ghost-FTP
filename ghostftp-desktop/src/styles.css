@@ -6333,3 +6333,13 @@ input.ghost-pane-address:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .ghost-new-connection-panel .ghost-ref-field :is(input, select) { transition: none; }
 }
+
+/* Native Files session badges: reflect the real Rust health probe, not a
+   decorative permanent green "secure" indicator for a broken connection. */
+.ghost-premium-connection-state > svg.ghost-connection-health-warning-icon {
+  color: #f59e73;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 115, .14));
+}
+.ghost-premium-connection-state > svg.ghost-connection-checking-icon {
+  color: #8eb2d5;
+}
