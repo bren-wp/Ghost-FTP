@@ -716,7 +716,11 @@ mod tests {
         );
         assert!(!issuer_confirmed_install("web-1", &installed, &failed));
         assert!(issuer_confirmed_install("10.0.0.12", &installed, &failed));
-        assert!(!issuer_confirmed_install("unrecognized", &installed, &failed));
+        assert!(!issuer_confirmed_install(
+            "unrecognized",
+            &installed,
+            &failed
+        ));
     }
 
     #[test]
