@@ -105,6 +105,21 @@ const clock = statusBar.split("function StatusClock() {")[1]?.split("function fo
 requireText(clock, 'document.visibilityState === "visible"', "Hidden Windows/Linux window still updates the status clock every second");
 requireText(clock, 'window.clearInterval(interval)', "Clock interval cannot be stopped while hidden");
 
+
+// New connection geometry follows the Windows/Linux 1290x852 workspace,
+// without removing the working (opt-in) saved-site name field.
+requireText(savedSiteDialog, "ghost-new-connection-overlay", "Desktop reference modal lacks a scoped overlay");
+requireText(savedSiteDialog, 'Site name (optional)', "Saved-site naming was removed instead of moved to Advanced");
+requireText(savedSiteDialog, 'advanced && <div className="grid grid-cols-2 gap-3 border-t border-border p-4">', "Advanced editor controls are no longer accessible");
+const detailsStart = savedSiteDialog.indexOf('aria-labelledby="ghost-new-server-heading"');
+const detailsEnd = savedSiteDialog.indexOf('aria-labelledby="ghost-new-auth-heading"');
+if (detailsStart < 0 || detailsEnd < detailsStart ||
+    savedSiteDialog.slice(detailsStart, detailsEnd).includes("Site name (optional)")) {
+  violations.push("Optional site naming still shifts the real initial New Connection reference cards");
+}
+requireText(css, "padding-left: 230px !important", "Modal remains centered over Linux/Windows navigation rail");
+requireText(css, "transform: translateY(51px)", "Modal lacks workspace-aligned reference Y offset");
+
 if (violations.length > 0) {
   console.error("Premium Windows/Linux Files UI contract failed:");
   for (const violation of violations) console.error(" - " + violation);

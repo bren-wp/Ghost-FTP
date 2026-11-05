@@ -12,3 +12,21 @@
 | Linux packaging | Existing DEB, RPM, AppImage matrix | Native Linux build + package/screenshot QA | Unverified distros, Wayland/x86_64 variants, ARM/musl |
 
 Reference PNGs are concept artwork, not a real running program; only CI-captured Tauri/WebKit images qualify as application screenshots. The screen-by-screen pixel comparison must normalize resolution, DPI, locale and honest filesystem/connection state and cannot claim exact 1:1 with invented server transfers.
+
+## Measured native v0.99.31 Linux pixel baseline (not functional defect rates)
+
+Compared seven real Tauri/WebKit screenshots from successful [native QA run #41548117028](https://github.com/bren-wp/Ghost-FTP/actions/runs/41548117028) against the user-provided `screens/linux/*.png` references, all at exactly 1290×852 (1,099,080 RGB pixels each), without rescaling, color changes or simulated server content:
+
+| Screen | Pixels differing in any RGB channel | Difference fraction | Mean absolute RGB channel error (0–255) |
+| --- | ---: | ---: | ---: |
+| Files | 1,070,468 | 97.40% | 14.89 |
+| Sites | 980,486 | 89.21% | 13.40 |
+| New Connection | 1,099,054 | 100.00% | 15.73 |
+| Transfers | 1,058,773 | 96.33% | 14.22 |
+| Settings | 1,058,718 | 96.33% | 12.94 |
+| Sync | 1,059,621 | 96.41% | 14.23 |
+| Help & About | 1,054,813 | 95.97% | 13.37 |
+
+**Interpretation:** this is a strict *image* difference, not a percentage of failed functionality. The real capture uses English desktop locale and real disconnected files/transfers, while the Croatian concept has illustrative populated sessions and different OS font rendering. Never synthesize fake sessions/transfers to reduce this number.
+
+**New Connection position:** native v0.99.31 approximately x=320–970/y=116–736; Linux concept approximately x=422–1082/y=163–793. This PR centers the modal within the right-hand workspace, moves optional Site Name to the still-accessible Advanced section and retains real Save and Test Connection actions. A fresh native capture is required to validate the resulting geometry; no 1:1 certification is claimed.

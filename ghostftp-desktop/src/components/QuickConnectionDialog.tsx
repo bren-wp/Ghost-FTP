@@ -5,7 +5,6 @@ import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { useConnections } from "@/stores/connectionsStore";
 import { useDialog } from "@/hooks/useDialog";
-import { GhostMark } from "./GhostBrand";
 import { ipc } from "@/lib/ipc";
 import { toastError } from "@/lib/errors";
 
@@ -134,10 +133,9 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
   };
 
   return (
-    <div className="ghost-transient-overlay fixed inset-0 z-modal flex items-center justify-center bg-black/70 p-4">
+    <div className="ghost-transient-overlay ghost-new-connection-overlay fixed inset-0 z-modal flex items-center justify-center bg-black/70 p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="ghost-new-connection-title" className="ghost-new-connection-dialog flex w-[min(660px,94vw)] flex-col overflow-hidden rounded-xl border border-accent/70 bg-[#061a2d] shadow-[0_0_0_1px_rgba(65,181,255,.08),0_30px_90px_rgba(0,0,0,.7),0_0_38px_rgba(31,149,255,.15)]">
         <div className="ghost-new-connection-head flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0b3151]"><GhostMark size={34}/></div>
           <div><h2 id="ghost-new-connection-title" className="text-[19px] font-semibold">New connection</h2><p className="text-[12px] text-text-muted">Configure a secure connection. Save the site and connect separately.</p></div>
           <div className="flex-1"/><button type="button" disabled={actionBusy} onClick={closeIfIdle} aria-label="Close connection dialog" className="rounded-md p-2 text-text-muted hover:bg-bg-hover hover:text-white disabled:cursor-not-allowed disabled:opacity-50"><X size={18}/></button>
         </div>
@@ -150,7 +148,6 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
               <Field label="Port"><input type="number" min={1} max={65535} value={port} disabled={actionBusy} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
             </div>
             <div className="ghost-new-connection-host"><Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="Hostname or IP address" autoComplete="off" spellCheck={false}/></Field></div>
-            <div className="ghost-new-connection-host"><Field label="Site name (optional)"><input value={name} disabled={actionBusy} onChange={(e)=>setName(e.target.value)} placeholder="Use server address as name" maxLength={255}/></Field></div>
           </section>
           <section className="ghost-new-connection-panel" aria-labelledby="ghost-new-auth-heading">
             <h3 id="ghost-new-auth-heading" className="ghost-new-connection-panel-heading"><KeyRound size={13} aria-hidden="true"/> Authentication</h3>
@@ -249,6 +246,7 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
           <div className="mt-4 overflow-hidden rounded-md border border-border bg-[#051929]">
             <button type="button" disabled={actionBusy} onClick={()=>setAdvanced(v=>!v)} className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-text-muted hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-60"><Settings2 size={16}/><span>Advanced Settings</span><div className="flex-1"/><ChevronDown size={14} className={advanced?'rotate-180':''}/></button>
             {advanced && <div className="grid grid-cols-2 gap-3 border-t border-border p-4">
+              <div className="col-span-2"><Field label="Site name (optional)"><input value={name} disabled={actionBusy} onChange={(e)=>setName(e.target.value)} placeholder="Use server address as name" maxLength={255}/></Field></div>
               <Field label="Default remote path"><input value={remotePath} disabled={actionBusy} onChange={(e)=>setRemotePath(e.target.value)} placeholder="/var/www"/></Field>
               {(protocol==="ftp"||protocol==="ftps")&&<Field label="Connection mode"><input value="Passive" readOnly/></Field>}
               {protocol==="sftp"&&<Field label="Keep-alive interval (seconds)"><input type="number" min={5} max={300} step={5} value={keepAliveSeconds} disabled={actionBusy} onChange={(e)=>setKeepAliveSeconds(Math.max(5, Math.min(300, Number(e.target.value)||15)))}/></Field>}

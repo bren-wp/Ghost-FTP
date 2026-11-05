@@ -230,7 +230,9 @@ pub fn validate_manifest(manifest: &GrantManifest) -> Result<(), GhostFTPError> 
             || conn.username.len() > 255
             || conn.username.chars().any(char::is_control)
         {
-            return Err(GhostFTPError::other("grant connection has invalid login details"));
+            return Err(GhostFTPError::other(
+                "grant connection has invalid login details",
+            ));
         }
         if let Some(jump) = &conn.jump {
             validate_host(&jump.host)?;
@@ -239,7 +241,9 @@ pub fn validate_manifest(manifest: &GrantManifest) -> Result<(), GhostFTPError> 
                     user.trim().is_empty() || user.len() > 255 || user.chars().any(char::is_control)
                 })
             {
-                return Err(GhostFTPError::other("grant bastion has invalid login details"));
+                return Err(GhostFTPError::other(
+                    "grant bastion has invalid login details",
+                ));
             }
         }
     }
@@ -357,7 +361,9 @@ fn parse_bounded_grant_json<T: serde::de::DeserializeOwned>(
     max_bytes: usize,
 ) -> Result<T, GhostFTPError> {
     if data.len() > max_bytes {
-        return Err(GhostFTPError::other("grant response exceeds the safe size limit"));
+        return Err(GhostFTPError::other(
+            "grant response exceeds the safe size limit",
+        ));
     }
     serde_json::from_slice(data)
         .map_err(|_| GhostFTPError::other("grant response contains invalid JSON"))
@@ -367,8 +373,13 @@ async fn read_bounded_grant_json<T: serde::de::DeserializeOwned>(
     mut response: reqwest::Response,
     max_bytes: usize,
 ) -> Result<T, GhostFTPError> {
-    if response.content_length().is_some_and(|n| n > max_bytes as u64) {
-        return Err(GhostFTPError::other("grant response exceeds the safe size limit"));
+    if response
+        .content_length()
+        .is_some_and(|n| n > max_bytes as u64)
+    {
+        return Err(GhostFTPError::other(
+            "grant response exceeds the safe size limit",
+        ));
     }
     let mut bytes = Vec::with_capacity(max_bytes.min(16 * 1024));
     while let Some(chunk) = response
@@ -377,7 +388,9 @@ async fn read_bounded_grant_json<T: serde::de::DeserializeOwned>(
         .map_err(|_| GhostFTPError::other("could not read grant response"))?
     {
         if chunk.len() > max_bytes.saturating_sub(bytes.len()) {
-            return Err(GhostFTPError::other("grant response exceeds the safe size limit"));
+            return Err(GhostFTPError::other(
+                "grant response exceeds the safe size limit",
+            ));
         }
         bytes.extend_from_slice(&chunk);
     }
@@ -408,8 +421,7 @@ pub async fn fetch_grant_manifest(
         let detail = error_body(resp).await;
         return Err(grant_http_error("fetch grant manifest", status, &detail));
     }
-    let manifest: GrantManifest =
-        read_bounded_grant_json(resp, MAX_GRANT_MANIFEST_BYTES).await?;
+    let manifest: GrantManifest = read_bounded_grant_json(resp, MAX_GRANT_MANIFEST_BYTES).await?;
     validate_manifest(&manifest)?;
     Ok(manifest)
 }
@@ -775,18 +787,29 @@ mod tests {
     #[test]
     fn untrusted_manifest_hosts_and_accounts_cannot_inject_controls() {
         for host in [
-            "bad\r\nHost: attacker", " server.example", "server.example ",
-            "alice@server.example", "server.example\\share", "server.example?token=x",
-            "server.example#fragment", &"a".repeat(256),
+            "bad\r\nHost: attacker",
+            " server.example",
+            "server.example ",
+            "alice@server.example",
+            "server.example\\share",
+            "server.example?token=x",
+            "server.example#fragment",
+            &"a".repeat(256),
         ] {
             let mut manifest = good_manifest();
             manifest.connections[0].host = host.to_string();
-            assert!(validate_manifest(&manifest).is_err(), "unsafe host accepted: {host:?}");
+            assert!(
+                validate_manifest(&manifest).is_err(),
+                "unsafe host accepted: {host:?}"
+            );
         }
         for bad_user in ["", "  ", "user\r\nother", &"x".repeat(256)] {
             let mut manifest = good_manifest();
             manifest.connections[0].username = bad_user.to_string();
-            assert!(validate_manifest(&manifest).is_err(), "unsafe username accepted");
+            assert!(
+                validate_manifest(&manifest).is_err(),
+                "unsafe username accepted"
+            );
         }
         let mut manifest = good_manifest();
         manifest.connections[0].port = Some(0);
@@ -798,18 +821,18 @@ mod tests {
 
     #[test]
     fn grant_json_size_limits_and_malformed_responses_fail_closed() {
-        let small: serde_json::Value =
-            parse_bounded_grant_json(br#"{"ok":true}"#, 32).unwrap();
+        let small: serde_json::Value = parse_bounded_grant_json(br#"{"ok":true}"#, 32).unwrap();
         assert_eq!(small["ok"], true);
+        assert!(parse_bounded_grant_json::<serde_json::Value>(br#"{"ok":true}"#, 4).is_err());
         assert!(parse_bounded_grant_json::<serde_json::Value>(
-            br#"{"ok":true}"#, 4
-        ).is_err());
+            br#"{"ok":true}{"another":true}"#,
+            128
+        )
+        .is_err());
         assert!(parse_bounded_grant_json::<serde_json::Value>(
-            br#"{"ok":true}{"another":true}"#, 128
-        ).is_err());
-        assert!(parse_bounded_grant_json::<serde_json::Value>(
-            &vec![b'a'; MAX_GRANT_MANIFEST_BYTES + 1], MAX_GRANT_MANIFEST_BYTES
-        ).is_err());
+            &vec![b'a'; MAX_GRANT_MANIFEST_BYTES + 1],
+            MAX_GRANT_MANIFEST_BYTES
+        )
+        .is_err());
     }
-
 }

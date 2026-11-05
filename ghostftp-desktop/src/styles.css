@@ -6343,3 +6343,23 @@ input.ghost-pane-address:focus-visible {
 .ghost-premium-connection-state > svg.ghost-connection-checking-icon {
   color: #8eb2d5;
 }
+
+/* 0.99.32: right-workspace (213px sidebar) modal alignment at 1290x852.
+   Compact windows keep the original centered, scrollable modal. */
+@media (min-width: 1101px) and (min-height: 800px) {
+  .ghost-new-connection-overlay {
+    padding-left: 230px !important;
+    padding-right: 16px !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .ghost-new-connection-dialog {
+    min-height: 630px;
+    transform: translateY(51px);
+  }
+}
+.ghost-new-connection-head > button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
