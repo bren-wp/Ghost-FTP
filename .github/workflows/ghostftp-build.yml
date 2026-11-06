@@ -381,8 +381,13 @@ jobs:
               target="qa/linux/$view"
             fi
             mkdir -p "$target"
-            dbus-run-session -- xvfb-run -a -w 2 -e "$target/xvfb-stderr.log" \
-              -s '-screen 0 1290x852x24' env GHOSTFTP_QA_VIEW="$view" \
+            # Start Xvfb BEFORE the desktop D-Bus session so GTK portal
+            # services inherit the actual DISPLAY/XAUTHORITY. The previous
+            # order started D-Bus outside Xvfb and produced portal failures
+            # (Gtk-WARNING "cannot open display") on the merged main run.
+            xvfb-run -a -w 2 -e "$target/xvfb-stderr.log" \
+              -s '-screen 0 1290x852x24' dbus-run-session -- \
+              env GHOSTFTP_QA_VIEW="$view" \
               bash .github/scripts/capture-linux-premium.sh \
               ghostftp-desktop/src-tauri/target/release/ghostftp "$target"
             test -s "$target/Linux-$label-1290x852.png"
