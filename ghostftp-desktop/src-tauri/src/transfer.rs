@@ -472,6 +472,34 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     .context("join local no-replace download promotion")?
 }
 
+/// A completed transfer is not proven by EOF or a success response alone.
+/// Prevent truncation/oversized streams from being marked Done and promoted.
+fn verify_committed_length(
+    label: &str,
+    expected: u64,
+    transferred: u64,
+    on_destination: u64,
+) -> Result<()> {
+    anyhow::ensure!(
+        expected == transferred && transferred == on_destination,
+        "{label} length mismatch: expected {expected}, received {transferred}, destination {on_destination}"
+    );
+    Ok(())
+}
+
+/// Some HTTP/cloud backends cannot obtain a size before transfer and store 0.
+/// In that case use the actual byte count; never overwrite real progress with
+/// a guessed size. When size was known, a short/oversized transfer is an error.
+fn completed_transfer_size(expected: u64, actual: u64) -> Result<u64> {
+    if expected != 0 {
+        anyhow::ensure!(
+            actual == expected,
+            "transfer finished with {actual} of {expected} expected bytes"
+        );
+    }
+    Ok(actual)
+}
+
 /// The declared wire size is meaningful only for identity-encoded HTTP.
 fn declared_plain_http_length(headers: &reqwest::header::HeaderMap) -> Result<Option<u64>> {
     use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH};
@@ -1700,6 +1728,23 @@ impl TransferManager {
         }
 
         let sftp_cell = session.ensure_sftp().await?;
+        // SFTP servers expose source file size. Read it before the stream
+        // rather than trusting EOF: a broken connection or shortened response
+        // must never promote a partial .part as a successful download.
+        let expected_remote_len = {
+            let sftp = sftp_cell.lock().await;
+            sftp.metadata(remote_path)
+                .await
+                .context("stat SFTP download source")?
+                .size
+                .context("SFTP download source did not report its byte length")?
+        };
+        // A stale resume point beyond the new source is never trustworthy.
+        let resume_offset = if resume_offset <= expected_remote_len {
+            resume_offset
+        } else {
+            0
+        };
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
             sftp.open(remote_path)
@@ -1742,6 +1787,29 @@ impl TransferManager {
             }
         }
         local_file.flush().await?;
+        local_file
+            .sync_all()
+            .await
+            .context("sync SFTP download staging file")?;
+        let on_disk = local_file
+            .metadata()
+            .await
+            .context("stat completed SFTP download staging")?
+            .len();
+        verify_committed_length("SFTP download", expected_remote_len, transferred, on_disk)?;
+        drop(remote_file);
+        let remote_after = {
+            let sftp = sftp_cell.lock().await;
+            sftp.metadata(remote_path)
+                .await
+                .context("stat SFTP source after download")?
+                .size
+                .context("SFTP source length unavailable after download")?
+        };
+        anyhow::ensure!(
+            remote_after == expected_remote_len,
+            "SFTP source changed size during download"
+        );
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -2535,6 +2603,22 @@ impl TransferManager {
             }
         }
         remote_file.flush().await?;
+        let source_after = local_file
+            .metadata()
+            .await
+            .context("stat SFTP upload source after transfer")?
+            .len();
+        verify_committed_length("SFTP upload source", local_len, transferred, source_after)?;
+        drop(remote_file);
+        let remote_size = {
+            let sftp = sftp_cell.lock().await;
+            sftp.metadata(remote_path)
+                .await
+                .context("stat completed SFTP upload")?
+                .size
+                .context("SFTP upload destination did not report its byte length")?
+        };
+        verify_committed_length("SFTP upload", local_len, transferred, remote_size)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -2808,6 +2892,33 @@ impl TransferManager {
                     }
                 })?;
                 writer.flush().context("flush FTP download destination")?;
+                writer
+                    .get_ref()
+                    .sync_all()
+                    .context("sync FTP download staging file")?;
+                if outcome.control == FtpTransferControl::Continue {
+                    let persisted = writer
+                        .get_ref()
+                        .metadata()
+                        .context("stat completed FTP download staging")?
+                        .len();
+                    if let Some(expected) = remote_len {
+                        verify_committed_length(
+                            "FTP download", expected, outcome.transferred, persisted,
+                        )?;
+                    }
+                    // When SIZE is supported, also reject a source that was
+                    // replaced/truncated or extended during RETR.
+                    if let Ok(after) = stream.size(&path) {
+                        verify_committed_length(
+                            "FTP download", after as u64, outcome.transferred, persisted,
+                        )?;
+                    }
+                    anyhow::ensure!(
+                        persisted == outcome.transferred,
+                        "FTP download persisted fewer bytes than received"
+                    );
+                }
                 Ok(outcome)
             })
             .await
@@ -3013,7 +3124,11 @@ impl TransferManager {
         }
 
         match outcome.control {
-            FtpTransferControl::Continue => Ok(()),
+            FtpTransferControl::Continue => {
+                verify_committed_length(
+                    "FTP upload", local_len, outcome.transferred, outcome.transferred,
+                )
+            },
             FtpTransferControl::Pause => {
                 self.checkpoint(id, 0).await?;
                 session
@@ -4891,6 +5006,16 @@ async fn dispatch_upload(
 }
 
 async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result: Result<()>) {
+    // A backend returning Ok(()) may still have sent fewer/more bytes than
+    // the known source size. Never replace real progress with a fictitious
+    // 100% on such a result, including across FTP/FTPS/SFTP/cloud backends.
+    let result = match result {
+        Ok(()) => match mgr.get(id).await {
+            Some(t) => completed_transfer_size(t.size, t.transferred).map(|_| ()),
+            None => Err(anyhow::anyhow!("completed transfer record disappeared")),
+        },
+        Err(error) => Err(error),
+    };
     // Cancel updates the row immediately. Cooperative blocking transports (FTP)
     // may finish ABOR cleanup after that; never let their late result overwrite
     // the user-visible Canceled state.
@@ -4902,7 +5027,11 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
         Ok(()) => {
             mgr.update(id, |t| {
                 t.status = TransferStatus::Done;
-                t.transferred = t.size;
+                // A zero-sized initial estimate means size was unavailable,
+                // not that an actual multi-byte download is empty.
+                if t.size == 0 {
+                    t.size = t.transferred;
+                }
             })
             .await;
             if let Some(t) = mgr.get(id).await {
@@ -4927,6 +5056,25 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
 mod http_length_integrity_tests {
     use super::*;
     use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH};
+
+    #[test]
+    fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams() {
+        assert!(verify_committed_length("SFTP download", 4096, 2048, 2048).is_err());
+        assert!(verify_committed_length("FTP download", 4096, 4097, 4097).is_err());
+        assert!(verify_committed_length("FTPS download", 4096, 4096, 4095).is_err());
+        assert!(verify_committed_length("SFTP download", 0, 0, 0).is_ok());
+        assert!(verify_committed_length("FTPS download", 65537, 65537, 65537).is_ok());
+    }
+
+    #[test]
+    fn known_size_is_required_but_an_unknown_estimate_never_fakes_zero_progress() {
+        assert!(completed_transfer_size(100, 99).is_err());
+        assert!(completed_transfer_size(100, 101).is_err());
+        assert_eq!(completed_transfer_size(100, 100).unwrap(), 100);
+        assert_eq!(completed_transfer_size(0, 128 * 1024 * 1024).unwrap(), 128 * 1024 * 1024);
+        assert!(completed_transfer_size(0, 0).is_ok());
+        assert!(completed_transfer_size(u32::MAX as u64 + 10, u32::MAX as u64).is_err());
+    }
 
     #[test]
     fn truncated_and_extra_payloads_cannot_be_confirmed() {
