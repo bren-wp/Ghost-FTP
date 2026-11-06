@@ -2921,14 +2921,20 @@ impl TransferManager {
                         .len();
                     if let Some(expected) = remote_len {
                         verify_committed_length(
-                            "FTP download", expected, outcome.transferred, persisted,
+                            "FTP download",
+                            expected,
+                            outcome.transferred,
+                            persisted,
                         )?;
                     }
                     // When SIZE is supported, also reject a source that was
                     // replaced/truncated or extended during RETR.
                     if let Ok(after) = stream.size(&path) {
                         verify_committed_length(
-                            "FTP download", after as u64, outcome.transferred, persisted,
+                            "FTP download",
+                            after as u64,
+                            outcome.transferred,
+                            persisted,
                         )?;
                     }
                     anyhow::ensure!(
@@ -3141,11 +3147,12 @@ impl TransferManager {
         }
 
         match outcome.control {
-            FtpTransferControl::Continue => {
-                verify_committed_length(
-                    "FTP upload", local_len, outcome.transferred, outcome.transferred,
-                )
-            },
+            FtpTransferControl::Continue => verify_committed_length(
+                "FTP upload",
+                local_len,
+                outcome.transferred,
+                outcome.transferred,
+            ),
             FtpTransferControl::Pause => {
                 self.checkpoint(id, 0).await?;
                 session
@@ -5088,7 +5095,10 @@ mod http_length_integrity_tests {
         assert!(completed_transfer_size(100, 99).is_err());
         assert!(completed_transfer_size(100, 101).is_err());
         assert_eq!(completed_transfer_size(100, 100).unwrap(), 100);
-        assert_eq!(completed_transfer_size(0, 128 * 1024 * 1024).unwrap(), 128 * 1024 * 1024);
+        assert_eq!(
+            completed_transfer_size(0, 128 * 1024 * 1024).unwrap(),
+            128 * 1024 * 1024
+        );
         assert!(completed_transfer_size(0, 0).is_ok());
         assert!(completed_transfer_size(u32::MAX as u64 + 10, u32::MAX as u64).is_err());
     }
