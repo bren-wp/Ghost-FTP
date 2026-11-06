@@ -1,8 +1,10 @@
+> **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Last public edition v0.99.32; Windows/Linux native installers are directly usable without a paid code-signing certificate but need authentic checksums, verified connections and target-device acceptance. Automatic updater remains signed-only; global stable labeling remains gated separately.
+
 > **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
 
-> Active source/release cycle: **0.99.32 Preview**. Previous canonical release: **0.99.31**. Client-only packages required.
+> Active source/release cycle: **0.99.33 Preview**. Previous canonical release: **0.99.32**. Client-only packages required.
 
-> Active source/release cycle: **0.99.32 Preview**. Previous canonical release: **0.99.31**. Client-only packages required.
+> Active source/release cycle: **0.99.33 Preview**. Previous canonical release: **0.99.32**. Client-only packages required.
 
 # Ghost FTP Versioning
 
@@ -33,8 +35,8 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.32**
-- Previous canonical release: **0.99.31**
+- Active source/release cycle: **0.99.33**
+- Previous canonical release: **0.99.32**
 - Previous source version: **0.99.8** (verified prior published release).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.

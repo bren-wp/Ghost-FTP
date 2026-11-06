@@ -1,3 +1,5 @@
+> **Windows/Linux unsigned desktop update policy (0.99.33 Preview):** Automatic in-app installation accepts **only signed** Tauri updater packages. A missing signed updater offer does not establish that no newer manually installable desktop release exists. Use Help & About → Updates → **Open official Windows / Linux downloads** to open the exact GitHub [Releases index](https://github.com/bren-wp/Ghost-FTP/releases), verify the matching `SHA256SUMS.txt`, and install manually after a backup. No unverified or unsigned package is installed silently in-app. A paid certificate is not necessary for user-initiated desktop installation, but publisher identity is not cryptographically authenticated without one.
+
 # Ghost FTP Updates
 
 Ghost FTP desktop uses the native Tauri updater path. User-facing application copy intentionally describes this only as the official update service and verified update packages; transport/file-format details remain in operator documentation under `updates/`.

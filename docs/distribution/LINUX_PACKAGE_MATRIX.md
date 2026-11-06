@@ -50,3 +50,7 @@ parity with all 29 user-supplied Linux design references.
 Related: [Linux handbook](../handbook/LINUX.md) ·
 [Native desktop build](../../.github/workflows/ghostftp-build.yml) ·
 [Published releases](https://github.com/bren-wp/Ghost-FTP/releases).
+
+## Operational prerequisites for unsigned desktop builds
+
+Running the native binary does not require a purchased signing certificate. Verify the SHA-256 checksum of your package against the matching official release manifest; this validates file integrity, **not** cryptographic publisher identity. Saved credentials require an unlocked Secret Service provider and the `secret-tool` client (the DEB declares `libsecret-tools`, the RPM declares `libsecret`). An unavailable vault is a blocking error, not a reason to store plaintext passwords. Before upgrading, create an encrypted backup and ensure all transfers are finished. The desktop Updates screen offers the complete GitHub Releases index because signed auto-updates and manually downloadable package editions are independent.

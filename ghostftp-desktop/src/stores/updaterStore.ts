@@ -4,6 +4,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { ipc } from "@/lib/ipc";
 import { toast } from "./toastStore";
 import { messageOf } from "@/lib/errors";
+import { redactSensitiveText } from "@/lib/redact";
 
 // In-app auto-updater. The persistent application shell performs a throttled,
 // quiet launch check; Help & About → Updates owns all user-facing update actions.
@@ -22,7 +23,7 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 function friendlyUpdateError(error: unknown, phase: "check" | "download"): string {
   const detail = messageOf(error);
-  console.warn(`Ghost FTP updater ${phase} detail:`, detail);
+  console.warn(`Ghost FTP updater ${phase} detail:`, redactSensitiveText(detail, 240));
   const normalized = detail.toLowerCase();
 
   if (
@@ -50,7 +51,8 @@ function friendlyUpdateError(error: unknown, phase: "check" | "download"): strin
 }
 
 export type UpdaterStatus =
-  | "idle" // no check run yet, or up to date
+  | "idle" // check has not run yet
+  | "checked" // no signed in-app updater package offered (manual downloads may be newer)
   | "checking"
   | "available"
   | "downloading"
@@ -87,12 +89,12 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   error: null,
 
   check: async (quiet) => {
-    if (get().status === "checking" || get().status === "downloading") return;
+    if (get().status === "checking" || get().status === "downloading" || get().status === "ready") return;
     set({ status: "checking", error: null });
     // Record the check time regardless of outcome so we don't hammer the endpoint.
     void ipc.settingsSet("lastUpdateCheck", JSON.stringify(Date.now())).catch((error) => {
-      if (quiet) console.warn("Couldn't persist update-check time", messageOf(error));
-      else toast.warning("Update check will not be remembered", messageOf(error));
+      if (quiet) console.warn("Couldn't persist update-check time", redactSensitiveText(error, 240));
+      else toast.warning("Update check will not be remembered", redactSensitiveText(error, 240));
     });
     try {
       const update = await check();
@@ -106,15 +108,21 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
         });
       } else {
         heldUpdate = null;
-        set({ status: "idle", version: null, notes: null });
-        if (!quiet) toast.success("Ghost FTP is up to date");
+        // A missing signed updater offer says nothing about newer unsigned
+        // Windows/Linux packages published on GitHub. Never tell the user
+        // they are up to date based solely on the signed-updater endpoint.
+        set({ status: "checked", version: null, notes: null });
+        if (!quiet) toast.info(
+          "No signed automatic update available",
+          "Check official Downloads for newer manually installable Windows/Linux editions."
+        );
       }
     } catch (e) {
       heldUpdate = null;
       // Quiet launch checks never nag. Manual checks show only a safe,
       // user-facing summary; technical transport details stay in the console.
       if (quiet) {
-        console.warn("Quiet update check failed", messageOf(e));
+        console.warn("Quiet update check failed", redactSensitiveText(e, 240));
         set({ status: "idle" });
       } else {
         const message = friendlyUpdateError(e, "check");
@@ -173,7 +181,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
         await get().check(true);
       }
     } catch (error) {
-      console.warn("Couldn't initialize the quiet update check", messageOf(error));
+      console.warn("Couldn't initialize the quiet update check", redactSensitiveText(error, 240));
     }
     return () => {};
   },

@@ -19,6 +19,7 @@ import {
   PRODUCT_EULA_URL,
   PRODUCT_RELEASE_DATE,
   PRODUCT_VERSION_DISPLAY,
+  OFFICIAL_RELEASES_URL,
 } from "@/lib/release";
 import { APP_LOCALES, tr } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
@@ -137,9 +138,38 @@ function UpdatesContent() {
     : status === "available" ? `Ghost FTP ${offered ?? "update"} is available.`
     : status === "downloading" ? "Downloading and verifying update…"
     : status === "ready" ? "Update is ready. Restart Ghost FTP to finish."
-    : status === "error" ? (error ?? "Update check failed.")
-    : "No update check has been run in this view yet.";
-  return <div className="rounded-lg border border-border bg-[#071f35] p-6"><div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div><div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div><div className="text-text-muted">Stable channel · {currentPlatform()}</div></div></div><p className="max-w-2xl text-[13px] leading-6 text-text-muted">Ghost FTP securely checks the official update service and installs only verified packages. Technical delivery details stay hidden from the application interface.</p><p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p><div className="mt-5 flex gap-2"><button className="ghost-primary-button" disabled={status === "checking" || status === "downloading"} onClick={() => void check(false)}><RefreshCw size={14}/> {tr("Check for Updates")}</button>{status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>{tr("Download & install")}</button>}{status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>{tr("Restart now")}</button>}</div></div>;
+    : status === "error" ? (error ?? "Signed updater check failed. Use official Downloads for manual updates.")
+    : status === "checked" ? "No signed automatic update is offered. The newest manually installable edition may still be available in official Downloads."
+    : "No signed automatic update check has been run in this view yet.";
+  return <div className="rounded-lg border border-border bg-[#071f35] p-6">
+    <div className="mb-4 flex items-center gap-3"><RefreshCw size={30} className="text-accent"/><div>
+      <div className="text-[18px] font-semibold">Ghost FTP {PRODUCT_VERSION_DISPLAY}</div>
+      <div className="text-text-muted">Desktop edition · {currentPlatform()} · unsigned installers supported</div>
+    </div></div>
+    <p className="max-w-2xl text-[13px] leading-6 text-text-muted">
+      Automatic installation is offered only for cryptographically signed updater packages.
+      Windows and Linux installers can also be installed manually without a publisher signing certificate.
+      A signed update check does not verify whether a newer manual download exists.
+    </p>
+    <p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p>
+    <div className="mt-5 flex flex-wrap gap-2">
+      <button className="ghost-primary-button" disabled={status === "checking" || status === "downloading" || status === "ready"} onClick={() => void check(false)}><RefreshCw size={14}/> {tr("Check for Updates")}</button>
+      {status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>{tr("Download & install")}</button>}
+      {status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>{tr("Restart now")}</button>}
+    </div>
+    <div className="mt-5 rounded-lg border border-border bg-[#051929] p-4">
+      <OfficialLinkRow
+        icon={<Globe2 size={18}/>}
+        title="Open official Windows / Linux downloads"
+        subtitle="Select the current version, verify its SHA-256 checksum, then install manually. Existing profiles are not intentionally deleted."
+        url={OFFICIAL_RELEASES_URL}
+      />
+      <p className="mt-2 text-[11px] leading-5 text-text-muted">
+        Windows SmartScreen or Linux package-manager warnings may appear for unsigned builds.
+        Only proceed with files verified against the official release checksums; an unsigned file has no publisher identity guarantee.
+      </p>
+    </div>
+  </div>;
 }
 
 function currentPlatform() {
