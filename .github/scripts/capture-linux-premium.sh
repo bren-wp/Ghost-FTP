@@ -108,26 +108,59 @@ record_windows() {
     > "$output/title-matches.txt" 2>&1 || true
 }
 
+# GTK/WebKit can create a real top-level window before Openbox has
+# registered it in _NET_CLIENT_LIST, or before X11 reports IsViewable.
+# A post-merge Linux runner hit precisely this race: xwininfo -root -tree
+# listed a 1258x820 "Ghost FTP" window while wmctrl and xdotool
+# --onlyvisible returned nothing. Discover the *real* application window,
+# validating its identity and size; never fall back to a screenshot of
+# the desktop, a tiny helper process, or an illustration.
+find_real_ghostftp_window() {
+  local candidate title klass owner geom width height
+  while IFS= read -r candidate; do
+    [[ "$candidate" =~ ^(0x[[:xdigit:]]+|[0-9]+)$ ]] || continue
+    title="$(xdotool getwindowname "$candidate" 2>/dev/null || true)"
+    klass="$(xprop -id "$candidate" WM_CLASS 2>/dev/null || true)"
+    owner="$(xdotool getwindowpid "$candidate" 2>/dev/null || true)"
+    geom="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null || true)"
+    width="$(printf '%s\n' "$geom" | sed -n 's/^WIDTH=//p' | head -n1)"
+    height="$(printf '%s\n' "$geom" | sed -n 's/^HEIGHT=//p' | head -n1)"
+    # The GTK helper may have the same PID and WM_CLASS, but is only 10x10.
+    [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || continue
+    (( width >= 500 && height >= 350 )) || continue
+    # Accept exact owning process, or a distinctive Ghost FTP title+class
+    # (some WebKit subprocesses own the window instead of the parent PID).
+    if [[ "$owner" != "$app_pid" ]]; then
+      [[ "$title" =~ [Gg]host[[:space:]]*[Ff][Tt][Pp] ]] || continue
+      [[ "$klass" =~ [Gg]host[fF][tT][pP] ]] || continue
+    fi
+    printf '%s\n' "$candidate"
+    return 0
+  done < <(
+    {
+      wmctrl -lp 2>/dev/null | awk -v pid="$app_pid" '$3 == pid {print $1}' || true
+      xdotool search --onlyvisible --pid "$app_pid" 2>/dev/null || true
+      xdotool search --onlyvisible --name '[Gg]host.?[Ff][Tt][Pp]' 2>/dev/null || true
+      xdotool search --pid "$app_pid" 2>/dev/null || true
+      # These searches deliberately omit --onlyvisible; the verified
+      # window may not be mapped yet even though it exists in the X tree.
+      xdotool search --name '[Gg]host.?[Ff][Tt][Pp]' 2>/dev/null || true
+      xdotool search --class '[Gg]host.?[Ff][Tt][Pp]' 2>/dev/null || true
+      xwininfo -root -tree 2>/dev/null | awk '/"Ghost FTP":/ {print $1}' || true
+    } | awk '!seen[$0]++'
+  )
+  return 1
+}
+
 window=""
 for attempt in $(seq 1 80); do
   if ! kill -0 "$app_pid" 2>/dev/null; then
     record_windows
-    echo "Ghost FTP Linux executable quit before opening a visible window." >&2
+    echo "Ghost FTP Linux executable quit before opening a real GUI window." >&2
     tail -n 35 "$output/launch.log" >&2 || true
     exit 1
   fi
-  # Prefer the X11 window that belongs to our exact process, rather than
-  # assuming one fixed GTK title (some WebKit/Tauri versions name it ghostftp).
-  window="$(wmctrl -lp 2>/dev/null | awk -v pid="$app_pid" '$3 == pid { print $1; exit }' || true)"
-  if [ -z "$window" ]; then
-    window="$(xdotool search --onlyvisible --pid "$app_pid" 2>/dev/null | head -n1 || true)"
-  fi
-  if [ -z "$window" ]; then
-    window="$(xdotool search --onlyvisible --name '[Gg]host.?[Ff][Tt][Pp]' 2>/dev/null | head -n1 || true)"
-  fi
-  if [ -z "$window" ]; then
-    window="$(xdotool search --onlyvisible --class '[Gg]host.?[Ff][Tt][Pp]' 2>/dev/null | head -n1 || true)"
-  fi
+  window="$(find_real_ghostftp_window || true)"
   if [ -n "$window" ]; then break; fi
   sleep 0.3
 done
@@ -140,6 +173,11 @@ if [ -z "$window" ]; then
   exit 1
 fi
 echo "Discovered actual Ghost FTP X11 window: $window (app PID $app_pid)"
+# If Gtk produced the window before WM visibility registration, map and
+# raise THIS verified window inside the disposable Xvfb session. The later
+# real-pixel validator still rejects blank and structureless WebKit captures.
+xdotool windowmap "$window" >/dev/null 2>&1 || true
+xdotool windowraise "$window" >/dev/null 2>&1 || true
 xdotool getwindowname "$window" > "$output/window-title.txt" 2>&1 || true
 # The user-approved Linux screens are 1290 x 852 pixels. Tauri is
 # undecorated; move the real top-level window to (0, 0) before capture.

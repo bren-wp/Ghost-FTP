@@ -121,3 +121,26 @@ test("Windows/Linux New Connection follows reference groups and retains secret-s
   assert.ok(!dialog.includes("localStorage"));
   assert.ok(!dialog.includes("sessionStorage"));
 });
+
+test("native Linux capture recovers a genuine pre-mapped GTK window without weakening visual checks", () => {
+  const capture = read(".github/scripts/capture-linux-premium.sh");
+  const workflow = read(".github/workflows/ghostftp-build.yml");
+  assert.ok(workflow.includes("-s '-screen 0 1290x852x24' dbus-run-session --"),
+    "D-Bus must launch INSIDE Xvfb so desktop portals inherit DISPLAY");
+  assert.ok(!workflow.includes("dbus-run-session -- xvfb-run"),
+    "Launching D-Bus before DISPLAY causes post-merge native GUI failures");
+  for (const guard of [
+    'find_real_ghostftp_window() {',
+    "xwininfo -root -tree",
+    "xdotool search --name",
+    'xprop -id "$candidate" WM_CLASS',
+    '(( width >= 500 && height >= 350 ))',
+    'xdotool windowmap "$window"',
+    'xdotool windowraise "$window"',
+    '"$validator" "$output/$qa_image"',
+  ]) {
+    assert.ok(capture.includes(guard), "Linux GUI capture regression: " + guard);
+  }
+  assert.ok(!capture.includes("WEBKIT_DISABLE_SANDBOX"), "Never disable WebKit process isolation");
+  assert.ok(capture.includes('if [ "$valid_capture" -ne 1 ]'), "Blank screenshots must fail closed");
+});
