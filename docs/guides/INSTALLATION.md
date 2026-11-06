@@ -2,7 +2,7 @@
 
 GitHub Releases is the canonical source for published Ghost FTP binaries and checksums.
 
-Use the newest non-draft GitHub Release as the canonical published build. The active source/release cycle is **0.20.8** and the previous canonical release is **0.20.7**. Publication of 0.20.8 is authoritative only when the immutable `v0.20.8` GitHub Release/tag exists.
+Use the [complete official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), not the GitHub `/releases/latest` shortcut (which may omit prereleases). Development source is **0.99.33 Preview**; [v0.99.32](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.32) is the last verified publicly published package edition. A development source version does not imply a downloadable artifact already exists.
 
 ## Verify downloads
 
@@ -70,3 +70,16 @@ Support/compatibility tooling under `tools/` must not be confused with the produ
 ## macOS Desktop — installer without Developer ID
 
 Download the **Apple Silicon (arm64)** or **Intel (x86_64)** DMG Preview from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open it, and drag `Ghost FTP Desktop.app` into `Applications`. It has no paid Apple Developer signature or notarization, so the first launch can require `System Settings → Privacy & Security → Open Anyway`. Do not disable Gatekeeper globally. [Instructions in Croatian and English](MACOS_INSTALLATION.md).
+
+## Unsigned Windows/Linux installation and manual upgrade
+
+The **Windows x64 Portable EXE, native NSIS Setup EXE and MSI**, plus **Linux x86_64 DEB, RPM, AppImage and standalone binary**, are genuine installable packages. A paid code-signing certificate is **not a technical prerequisite** to install them. They are not publisher-authenticated by Authenticode/GPG, so Windows SmartScreen or Linux package-manager reputation/source warnings may appear. **Do not disable your OS security protections globally.**
+
+1. Open the [official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), choose the exact version, and download both your OS installer and `GhostFTP-v<VERSION>-SHA256SUMS.txt` from the **same release**. Never rely on search-engine mirrors or a generic "latest" shortcut.
+2. **Windows:** In PowerShell, run `Get-FileHash -Algorithm SHA256 -LiteralPath 'GhostFTP-Windows-x64-Setup-v<VERSION>.exe'`, then compare the hash against the matching filename's value in the downloaded checksum manifest. Select **one** installation format (Setup EXE or MSI); Portable EXE runs without installation.
+3. **Linux:** For Debian/Ubuntu-family x86_64 choose `.deb`, for compatible Fedora/openSUSE/RHEL-family systems `.rpm`, and for supported glibc desktop systems AppImage where its runtime requirements are available. Check the matching SHA-256 line before executing. The packaging format alone never proves compatibility with every distribution or Wayland/GTK version.
+4. **Before an upgrade:** finish or stop active transfers, create an encrypted Ghost FTP backup and store its recovery password separately, close the app, then install the newer package under the same OS user. Inspect saved profiles, OS keychain entries and your source/destination files after reopening. Do not uninstall by deleting application-data directories.
+5. **Linux credentials:** An unlocked Secret Service provider (GNOME Keyring, KWallet or compatible) and `secret-tool` must be available. Check the executable with `command -v secret-tool`. Ghost FTP deliberately does **not** fall back to plaintext password files if the vault cannot be used.
+6. **Updates in the app:** Help & About → Updates checks only **signed automatic updater packages**. If none are offered, click **Open official Windows / Linux downloads** to review manual packages. Lack of a signed offer is not proof that your current version is newest. Every manual update needs fresh checksum verification.
+
+**Scope of automated verification:** Windows NSIS/MSI installation/launch/removal and Linux DEB/AppImage GUI smoke plus RPM package verification, protocol E2E, frontend/Rust/security tests and real native screenshot QA. **Not yet certified:** all combinations of Windows builds, GNOME/KDE/Wayland sessions, Linux distributions, locked keyrings, long-running transfer interruption, and live upgrade/rollback on user hardware.

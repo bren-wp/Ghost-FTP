@@ -1,3 +1,12 @@
+## 0.99.33 — usable unsigned Windows/Linux packages and honest manual updates (Preview; 6 November 2026)
+
+- Windows and Linux desktop packages remain directly installable without purchased publisher certificates; the user must verify official release SHA-256 checksums.
+- A missing *signed auto-updater* offer no longer generates a false “up to date” toast. The Updates view offers the exact official GitHub Releases page for manual desktop installers.
+- Keep signed automatic update and downgrade-prevention policy enforced; do not permit arbitrary external URLs.
+- Prevent a new update check from overwriting an installed update waiting for restart; redact updater diagnostic messages before logging.
+- Add a native updater Zustand regression exercised in GitHub CI and Rust exact-path allowlist tests.
+- Update Windows/Linux manual installation, backup, distro prerequisite and upgrade instructions with explicit device acceptance gaps.
+
 ## 0.99.32 — Windows/Linux session safety, honest health and native idle performance (Preview; 6 November 2026)
 
 - Bound untrusted Ghost FTP grant manifest and key-install HTTP responses before JSON parsing, disabling proxy traversal that could bypass pinned DNS and expose one-time tokens.
