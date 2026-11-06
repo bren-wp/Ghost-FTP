@@ -80,7 +80,7 @@ const REQUIRED = [
     "verify_committed_length(\"SFTP upload\"",
     "verify_committed_length(\"SFTP upload source\"",
     "verify_committed_length(\"FTP download\"",
-    "verify_committed_length(\"FTP upload\"",
+    "FtpTransferControl::Continue => verify_committed_length(",
     "sync SFTP download staging file", "sync FTP download staging file",
     "Some(t) => completed_transfer_size(t.size, t.transferred)",
   ]],

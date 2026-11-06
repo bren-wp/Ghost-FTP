@@ -108,7 +108,7 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'verify_committed_length("SFTP download"',
     'verify_committed_length("SFTP upload"',
     'verify_committed_length("FTP download"',
-    'verify_committed_length("FTP upload"',
+    'FtpTransferControl::Continue => verify_committed_length(',
     'Some(t) => completed_transfer_size(t.size, t.transferred)',
     'sync SFTP download staging file',
     'sync FTP download staging file',
