@@ -569,6 +569,35 @@ fn verify_plain_http_download_length(
     Ok(())
 }
 
+/// The common staging path covers every non-Agent download backend: FTP,
+/// FTPS, SFTP, S3, WebDAV, HTTP, Dropbox, OneDrive, Drive, Box and SaaS APIs.
+/// A provider returning success is not proof that the bytes hit the local
+/// temporary file. Do not replace a preexisting file unless the byte count
+/// matches the actual staging file and it has been synced to persistent storage.
+async fn verify_staged_download_bytes(staging: &Path, transferred: u64) -> Result<()> {
+    let metadata = tokio::fs::symlink_metadata(staging)
+        .await
+        .context("inspect completed download staging file")?;
+    anyhow::ensure!(
+        metadata.file_type().is_file(),
+        "download staging is not a regular file"
+    );
+    anyhow::ensure!(
+        metadata.len() == transferred,
+        "download staging size mismatch: counted {transferred} bytes, stored {}",
+        metadata.len()
+    );
+    let file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .open(staging)
+        .await
+        .context("open download staging for durability check")?;
+    file.sync_all()
+        .await
+        .context("sync completed download staging before promotion")?;
+    Ok(())
+}
+
 async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) -> Result<()> {
     let backup = download_backup_path(final_path, id);
     let mut backup_created = false;
@@ -4840,7 +4869,21 @@ async fn run_download_task(
     };
     let res = if staged_download {
         match res {
-            Ok(()) => promote_staged_download(&working_path, &final_path, &id).await,
+            Ok(()) => {
+                let checked = match mgr.get(&id).await {
+                    Some(record) => {
+                        verify_staged_download_bytes(&working_path, record.transferred).await
+                    }
+                    None => Err(anyhow::anyhow!("completed download record disappeared")),
+                };
+                match checked {
+                    Ok(()) => promote_staged_download(&working_path, &final_path, &id).await,
+                    Err(error) => {
+                        let _ = tokio::fs::remove_file(&working_path).await;
+                        Err(error)
+                    }
+                }
+            },
             Err(error) => {
                 let _ = tokio::fs::remove_file(&working_path).await;
                 Err(error)
@@ -5186,6 +5229,21 @@ mod tests {
             Ok(true),
             "worker cleanup must observe its registered JoinHandle even when the worker runs immediately"
         );
+    }
+
+    #[tokio::test]
+    async fn every_protocol_download_staging_requires_exact_bytes_and_durable_file() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-verify-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let file = dir.join("transfer.part");
+        tokio::fs::write(&file, b"binary\0payload").await.unwrap();
+        assert!(verify_staged_download_bytes(&file, 14).await.is_ok());
+        assert!(verify_staged_download_bytes(&file, 13).await.is_err());
+        assert!(verify_staged_download_bytes(&file, 15).await.is_err());
+        tokio::fs::write(&file, b"").await.unwrap();
+        assert!(verify_staged_download_bytes(&file, 0).await.is_ok());
+        tokio::fs::remove_file(&file).await.unwrap();
+        tokio::fs::remove_dir_all(&dir).await.unwrap();
     }
 
     #[tokio::test]

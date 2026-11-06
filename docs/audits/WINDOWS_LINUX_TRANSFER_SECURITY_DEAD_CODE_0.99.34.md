@@ -49,3 +49,7 @@
 ## Historical transfer-ledger privacy migration
 
 The 0.99.34 source now sanitizes **previously persisted** untrusted failure diagnostics when the local transfer ledger loads, not only new failures. It retains the app's own fixed crash-interruption message and preserves retry linkage and committed progress. A regression fixture includes a signed URL/userinfo secret in an old failed transfer, verifies that the resumed UI row contains only a safe network category, and that the on-disk database row was updated without the secret. This is local data migration, not a claim that pre-existing copies/backups or logs have been erased.
+
+## Cross-adapter staged-download durability guard
+
+The 0.99.34 source now verifies **every non-Agent download adapter's local staging file** against the transfer manager's actual reported count and issues `sync_all()` before the staging file can replace the user destination. This is in the shared `run_download_task` path, not just the SFTP/FTP branches, so S3/WebDAV/HTTP/Dropbox/OneDrive/Drive/Box/SaaS cannot bypass this local integrity preflight when the adapter reports success. It does **not** prove the remote server sent its full logical object when it supplied no trustworthy source size; real cloud-provider integrity checks remain required. A Rust regression covers matched, shortened, oversized and empty local stages.

@@ -75,6 +75,7 @@ const REQUIRED = [
   // marking Done; uploaded SFTP bytes must match both local and server size.
   ["ghostftp-desktop/src-tauri/src/transfer.rs", [
     "fn verify_committed_length(", "fn completed_transfer_size(",
+    "async fn verify_staged_download_bytes(", "verify_staged_download_bytes(&working_path, record.transferred)",
     "fn safe_transfer_failure(", "t.error = Some(safe_transfer_failure(&e).to_string())",
     "old_diagnostic_rewritten", "INTERRUPTED_TRANSFER_MESSAGE",
     "verify_committed_length(\"SFTP download\"",

@@ -112,6 +112,8 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'Some(t) => completed_transfer_size(t.size, t.transferred)',
     'sync SFTP download staging file',
     'sync FTP download staging file',
+    'verify_staged_download_bytes(&working_path, record.transferred)',
+    'every_protocol_download_staging_requires_exact_bytes_and_durable_file()',
     'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()',
     't.error = Some(safe_transfer_failure(&e).to_string())',
     'remote_errors_never_persist_authorization_headers_or_signed_urls()',
