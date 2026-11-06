@@ -411,6 +411,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
+          node scripts/check-desktop-unsigned-update.mjs
           npm audit --omit=dev --audit-level=high
           node ../.github/scripts/check-npm-dev-audit.mjs
           npm run check:i18n

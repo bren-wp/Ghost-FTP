@@ -127,7 +127,8 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
             "/hr/support" | "/hr/contact" | "/hr/how-to-download" | "/hr/privacy" | "/hr/terms"
         );
     // The source-code repository is explicitly distinguished from support.
-    let approved_project_page = host == "github.com" && path == "/bren-wp/Ghost-FTP";
+    let approved_project_page = host == "github.com"
+        && matches!(path, "/bren-wp/Ghost-FTP" | "/bren-wp/Ghost-FTP/releases");
     // Only these exact provider help pages. Do not permit generic provider
     // URLs, user-submitted file links or token-bearing redirect queries.
     let official_provider_docs = (host == "mega.nz" && path == "/cmd")
@@ -587,6 +588,7 @@ mod init_script_tests {
             "https://ghostftp.com/hr/privacy",
             "https://ghostftp.com/hr/terms",
             "https://github.com/bren-wp/Ghost-FTP",
+            "https://github.com/bren-wp/Ghost-FTP/releases",
             "https://mega.nz/cmd",
             "https://proton.me/blog/proton-drive-cli",
         ] {
@@ -620,6 +622,9 @@ mod init_script_tests {
             "https://evil.example@ghostftp.com/hr/support",
             "https://ghostftp.com.evil.example/hr/support",
             "https://github.com/bren-wp/Ghost-FTP/issues",
+            "https://github.com/bren-wp/Ghost-FTP/releases/latest",
+            "https://github.com/bren-wp/Ghost-FTP/releases?token=secret",
+            "https://github.com/bren-wp/Ghost-FTP/releases/../issues",
             "https://www.github.com/bren-wp/Ghost-FTP/issues",
             "https://github.com.evil.example/bren-wp/Ghost-FTP",
             "https://evil.example/https://github.com/bren-wp/Ghost-FTP",
