@@ -487,6 +487,24 @@ fn verify_committed_length(
     Ok(())
 }
 
+/// No remote-controlled diagnostics are persisted in the transfer ledger or
+/// emitted to the UI. A server can echo OAuth tokens, signed download URLs,
+/// Authorization headers or local file paths in an otherwise useful error.
+fn safe_transfer_failure(error: &anyhow::Error) -> &'static str {
+    use crate::error::ErrorKind;
+    match crate::error::classify_message(&error.to_string()) {
+        ErrorKind::Auth => "Authentication failed. Verify the connection credentials.",
+        ErrorKind::Permission => "Permission denied by the destination or server.",
+        ErrorKind::NotFound => "Source or destination was not found.",
+        ErrorKind::Network => "Network connection was interrupted. Check the server and retry.",
+        ErrorKind::Timeout => "Server timed out. Check the connection and retry.",
+        ErrorKind::Unsupported => "The server does not support this transfer operation.",
+        ErrorKind::Conflict => "File conflict detected. Review the overwrite policy.",
+        ErrorKind::InvalidInput => "The file path or transfer request is invalid.",
+        ErrorKind::Other => "Transfer failed. Check the server and retry.",
+    }
+}
+
 /// Some HTTP/cloud backends cannot obtain a size before transfer and store 0.
 /// In that case use the actual byte count; never overwrite real progress with
 /// a guessed size. When size was known, a short/oversized transfer is an error.
@@ -5040,7 +5058,7 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
         Err(e) => {
             mgr.update(id, |t| {
                 t.status = TransferStatus::Error;
-                t.error = Some(e.to_string());
+                t.error = Some(safe_transfer_failure(&e).to_string());
             })
             .await;
             if let Some(t) = mgr.get(id).await {
@@ -5073,6 +5091,21 @@ mod http_length_integrity_tests {
         assert_eq!(completed_transfer_size(0, 128 * 1024 * 1024).unwrap(), 128 * 1024 * 1024);
         assert!(completed_transfer_size(0, 0).is_ok());
         assert!(completed_transfer_size(u32::MAX as u64 + 10, u32::MAX as u64).is_err());
+    }
+
+    #[test]
+    fn remote_errors_never_persist_authorization_headers_or_signed_urls() {
+        let error = anyhow::anyhow!(
+            "server failure: Authorization: Bearer private_token \
+https://alice:pass@cloud.example/file?x-amz-signature=secret"
+        );
+        let displayed = safe_transfer_failure(&error);
+        assert!(!displayed.contains("private_token"));
+        assert!(!displayed.contains("alice"));
+        assert!(!displayed.contains("secret"));
+        assert!(!displayed.contains("cloud.example"));
+        let error = anyhow::anyhow!("401 unauthorized: token=private");
+        assert!(safe_transfer_failure(&error).contains("Authentication"));
     }
 
     #[test]

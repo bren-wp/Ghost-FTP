@@ -113,6 +113,8 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'sync SFTP download staging file',
     'sync FTP download staging file',
     'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()',
+    't.error = Some(safe_transfer_failure(&e).to_string())',
+    'remote_errors_never_persist_authorization_headers_or_signed_urls()',
   ]) {
     assert.ok(transfer.includes(guard), "Transfer completion safety guard was removed: " + guard);
   }
