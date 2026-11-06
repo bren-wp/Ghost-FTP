@@ -1,3 +1,5 @@
+> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+
 > **Current development (3 November 2026): Ghost FTP 0.99.31 Preview.** The latest public release is v0.99.30. This source cycle implements platform-wide security, privacy and dead-code regression checks, with device-level acceptance and stable signing remaining separate requirements.
 
 > **Current development (2 November 2026): Ghost FTP 0.99.30 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.29 is the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
@@ -16,7 +18,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.31 (development Preview) · Previously published: v0.99.30. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.32 (development Preview) · Previously published: v0.99.31. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 

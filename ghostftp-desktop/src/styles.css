@@ -6333,3 +6333,39 @@ input.ghost-pane-address:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .ghost-new-connection-panel .ghost-ref-field :is(input, select) { transition: none; }
 }
+
+/* Native Files session badges: reflect the real Rust health probe, not a
+   decorative permanent green "secure" indicator for a broken connection. */
+.ghost-premium-connection-state > svg.ghost-connection-health-warning-icon {
+  color: #f59e73;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 115, .14));
+}
+.ghost-premium-connection-state > svg.ghost-connection-checking-icon {
+  color: #8eb2d5;
+}
+
+/* 0.99.32: right-workspace (213px sidebar) modal alignment at 1290x852.
+   Compact windows keep the original centered, scrollable modal. */
+@media (min-width: 1101px) and (min-height: 800px) {
+  .ghost-new-connection-overlay {
+    padding-left: 230px !important;
+    padding-right: 16px !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .ghost-new-connection-dialog {
+    min-height: 630px;
+    transform: translateY(51px);
+  }
+}
+.ghost-new-connection-head > button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Never show a reassuring secure badge beside plaintext FTP. */
+.ghost-new-connection-security-note > svg.ghost-ftp-warning-icon {
+  color: #ffbf65;
+  filter: drop-shadow(0 0 4px rgba(255, 191, 101, .10));
+}

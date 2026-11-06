@@ -1,3 +1,5 @@
+> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+
 > **Authoritative current state (3 November 2026):** Ghost FTP **0.99.31 development Preview**; v0.99.30 is the latest publicly published version. The new cycle audits active Windows/Linux, Android and macOS code, plus maintained Go compatibility tools, security/privacy controls, dead-code reachability and regressions. Older notes retain historical context; no claim of total vulnerability freedom or complete device acceptance.
 
 > **Authoritative current state (2 November 2026):** Ghost FTP **0.99.30 development Preview**; v0.99.29 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
@@ -28,7 +30,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **0.99.31**. Previous canonical release: **0.99.30**.
+Current development line: **0.99.32**. Previous canonical release: **0.99.31**.
 
 ## Platform deliverables
 

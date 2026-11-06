@@ -92,6 +92,43 @@ for (const cssClass of [
 for (const dangerous of ['localStorage', 'sessionStorage', 'fakeTransfer', 'mockTransfer', 'example.com']) {
   if (chrome.includes(dangerous)) violations.push(`Credential/demo logic in inline quick-connect: ${dangerous}`);
 }
+
+// The native health badge is driven by the real session probe. A broken
+// connection may not be represented by the green secure-transport icon.
+const statusBar = source("ghostftp-desktop/src/components/ReferenceStatusBar.tsx");
+requireText(chrome, 'activeSession?.health === "unhealthy"', "Files status ignores failing native connection probes");
+requireText(chrome, 'ghost-connection-health-warning-icon', "Failed session still uses a green connection badge");
+requireText(chrome, 'activeSession?.health === "healthy"', "Secure badge is not conditional on known health");
+requireText(chrome, 'finally {\n      // A failed handshake', "Quick Connect does not clear passwords after failed connection attempts");
+requireText(css, ".ghost-connection-health-warning-icon", "Missing prominent failed session styling");
+const clock = statusBar.split("function StatusClock() {")[1]?.split("function formatSpeed(")[0] ?? "";
+requireText(clock, 'document.visibilityState === "visible"', "Hidden Windows/Linux window still updates the status clock every second");
+requireText(clock, 'window.clearInterval(interval)', "Clock interval cannot be stopped while hidden");
+
+
+// New connection geometry follows the Windows/Linux 1290x852 workspace,
+// without removing the working (opt-in) saved-site name field.
+requireText(savedSiteDialog, "ghost-new-connection-overlay", "Desktop reference modal lacks a scoped overlay");
+requireText(savedSiteDialog, 'Site name (optional)', "Saved-site naming was removed instead of moved to Advanced");
+requireText(savedSiteDialog, 'advanced && <div className="grid grid-cols-2 gap-3 border-t border-border p-4">', "Advanced editor controls are no longer accessible");
+const detailsStart = savedSiteDialog.indexOf('aria-labelledby="ghost-new-server-heading"');
+const detailsEnd = savedSiteDialog.indexOf('aria-labelledby="ghost-new-auth-heading"');
+if (detailsStart < 0 || detailsEnd < detailsStart ||
+    savedSiteDialog.slice(detailsStart, detailsEnd).includes("Site name (optional)")) {
+  violations.push("Optional site naming still shifts the real initial New Connection reference cards");
+}
+requireText(css, "padding-left: 230px !important", "Modal remains centered over Linux/Windows navigation rail");
+requireText(css, "transform: translateY(51px)", "Modal lacks workspace-aligned reference Y offset");
+
+
+// The native modal's warning icon must match the actual transport: plaintext
+// FTP has no TLS/SSH peer confidentiality, regardless of successful login.
+requireText(savedSiteDialog, 'protocol === "ftp"\n              ? <ShieldAlert', "Plain FTP editor incorrectly shows a green verified-transport icon");
+requireText(css, ".ghost-ftp-warning-icon", "Plain FTP warning has no dedicated amber icon style");
+const healthSection = statusBar.split("  useEffect(() => {")[1]?.split("  const healthLabel =")[0] ?? "";
+requireText(healthSection, "if (healthInterval !== undefined) window.clearInterval(healthInterval)", "Native session health probe continues polling in hidden windows");
+requireText(healthSection, 'document.addEventListener("visibilitychange", syncVisibility)', "Health polling fails to resume on visibility changes");
+
 if (violations.length > 0) {
   console.error("Premium Windows/Linux Files UI contract failed:");
   for (const violation of violations) console.error(" - " + violation);

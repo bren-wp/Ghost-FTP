@@ -28,14 +28,28 @@ export function ReferenceStatusBar() {
         void checkHealth(activeSessionId);
       }
     };
-    const interval = window.setInterval(probe, 30_000);
+    // A minimized desktop window must not wake every 30 seconds just to
+    // check a transport that the user cannot see. Foreground returns start
+    // polling again and run one immediate fresh check.
+    let healthInterval: number | undefined;
+    let initial = true;
+    const syncVisibility = () => {
+      if (healthInterval !== undefined) window.clearInterval(healthInterval);
+      healthInterval = undefined;
+      if (document.visibilityState === "visible") {
+        if (!initial) probe();
+        healthInterval = window.setInterval(probe, 30_000);
+      }
+      initial = false;
+    };
+    syncVisibility();
     window.addEventListener("focus", probe);
-    document.addEventListener("visibilitychange", probe);
+    document.addEventListener("visibilitychange", syncVisibility);
 
     return () => {
-      window.clearInterval(interval);
+      if (healthInterval !== undefined) window.clearInterval(healthInterval);
       window.removeEventListener("focus", probe);
-      document.removeEventListener("visibilitychange", probe);
+      document.removeEventListener("visibilitychange", syncVisibility);
     };
   }, [activeSessionId, healthSupported, checkHealth]);
 
@@ -138,8 +152,28 @@ function TransferMetrics({
 function StatusClock() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    // Native desktop windows may stay minimized for hours. Stop the clock's
+    // 1-second wakeups while hidden, then refresh immediately on foreground.
+    let interval: number | undefined;
+    const refresh = () => {
+      if (document.visibilityState === "visible") setNow(Date.now());
+    };
+    const syncVisibility = () => {
+      if (interval !== undefined) window.clearInterval(interval);
+      interval = undefined;
+      if (document.visibilityState === "visible") {
+        refresh();
+        interval = window.setInterval(refresh, 1000);
+      }
+    };
+    syncVisibility();
+    document.addEventListener("visibilitychange", syncVisibility);
+    window.addEventListener("focus", refresh);
+    return () => {
+      if (interval !== undefined) window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", syncVisibility);
+      window.removeEventListener("focus", refresh);
+    };
   }, []);
   return <span>Local time: {new Date(now).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})}</span>;
 }

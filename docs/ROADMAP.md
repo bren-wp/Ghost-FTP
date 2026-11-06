@@ -1,3 +1,5 @@
+> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+
 > **Authoritative current state (3 November 2026):** Ghost FTP **0.99.31 development Preview**; v0.99.30 is the latest publicly published version. The new cycle audits active Windows/Linux, Android and macOS code, plus maintained Go compatibility tools, security/privacy controls, dead-code reachability and regressions. Older notes retain historical context; no claim of total vulnerability freedom or complete device acceptance.
 
 > **Authoritative current state (2 November 2026):** Ghost FTP **0.99.30 development Preview**; v0.99.29 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
@@ -10,7 +12,7 @@
 
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.99.31 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.30**.
+This roadmap separates the current **0.99.31 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.31**.
 
 ## Implemented
 
@@ -68,4 +70,4 @@ This roadmap separates the current **0.99.31 development Preview** state from fu
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
 
 
-Current development line: 0.99.31. Previous canonical release: 0.99.30. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.32. Previous canonical release: 0.99.31. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.

@@ -1,3 +1,5 @@
+> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+
 > **Authoritative current state (3 November 2026):** Ghost FTP **0.99.31 development Preview**; v0.99.30 is the latest publicly published version. The new cycle audits active Windows/Linux, Android and macOS code, plus maintained Go compatibility tools, security/privacy controls, dead-code reachability and regressions. Older notes retain historical context; no claim of total vulnerability freedom or complete device acceptance.
 
 > **Authoritative current state (2 November 2026):** Ghost FTP **0.99.30 development Preview**; v0.99.29 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
@@ -55,7 +57,7 @@ The Android Cloud storage workspace transfers one object at a time using short-l
 - Product name: **Ghost FTP**
 - Brand owner label: **Brendigo**
 - Active source version: **0.95.18**
-- Previous canonical release: **0.99.30**
+- Previous canonical release: **0.99.31**
 - Version source of truth: root `version.json`
 - Android source: `android/`
 - Canonical unsigned production asset: `GhostFTP-Android-v<version>.apk.unsigned`
@@ -172,7 +174,7 @@ Stable/FINAL mobile status additionally requires device-level install/upgrade/st
 Native Kotlin layouts now adapt Files to a single pane under 420 dp of usable content width and keep dual-pane on wider phones and tablets. Six emulator viewports, font scale 1.4 and landscape route checks are in `ResponsiveViewportTest.kt`. The 16 source UI mockup screens are **not** declared pixel-identical. Signed cloud-provider account browsing and persisted multi-transfer queue remain independent feature gaps. See `docs/qa/ANDROID_RESPONSIVE_0.99.6.md` for the acceptance matrix.
 
 
-Current development line: 0.99.31. Previous canonical release: 0.99.30. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.32. Previous canonical release: 0.99.31. See `docs/releases/0.99.30.md` for the latest published Ghost FTP Preview and its acceptance limits.
 
 ## v0.99.13 new design reference
 

@@ -62,6 +62,15 @@ export function scanDangerous(file, content) {
   });
 }
 const REQUIRED = [
+  // Bearer grant URLs must never be sent through a proxy or parsed from an
+  // unlimited HTTP response. These are production Windows/Linux Rust guards.
+  ["ghostftp-desktop/src-tauri/src/grant.rs", [
+    ".no_proxy()", ".resolve(host, resolved)",
+    ".redirect(reqwest::redirect::Policy::none())",
+    "read_bounded_grant_json(resp, MAX_GRANT_MANIFEST_BYTES)",
+    "read_bounded_grant_json(resp, MAX_GRANT_KEY_REPLY_BYTES)",
+    "validate_host(&conn.host)?",
+  ]],
   ["macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift", ["O_NOFOLLOW", "O_EXCL", "PrivateUploadSource.verifyUnchanged", "FTPControlCodec.appendListingChunk", "expectedDownloadSize", "verifyUploadSize"]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
   ["ghostftp-desktop/src-tauri/src/virtualfs/mod.rs", [

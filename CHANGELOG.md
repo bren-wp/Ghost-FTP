@@ -1,3 +1,11 @@
+## 0.99.32 — Windows/Linux session safety, honest health and native idle performance (Preview; 6 November 2026)
+
+- Bound untrusted Ghost FTP grant manifest and key-install HTTP responses before JSON parsing, disabling proxy traversal that could bypass pinned DNS and expose one-time tokens.
+- Reject malformed grant hosts, control characters, empty usernames and invalid ports, with Rust regression coverage.
+- Files Quick Connect clears session passwords even after failed handshakes; the native connection banner distinguishes unhealthy, unknown/checking and verified healthy transport states.
+- Windows/Linux status clock pauses one-second updates while minimized or backgrounded; explicit focus/visibility refresh retains accurate foreground times.
+- Existing Windows setup/MSI, Linux DEB/RPM/AppImage, Android and macOS release/test policies remain unchanged. Pixel-perfect 1:1 and installed-device acceptance require independent native screenshot/interaction evidence.
+
 ## 0.99.31 — cross-platform security, privacy, stability and dead-code audit (Preview; 3 November 2026)
 
 - Conservative static code inventory plus targeted runtime hardening across Windows/Linux, Android, macOS, Go compatibility services, CI and the release pipeline.

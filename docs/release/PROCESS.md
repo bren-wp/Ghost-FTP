@@ -1,3 +1,5 @@
+> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+
 > **Current development (3 November 2026): Ghost FTP 0.99.31 Preview.** The previous published release v0.99.30 and its tags/assets are immutable; all checks require exact-source CI evidence.
 
 > **Current development (2 November 2026): Ghost FTP 0.99.30 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.29 remains the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
@@ -100,8 +102,8 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.31**
-- Previous canonical release: **0.99.30**
+- Active source/release cycle: **0.99.32**
+- Previous canonical release: **0.99.31**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Newest edition is always visible under Releases
