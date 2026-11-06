@@ -4883,7 +4883,7 @@ async fn run_download_task(
                         Err(error)
                     }
                 }
-            },
+            }
             Err(error) => {
                 let _ = tokio::fs::remove_file(&working_path).await;
                 Err(error)
