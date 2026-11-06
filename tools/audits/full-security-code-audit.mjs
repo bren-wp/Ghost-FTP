@@ -71,6 +71,21 @@ const REQUIRED = [
     "read_bounded_grant_json(resp, MAX_GRANT_KEY_REPLY_BYTES)",
     "validate_host(&conn.host)?",
   ]],
+  // All Windows/Linux download destinations must be byte-verified before
+  // marking Done; uploaded SFTP bytes must match both local and server size.
+  ["ghostftp-desktop/src-tauri/src/transfer.rs", [
+    "fn verify_committed_length(", "fn completed_transfer_size(",
+    "async fn verify_staged_download_bytes(", "verify_staged_download_bytes(&working_path, record.transferred)",
+    "fn safe_transfer_failure(", "t.error = Some(safe_transfer_failure(&e).to_string())",
+    "old_diagnostic_rewritten", "INTERRUPTED_TRANSFER_MESSAGE",
+    "verify_committed_length(\"SFTP download\"",
+    "verify_committed_length(\"SFTP upload\"",
+    "verify_committed_length(\"SFTP upload source\"",
+    "verify_committed_length(\"FTP download\"",
+    "FtpTransferControl::Continue => verify_committed_length(",
+    "sync SFTP download staging file", "sync FTP download staging file",
+    "Some(t) => completed_transfer_size(t.size, t.transferred)",
+  ]],
   ["macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift", ["O_NOFOLLOW", "O_EXCL", "PrivateUploadSource.verifyUnchanged", "FTPControlCodec.appendListingChunk", "expectedDownloadSize", "verifyUploadSize"]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
   ["ghostftp-desktop/src-tauri/src/virtualfs/mod.rs", [

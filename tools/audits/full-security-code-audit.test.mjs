@@ -100,3 +100,34 @@ test("all four maintained native platform security configurations fail closed on
   weaken(paths[5], 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly', 'kSecAttrAccessibleAfterFirstUnlock', "Keychain");
   weaken(paths[6], 'dec.Decode(&struct{}{})', 'decoderSkipsExtraJSON()', "Go local runtime");
 });
+
+test("native desktop upload/download integrity guards are required across SFTP and FTP/FTPS", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const transfer = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer.rs"), "utf8");
+  for (const guard of [
+    'verify_committed_length("SFTP download"',
+    'verify_committed_length("SFTP upload"',
+    'verify_committed_length("FTP download"',
+    'FtpTransferControl::Continue => verify_committed_length(',
+    'Some(t) => completed_transfer_size(t.size, t.transferred)',
+    'sync SFTP download staging file',
+    'sync FTP download staging file',
+    'verify_staged_download_bytes(&working_path, record.transferred)',
+    'every_protocol_download_staging_requires_exact_bytes_and_durable_file()',
+    'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()',
+    't.error = Some(safe_transfer_failure(&e).to_string())',
+    'remote_errors_never_persist_authorization_headers_or_signed_urls()',
+    'old_diagnostic_rewritten',
+    'INTERRUPTED_TRANSFER_MESSAGE',
+  ]) {
+    assert.ok(transfer.includes(guard), "Transfer completion safety guard was removed: " + guard);
+  }
+  // Do not silently mark known-size short results done or replace real
+  // progress with the guessed initial size.
+  const finalizerStart = transfer.indexOf("async fn finalize(");
+  const finalizerEnd = transfer.indexOf("\n#[cfg(test)]", finalizerStart);
+  const finalizer = transfer.slice(finalizerStart, finalizerEnd);
+  assert.ok(finalizerStart > 0 && finalizerEnd > finalizerStart);
+  assert.ok(!finalizer.includes('t.transferred = t.size;'),
+    "Unsafe forced 100% transfer completion remains in native finalize");
+});

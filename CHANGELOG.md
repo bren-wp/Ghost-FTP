@@ -1,3 +1,13 @@
+## 0.99.34 — Windows/Linux transfer byte integrity and full-code audit (Preview; 6 November 2026)
+
+- SFTP download validates remote source byte length, recorded stream count, durable staging length and post-transfer source length before promoting any temporary file.
+- SFTP upload validates source and transmitted byte counts, then confirms the server's final size.
+- FTP/explicit FTPS download verifies persisted byte counts and server SIZE where available; upload also refuses incomplete sent-byte results.
+- Shared transfer completion no longer fabricates successful progress for partial known-size transfers or zeros unknown-size downloads.
+- Redact untrusted remote failure messages before persistence and UI events; signed cloud URLs and bearer tokens are not stored in the transfer history.
+- Extend native Rust security regression and repository-wide security checks; document all 13 session variants, honest live E2E coverage, dead-code audit semantics, outstanding resume and cloud provider fault-injection gaps.
+- Record exact Windows/Linux v0.99.33 native reference comparison for seven core screens. No unproven 1:1 pixel claims, no mock screenshots.
+
 ## 0.99.33 — usable unsigned Windows/Linux packages and honest manual updates (Preview; 6 November 2026)
 
 - Windows and Linux desktop packages remain directly installable without purchased publisher certificates; the user must verify official release SHA-256 checksums.

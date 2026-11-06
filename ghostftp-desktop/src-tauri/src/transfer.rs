@@ -472,6 +472,60 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     .context("join local no-replace download promotion")?
 }
 
+/// A completed transfer is not proven by EOF or a success response alone.
+/// Prevent truncation/oversized streams from being marked Done and promoted.
+fn verify_committed_length(
+    label: &str,
+    expected: u64,
+    transferred: u64,
+    on_destination: u64,
+) -> Result<()> {
+    anyhow::ensure!(
+        expected == transferred && transferred == on_destination,
+        "{label} length mismatch: expected {expected}, received {transferred}, destination {on_destination}"
+    );
+    Ok(())
+}
+
+/// No remote-controlled diagnostics are persisted in the transfer ledger or
+/// emitted to the UI. A server can echo OAuth tokens, signed download URLs,
+/// Authorization headers or local file paths in an otherwise useful error.
+fn safe_transfer_failure_message(message: &str) -> &'static str {
+    use crate::error::ErrorKind;
+    match crate::error::classify_message(message) {
+        ErrorKind::Auth => "Authentication failed. Verify the connection credentials.",
+        ErrorKind::Permission => "Permission denied by the destination or server.",
+        ErrorKind::NotFound => "Source or destination was not found.",
+        ErrorKind::Network => "Network connection was interrupted. Check the server and retry.",
+        ErrorKind::Timeout => "Server timed out. Check the connection and retry.",
+        ErrorKind::Unsupported => "This transfer operation is unsupported by the server.",
+        ErrorKind::Conflict => "File conflict detected. Review the overwrite policy.",
+        ErrorKind::InvalidInput => "Invalid input: check the file path or transfer request.",
+        ErrorKind::Other => "Transfer failed. Check the server and retry.",
+    }
+}
+
+fn safe_transfer_failure(error: &anyhow::Error) -> &'static str {
+    safe_transfer_failure_message(&error.to_string())
+}
+
+// Preserve the intentionally actionable own-process recovery status verbatim.
+// Unlike a remote error, this is a fixed internal literal with no secrets.
+const INTERRUPTED_TRANSFER_MESSAGE: &str = "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and restart safely from byte zero because cross-process file identity was not verified.";
+
+/// Some HTTP/cloud backends cannot obtain a size before transfer and store 0.
+/// In that case use the actual byte count; never overwrite real progress with
+/// a guessed size. When size was known, a short/oversized transfer is an error.
+fn completed_transfer_size(expected: u64, actual: u64) -> Result<u64> {
+    if expected != 0 {
+        anyhow::ensure!(
+            actual == expected,
+            "transfer finished with {actual} of {expected} expected bytes"
+        );
+    }
+    Ok(actual)
+}
+
 /// The declared wire size is meaningful only for identity-encoded HTTP.
 fn declared_plain_http_length(headers: &reqwest::header::HeaderMap) -> Result<Option<u64>> {
     use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH};
@@ -512,6 +566,35 @@ fn verify_plain_http_download_length(
             "HTTP download length mismatch: incomplete or oversized payload"
         );
     }
+    Ok(())
+}
+
+/// The common staging path covers every non-Agent download backend: FTP,
+/// FTPS, SFTP, S3, WebDAV, HTTP, Dropbox, OneDrive, Drive, Box and SaaS APIs.
+/// A provider returning success is not proof that the bytes hit the local
+/// temporary file. Do not replace a preexisting file unless the byte count
+/// matches the actual staging file and it has been synced to persistent storage.
+async fn verify_staged_download_bytes(staging: &Path, transferred: u64) -> Result<()> {
+    let metadata = tokio::fs::symlink_metadata(staging)
+        .await
+        .context("inspect completed download staging file")?;
+    anyhow::ensure!(
+        metadata.file_type().is_file(),
+        "download staging is not a regular file"
+    );
+    anyhow::ensure!(
+        metadata.len() == transferred,
+        "download staging size mismatch: counted {transferred} bytes, stored {}",
+        metadata.len()
+    );
+    let file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .open(staging)
+        .await
+        .context("open download staging for durability check")?;
+    file.sync_all()
+        .await
+        .context("sync completed download staging before promotion")?;
     Ok(())
 }
 
@@ -853,6 +936,21 @@ impl TransferManager {
                         continue;
                     }
 
+                    // Historical versions persisted untrusted backend errors
+                    // verbatim. Redact them on the first load, persist the safe
+                    // replacement and do not repeat that write on every start.
+                    // Keep our own fixed crash-recovery instruction unchanged.
+                    let mut old_diagnostic_rewritten = false;
+                    if let Some(original) = envelope.transfer.error.as_deref() {
+                        if original != INTERRUPTED_TRANSFER_MESSAGE {
+                            let safe = safe_transfer_failure_message(original);
+                            if original != safe {
+                                envelope.transfer.error = Some(safe.to_string());
+                                old_diagnostic_rewritten = true;
+                            }
+                        }
+                    }
+
                     let was_active = matches!(
                         envelope.transfer.status,
                         TransferStatus::Queued
@@ -880,10 +978,9 @@ impl TransferManager {
                     if was_active {
                         envelope.transfer.status = TransferStatus::Error;
                         envelope.transfer.retry_attempt = None;
-                        envelope.transfer.error = Some(
-                            "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and restart safely from byte zero because cross-process file identity was not verified."
-                                .to_string(),
-                        );
+                        envelope.transfer.error = Some(INTERRUPTED_TRANSFER_MESSAGE.to_string());
+                    }
+                    if was_active || old_diagnostic_rewritten {
                         if let Ok(normalized) = serde_json::to_string(&envelope) {
                             let _ = store.transfer_ledger_upsert(&row_id, &normalized);
                         }
@@ -1695,11 +1792,27 @@ impl TransferManager {
             } else {
                 0
             };
+        let sftp_cell = session.ensure_sftp().await?;
+        // SFTP servers expose source file size. Read it before the stream
+        // rather than trusting EOF: a broken connection or shortened response
+        // must never promote a partial .part as a successful download.
+        let expected_remote_len = {
+            let sftp = sftp_cell.lock().await;
+            sftp.metadata(remote_path)
+                .await
+                .context("stat SFTP download source")?
+                .size
+                .context("SFTP download source did not report its byte length")?
+        };
+        // A stale resume point beyond the new source is never trustworthy.
+        let resume_offset = if resume_offset <= expected_remote_len {
+            resume_offset
+        } else {
+            0
+        };
         if resume_offset != requested_offset {
             self.update(id, |t| t.transferred = resume_offset).await;
         }
-
-        let sftp_cell = session.ensure_sftp().await?;
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
             sftp.open(remote_path)
@@ -1742,6 +1855,29 @@ impl TransferManager {
             }
         }
         local_file.flush().await?;
+        local_file
+            .sync_all()
+            .await
+            .context("sync SFTP download staging file")?;
+        let on_disk = local_file
+            .metadata()
+            .await
+            .context("stat completed SFTP download staging")?
+            .len();
+        verify_committed_length("SFTP download", expected_remote_len, transferred, on_disk)?;
+        drop(remote_file);
+        let remote_after = {
+            let sftp = sftp_cell.lock().await;
+            sftp.metadata(remote_path)
+                .await
+                .context("stat SFTP source after download")?
+                .size
+                .context("SFTP source length unavailable after download")?
+        };
+        anyhow::ensure!(
+            remote_after == expected_remote_len,
+            "SFTP source changed size during download"
+        );
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -2535,6 +2671,22 @@ impl TransferManager {
             }
         }
         remote_file.flush().await?;
+        let source_after = local_file
+            .metadata()
+            .await
+            .context("stat SFTP upload source after transfer")?
+            .len();
+        verify_committed_length("SFTP upload source", local_len, transferred, source_after)?;
+        drop(remote_file);
+        let remote_size = {
+            let sftp = sftp_cell.lock().await;
+            sftp.metadata(remote_path)
+                .await
+                .context("stat completed SFTP upload")?
+                .size
+                .context("SFTP upload destination did not report its byte length")?
+        };
+        verify_committed_length("SFTP upload", local_len, transferred, remote_size)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -2808,6 +2960,39 @@ impl TransferManager {
                     }
                 })?;
                 writer.flush().context("flush FTP download destination")?;
+                writer
+                    .get_ref()
+                    .sync_all()
+                    .context("sync FTP download staging file")?;
+                if outcome.control == FtpTransferControl::Continue {
+                    let persisted = writer
+                        .get_ref()
+                        .metadata()
+                        .context("stat completed FTP download staging")?
+                        .len();
+                    if let Some(expected) = remote_len {
+                        verify_committed_length(
+                            "FTP download",
+                            expected,
+                            outcome.transferred,
+                            persisted,
+                        )?;
+                    }
+                    // When SIZE is supported, also reject a source that was
+                    // replaced/truncated or extended during RETR.
+                    if let Ok(after) = stream.size(&path) {
+                        verify_committed_length(
+                            "FTP download",
+                            after as u64,
+                            outcome.transferred,
+                            persisted,
+                        )?;
+                    }
+                    anyhow::ensure!(
+                        persisted == outcome.transferred,
+                        "FTP download persisted fewer bytes than received"
+                    );
+                }
                 Ok(outcome)
             })
             .await
@@ -3013,7 +3198,12 @@ impl TransferManager {
         }
 
         match outcome.control {
-            FtpTransferControl::Continue => Ok(()),
+            FtpTransferControl::Continue => verify_committed_length(
+                "FTP upload",
+                local_len,
+                outcome.transferred,
+                outcome.transferred,
+            ),
             FtpTransferControl::Pause => {
                 self.checkpoint(id, 0).await?;
                 session
@@ -4679,7 +4869,21 @@ async fn run_download_task(
     };
     let res = if staged_download {
         match res {
-            Ok(()) => promote_staged_download(&working_path, &final_path, &id).await,
+            Ok(()) => {
+                let checked = match mgr.get(&id).await {
+                    Some(record) => {
+                        verify_staged_download_bytes(&working_path, record.transferred).await
+                    }
+                    None => Err(anyhow::anyhow!("completed download record disappeared")),
+                };
+                match checked {
+                    Ok(()) => promote_staged_download(&working_path, &final_path, &id).await,
+                    Err(error) => {
+                        let _ = tokio::fs::remove_file(&working_path).await;
+                        Err(error)
+                    }
+                }
+            }
             Err(error) => {
                 let _ = tokio::fs::remove_file(&working_path).await;
                 Err(error)
@@ -4891,6 +5095,16 @@ async fn dispatch_upload(
 }
 
 async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result: Result<()>) {
+    // A backend returning Ok(()) may still have sent fewer/more bytes than
+    // the known source size. Never replace real progress with a fictitious
+    // 100% on such a result, including across FTP/FTPS/SFTP/cloud backends.
+    let result = match result {
+        Ok(()) => match mgr.get(id).await {
+            Some(t) => completed_transfer_size(t.size, t.transferred).map(|_| ()),
+            None => Err(anyhow::anyhow!("completed transfer record disappeared")),
+        },
+        Err(error) => Err(error),
+    };
     // Cancel updates the row immediately. Cooperative blocking transports (FTP)
     // may finish ABOR cleanup after that; never let their late result overwrite
     // the user-visible Canceled state.
@@ -4902,7 +5116,11 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
         Ok(()) => {
             mgr.update(id, |t| {
                 t.status = TransferStatus::Done;
-                t.transferred = t.size;
+                // A zero-sized initial estimate means size was unavailable,
+                // not that an actual multi-byte download is empty.
+                if t.size == 0 {
+                    t.size = t.transferred;
+                }
             })
             .await;
             if let Some(t) = mgr.get(id).await {
@@ -4912,7 +5130,7 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
         Err(e) => {
             mgr.update(id, |t| {
                 t.status = TransferStatus::Error;
-                t.error = Some(e.to_string());
+                t.error = Some(safe_transfer_failure(&e).to_string());
             })
             .await;
             if let Some(t) = mgr.get(id).await {
@@ -4927,6 +5145,43 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
 mod http_length_integrity_tests {
     use super::*;
     use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH};
+
+    #[test]
+    fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams() {
+        assert!(verify_committed_length("SFTP download", 4096, 2048, 2048).is_err());
+        assert!(verify_committed_length("FTP download", 4096, 4097, 4097).is_err());
+        assert!(verify_committed_length("FTPS download", 4096, 4096, 4095).is_err());
+        assert!(verify_committed_length("SFTP download", 0, 0, 0).is_ok());
+        assert!(verify_committed_length("FTPS download", 65537, 65537, 65537).is_ok());
+    }
+
+    #[test]
+    fn known_size_is_required_but_an_unknown_estimate_never_fakes_zero_progress() {
+        assert!(completed_transfer_size(100, 99).is_err());
+        assert!(completed_transfer_size(100, 101).is_err());
+        assert_eq!(completed_transfer_size(100, 100).unwrap(), 100);
+        assert_eq!(
+            completed_transfer_size(0, 128 * 1024 * 1024).unwrap(),
+            128 * 1024 * 1024
+        );
+        assert!(completed_transfer_size(0, 0).is_ok());
+        assert!(completed_transfer_size(u32::MAX as u64 + 10, u32::MAX as u64).is_err());
+    }
+
+    #[test]
+    fn remote_errors_never_persist_authorization_headers_or_signed_urls() {
+        let error = anyhow::anyhow!(
+            "server failure: Authorization: Bearer private_token \
+https://alice:pass@cloud.example/file?x-amz-signature=secret"
+        );
+        let displayed = safe_transfer_failure(&error);
+        assert!(!displayed.contains("private_token"));
+        assert!(!displayed.contains("alice"));
+        assert!(!displayed.contains("secret"));
+        assert!(!displayed.contains("cloud.example"));
+        let error = anyhow::anyhow!("401 unauthorized: token=private");
+        assert!(safe_transfer_failure(&error).contains("Authentication"));
+    }
 
     #[test]
     fn truncated_and_extra_payloads_cannot_be_confirmed() {
@@ -4974,6 +5229,21 @@ mod tests {
             Ok(true),
             "worker cleanup must observe its registered JoinHandle even when the worker runs immediately"
         );
+    }
+
+    #[tokio::test]
+    async fn every_protocol_download_staging_requires_exact_bytes_and_durable_file() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-verify-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let file = dir.join("transfer.part");
+        tokio::fs::write(&file, b"binary\0payload").await.unwrap();
+        assert!(verify_staged_download_bytes(&file, 14).await.is_ok());
+        assert!(verify_staged_download_bytes(&file, 13).await.is_err());
+        assert!(verify_staged_download_bytes(&file, 15).await.is_err());
+        tokio::fs::write(&file, b"").await.unwrap();
+        assert!(verify_staged_download_bytes(&file, 0).await.is_ok());
+        tokio::fs::remove_file(&file).await.unwrap();
+        tokio::fs::remove_dir_all(&dir).await.unwrap();
     }
 
     #[tokio::test]
@@ -5368,7 +5638,9 @@ mod tests {
                 size: 4096,
                 transferred: 2048,
                 status: TransferStatus::Error,
-                error: Some("connection reset by peer".to_string()),
+                error: Some(
+                    "connection reset by peer, https://alice:private@host.example/download?x-amz-signature=supersecret".to_string()
+                ),
                 retry_attempt: Some(2),
                 delta: None,
                 started_at: 10,
@@ -5385,7 +5657,7 @@ mod tests {
         )
         .unwrap();
 
-        let recovered = TransferManager::with_db(db);
+        let recovered = TransferManager::with_db(db.clone());
         assert_eq!(
             recovered
                 .recovery_profile_id("failed-before-restart")
@@ -5396,7 +5668,16 @@ mod tests {
         let row = recovered.snapshot("failed-before-restart").await.unwrap();
         assert_eq!(row.status, TransferStatus::Error);
         assert_eq!(row.transferred, 2048);
-        assert_eq!(row.error.as_deref(), Some("connection reset by peer"));
+        assert_eq!(
+            row.error.as_deref(),
+            Some("Network connection was interrupted. Check the server and retry.")
+        );
+        let history = db.transfer_ledger_list().unwrap();
+        let recovered_json = &history[0].1;
+        assert!(!recovered_json.contains("supersecret"));
+        assert!(!recovered_json.contains("alice:private"));
+        assert!(!recovered_json.contains("host.example"));
+        assert_eq!(row.transferred, 2048); // recovery progress must be preserved.
     }
 
     #[tokio::test]
