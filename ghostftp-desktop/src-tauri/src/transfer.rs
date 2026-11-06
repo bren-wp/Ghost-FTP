@@ -1723,10 +1723,6 @@ impl TransferManager {
             } else {
                 0
             };
-        if resume_offset != requested_offset {
-            self.update(id, |t| t.transferred = resume_offset).await;
-        }
-
         let sftp_cell = session.ensure_sftp().await?;
         // SFTP servers expose source file size. Read it before the stream
         // rather than trusting EOF: a broken connection or shortened response
@@ -1745,6 +1741,9 @@ impl TransferManager {
         } else {
             0
         };
+        if resume_offset != requested_offset {
+            self.update(id, |t| t.transferred = resume_offset).await;
+        }
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
             sftp.open(remote_path)
