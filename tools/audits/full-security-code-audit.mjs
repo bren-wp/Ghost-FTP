@@ -76,6 +76,7 @@ const REQUIRED = [
   ["ghostftp-desktop/src-tauri/src/transfer.rs", [
     "fn verify_committed_length(", "fn completed_transfer_size(",
     "fn safe_transfer_failure(", "t.error = Some(safe_transfer_failure(&e).to_string())",
+    "old_diagnostic_rewritten", "INTERRUPTED_TRANSFER_MESSAGE",
     "verify_committed_length(\"SFTP download\"",
     "verify_committed_length(\"SFTP upload\"",
     "verify_committed_length(\"SFTP upload source\"",

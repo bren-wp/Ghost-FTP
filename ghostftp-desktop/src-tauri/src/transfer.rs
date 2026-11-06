@@ -490,20 +490,28 @@ fn verify_committed_length(
 /// No remote-controlled diagnostics are persisted in the transfer ledger or
 /// emitted to the UI. A server can echo OAuth tokens, signed download URLs,
 /// Authorization headers or local file paths in an otherwise useful error.
-fn safe_transfer_failure(error: &anyhow::Error) -> &'static str {
+fn safe_transfer_failure_message(message: &str) -> &'static str {
     use crate::error::ErrorKind;
-    match crate::error::classify_message(&error.to_string()) {
+    match crate::error::classify_message(message) {
         ErrorKind::Auth => "Authentication failed. Verify the connection credentials.",
         ErrorKind::Permission => "Permission denied by the destination or server.",
         ErrorKind::NotFound => "Source or destination was not found.",
         ErrorKind::Network => "Network connection was interrupted. Check the server and retry.",
         ErrorKind::Timeout => "Server timed out. Check the connection and retry.",
-        ErrorKind::Unsupported => "The server does not support this transfer operation.",
+        ErrorKind::Unsupported => "This transfer operation is unsupported by the server.",
         ErrorKind::Conflict => "File conflict detected. Review the overwrite policy.",
-        ErrorKind::InvalidInput => "The file path or transfer request is invalid.",
+        ErrorKind::InvalidInput => "Invalid input: check the file path or transfer request.",
         ErrorKind::Other => "Transfer failed. Check the server and retry.",
     }
 }
+
+fn safe_transfer_failure(error: &anyhow::Error) -> &'static str {
+    safe_transfer_failure_message(&error.to_string())
+}
+
+// Preserve the intentionally actionable own-process recovery status verbatim.
+// Unlike a remote error, this is a fixed internal literal with no secrets.
+const INTERRUPTED_TRANSFER_MESSAGE: &str = "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and restart safely from byte zero because cross-process file identity was not verified.";
 
 /// Some HTTP/cloud backends cannot obtain a size before transfer and store 0.
 /// In that case use the actual byte count; never overwrite real progress with
@@ -899,6 +907,21 @@ impl TransferManager {
                         continue;
                     }
 
+                    // Historical versions persisted untrusted backend errors
+                    // verbatim. Redact them on the first load, persist the safe
+                    // replacement and do not repeat that write on every start.
+                    // Keep our own fixed crash-recovery instruction unchanged.
+                    let mut old_diagnostic_rewritten = false;
+                    if let Some(original) = envelope.transfer.error.as_deref() {
+                        if original != INTERRUPTED_TRANSFER_MESSAGE {
+                            let safe = safe_transfer_failure_message(original);
+                            if original != safe {
+                                envelope.transfer.error = Some(safe.to_string());
+                                old_diagnostic_rewritten = true;
+                            }
+                        }
+                    }
+
                     let was_active = matches!(
                         envelope.transfer.status,
                         TransferStatus::Queued
@@ -926,10 +949,9 @@ impl TransferManager {
                     if was_active {
                         envelope.transfer.status = TransferStatus::Error;
                         envelope.transfer.retry_attempt = None;
-                        envelope.transfer.error = Some(
-                            "Transfer was interrupted by the previous Ghost FTP process. Retry will reconnect the saved profile and restart safely from byte zero because cross-process file identity was not verified."
-                                .to_string(),
-                        );
+                        envelope.transfer.error = Some(INTERRUPTED_TRANSFER_MESSAGE.to_string());
+                    }
+                    if was_active || old_diagnostic_rewritten {
                         if let Ok(normalized) = serde_json::to_string(&envelope) {
                             let _ = store.transfer_ledger_upsert(&row_id, &normalized);
                         }
@@ -5558,7 +5580,9 @@ mod tests {
                 size: 4096,
                 transferred: 2048,
                 status: TransferStatus::Error,
-                error: Some("connection reset by peer".to_string()),
+                error: Some(
+                    "connection reset by peer, https://alice:private@host.example/download?x-amz-signature=supersecret".to_string()
+                ),
                 retry_attempt: Some(2),
                 delta: None,
                 started_at: 10,
@@ -5575,7 +5599,7 @@ mod tests {
         )
         .unwrap();
 
-        let recovered = TransferManager::with_db(db);
+        let recovered = TransferManager::with_db(db.clone());
         assert_eq!(
             recovered
                 .recovery_profile_id("failed-before-restart")
@@ -5586,7 +5610,16 @@ mod tests {
         let row = recovered.snapshot("failed-before-restart").await.unwrap();
         assert_eq!(row.status, TransferStatus::Error);
         assert_eq!(row.transferred, 2048);
-        assert_eq!(row.error.as_deref(), Some("connection reset by peer"));
+        assert_eq!(
+            row.error.as_deref(),
+            Some("Network connection was interrupted. Check the server and retry.")
+        );
+        let history = db.transfer_ledger_list().unwrap();
+        let recovered_json = &history[0].1;
+        assert!(!recovered_json.contains("supersecret"));
+        assert!(!recovered_json.contains("alice:private"));
+        assert!(!recovered_json.contains("host.example"));
+        assert_eq!(row.transferred, 2048); // recovery progress must be preserved.
     }
 
     #[tokio::test]

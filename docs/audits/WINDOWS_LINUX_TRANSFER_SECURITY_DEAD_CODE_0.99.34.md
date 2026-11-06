@@ -45,3 +45,7 @@
 ## Dead-code decision
 
 **No compiler-reachable module, route, protocol adapter or dynamic script was removed based on grep alone.** The full dead-code audit reports suspected unreferenced symbols and scripts with the evidence classification `advisory`; cleanup requires proof from platform-specific compiler, release packaging, public API and dynamic runtime tests. Delete only a confirmed dead module after the owner-facing feature/compatibility check. The exact version's CI must supply counts and candidate paths; this report does not invent them.
+
+## Historical transfer-ledger privacy migration
+
+The 0.99.34 source now sanitizes **previously persisted** untrusted failure diagnostics when the local transfer ledger loads, not only new failures. It retains the app's own fixed crash-interruption message and preserves retry linkage and committed progress. A regression fixture includes a signed URL/userinfo secret in an old failed transfer, verifies that the resumed UI row contains only a safe network category, and that the on-disk database row was updated without the secret. This is local data migration, not a claim that pre-existing copies/backups or logs have been erased.

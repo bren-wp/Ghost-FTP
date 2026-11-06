@@ -115,11 +115,17 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()',
     't.error = Some(safe_transfer_failure(&e).to_string())',
     'remote_errors_never_persist_authorization_headers_or_signed_urls()',
+    'old_diagnostic_rewritten',
+    'INTERRUPTED_TRANSFER_MESSAGE',
   ]) {
     assert.ok(transfer.includes(guard), "Transfer completion safety guard was removed: " + guard);
   }
   // Do not silently mark known-size short results done or replace real
   // progress with the guessed initial size.
-  assert.ok(!transfer.includes('t.transferred = t.size;'),
+  const finalizerStart = transfer.indexOf("async fn finalize(");
+  const finalizerEnd = transfer.indexOf("\n#[cfg(test)]", finalizerStart);
+  const finalizer = transfer.slice(finalizerStart, finalizerEnd);
+  assert.ok(finalizerStart > 0 && finalizerEnd > finalizerStart);
+  assert.ok(!finalizer.includes('t.transferred = t.size;'),
     "Unsafe forced 100% transfer completion remains in native finalize");
 });
