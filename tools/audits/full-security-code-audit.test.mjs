@@ -131,3 +131,27 @@ test("native desktop upload/download integrity guards are required across SFTP a
   assert.ok(!finalizer.includes('t.transferred = t.size;'),
     "Unsafe forced 100% transfer completion remains in native finalize");
 });
+
+test("paused Windows/Linux transfers cannot silently trust a same-length remote prefix", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const transfer = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer.rs"), "utf8");
+  const helper = transfer.slice(transfer.indexOf("async fn byte_equal_prefix("), transfer.indexOf("/// Use only for providers", transfer.indexOf("async fn byte_equal_prefix(")));
+  assert.match(helper, /while remaining > 0/);
+  assert.match(helper, /local\.read_exact/);
+  assert.match(helper, /remote\.read_exact/);
+  assert.match(helper, /left\[\.\.count\] != right\[\.\.count\]/);
+  for (const contract of [
+    "byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await?",
+    "byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await?",
+    "agent_remote_prefix_matches(session, remote_path, local_path, offset).await?",
+    "resume_prefix_requires_full_byte_identity_including_same_size_replacement()",
+  ]) {
+    assert.ok(transfer.includes(contract), "Verified resume guard missing: " + contract);
+  }
+  const supports = transfer.slice(
+    transfer.indexOf("fn supports_byte_resume(session: &Session)"),
+    transfer.indexOf("/// Stat a path on a Ghost FTP Agent daemon"),
+  );
+  assert.ok(supports.includes("Session::Ssh(_) | Session::Agent(_)"));
+  assert.ok(!supports.includes("Session::Ftp(_)"), "Length-only FTP resume must be disabled");
+});
