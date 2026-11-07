@@ -1838,6 +1838,10 @@ impl TransferManager {
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(&data_b64)
                 .context("decode chunk")?;
+            anyhow::ensure!(
+                !bytes.is_empty() || eof,
+                "Agent download returned an empty non-final chunk"
+            );
             self.checkpoint(id, bytes.len() as u64).await?;
             if !bytes.is_empty() {
                 local_file.write_all(&bytes).await?;
