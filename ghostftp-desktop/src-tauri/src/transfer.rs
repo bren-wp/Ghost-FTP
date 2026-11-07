@@ -1785,6 +1785,8 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
+        let (expected_remote_len, remote_exists) = agent_stat(session, remote_path).await?;
+        anyhow::ensure!(remote_exists, "Agent download source does not exist");
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
         let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
         let mut offset =
@@ -1793,14 +1795,11 @@ impl TransferManager {
             } else {
                 0
             };
-        if offset > 0 {
-            let (remote_len, exists) = agent_stat(session, remote_path).await?;
-            if !exists
-                || remote_len < offset
-                || !agent_remote_prefix_matches(session, remote_path, local_path, offset).await?
-            {
-                offset = 0;
-            }
+        if offset > 0
+            && (expected_remote_len < offset
+                || !agent_remote_prefix_matches(session, remote_path, local_path, offset).await?)
+        {
+            offset = 0;
         }
         if offset != requested_offset {
             self.update(id, |t| t.transferred = offset).await;
@@ -1858,6 +1857,21 @@ impl TransferManager {
             }
         }
         local_file.flush().await?;
+        local_file
+            .sync_all()
+            .await
+            .context("sync Agent download staging file")?;
+        let on_disk = local_file
+            .metadata()
+            .await
+            .context("stat Agent download staging file")?
+            .len();
+        verify_committed_length("Agent download", expected_remote_len, offset, on_disk)?;
+        let (after_len, still_exists) = agent_stat(session, remote_path).await?;
+        anyhow::ensure!(
+            still_exists && after_len == expected_remote_len,
+            "Agent download source changed size during transfer"
+        );
         self.update(id, |t| t.transferred = offset).await;
         Ok(())
     }
@@ -2150,7 +2164,12 @@ impl TransferManager {
                 })
                 .await?;
             match resp {
-                Response::Written { .. } => {}
+                Response::Written { bytes } => {
+                    anyhow::ensure!(
+                        bytes == n as u64,
+                        "Agent upload acknowledged an incomplete chunk"
+                    );
+                }
                 Response::Error { message, .. } => {
                     return Err(anyhow::anyhow!("upload {remote_path}: {message}"))
                 }
@@ -2172,6 +2191,15 @@ impl TransferManager {
                 last_emit = Instant::now();
             }
         }
+        let source_after = local_file
+            .metadata()
+            .await
+            .context("stat Agent upload source after transfer")?
+            .len();
+        verify_committed_length("Agent upload source", local_len, offset, source_after)?;
+        let (remote_after, exists) = agent_stat(session, remote_path).await?;
+        anyhow::ensure!(exists, "Agent upload destination not found after transfer");
+        verify_committed_length("Agent upload", local_len, offset, remote_after)?;
         self.update(id, |t| t.transferred = offset).await;
         Ok(())
     }
