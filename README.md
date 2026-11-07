@@ -1,4 +1,4 @@
-> **Current development (6 November 2026): Ghost FTP 0.99.34 Preview.** Windows/Linux FTP, FTPS and SFTP byte-length verification and secret-safe transfer errors are under test. Published v0.99.33 is immutable; no unverified claims of universal protocol, native-device or 1:1 visual acceptance.
+> **Current development (7 November 2026): Ghost FTP 0.99.35 Preview.** Windows/Linux SFTP and Agent resume now verify previously transferred bytes; FTP/FTPS restart safely rather than append to an unverified prefix. Published v0.99.34 is immutable; complete real-server and native pixel-perfect acceptance remains unverified.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Published v0.99.32 remains immutable. Windows/Linux unsigned installers can be manually installed; signed in-app updates still require verified signatures. New update-fallback, safe download link and data-preservation safeguards are under exact-head test; physical desktop production acceptance is not yet certified.
 
@@ -22,9 +22,9 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **Android** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.34 (development Preview) · Previously published: v0.99.33. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.35 (development Preview) · Previously published: v0.99.34. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
-[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux full transfer audit](docs/audits/WINDOWS_LINUX_TRANSFER_SECURITY_DEAD_CODE_0.99.34.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
+[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
 </div>
 

@@ -83,6 +83,86 @@ fn require_exact_upload_length(expected: u64, actual: u64) -> Result<()> {
     Ok(())
 }
 
+/// Compare every byte of a previously committed transfer prefix before
+/// resuming a seekable SFTP stream. File length alone cannot prove that the
+/// source or destination still contains the same data after a pause.
+/// This is O(prefix length) I/O but uses constant memory and fails closed.
+async fn byte_equal_prefix<L, R>(local: &mut L, remote: &mut R, bytes: u64) -> Result<bool>
+where
+    L: tokio::io::AsyncRead + Unpin,
+    R: tokio::io::AsyncRead + Unpin,
+{
+    let mut left = [0u8; 64 * 1024];
+    let mut right = [0u8; 64 * 1024];
+    let mut remaining = bytes;
+    while remaining > 0 {
+        let count = remaining.min(left.len() as u64) as usize;
+        local
+            .read_exact(&mut left[..count])
+            .await
+            .context("read local resume prefix")?;
+        remote
+            .read_exact(&mut right[..count])
+            .await
+            .context("read remote resume prefix")?;
+        if left[..count] != right[..count] {
+            return Ok(false);
+        }
+        remaining -= count as u64;
+    }
+    Ok(true)
+}
+
+/// Compare the complete committed prefix with the Ghost FTP Agent daemon before
+/// resuming either an upload or a download. A changed file of identical length
+/// must not silently yield a hybrid of two different revisions.
+async fn agent_remote_prefix_matches(
+    session: &Arc<crate::session::AgentSession>,
+    path: &str,
+    local_path: &Path,
+    bytes: u64,
+) -> Result<bool> {
+    use base64::Engine as _;
+    use ghostftp_agent_proto::msg::{Request, Response};
+
+    let mut local = tokio::fs::File::open(local_path)
+        .await
+        .context("open Agent resume source")?;
+    let mut offset = 0u64;
+    let mut buffer = [0u8; 64 * 1024];
+    while offset < bytes {
+        let request_len = (bytes - offset).min(buffer.len() as u64);
+        let response = session
+            .request(Request::ReadChunk {
+                path: path.to_string(),
+                offset,
+                len: request_len,
+            })
+            .await
+            .context("verify Agent resume prefix")?;
+        let encoded = match response {
+            Response::Chunk { data, .. } => data,
+            Response::Error { .. } => anyhow::bail!("Agent refused resume-prefix verification"),
+            _ => anyhow::bail!("unexpected Agent resume-prefix response"),
+        };
+        let chunk = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .context("decode Agent resume-prefix response")?;
+        if chunk.is_empty() || chunk.len() as u64 > request_len {
+            return Ok(false);
+        }
+        local
+            .read_exact(&mut buffer[..chunk.len()])
+            .await
+            .context("read Agent local prefix")?;
+        if buffer[..chunk.len()] != chunk {
+            return Ok(false);
+        }
+        offset += chunk.len() as u64;
+    }
+    Ok(true)
+}
+
 /// Use only for providers that still require an in-memory request body.
 /// Prevent an unexpected multi-GiB file or a file growing after stat from
 /// crashing the desktop process. The 32 MiB bound is an explicit limitation,
@@ -1705,6 +1785,8 @@ impl TransferManager {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
+        let (expected_remote_len, remote_exists) = agent_stat(session, remote_path).await?;
+        anyhow::ensure!(remote_exists, "Agent download source does not exist");
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
         let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
         let mut offset =
@@ -1713,6 +1795,12 @@ impl TransferManager {
             } else {
                 0
             };
+        if offset > 0
+            && (expected_remote_len < offset
+                || !agent_remote_prefix_matches(session, remote_path, local_path, offset).await?)
+        {
+            offset = 0;
+        }
         if offset != requested_offset {
             self.update(id, |t| t.transferred = offset).await;
         }
@@ -1750,6 +1838,10 @@ impl TransferManager {
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(&data_b64)
                 .context("decode chunk")?;
+            anyhow::ensure!(
+                !bytes.is_empty() || eof,
+                "Agent download returned an empty non-final chunk"
+            );
             self.checkpoint(id, bytes.len() as u64).await?;
             if !bytes.is_empty() {
                 local_file.write_all(&bytes).await?;
@@ -1769,6 +1861,21 @@ impl TransferManager {
             }
         }
         local_file.flush().await?;
+        local_file
+            .sync_all()
+            .await
+            .context("sync Agent download staging file")?;
+        let on_disk = local_file
+            .metadata()
+            .await
+            .context("stat Agent download staging file")?
+            .len();
+        verify_committed_length("Agent download", expected_remote_len, offset, on_disk)?;
+        let (after_len, still_exists) = agent_stat(session, remote_path).await?;
+        anyhow::ensure!(
+            still_exists && after_len == expected_remote_len,
+            "Agent download source changed size during transfer"
+        );
         self.update(id, |t| t.transferred = offset).await;
         Ok(())
     }
@@ -1805,14 +1912,11 @@ impl TransferManager {
                 .context("SFTP download source did not report its byte length")?
         };
         // A stale resume point beyond the new source is never trustworthy.
-        let resume_offset = if resume_offset <= expected_remote_len {
+        let mut resume_offset = if resume_offset <= expected_remote_len {
             resume_offset
         } else {
             0
         };
-        if resume_offset != requested_offset {
-            self.update(id, |t| t.transferred = resume_offset).await;
-        }
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
             sftp.open(remote_path)
@@ -1820,8 +1924,17 @@ impl TransferManager {
                 .with_context(|| format!("open remote {remote_path}"))?
         };
         if resume_offset > 0 {
-            remote_file.seek(SeekFrom::Start(resume_offset)).await?;
+            let mut prior = tokio::fs::File::open(local_path)
+                .await
+                .context("open SFTP staged prefix for verification")?;
+            if !byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await? {
+                resume_offset = 0;
+            }
         }
+        if resume_offset != requested_offset {
+            self.update(id, |t| t.transferred = resume_offset).await;
+        }
+        remote_file.seek(SeekFrom::Start(resume_offset)).await?;
 
         let mut local_file = tokio::fs::OpenOptions::new()
             .create(true)
@@ -2018,6 +2131,11 @@ impl TransferManager {
         } else {
             0
         };
+        if offset > 0
+            && !agent_remote_prefix_matches(session, remote_path, local_path, offset).await?
+        {
+            offset = 0;
+        }
         if offset != requested_offset {
             self.update(id, |t| t.transferred = offset).await;
         }
@@ -2033,6 +2151,25 @@ impl TransferManager {
         let mut buf = vec![0u8; 128 * 1024];
         let mut first = offset == 0;
         let mut last_emit = Instant::now();
+        // An empty source has no data chunks, but it still must create or
+        // truncate the destination. Otherwise a zero-byte upload could be
+        // marked Done without changing the previous remote file.
+        if local_len == 0 {
+            let response = session
+                .request(Request::WriteChunk {
+                    path: remote_path.to_string(),
+                    offset: 0,
+                    data: String::new(),
+                    truncate: true,
+                    done: true,
+                })
+                .await?;
+            match response {
+                Response::Written { bytes: 0 } => {}
+                Response::Error { .. } => anyhow::bail!("Agent refused empty upload"),
+                _ => anyhow::bail!("Agent did not acknowledge an empty upload"),
+            }
+        }
         loop {
             let n = local_file.read(&mut buf).await?;
             if n == 0 {
@@ -2050,7 +2187,12 @@ impl TransferManager {
                 })
                 .await?;
             match resp {
-                Response::Written { .. } => {}
+                Response::Written { bytes } => {
+                    anyhow::ensure!(
+                        bytes == n as u64,
+                        "Agent upload acknowledged an incomplete chunk"
+                    );
+                }
                 Response::Error { message, .. } => {
                     return Err(anyhow::anyhow!("upload {remote_path}: {message}"))
                 }
@@ -2072,6 +2214,15 @@ impl TransferManager {
                 last_emit = Instant::now();
             }
         }
+        let source_after = local_file
+            .metadata()
+            .await
+            .context("stat Agent upload source after transfer")?
+            .len();
+        verify_committed_length("Agent upload source", local_len, offset, source_after)?;
+        let (remote_after, exists) = agent_stat(session, remote_path).await?;
+        anyhow::ensure!(exists, "Agent upload destination not found after transfer");
+        verify_committed_length("Agent upload", local_len, offset, remote_after)?;
         self.update(id, |t| t.transferred = offset).await;
         Ok(())
     }
@@ -2615,6 +2766,31 @@ impl TransferManager {
 
         let sftp_cell = session.ensure_sftp().await?;
         let mut resume_offset = requested_offset.min(local_len);
+        if resume_offset > 0 {
+            let remote_len = {
+                let sftp = sftp_cell.lock().await;
+                sftp.metadata(remote_path)
+                    .await
+                    .ok()
+                    .and_then(|meta| meta.size)
+            };
+            if remote_len == Some(resume_offset) {
+                let mut local_prefix = tokio::fs::File::open(local_path)
+                    .await
+                    .context("open SFTP upload source for resume verification")?;
+                let mut remote_prefix = {
+                    let sftp = sftp_cell.lock().await;
+                    sftp.open(remote_path)
+                        .await
+                        .context("open SFTP upload destination for resume verification")?
+                };
+                if !byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await? {
+                    resume_offset = 0;
+                }
+            } else {
+                resume_offset = 0;
+            }
+        }
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
             let remote_len = if resume_offset > 0 {
@@ -2906,14 +3082,10 @@ impl TransferManager {
             .await;
         self.checkpoint(id, 0).await?;
 
-        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
-        let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
-        let candidate_offset =
-            if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
-                requested_offset
-            } else {
-                0
-            };
+        // FTP SIZE/REST cannot prove a prefix is unchanged. Restart RETR at
+        // byte zero rather than combine a stale .part with a new remote file.
+        self.update(id, |t| t.transferred = 0).await;
+        let candidate_offset = 0;
         let pause = self.pauses.lock().await.get(id).cloned();
         let pause_all = self.pause_all.clone();
         let canceled = self
@@ -3051,7 +3223,13 @@ impl TransferManager {
             .await
             .with_context(|| format!("stat {}", local_path.display()))?
             .len();
-        let candidate_offset = requested_offset.min(local_len);
+        // FTP SIZE/APPE verifies length only, not prefix identity. A partial
+        // remote file may be a different revision with identical length.
+        // Safely replace from zero instead of appending to unverified bytes.
+        let candidate_offset = 0;
+        if requested_offset > 0 {
+            self.update(id, |t| t.transferred = 0).await;
+        }
         let pause = self.pauses.lock().await.get(id).cloned();
         let pause_all = self.pause_all.clone();
         let canceled = self
@@ -4344,15 +4522,12 @@ fn supports_delta(session: &Session) -> bool {
     matches!(session, Session::Agent(_))
 }
 
-/// Byte-range pause/resume is enabled only where Ghost FTP can prove exact
-/// offset semantics today. SFTP exposes seekable file handles and Agent uses
-/// explicit ReadChunk/WriteChunk offsets. Other backends retain the safe
-/// restart-from-zero fallback until equivalent tests exist.
+/// Byte-range pause/resume is enabled only when full prefix bytes can be
+/// compared before continuation. SFTP uses seekable handles and Agent exposes
+/// ranged reads. FTP/FTPS have length-only REST/APPE semantics here, so restart
+/// from zero until verified prefix support can be implemented.
 fn supports_byte_resume(session: &Session) -> bool {
-    matches!(
-        session,
-        Session::Ssh(_) | Session::Ftp(_) | Session::Agent(_)
-    )
+    matches!(session, Session::Ssh(_) | Session::Agent(_))
 }
 
 /// Stat a path on a Ghost FTP Agent daemon.
@@ -5229,6 +5404,56 @@ mod tests {
             Ok(true),
             "worker cleanup must observe its registered JoinHandle even when the worker runs immediately"
         );
+    }
+
+    #[tokio::test]
+    async fn resume_prefix_requires_full_byte_identity_including_same_size_replacement() {
+        let root = std::env::temp_dir().join(format!("ghostftp-resume-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let left = root.join("source.bin");
+        let right = root.join("remote.bin");
+        let content: Vec<u8> = (0..(128 * 1024 + 7)).map(|n| (n % 251) as u8).collect();
+        tokio::fs::write(&left, &content).await.unwrap();
+        tokio::fs::write(&right, &content).await.unwrap();
+        let mut original = tokio::fs::File::open(&left).await.unwrap();
+        let mut copy = tokio::fs::File::open(&right).await.unwrap();
+        assert!(
+            byte_equal_prefix(&mut original, &mut copy, content.len() as u64)
+                .await
+                .unwrap()
+        );
+
+        let mut changed = content.clone();
+        changed[65536] ^= 0x40; // Same length, different content after first chunk.
+        tokio::fs::write(&right, &changed).await.unwrap();
+        let mut original = tokio::fs::File::open(&left).await.unwrap();
+        let mut copy = tokio::fs::File::open(&right).await.unwrap();
+        assert!(
+            !byte_equal_prefix(&mut original, &mut copy, content.len() as u64)
+                .await
+                .unwrap()
+        );
+
+        let mut original = tokio::fs::File::open(&left).await.unwrap();
+        let mut copy = tokio::fs::File::open(&right).await.unwrap();
+        assert!(byte_equal_prefix(&mut original, &mut copy, 0)
+            .await
+            .unwrap());
+        let mut original = tokio::fs::File::open(&left).await.unwrap();
+        let mut copy = tokio::fs::File::open(&right).await.unwrap();
+        assert!(byte_equal_prefix(&mut original, &mut copy, 65536)
+            .await
+            .unwrap());
+
+        tokio::fs::write(&right, &content[..19]).await.unwrap();
+        let mut original = tokio::fs::File::open(&left).await.unwrap();
+        let mut copy = tokio::fs::File::open(&right).await.unwrap();
+        assert!(
+            byte_equal_prefix(&mut original, &mut copy, content.len() as u64)
+                .await
+                .is_err()
+        );
+        tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
     #[tokio::test]

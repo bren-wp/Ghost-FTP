@@ -1,4 +1,4 @@
-> **Current development (6 November 2026): Ghost FTP 0.99.34 Preview.** Windows/Linux FTP, FTPS and SFTP byte-length verification and secret-safe transfer errors are under test. Published v0.99.33 is immutable; no unverified claims of universal protocol, native-device or 1:1 visual acceptance.
+> **Current development (7 November 2026): Ghost FTP 0.99.35 Preview.** Windows/Linux SFTP and Ghost FTP Agent now verify resumed transfer prefixes, while FTP/FTPS restart from zero where prefix identity cannot be proven. Published v0.99.34 remains immutable; live provider interoperability and 1:1 native UI parity remain unverified.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Published v0.99.32 remains immutable. Windows/Linux unsigned installers can be manually installed; signed in-app updates still require verified signatures. New update-fallback, safe download link and data-preservation safeguards are under exact-head test; physical desktop production acceptance is not yet certified.
 
