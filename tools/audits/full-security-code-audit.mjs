@@ -85,6 +85,13 @@ const REQUIRED = [
     "FtpTransferControl::Continue => verify_committed_length(",
     "sync SFTP download staging file", "sync FTP download staging file",
     "Some(t) => completed_transfer_size(t.size, t.transferred)",
+    // Prevent equal-length remote replacement from silently corrupting
+    // paused transfers. FTP/FTPS must restart until prefix verification exists.
+    "async fn byte_equal_prefix(", "async fn agent_remote_prefix_matches(",
+    "byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await?",
+    "byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await?",
+    "agent_remote_prefix_matches(session, remote_path, local_path, offset).await?",
+    "Session::Ssh(_) | Session::Agent(_)",
   ]],
   ["macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift", ["O_NOFOLLOW", "O_EXCL", "PrivateUploadSource.verifyUnchanged", "FTPControlCodec.appendListingChunk", "expectedDownloadSize", "verifyUploadSize"]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
