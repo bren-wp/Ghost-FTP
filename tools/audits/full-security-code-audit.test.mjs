@@ -135,7 +135,7 @@ test("native desktop upload/download integrity guards are required across SFTP a
 test("paused Windows/Linux transfers cannot silently trust a same-length remote prefix", () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const transfer = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer.rs"), "utf8");
-  const helper = transfer.slice(transfer.indexOf("async fn byte_equal_prefix("), transfer.indexOf("/// Use only for providers", transfer.indexOf("async fn byte_equal_prefix(")));
+  const helper = transfer.slice(transfer.indexOf("async fn byte_equal_prefix<"), transfer.indexOf("/// Use only for providers", transfer.indexOf("async fn byte_equal_prefix<")));
   assert.match(helper, /while remaining > 0/);
   assert.match(helper, /local\s*\.read_exact/);
   assert.match(helper, /remote\s*\.read_exact/);
