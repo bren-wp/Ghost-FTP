@@ -87,7 +87,7 @@ const REQUIRED = [
     "Some(t) => completed_transfer_size(t.size, t.transferred)",
     // Prevent equal-length remote replacement from silently corrupting
     // paused transfers. FTP/FTPS must restart until prefix verification exists.
-    "async fn byte_equal_prefix(", "async fn agent_remote_prefix_matches(",
+    "async fn byte_equal_prefix<", "async fn agent_remote_prefix_matches(",
     "byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await?",
     "byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await?",
     "agent_remote_prefix_matches(session, remote_path, local_path, offset).await?",
