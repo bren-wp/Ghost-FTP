@@ -137,8 +137,8 @@ test("paused Windows/Linux transfers cannot silently trust a same-length remote 
   const transfer = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer.rs"), "utf8");
   const helper = transfer.slice(transfer.indexOf("async fn byte_equal_prefix("), transfer.indexOf("/// Use only for providers", transfer.indexOf("async fn byte_equal_prefix(")));
   assert.match(helper, /while remaining > 0/);
-  assert.match(helper, /local\.read_exact/);
-  assert.match(helper, /remote\.read_exact/);
+  assert.match(helper, /local\s*\.read_exact/);
+  assert.match(helper, /remote\s*\.read_exact/);
   assert.match(helper, /left\[\.\.count\] != right\[\.\.count\]/);
   for (const contract of [
     "byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await?",
