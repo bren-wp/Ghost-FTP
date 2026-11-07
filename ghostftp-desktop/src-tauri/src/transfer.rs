@@ -97,8 +97,14 @@ where
     let mut remaining = bytes;
     while remaining > 0 {
         let count = remaining.min(left.len() as u64) as usize;
-        local.read_exact(&mut left[..count]).await.context("read local resume prefix")?;
-        remote.read_exact(&mut right[..count]).await.context("read remote resume prefix")?;
+        local
+            .read_exact(&mut left[..count])
+            .await
+            .context("read local resume prefix")?;
+        remote
+            .read_exact(&mut right[..count])
+            .await
+            .context("read remote resume prefix")?;
         if left[..count] != right[..count] {
             return Ok(false);
         }
@@ -119,7 +125,9 @@ async fn agent_remote_prefix_matches(
     use base64::Engine as _;
     use ghostftp_agent_proto::msg::{Request, Response};
 
-    let mut local = tokio::fs::File::open(local_path).await.context("open Agent resume source")?;
+    let mut local = tokio::fs::File::open(local_path)
+        .await
+        .context("open Agent resume source")?;
     let mut offset = 0u64;
     let mut buffer = [0u8; 64 * 1024];
     while offset < bytes {
@@ -143,7 +151,10 @@ async fn agent_remote_prefix_matches(
         if chunk.is_empty() || chunk.len() as u64 > request_len {
             return Ok(false);
         }
-        local.read_exact(&mut buffer[..chunk.len()]).await.context("read Agent local prefix")?;
+        local
+            .read_exact(&mut buffer[..chunk.len()])
+            .await
+            .context("read Agent local prefix")?;
         if buffer[..chunk.len()] != chunk {
             return Ok(false);
         }
@@ -1784,7 +1795,8 @@ impl TransferManager {
             };
         if offset > 0 {
             let (remote_len, exists) = agent_stat(session, remote_path).await?;
-            if !exists || remote_len < offset
+            if !exists
+                || remote_len < offset
                 || !agent_remote_prefix_matches(session, remote_path, local_path, offset).await?
             {
                 offset = 0;
@@ -2706,7 +2718,10 @@ impl TransferManager {
         if resume_offset > 0 {
             let remote_len = {
                 let sftp = sftp_cell.lock().await;
-                sftp.metadata(remote_path).await.ok().and_then(|meta| meta.size)
+                sftp.metadata(remote_path)
+                    .await
+                    .ok()
+                    .and_then(|meta| meta.size)
             };
             if remote_len == Some(resume_offset) {
                 let mut local_prefix = tokio::fs::File::open(local_path)
@@ -4461,10 +4476,7 @@ fn supports_delta(session: &Session) -> bool {
 /// ranged reads. FTP/FTPS have length-only REST/APPE semantics here, so restart
 /// from zero until verified prefix support can be implemented.
 fn supports_byte_resume(session: &Session) -> bool {
-    matches!(
-        session,
-        Session::Ssh(_) | Session::Agent(_)
-    )
+    matches!(session, Session::Ssh(_) | Session::Agent(_))
 }
 
 /// Stat a path on a Ghost FTP Agent daemon.
@@ -5354,26 +5366,42 @@ mod tests {
         tokio::fs::write(&right, &content).await.unwrap();
         let mut original = tokio::fs::File::open(&left).await.unwrap();
         let mut copy = tokio::fs::File::open(&right).await.unwrap();
-        assert!(byte_equal_prefix(&mut original, &mut copy, content.len() as u64).await.unwrap());
+        assert!(
+            byte_equal_prefix(&mut original, &mut copy, content.len() as u64)
+                .await
+                .unwrap()
+        );
 
         let mut changed = content.clone();
         changed[65536] ^= 0x40; // Same length, different content after first chunk.
         tokio::fs::write(&right, &changed).await.unwrap();
         let mut original = tokio::fs::File::open(&left).await.unwrap();
         let mut copy = tokio::fs::File::open(&right).await.unwrap();
-        assert!(!byte_equal_prefix(&mut original, &mut copy, content.len() as u64).await.unwrap());
+        assert!(
+            !byte_equal_prefix(&mut original, &mut copy, content.len() as u64)
+                .await
+                .unwrap()
+        );
 
         let mut original = tokio::fs::File::open(&left).await.unwrap();
         let mut copy = tokio::fs::File::open(&right).await.unwrap();
-        assert!(byte_equal_prefix(&mut original, &mut copy, 0).await.unwrap());
+        assert!(byte_equal_prefix(&mut original, &mut copy, 0)
+            .await
+            .unwrap());
         let mut original = tokio::fs::File::open(&left).await.unwrap();
         let mut copy = tokio::fs::File::open(&right).await.unwrap();
-        assert!(byte_equal_prefix(&mut original, &mut copy, 65536).await.unwrap());
+        assert!(byte_equal_prefix(&mut original, &mut copy, 65536)
+            .await
+            .unwrap());
 
         tokio::fs::write(&right, &content[..19]).await.unwrap();
         let mut original = tokio::fs::File::open(&left).await.unwrap();
         let mut copy = tokio::fs::File::open(&right).await.unwrap();
-        assert!(byte_equal_prefix(&mut original, &mut copy, content.len() as u64).await.is_err());
+        assert!(
+            byte_equal_prefix(&mut original, &mut copy, content.len() as u64)
+                .await
+                .is_err()
+        );
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
