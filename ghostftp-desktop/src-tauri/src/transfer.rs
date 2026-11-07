@@ -2147,6 +2147,25 @@ impl TransferManager {
         let mut buf = vec![0u8; 128 * 1024];
         let mut first = offset == 0;
         let mut last_emit = Instant::now();
+        // An empty source has no data chunks, but it still must create or
+        // truncate the destination. Otherwise a zero-byte upload could be
+        // marked Done without changing the previous remote file.
+        if local_len == 0 {
+            let response = session
+                .request(Request::WriteChunk {
+                    path: remote_path.to_string(),
+                    offset: 0,
+                    data: String::new(),
+                    truncate: true,
+                    done: true,
+                })
+                .await?;
+            match response {
+                Response::Written { bytes: 0 } => {}
+                Response::Error { .. } => anyhow::bail!("Agent refused empty upload"),
+                _ => anyhow::bail!("Agent did not acknowledge an empty upload"),
+            }
+        }
         loop {
             let n = local_file.read(&mut buf).await?;
             if n == 0 {
