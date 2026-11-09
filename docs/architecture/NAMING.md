@@ -1,73 +1,17 @@
-# Ghost FTP Repository Naming Policy
+# Ghost FTP desktop naming policy
 
-Ghost FTP keeps product-facing naming consistent without destabilizing framework-required internals.
+Use **Ghost FTP** for interface labels, product copy and release titles, and **GhostFTP** in executable, archive and CI artifact filenames.
 
-## Product-facing naming
-
-Use **Ghost FTP** for:
-
-- product copy;
-- UI labels;
-- marketing text;
-- documentation prose;
-- release titles.
-
-Use **GhostFTP** for:
-
-- filenames;
-- archive names;
-- package names;
-- technical product identifiers;
-- CI artifact names;
-- executable names.
-
-Canonical examples:
+## Canonical desktop package patterns
 
 - `GhostFTP-Windows-x64-Portable-v<version>.exe`
 - `GhostFTP-Windows-x64-Setup-v<version>.exe`
+- `GhostFTP-Windows-x64-Setup-v<version>.msi`
 - `GhostFTP-Linux-x86_64-v<version>.AppImage`
-- `GhostFTP-Android-v<version>.apk.unsigned` — production `com.ghostftp.android` build without a private release signature; not directly installable by Android
-- `GhostFTP-Android-v<version>-Installable-Preview.apk` — non-debuggable install/reinstall/launch-tested CI package, using only the standard development signing identity
+- `GhostFTP-Linux-amd64-v<version>.deb`
+- `GhostFTP-Linux-x86_64-v<version>.rpm`
 - `GhostFTP-v<version>-Desktop-Source.zip`
 
-For future releases substitute the canonical `0.x`/later semantic version.
+The supported source roots are `ghostftp-desktop/`, `macos/`, `tools/ghostftp-runtime/`, `tools/ghostftp-installer/` and `updates/`. Framework-specific names such as `src-tauri/`, `tauri.conf.json` and `@tauri-apps/*` remain unchanged.
 
-## Branded top-level source paths
-
-- `ghostftp-desktop/`
-- `android/`
-- `tools/ghostftp-runtime/`
-- `tools/ghostftp-installer/`
-- `updates/`
-
-## Framework-required names that remain
-
-Internal names consumed by Tauri/ecosystem remain unchanged:
-
-- `src-tauri/`
-- `tauri.conf.json`
-- `@tauri-apps/*`
-- `tauri-apps/tauri-action`
-
-## Future naming rules
-
-Prefer:
-
-- `ghostftp-<purpose>.<ext>`
-- `GhostFTP-<Platform>-<Arch>-<Role>-v<Version>.<ext>`
-
-Avoid:
-
-- generic temporary/final names;
-- framework-first public filenames;
-- versionless release executables;
-- legacy release-candidate identifiers in new product assets.
-
-## Stability rule
-
-Do not rename persisted identifiers, bundle identifiers, updater identifiers or protocol/deep-link schemes without a migration plan.
-
-Current migration-sensitive identifiers include:
-
-- desktop bundle identifier: `com.ghostftp.desktop`
-- deep-link scheme: `ghostftp://`
+The installed desktop identifier `com.ghostftp.desktop`, `ghostftp://` scheme and user-data locations are migration-sensitive. A filename rebrand is not permission to break installed-client upgrades.
