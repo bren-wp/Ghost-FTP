@@ -1,3 +1,5 @@
+> **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
+
 > **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Maintained Windows, Linux and macOS desktop clients only. Native signing, cloud provider tests and pixel-accurate screenshot QA remain acceptance gates. Published v0.99.35 is immutable.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Last public edition v0.99.32; Windows/Linux native installers are directly usable without a paid code-signing certificate but need authentic checksums, verified connections and target-device acceptance. Automatic updater remains signed-only; global stable labeling remains gated separately.
@@ -106,8 +108,8 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.36**
-- Previous canonical release: **0.99.35**
+- Active source/release cycle: **0.99.37**
+- Previous canonical release: **0.99.36**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Newest edition is always visible under Releases

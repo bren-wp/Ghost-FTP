@@ -1,6 +1,8 @@
+> **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
+
 # Ghost FTP desktop roadmap — 0.99.36 Preview
 
-**Current development line:** 0.99.36. **Previous canonical release:** v0.99.35. The supported product is a graphical file-transfer client for Windows, Linux and macOS; historical editions remain immutable.
+**Current development line:** 0.99.37. **Previous canonical release:** v0.99.36. The supported product is a graphical file-transfer client for Windows, Linux and macOS; historical editions remain immutable.
 
 ## Current work
 

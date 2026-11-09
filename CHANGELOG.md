@@ -1,3 +1,12 @@
+## 0.99.37 Preview — 9 November 2026
+
+- Windows/Linux scheduled transfer clock/date logic rejects nonexistent DST wall times rather than silently shifting an operation; stale checkpoints are rebased after editing a schedule.
+- Release publishing resumes complete matching draft assets and checks every remote SHA-256; HTTP 422/retry ambiguity no longer requires wiping prior uploads.
+- Exact-source release CI filters push-gate runs so a skipped downstream metadata workflow cannot invalidate an earlier successful push audit.
+- Marketing README preserves authentic native Windows WebView2 and Linux WebKit captures and source-version provenance. No design mockups are presented as real application screenshots.
+- v0.99.36 was successfully recovered and published without retargeting its immutable Git tag; Android remains retired.
+- Production signing, real cloud-provider credentials, end-user hardware acceptance and pixel-perfect comparisons are not certified.
+
 ## 0.99.34 — Windows/Linux transfer byte integrity and full-code audit (Preview; 6 November 2026)
 
 - SFTP download validates remote source byte length, recorded stream count, durable staging length and post-transfer source length before promoting any temporary file.

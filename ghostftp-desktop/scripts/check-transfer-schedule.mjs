@@ -12,9 +12,7 @@ assert.deepEqual(diagnostics ?? [], []);
 const { parseClock, validDateInput, parseLocalOccurrence, mostRecentOccurrence } =
   await import("data:text/javascript;base64," + Buffer.from(outputText).toString("base64"));
 
-const previousZone = process.env.TZ;
 process.env.TZ = "Europe/Zagreb";
-try {
   test("reject invalid dates and invalid 24-hour clocks before arming", () => {
     for (const clock of ["24:00", "12:60", "2:30", "12:00:00", "", "99:99"]) assert.equal(parseClock(clock), null);
     assert.deepEqual(parseClock("02:30"), [2, 30]);
@@ -51,7 +49,3 @@ try {
     const second = mostRecentOccurrence(schedule, new Date("2026-10-25T02:45:00+01:00"));
     assert.equal(first?.getTime(), second?.getTime());
   });
-} finally {
-  if (previousZone === undefined) delete process.env.TZ;
-  else process.env.TZ = previousZone;
-}
