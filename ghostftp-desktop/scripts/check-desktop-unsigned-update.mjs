@@ -15,7 +15,7 @@ assert.ok(!about.includes("Stable channel ·"), "Unsigned desktop UI must not fa
 assert.ok(about.includes("url={OFFICIAL_RELEASES_URL}"), "Manual installer link missing");
 assert.ok(release.includes('OFFICIAL_RELEASES_URL = "https://github.com/bren-wp/Ghost-FTP/releases"'), "Only the verified Releases index is allowed");
 assert.ok(rust.includes('"/bren-wp/Ghost-FTP/releases"'), "Rust IPC allowlist blocks manual downloads");
-assert.ok(channel.includes('if (channel === "stable")'), "Global Android/macOS signing gates must not be weakened");
+assert.ok(channel.includes('if (channel === "stable")'), "Global desktop signing gates must not be weakened");
 const compiled = ts.transpileModule(updater, { compilerOptions: {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
 }});
