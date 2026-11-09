@@ -1,12 +1,12 @@
-> **Current development (7 November 2026): Ghost FTP 0.99.35 Preview.** Windows/Linux SFTP and Ghost FTP Agent now verify resumed transfer prefixes, while FTP/FTPS restart from zero where prefix identity cannot be proven. Published v0.99.34 remains immutable; live provider interoperability and 1:1 native UI parity remain unverified.
+> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only product and release train. Security and dead-code regression audits remain mandatory; production and pixel-perfect acceptance require native test evidence. Previously published v0.99.35 remains immutable.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Windows and Linux are the current installation and data-preservation priority; published v0.99.32 is the previous immutable version. Unsigned native packages are installable manually; publisher-signed automatic updates retain mandatory signature verification. CI and real-device stability are separate acceptance gates.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
 
-> Active source/release cycle: **0.99.35 Preview**. Previous canonical release: **0.99.34**.
+> Active source/release cycle: **0.99.36 Preview**. Previous canonical release: **0.99.35**.
 
-> Active source/release cycle: **0.99.35 Preview**. Previous canonical release: **0.99.34**.
+> Active source/release cycle: **0.99.36 Preview**. Previous canonical release: **0.99.35**.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.16 Preview**; latest published version **v0.99.15**. Versioned details below may describe older releases.
 
@@ -162,7 +162,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes what is implemented in the current Ghost FTP 0.99.30 development source. Previous canonical release: **0.99.34**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes what is implemented in the current Ghost FTP 0.99.30 development source. Previous canonical release: **0.99.35**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
