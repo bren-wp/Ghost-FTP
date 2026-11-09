@@ -350,6 +350,7 @@ jobs:
           done < <(find .github/scripts updates/scripts ghostftp-desktop/scripts -type f -name '*.mjs' -print0)
           while IFS= read -r -d '' script; do
             bash -n "$script"
+          done < <(find .github/scripts updates/scripts ghostftp-desktop/scripts -type f -name '*.sh' -print0)
 
       - name: Windows release package contract
         shell: bash
