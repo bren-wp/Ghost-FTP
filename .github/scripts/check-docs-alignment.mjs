@@ -203,7 +203,10 @@ requireIncludes(".github/workflows/ghostftp-release.yml", "github.event.workflow
       failures.push(`${rel}: Linux and Windows reference screen names drifted`);
     }
     const size = reference.screen_size || {};
-    for (const [platform, width, height] of
+    for (const [platform, width, height] of [
+      ["windows", 1290, 852],
+      ["linux", 1290, 852],
+    ]) {
       if (JSON.stringify(size[platform]) !== JSON.stringify([width, height])) {
         failures.push(`${rel}: incorrect ${platform} reference viewport`);
       }
