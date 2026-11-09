@@ -19,7 +19,7 @@
 - [Security policy](../SECURITY.md) and [privacy](legal/PRIVACY.md)
 - [Updates and rollback](guides/UPDATES.md)
 - [Platform packages and signing state](distribution/PLATFORM_PACKAGES.md)
-- [Android and cross-platform feature status](handbook/FEATURE_MATRIX.md)
+- [Desktop platform feature status](handbook/FEATURE_MATRIX.md)
 - [Protocol E2E test methodology](qa/PROTOCOL_E2E.md)
 - [Release process and immutable evidence](release/PROCESS.md)
 - [Full-repository source and security audit (0.99.26)](audits/REPOSITORY_AUDIT_0.99.26.md)
