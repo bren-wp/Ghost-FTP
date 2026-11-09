@@ -120,11 +120,10 @@ test "$(jq -r '.draft' <<< "$RELEASE_INFO")" = "true"
 test "$(jq -r '.prerelease' <<< "$RELEASE_INFO")" = "true"
 test "$(jq -r '.tag_name' <<< "$RELEASE_INFO")" = "$TAG"
 
-# A rerun may resume a failed draft. Reset ONLY an unpublished inventory.
-for ASSET_ID in $(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" --jq '.[].id'); do
-  gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"
-done
-
+# Draft uploads are resumable. Existing correct bytes are immutable: never
+# delete a complete asset because a previous CI attempt lost its HTTP response.
+# GitHub may return 422 after accepting a request; recheck the remote digest
+# before deciding whether an upload actually failed.
 for file in dist/*; do
   test -f "$file" && test -s "$file"
   NAME="$(basename "$file")"
@@ -132,14 +131,54 @@ for file in dist/*; do
     echo "Unexpected release asset name: $NAME" >&2
     exit 1
   }
-  # Upload raw octets by immutable release ID, NOT through a draft tag lookup.
-  curl --fail --silent --show-error --location --connect-timeout 30 --max-time 900 \
-    --request POST \
-    --header "Accept: application/vnd.github+json" \
-    --header "Authorization: Bearer $GH_TOKEN" \
-    --header "Content-Type: application/octet-stream" \
-    --data-binary "@$file" \
-    "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$NAME" >/dev/null
+  LOCAL_SHA="$(sha256sum "$file" | awk '{print $1}')"
+  LOCAL_SIZE="$(stat -c '%s' "$file")"
+  UPLOADED=false
+  for attempt in 1 2 3 4; do
+    CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" |
+      jq -c --arg name "$NAME" '[.[] | select(.name == $name)]')"
+    COUNT="$(jq 'length' <<< "$CURRENT")"
+    if [ "$COUNT" = 1 ]; then
+      DIGEST="$(jq -r '.[0].digest // ""' <<< "$CURRENT")"
+      SIZE="$(jq -r '.[0].size' <<< "$CURRENT")"
+      STATE="$(jq -r '.[0].state' <<< "$CURRENT")"
+      if [ "$DIGEST" != "sha256:$LOCAL_SHA" ] || [ "$SIZE" != "$LOCAL_SIZE" ] || [ "$STATE" != "uploaded" ]; then
+        echo "Conflicting draft asset $NAME; refusing to overwrite its provenance." >&2
+        exit 1
+      fi
+      echo "Reusing verified draft asset: $NAME"
+      UPLOADED=true
+      break
+    fi
+    test "$COUNT" = 0 || { echo "Duplicate remote draft assets for $NAME" >&2; exit 1; }
+    # HTTP 422 can mean an accepted upload whose response was lost. A repeated
+    # request must not delete existing assets or create parallel duplicates.
+    HTTP_CODE="$(curl --silent --show-error --location --connect-timeout 30 --max-time 900 \
+      --request POST \
+      --header "Accept: application/vnd.github+json" \
+      --header "Authorization: Bearer $GH_TOKEN" \
+      --header "Content-Type: application/octet-stream" \
+      --data-binary "@$file" \
+      --output /dev/null --write-out '%{http_code}' \
+      "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$NAME" || true)"
+    if [ "$HTTP_CODE" = 201 ]; then
+      UPLOADED=true
+      break
+    fi
+    echo "Asset upload response $HTTP_CODE for $NAME (attempt $attempt); checking remote digest." >&2
+    sleep "$attempt"
+  done
+  if [ "$UPLOADED" != true ]; then
+    # A delayed 201/422 can still have committed correct remote bytes.
+    REMOTE="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" |
+      jq -c --arg name "$NAME" '[.[] | select(.name == $name)]')"
+    test "$(jq 'length' <<< "$REMOTE")" = 1 &&
+      test "$(jq -r '.[0].digest' <<< "$REMOTE")" = "sha256:$LOCAL_SHA" &&
+      test "$(jq -r '.[0].size' <<< "$REMOTE")" = "$LOCAL_SIZE" || {
+        echo "Unable to verify release asset $NAME; leaving $TAG unpublished." >&2
+        exit 1
+      }
+  fi
 done
 
 EXPECTED_FILE_LIST="$(mktemp)"

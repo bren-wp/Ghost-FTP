@@ -82,6 +82,10 @@ test("public release follows draft-ID upload, inventory and remote SHA256 verifi
   assert.ok(script.includes("Remote SHA256 mismatch"));
   assert.ok(!script.includes('gh release upload "$TAG"'));
   assert.ok(!script.includes('releases/tags/$TAG'));
+  assert.ok(script.includes("Reusing verified draft asset"), "reruns must preserve matching draft uploads");
+  assert.ok(script.includes('Remote SHA256 mismatch'), "all remote asset digests remain mandatory");
+  assert.ok(!script.includes('gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"'), "draft assets must not be deleted wholesale on retry");
+  assert.ok(read(".github/workflows/ghostftp-release.yml").includes('select(.event == "push")'), "release gates must ignore skipped metadata follow-up events");
 });
 
 test("released editions and tags must never be automatically pruned", () => {
