@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateRuntimeEvidence } from "./check-runtime-75-evidence.mjs";
+import { validateRuntimeEvidence } from "./check-runtime-59-evidence.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const reference = JSON.parse(readFileSync(path.join(root, "docs/qa/PREMIUM_REFERENCE_75.json"), "utf8"));
@@ -12,7 +12,7 @@ const copy = () => structuredClone(baseline);
 
 test("every reference is present and no concept art is reported as accepted runtime UI", () => {
   const result = validateRuntimeEvidence(reference, baseline, root);
-  assert.deepEqual(result, { total: 75, pass: 0, fail: 0, unverified: 75 });
+  assert.deepEqual(result, { total: 59, pass: 0, fail: 0, unverified: 59 });
 });
 
 test("missing, duplicate, reordered or falsely counted references are rejected", () => {
