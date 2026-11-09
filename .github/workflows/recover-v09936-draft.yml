@@ -1,0 +1,18 @@
+name: One-time verified v0.99.36 draft recovery
+on:
+  push:
+    branches: [release/repair-v09936]
+permissions:
+  contents: write
+jobs:
+  recover:
+    if: ${{ github.repository == 'bren-wp/Ghost-FTP' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - name: Authenticate and verify all 21 immutable draft assets before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/recover-v09936-draft.sh
