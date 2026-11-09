@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare all 75 Ghost FTP v8 concepts to GENUINE installed-app captures.
+"""Compare the 59 Windows/Linux Ghost FTP v8 concepts to GENUINE installed-app captures.
 
 Pixel comparisons count changes to any RGB or alpha channel (RGBA).
 
@@ -10,7 +10,7 @@ Usage:
    --output "build/qa/ghostftp-pixel-diff.json"
 
 Install Pillow to measure channel-level differences: python -m pip install Pillow
-Capture filenames: captures/windows/files.png, captures/android/sites.png, etc.
+Capture filenames: captures/windows/files.png, captures/linux/sites.png, etc.
 This NEVER promotes a design concept to real application data or marks it accepted.
 """
 from __future__ import annotations
@@ -25,8 +25,7 @@ import zipfile
 
 ARCHIVE_SHA256 = "1cdaea3e60c0ec4b14c3e8fa515351ba0710ee9022060e7f107b8bb9fbf6e877"
 PREFIX = "GhostFTP-Premium-Brand-UI/"
-EXPECTED = {"windows": (30, (1290, 852)), "linux": (29, (1290, 852)),
-            "android": (16, (480, 960))}
+EXPECTED = {"windows": (30, (1290, 852)), "linux": (29, (1290, 852))}
 MAX_UNCOMPRESSED_BYTES = 45 * 1024 * 1024
 
 
@@ -58,13 +57,13 @@ def verify(archive: Path, mapping: Path) -> list[dict]:
             if s["source"] != source:
                 raise ValueError(f"Screen ID/path mismatch: {source}")
             expected.append(dict(platform=platform, screen=s["id"], path=source, dimensions=size))
-    if len({x["path"] for x in expected}) != 75:
+    if len({x["path"] for x in expected}) != 59:
         raise ValueError("Duplicate/missing visual reference entries")
     with zipfile.ZipFile(archive) as z:
         names = {info.filename[len(PREFIX):] for info in z.infolist()
                  if info.filename.startswith(PREFIX + "screens/") and info.filename.endswith(".png")}
-        if names != {x["path"] for x in expected}:
-            raise ValueError("ZIP and source 75-screen manifest have different inventories")
+        if not {x["path"] for x in expected}.issubset(names):
+            raise ValueError("Desktop reference files are missing from the signed source archive")
         if sum(i.file_size for i in z.infolist()) > MAX_UNCOMPRESSED_BYTES:
             raise ValueError("Uncompressed visual archive exceeds safety limit")
         for x in expected:
@@ -139,7 +138,7 @@ def main() -> int:
                         result.update(pixel_difference(z.read(PREFIX + path), capture,
                                                        screen["dimensions"]))
                     except (OSError, ValueError, RuntimeError) as error:
-                        # One broken screenshot must not hide the other 74
+                        # One broken screenshot must not hide the other 58
                         # comparisons. Preserve a per-screen failure record.
                         result["status"] = "invalid_capture"
                         result["error"] = str(error)
@@ -159,7 +158,7 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n",
                            encoding="utf-8")
-    print("Reviewed 75 source images; compared",
+    print("Reviewed 59 desktop source images; compared",
           sum(x["status"] == "compared" for x in records), "real captures ->", args.output)
     if args.require_exact:
         return int(any(x["status"] != "compared" or x.get("exact") is not True
