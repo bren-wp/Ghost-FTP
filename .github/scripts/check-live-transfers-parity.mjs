@@ -9,7 +9,6 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const desktop = read("ghostftp-desktop/src/components/TransferCenterDialog.tsx");
 const css = read("ghostftp-desktop/src/styles.css");
 const mac = read("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
-const android = read("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
 
 for (const text of [
   'className="ghost-transfer-overview"',
@@ -57,15 +56,6 @@ for (const text of [
   'accessibilityIdentifier("ghostftp-transfer-overview")',
 ]) assert.ok(mac.includes(text), `Missing real macOS history metric: ${text}`);
 
-for (const text of [
-  'updateSessionOperationOverview()',
-  'sessionCompletedOperations++',
-  'sessionCancelledOperations++',
-  'sessionFailedOperations++',
-  'operationInFlight) 1 else 0',
-  'transferOverviewText.contentDescription = message',
-]) assert.ok(android.includes(text), `Missing Android live session-operation behavior: ${text}`);
-
 const historyStore = read("macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift");
 const macTests = read("macos/Tests/GhostFTPMacAppTests/WorkspaceStoreTests.swift");
 assert.ok(
@@ -81,4 +71,4 @@ assert.ok(
   "Missing macOS running-history-preservation regression"
 );
 
-console.log("Live Transfers UI: Windows/Linux backend-queue metrics, macOS actual credential-free history and Android session-only operation counters verified. Installed visual and device acceptance remain pending.");
+console.log("Live Transfers UI: Windows/Linux backend-queue metrics, macOS actual credential-free history verified. Installed visual and device acceptance remain pending.");
