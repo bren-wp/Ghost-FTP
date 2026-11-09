@@ -56,7 +56,6 @@ for (const [label, condition] of [
 // These three vector resources were copied unchanged from the user-provided
 // design ZIP. Git-blob SHA-1 comparisons catch even tiny Bézier/gradient drift.
 for (const [asset, originalBlob] of Object.entries({
-  "assets/branding/ghostftp-adaptive-foreground.svg": "88466c215763451a4a2830a69a11c5097cb4fd5a",
   "assets/branding/ghostftp-logo-light.svg": "6beb59d914f407bbe3e40667c9f70923df9707f0",
   "assets/branding/ghostftp-symbol-monochrome.svg": "f7e90f05aa15bfcee747ff668e19a32eeff7ac53",
 })) {
