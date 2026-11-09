@@ -1,3 +1,11 @@
+## 0.99.38 Preview — 10 November 2026
+
+- Prevent repeat release publication failure: skip directories and symlinks under `dist/` in BOTH upload and remote SHA-256 loops. Retain exact 21-file inventory, checksummed immutable drafts and no signed-updater fallback.
+- Windows/Linux Transfer Center: last-hour and last-day filters now exclude future-dated and non-finite imported records; all-history view keeps entries available for support.
+- Added targeted shell file-selection and transfer timestamp boundary regressions; existing FTP/FTPS/SFTP, Windows/Linux build, security and dead-code suites remain mandatory.
+- README keeps genuine Windows WebView2 and Linux WebKit screenshots with original native-capture provenance; none are fabricated, and no 0% pixel-parity claim is made.
+- v0.99.37 is the published predecessor with 21 desktop assets. Android remains removed.
+
 ## 0.99.37 Preview — 9 November 2026
 
 - Windows/Linux scheduled transfer clock/date logic rejects nonexistent DST wall times rather than silently shifting an operation; stale checkpoints are rebased after editing a schedule.
