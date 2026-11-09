@@ -125,7 +125,10 @@ test "$(jq -r '.tag_name' <<< "$RELEASE_INFO")" = "$TAG"
 # GitHub may return 422 after accepting a request; recheck the remote digest
 # before deciding whether an upload actually failed.
 for file in dist/*; do
-  test -f "$file" && test -s "$file"
+  # Native, macOS and other staging directories are not release assets.
+  # Symlinks are also excluded to prevent uploading unintended files.
+  [[ -f "$file" && ! -L "$file" ]] || continue
+  test -s "$file"
   NAME="$(basename "$file")"
   [[ "$NAME" =~ ^[A-Za-z0-9._-]+$ ]] || {
     echo "Unexpected release asset name: $NAME" >&2
@@ -192,6 +195,7 @@ LOCAL_COUNT="$(wc -l < "$EXPECTED_FILE_LIST" | tr -d ' ')"
 REMOTE_COUNT="$(wc -l < "$REMOTE_ASSET_LIST" | tr -d ' ')"
 test "$REMOTE_COUNT" = "$LOCAL_COUNT"
 for file in dist/*; do
+  [[ -f "$file" && ! -L "$file" ]] || continue
   NAME="$(basename "$file")"
   LOCAL_SHA="$(sha256sum "$file" | awk '{print $1}')"
   REMOTE_DIGEST="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" |

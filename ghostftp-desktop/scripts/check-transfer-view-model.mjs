@@ -55,6 +55,21 @@ test("hour/day inclusive boundaries come from a single supplied clock", () => {
   assert.deepEqual(filterTransferView(transfers, opts({ tab: "failed", time: "hour" })).map(t => t.id), ["f"]);
 });
 
+test("time filters reject future, malformed and imported invalid timestamps", () => {
+  const unreliable = [
+    { ...make("future", "done"), startedAt: epoch + 1 },
+    { ...make("nan", "done"), startedAt: Number.NaN },
+    { ...make("infinite", "done"), startedAt: Infinity },
+    { ...make("boundary", "done"), startedAt: epoch - 3600 },
+    { ...make("past", "done"), startedAt: epoch - 3601 },
+  ];
+  assert.deepEqual(filterTransferView(unreliable, opts({ time: "hour" })).map(t => t.id), ["boundary"]);
+  assert.deepEqual(filterTransferView(unreliable, opts({ time: "hour", nowSeconds: NaN })), []);
+  assert.deepEqual(filterTransferView(unreliable, opts({ time: "all" })).map(t => t.id),
+    ["future", "nan", "infinite", "boundary", "past"],
+    "unfiltered history must remain available for repair and diagnosis");
+});
+
 test("selectors never mutate the queue; history is bounded and sorted as a copy", () => {
   const original = structuredClone(transfers);
   const log = recentTransferLog(transfers, epoch - 3600, 2);

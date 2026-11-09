@@ -55,7 +55,16 @@ export function filterTransferView(
     if (options.tab === "failed" && transfer.status !== "error") return false;
 
     if (options.direction !== "all" && transfer.kind !== options.direction) return false;
-    if (windowSeconds !== null && transfer.startedAt < options.nowSeconds - windowSeconds) return false;
+    if (windowSeconds !== null) {
+      // Server clocks, imported history and corrupt timestamps must never
+      // make future-dated transfers appear in "Last hour/day" filters.
+      if (
+        !Number.isFinite(options.nowSeconds) ||
+        !Number.isFinite(transfer.startedAt) ||
+        transfer.startedAt > options.nowSeconds ||
+        transfer.startedAt < options.nowSeconds - windowSeconds
+      ) return false;
+    }
 
     if (!normalized) return true;
     return `${transfer.source} ${transfer.destination} ${transfer.status}`

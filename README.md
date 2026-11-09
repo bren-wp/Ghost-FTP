@@ -1,4 +1,4 @@
-> **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
+> **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
 
 <div align="center">
 
@@ -14,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.37 (development Preview) · Previously published: v0.99.36. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.38 (development Preview) · Previously published: v0.99.37. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -24,7 +24,7 @@ Move files, manage connections and keep important server work organized with an 
 
 ## Made for Windows & Linux
 
-**Dependable transfers. A clearer workflow.** The 0.99.37 Preview adds calendar-accurate transfer scheduling for daylight-saving changes and more reliable release delivery after interrupted uploads. Existing FTP, explicit FTPS and SFTP checks remain in place, alongside native Windows and Linux build tests. Independent physical-device, cloud-account and pixel-diff verification remain distinct acceptance steps.
+**Dependable transfers. A focused workspace.** Ghost FTP 0.99.38 improves transfer-history date filtering and release integrity. Windows and Linux share native Rust/Tauri transfer handling, FTP/FTPS/SFTP security checks and responsive file-management tools. Native integration, cloud-provider and pixel-perfect acceptance remain independently verifiable requirements—not assumed guarantees.
 
 ## See Ghost FTP in action
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -82,10 +83,37 @@ test("public release follows draft-ID upload, inventory and remote SHA256 verifi
   assert.ok(script.includes("Remote SHA256 mismatch"));
   assert.ok(!script.includes('gh release upload "$TAG"'));
   assert.ok(!script.includes('releases/tags/$TAG'));
+  const safeFileGate = '[[ -f "$file" && ! -L "$file" ]] || continue';
+  assert.equal(script.split(safeFileGate).length - 1, 2,
+    "both upload and digest loops must skip staging directories and symlinks");
+  assert.ok(script.includes("find dist -maxdepth 1 -type f"),
+    "public inventory must include only regular files");
   assert.ok(script.includes("Reusing verified draft asset"), "reruns must preserve matching draft uploads");
   assert.ok(script.includes('Remote SHA256 mismatch'), "all remote asset digests remain mandatory");
   assert.ok(!script.includes('gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"'), "draft assets must not be deleted wholesale on retry");
   assert.ok(read(".github/workflows/ghostftp-release.yml").includes('select(.event == "push")'), "release gates must ignore skipped metadata follow-up events");
+});
+
+test("draft asset file iteration cannot hash a staging directory or follow symlinks", () => {
+  const temp = fs.mkdtempSync(path.join(process.cwd(), ".ghostftp-release-glob-"));
+  try {
+    const dist = path.join(temp, "dist");
+    fs.mkdirSync(dist);
+    fs.writeFileSync(path.join(dist, "GhostFTP-test.zip"), "real release bytes");
+    fs.mkdirSync(path.join(dist, "macos"));
+    fs.mkdirSync(path.join(dist, "native"));
+    fs.writeFileSync(path.join(dist, "native", "secret.txt"), "not a release asset");
+    fs.symlinkSync(path.join(dist, "native", "secret.txt"), path.join(dist, "GhostFTP-leak.zip"));
+    const output = execFileSync("bash", [
+      "-c",
+      'for file in "$1"/*; do [[ -f "$file" && ! -L "$file" ]] || continue; basename "$file"; done',
+      "release-glob-test",
+      dist,
+    ], { encoding: "utf8" }).trim().split("\n");
+    assert.deepEqual(output, ["GhostFTP-test.zip"]);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
 });
 
 test("released editions and tags must never be automatically pruned", () => {
