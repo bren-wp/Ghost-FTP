@@ -1,4 +1,4 @@
-> **Current development (7 November 2026): Ghost FTP 0.99.35 Preview.** Windows/Linux SFTP and Ghost FTP Agent now verify resumed transfer prefixes, while FTP/FTPS restart from zero where prefix identity cannot be proven. Published v0.99.34 remains immutable; live provider interoperability and 1:1 native UI parity remain unverified.
+> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only release line, with FTP/FTPS/SFTP and cloud transfer security under review. Public v0.99.35 stays immutable. No unverified claims of perfect UI parity or universal provider interoperability.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Published v0.99.32 remains immutable. Windows/Linux unsigned installers can be manually installed; signed in-app updates still require verified signatures. New update-fallback, safe download link and data-preservation safeguards are under exact-head test; physical desktop production acceptance is not yet certified.
 
@@ -16,7 +16,7 @@
 
 # Ghost FTP Roadmap
 
-This roadmap separates the current **0.99.31 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.34**.
+This roadmap separates the current **0.99.31 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.35**.
 
 ## Implemented
 
@@ -74,4 +74,4 @@ This roadmap separates the current **0.99.31 development Preview** state from fu
 For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
 
 
-Current development line: 0.99.35. Previous canonical release: 0.99.34. See `docs/releases/0.99.34.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.36. Previous canonical release: 0.99.35. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
