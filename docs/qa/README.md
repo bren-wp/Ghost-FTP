@@ -1,56 +1,17 @@
-# Ghost FTP QA Index
+# Ghost FTP desktop QA index
 
-This directory tracks evidence and acceptance criteria for the current Ghost FTP development/release line.
+The supported desktop platforms are Windows, Linux and macOS. Run source-level, protocol-level and installed native-app tests on the same exact commit SHA.
 
-## Automated release gates
+## Source and security QA
 
-Every release source must pass the exact-head quality, real FTP/explicit FTPS/SFTP E2E, canonical Windows/Linux native build, Android and Windows hardening workflows before publication. The Android gate includes an emulator click-through smoke on the same tested source.
+- [Transfer protocols](PROTOCOL_E2E.md): FTP, explicit FTPS and SFTP actual localhost roundtrips, trust validation, resume/cancel/failure handling
+- [Files, transfers and interactions](CLICK.md), [responsive layouts](RESPONSIVE.md), [keyboard/window integration](TITLEBAR.md)
+- [Reference collection](PREMIUM_REFERENCE_75.md): active 59 Windows/Linux concepts (30 + 29), none accepted as genuine installed-app screenshots until evidence exists
+- [Runtime evidence registry](PREMIUM_REFERENCE_EVIDENCE.json): screenshot SHA, source SHA, viewport and human acceptance
+- [Cross-platform coverage](PLATFORM_PARITY.md) and [native pixel diff](V8_RGB_PIXEL_PRECISION_2026_10_26.md)
 
-The quality gate also verifies that local README/documentation images are byte-identical to the newest published release tag.
+## Native acceptance gates
 
-Windows native QA covers seven critical surfaces:
+Windows: portable/NSIS/MSI installation, application launch, WebView2, key vault, upload/download, transfer queue and updates. Linux: AppImage/DEB/RPM, GTK/WebKit, keyring, Wayland/X11, file selection and transfers. macOS: SwiftUI workspace, Keychain, FTP and signed cloud transport; FTPS/SFTP remain disabled pending secure implementation.
 
-- Main File Manager
-- Site Manager
-- New Connection
-- Preferences
-- Transfer Center
-- File Properties
-- Help & About
-
-Each is captured at canonical, compact and near-minimum viewport sizes by the canonical native build.
-
-## Interaction and functionality
-
-- [Click / interaction QA](CLICK.md)
-- [Transfer QA](TRANSFERS.md)
-- [Installer QA](INSTALLER.md)
-- [Protocol E2E](PROTOCOL_E2E.md)
-- [Android QA](ANDROID.md)
-
-## Premium reference completeness
-
-- [All 75 reference screens and implementation pointers](premium-75-screen-contract.json) are checked by `.github/scripts/check-premium-75-screens.mjs`. Every pixel acceptance status is deliberately pending until actual installed screenshots are compared; a mapped component alone is not visual QA.
-- There are no independent macOS mockups in the supplied reference archive.
-
-## Visual acceptance
-
-- [Pixel parity](PIXEL_PARITY.md)
-- [Responsive behavior](RESPONSIVE.md)
-- [Native titlebar](TITLEBAR.md)
-
-## Reference integrity
-
-- [Reference checksums](REFERENCE_SHA256.txt)
-
-## Release truth
-
-The authoritative current source/build state is [Build Status](../build/STATUS.md). Historical QA documents are not proof for a newer release unless the corresponding exact-head workflow produced fresh evidence.
-
-## FINAL rule
-
-Ghost FTP must not be labelled FINAL solely because source compiles or packages. Stable promotion still requires the documented target-OS installer, visual, security and accessibility acceptance appropriate to that release.
-
-## 0.95.0 Android protected visual evidence
-
-The Android CI now produces seven separate, real idle-workspace 480px screenshots and an accompanying SHA-256 file from a private debug-only instrumentation renderer. The production `FLAG_SECURE` screenshot block remains active; ordinary ADB screenshots may be black, so do not treat those as actual UI evidence. These captures are available as `GhostFTP-Android-Premium-Visual-QA-480x960` in the Actions run's artifacts, separate from installable APKs. Manual comparison against the 16 source references is still pending; one of the seven captures (Cloud) has no corresponding source reference and is not a fabricated match.
+Code checks and mockup comparisons are not certification for all actual systems, permissions, server types or 1:1 pixel parity.
