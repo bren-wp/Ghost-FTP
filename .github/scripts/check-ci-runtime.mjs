@@ -17,7 +17,6 @@ const obsoleteActionRefs = [
   [/actions\/setup-node@v[1-6]\b/g, "actions/setup-node must use v7+"],
   [/actions\/setup-go@v[1-6]\b/g, "actions/setup-go must use v7+"],
   [/actions\/setup-java@v[1-5]\b/g, "actions/setup-java must use v6+"],
-  [/android-actions\/setup-android@v[1-3]\b/g, "android-actions/setup-android must use v4+"],
   [/gradle\/actions\/setup-gradle@v[1-5]\b/g, "gradle/actions/setup-gradle must use v6+"],
   [/actions\/upload-artifact@v[1-6]\b/g, "actions/upload-artifact must use v7+"],
 ];

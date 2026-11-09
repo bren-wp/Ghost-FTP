@@ -2,7 +2,7 @@
 
 GitHub Releases is the canonical source for published Ghost FTP binaries and checksums.
 
-Use the [complete official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), not the GitHub `/releases/latest` shortcut (which may omit prereleases). Development source is **0.99.33 Preview**; [v0.99.32](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.32) is the last verified publicly published package edition. A development source version does not imply a downloadable artifact already exists.
+Use the [complete official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), not the GitHub `/releases/latest` shortcut (which may omit prereleases). Development source is **0.99.36 Preview**; [v0.99.35](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.35) is the last published predecessor. A development source version does not imply a downloadable artifact already exists.
 
 ## Verify downloads
 
@@ -30,7 +30,6 @@ The portable executable runs without an installation workflow. The Setup executa
 
 The interactive Setup is branded with Ghost FTP artwork and follows a guided Windows installer flow. Before installation it presents the Ghost FTP EULA from the repository root; installation must not continue interactively unless the user accepts the licence terms. The installer uses the Ghost FTP application icon, branded header/sidebar artwork, a Ghost FTP Start Menu folder, and automatically follows the supported Windows locale (English/Croatian installer resources are enabled).
 
-Android production builds are intentionally delivered without a private release-signing key. The unsigned production package is build evidence and is not directly installable by Android; CI separately keeps a non-debuggable installable preview, signed only with the standard development key, for functional install/reinstall/launch verification.
 
 ## Linux x86-64
 
@@ -44,17 +43,6 @@ Published Linux assets follow these names:
 
 Use the package format appropriate to the target distribution/environment and verify its checksum before installation.
 
-## Android
-
-The canonical release asset is:
-
-- `GhostFTP-Android-v<version>.apk.unsigned`
-- `GhostFTP-Android-v<version>-Installable-Preview.apk`
-
-The release workflow obtains both Android artifacts from the verified Android CI run for the same source SHA. `GhostFTP-Android-v<version>.apk.unsigned` is the production `com.ghostftp.android` build with no private release signature. `GhostFTP-Android-v<version>-Installable-Preview.apk` is kept separately as the non-debuggable install/reinstall/launch-tested package and uses only the standard development signing identity.
-
-Android itself requires a signature before an APK can be installed. Therefore the intentionally unsigned production artifact is not presented as directly installable; no private keystore, signing password, user PIN or activation code is required by this project.
-
 ## Building instead of installing
 
 Source-build instructions are maintained in [../development/BUILDING.md](../development/BUILDING.md).
@@ -62,7 +50,6 @@ Source-build instructions are maintained in [../development/BUILDING.md](../deve
 The authoritative source directories are:
 
 - desktop: `ghostftp-desktop/`
-- Android: `android/`
 
 Support/compatibility tooling under `tools/` must not be confused with the production desktop packages described above.
 

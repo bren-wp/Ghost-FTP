@@ -6,7 +6,7 @@ This is the operator checklist for publishing a Windows/Linux in-app update afte
 
 ## Optional in-app updater signing
 
-The normal stable GitHub release does not require private updater keys. To additionally publish the Windows/Linux in-app update bundle, configure these GitHub Actions repository secrets:
+The normal manual Preview GitHub release does not require private updater keys. To additionally publish the Windows/Linux in-app update bundle, configure these GitHub Actions repository secrets:
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if the private key is encrypted
@@ -36,7 +36,7 @@ If either updater signature is present, both signatures, the exact-version manif
 
 The release workflow:
 
-1. waits for exact-SHA quality, protocol, Android and Windows hardening gates;
+1. waits for exact-SHA quality, protocol, native Windows/Linux, Windows hardening and macOS gates;
 2. downloads native artifacts from the successful exact-SHA main build;
 3. normalizes versioned public asset names;
 4. detects whether both updater signatures are available;
@@ -80,6 +80,3 @@ Linux:
 
 Failure conditions must show product-language errors only. The application UI must not expose internal service paths, file formats or raw transport errors.
 
-## Android
-
-Android release assets are verified and published by the Android/release workflow, but Android does not consume the desktop Tauri update service described here.

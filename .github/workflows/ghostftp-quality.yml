@@ -90,6 +90,11 @@ jobs:
       - name: Documentation and release alignment
         shell: bash
         run: node .github/scripts/check-docs-alignment.mjs
+      - name: Retired platform must not return in desktop sources or release assets
+        shell: bash
+        run: |
+          node --test .github/scripts/check-retired-platform.test.mjs
+          node .github/scripts/check-retired-platform.mjs
       - name: Enforce macOS Developer ID distribution safeguards
         shell: bash
         run: node .github/scripts/check-macos-production-gate.mjs
@@ -185,10 +190,9 @@ jobs:
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
           grep -Fq 'sha256sum -c' .github/scripts/publish-release.sh
 
-      - name: Verify Android multilingual UI and native macOS catalog
+      - name: Verify desktop multilingual UI and native macOS catalog
         shell: bash
         run: |
-          node android/scripts/check-multilingual-ui.mjs
           node ghostftp-desktop/scripts/check-i18n-parity.mjs
           node tools/audits/check-localization-inventory.mjs
           node tools/audits/check-cross-platform-branding.mjs
@@ -199,16 +203,10 @@ jobs:
           set -euo pipefail
           grep -Fq -- '--bg: 7 14 26;' ghostftp-desktop/src/styles.css
           # Keep the original desktop cyan branding while the two approved
-          # 2026-10-16 Android references use a distinct violet action accent.
           grep -Fq -- '--accent: 56 171 255;' ghostftp-desktop/src/styles.css
           grep -Fq '"accent": "#38ABFF"' docs/branding/premium-ui-tokens.json
-          grep -Fq '<color name="ghost_accent">#654BFF</color>' android/app/src/main/res/values/colors.xml
-          grep -Fq 'val accent: Int = PremiumReferenceStyle.purple' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
-          grep -Fq 'M24,155c16,-4' android/app/src/main/res/drawable/ic_ghost_ftp.xml
           grep -Fq 'GhostPremiumPalette.accent' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'static let sidebar = Color(red: 13/255, green: 25/255, blue: 43/255)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
-          grep -Fq 'val row: Int = panel' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
-          grep -Fq 'val input: Int = background' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           grep -Fq 'background: rgb(var(--bg-panel)) !important;' ghostftp-desktop/src/styles.css
           grep -Fq 'No macOS mockups were provided' docs/product/PREMIUM_BRAND_2026.md
           test -s assets/branding/ghostftp-app-icon.svg
@@ -224,13 +222,10 @@ jobs:
           grep -Fq 'PRODUCT_SITE = "https://ghostftp.com"' ghostftp-desktop/src/lib/release.ts
           grep -Fq 'const PROJECT_REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP";' ghostftp-desktop/src/components/AboutDialog.tsx
           grep -Fq 'More Than Transfer. Total Control.' ghostftp-desktop/src/components/AboutDialog.tsx
-          grep -Fq 'const val REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP"' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'PRODUCT_SUPPORT_URL' ghostftp-desktop/src/components/AboutDialog.tsx
           grep -Fq 'PRODUCT_PRIVACY_URL' ghostftp-desktop/src/components/AboutDialog.tsx
-          grep -Fq 'https://ghostftp.com/hr/support' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           grep -Fq 'https://ghostftp.com' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
-          ! grep -Fq 'github.com/bren-wp/Ghost-FTP/issues' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           ! grep -Fq 'Open the GitHub issue tracker' ghostftp-desktop/src/components/AboutDialog.tsx
 
       - name: Real premium Help/About reference hierarchy
@@ -242,20 +237,17 @@ jobs:
           grep -Fq 'void check(false)' ghostftp-desktop/src/components/AboutDialog.tsx
           grep -Fq '.ghost-about-reference-resources' ghostftp-desktop/src/styles.css
           ! grep -Fq 'function AboutLandscape(' ghostftp-desktop/src/components/AboutDialog.tsx
-          grep -Fq 'private fun aboutFactRow(' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
-          grep -Fq 'GhostMarkView(this@MainActivity)' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
-          grep -Fq 'officialLinkRow(getString(R.string.label_project_repository)' android/app/src/main/java/com/ghostftp/android/MainActivity.kt
           grep -Fq 'private func identityCard(version: String)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 
-      - name: Reject unsupported 75-screen acceptance claims and fake runtime screenshots
+      - name: Reject unsupported screenshot acceptance claims and fake runtime screenshots
         shell: bash
         run: |
           set -euo pipefail
           node --test .github/scripts/check-runtime-75-evidence.test.mjs
           node .github/scripts/check-runtime-75-evidence.mjs
 
-      - name: Verify complete 75-screen premium design traceability
+      - name: Verify desktop premium design traceability
         shell: bash
         run: node .github/scripts/check-premium-75-screens.mjs
 
@@ -285,14 +277,12 @@ jobs:
         shell: bash
         run: node .github/scripts/check-macos-pinned-cloud.mjs
 
-      - name: Historical release recovery script syntax and source lock
+      - name: Retired historical backfill cannot restore deleted platform packages
         shell: bash
         run: |
           set -euo pipefail
-          bash -n .github/scripts/backfill-releases.sh
-          grep -Fq '0.30.11:3ddfee0edb0039f090c3b7b7c475fe536ba0d040' .github/scripts/backfill-releases.sh
-          grep -Fq '0.30.12:8c768856bee6226f0dab00191a5d0f74123008a5' .github/scripts/backfill-releases.sh
-          grep -Fq -- '--latest=false' .github/scripts/backfill-releases.sh
+          test ! -e .github/scripts/backfill-releases.sh
+          test ! -e .github/workflows/ghostftp-release-history.yml
 
       - name: Native window architecture guard
         shell: bash
@@ -360,7 +350,7 @@ jobs:
           done < <(find .github/scripts updates/scripts ghostftp-desktop/scripts -type f -name '*.mjs' -print0)
           while IFS= read -r -d '' script; do
             bash -n "$script"
-          done < <(find .github/scripts updates/scripts android/scripts ghostftp-desktop/scripts -type f -name '*.sh' -print0)
+          done < <(find .github/scripts updates/scripts ghostftp-desktop/scripts -type f -name '*.sh' -print0)
 
       - name: Windows release package contract
         shell: bash

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare authentic Ghost FTP application captures to the supplied 75 PNG concepts.
+"""Compare authentic Ghost FTP application captures to the supplied 59 Windows/Linux PNG concepts.
 
 Never treat illustrative data/server names as a runtime requirement. A pixel
 comparison is meaningful only after OS, scale, viewport, app state and
@@ -36,13 +36,8 @@ SCREEN_SETS = {
         "overwrite", "properties", "permissions", "shortcuts", "help",
         "updates", "search", "delete-confirm",
     ),
-    "android": (
-        "files", "sites", "connect", "transfers", "sync", "settings",
-        "about", "new-folder", "rename", "delete", "upload", "download",
-        "host-key", "activity", "disconnected", "transfer-detail",
-    ),
 }
-SIZES = {"windows": (1290, 852), "linux": (1290, 852), "android": (480, 960)}
+SIZES = {"windows": (1290, 852), "linux": (1290, 852)}
 ZIP_ROOT = "GhostFTP-Premium-Brand-UI/screens/"
 
 
@@ -87,7 +82,7 @@ def main() -> int:
                         help="Real runtime captures at <platform>/<screen>.png")
     parser.add_argument("--output", required=True, type=Path,
                         help="Separate QA report directory; may contain screenshot differences")
-    parser.add_argument("--platform", choices=("windows", "linux", "android", "all"),
+    parser.add_argument("--platform", choices=("windows", "linux", "all"),
                         default="all")
     args = parser.parse_args()
     if not args.references.is_file() or not args.captures.is_dir():

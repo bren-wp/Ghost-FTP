@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const IGNORED = new Set([".git", "node_modules", "target", "build", ".build", ".gradle", ".swiftpm", "dist", "coverage", ".idea"]);
-const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".kt", ".swift", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml", ".kts"]);
+const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".swift", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml"]);
 const isSource = (p) => SOURCE_EXT.has(path.extname(p).toLowerCase());
 const toPosix = (p) => p.split(path.sep).join("/");
 
@@ -43,7 +43,7 @@ export function isRuntimeCode(file) {
   const production = [
     "ghostftp-desktop/src-tauri/src/", "ghostftp-desktop/src/lib/",
     "ghostftp-desktop/src/components/", "ghostftp-desktop/src/stores/",
-    "ghostftp-desktop/src/hooks/", "android/app/src/main/java/",
+    "ghostftp-desktop/src/hooks/",
     "macos/Sources/", "tools/ghostftp-runtime/", "tools/ghostftp-installer/"
   ];
   return production.some(p => file.startsWith(p)) &&
@@ -107,11 +107,10 @@ const REQUIRED = [
     "failed_unregistrations", "if !self.teardown(", "registration journal persistence failed",
   ]],
   [".github/scripts/publish-release.sh", ["--data-binary", "uploads.github.com", "sha256sum", "draft:false,prerelease:true"]],
-  [".github/workflows/ghostftp-release.yml", ["workflow_run:", "SOURCE_SHA", "wait_for_gate", "ghostftp-android.yml"]],
+  [".github/workflows/ghostftp-release.yml", ["workflow_run:", "SOURCE_SHA", "wait_for_gate", "ghostftp-protocol-e2e.yml"]],
   [".github/scripts/check-release-governance.test.mjs", ["released editions and tags must never be automatically pruned"]],
   [".github/scripts/enforce-preview-release-metadata.sh", ["0.99.0", "0.95.53", "make_latest", "enforce_preview", "sha256:"]],
   [".github/workflows/ghostftp-preview-metadata.yml", ["workflow_run:", "Ghost FTP release", "contents: write"]],
-  ["android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt", [".dns(PublicCloudDns())", ".proxy(Proxy.NO_PROXY)", ".followRedirects(false)"]],
   ["ghostftp-desktop/src-tauri/src/bridge.rs", [
     "HTTP_READ_TIMEOUT", "tokio::time::timeout(HTTP_READ_TIMEOUT",
     "duplicate Content-Length", "Transfer-Encoding is not supported",
@@ -155,23 +154,6 @@ export function inspectPlatformSecurityConfig(source) {
     failures.push({ path: capsPath, required: "single main window without broad shell/filesystem capabilities" });
   }
 
-  const manifest = "android/app/src/main/AndroidManifest.xml";
-  requireText(manifest, 'android:allowBackup="false"', "Android backups disabled");
-  requireText(manifest, 'android:usesCleartextTraffic="false"', "Android cleartext prohibited");
-  if (!/<activity\s+[^>]*android:name="\.MainActivity"[^>]*android:exported="false"/s.test(source[manifest] ?? "")) {
-    failures.push({ path: manifest, required: "MainActivity must not be exported" });
-  }
-  const extraction = "android/app/src/main/res/xml/data_extraction_rules.xml";
-  for (const domain of ["sharedpref", "database", "file"]) {
-    const count = (source[extraction] ?? "").match(new RegExp('<exclude domain="' + domain + '" path="\\." \\/>', "g"))?.length ?? 0;
-    if (count !== 2) failures.push({ path: extraction, required: "cloud and device-transfer exclusion: " + domain });
-  }
-
-  const cloud = "android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt";
-  for (const check of [".dns(PublicCloudDns())", ".proxy(Proxy.NO_PROXY)",
-    ".followRedirects(false)", ".followSslRedirects(false)"]) {
-    requireText(cloud, check, "trusted cloud request policy: " + check);
-  }
   const keychain = "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift";
   for (const check of ["kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
     "kSecAttrSynchronizable", "kCFBooleanFalse", "SecItemUpdate", "SecItemAdd"]) {
@@ -207,9 +189,6 @@ export function audit(root = ROOT) {
   const configPaths = [
     "ghostftp-desktop/src-tauri/tauri.conf.json",
     "ghostftp-desktop/src-tauri/capabilities/default.json",
-    "android/app/src/main/AndroidManifest.xml",
-    "android/app/src/main/res/xml/data_extraction_rules.xml",
-    "android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt",
     "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift",
     "tools/ghostftp-runtime/security.go",
   ];
@@ -222,10 +201,10 @@ export function audit(root = ROOT) {
     .map(ext=>[ext, sourceFiles.filter(file=>file.endsWith("."+ext)).length]));
   const findings = [
     { severity:"blocking-production", surface:"macos FTPS/SFTP", state:"not-implemented", reason:"Native macOS session engine still rejects FTPS/SFTP. No validated TLS/SSH transfer implementation or live macOS protocol acceptance." },
-    { severity:"blocking-production", surface:"mobile and desktop signing", state:"not-verified", reason:"Unsigned Play Android packages, Windows Authenticode, Apple Developer ID notarization and in-place signed upgrade proofs remain acceptance blockers." },
+    { severity:"blocking-production", surface:"desktop signing", state:"not-verified", reason:"Windows Authenticode, Apple Developer ID notarization and in-place signed upgrade proofs remain acceptance blockers." },
     { severity:"manual-verification", surface:"data-integrity", state:"incomplete", reason:"Large (>4 GiB) SHA-256 end-to-end transfers, remote hashes, crash/power-loss recovery and physical-device storage migration were not shown by the static audit." },
-    { severity:"manual-verification", surface:"credential protection", state:"requires-device-validation", reason:"Native Windows Credential Manager, Linux Secret Service, Android Keystore and Apple Keychain are used or referenced; verify secret lifetime, OS API errors and actual-user upgrade on target hardware." },
-    { severity:"manual-verification", surface:"visual UX/performance", state:"unverified", reason:"The 75 premium reference screens and long running memory/battery benchmarks lack complete certified baseline evidence." }
+    { severity:"manual-verification", surface:"credential protection", state:"requires-device-validation", reason:"Native Windows Credential Manager, Linux Secret Service, Apple Keychain are used or referenced; verify secret lifetime, OS API errors and actual-user upgrade on target hardware." },
+    { severity:"manual-verification", surface:"visual UX/performance", state:"unverified", reason:"The 59 Windows/Linux reference screens and long running memory/battery benchmarks lack complete certified baseline evidence." }
   ];
   return {
     kind:"full repository static security code review",

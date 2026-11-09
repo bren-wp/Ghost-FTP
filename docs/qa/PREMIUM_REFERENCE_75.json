@@ -1,6 +1,6 @@
 {
   "type": "concept-reference-only",
-  "provenance": "User-supplied GhostFTP-Premium-Brand-UI(5).zip; not app screenshots",
+  "provenance": "User-supplied GhostFTP-Premium-Brand-UI(5).zip; not app screenshots; retained desktop-only subset (Windows + Linux)",
   "screen_size": {
     "windows": [
       1290,
@@ -9,10 +9,6 @@
     "linux": [
       1290,
       852
-    ],
-    "android": [
-      480,
-      960
     ]
   },
   "screens": {
@@ -78,26 +74,8 @@
       "updates",
       "search",
       "delete-confirm"
-    ],
-    "android": [
-      "files",
-      "sites",
-      "connect",
-      "transfers",
-      "sync",
-      "settings",
-      "about",
-      "new-folder",
-      "rename",
-      "delete",
-      "upload",
-      "download",
-      "host-key",
-      "activity",
-      "disconnected",
-      "transfer-detail"
     ]
   },
-  "total": 75,
+  "total": 59,
   "qa_state": "unverified"
 }

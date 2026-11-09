@@ -1,28 +1,15 @@
-> **Windows/Linux unsigned desktop update policy (0.99.33 Preview):** Automatic in-app installation accepts **only signed** Tauri updater packages. A missing signed updater offer does not establish that no newer manually installable desktop release exists. Use Help & About → Updates → **Open official Windows / Linux downloads** to open the exact GitHub [Releases index](https://github.com/bren-wp/Ghost-FTP/releases), verify the matching `SHA256SUMS.txt`, and install manually after a backup. No unverified or unsigned package is installed silently in-app. A paid certificate is not necessary for user-initiated desktop installation, but publisher identity is not cryptographically authenticated without one.
+# Ghost FTP desktop updates
 
-# Ghost FTP Updates
+Ghost FTP is maintained for Windows, Linux and macOS desktop. Installers and checked release notes are available from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases).
 
-Ghost FTP desktop uses the native Tauri updater path. User-facing application copy intentionally describes this only as the official update service and verified update packages; transport/file-format details remain in operator documentation under `updates/`.
+## Signed in-app updates
 
-## Desktop contract
+Where a signed updater package is published, verify its update signature, HTTPS metadata and version progression before applying it. Reject altered signatures, downgrades and untrusted update endpoints. A lack of signed update offers is **not** evidence that no newer manual installer exists.
 
-- Windows/Linux packages are built from the exact release source SHA.
-- In-app updater publication requires real Tauri signatures for both the Windows Setup and Linux AppImage.
-- If signing secrets are not configured, verified ordinary packages may still be published as the stable GitHub release. The in-app updater bundle is omitted. If any updater proof is present, both signatures, the exact-version manifest and matching Update-Service package must all be present and consistent.
-- Existing version tags are immutable.
-- Failed update checks or verification must leave the installed application usable.
+## Manual updates
 
-Operator details:
+Download both the exact OS package and its `GhostFTP-v<version>-SHA256SUMS.txt` from the same release, verify their SHA-256, finish running transfers, back up profiles securely, then upgrade without deleting application data or credential-vault records. Check saved profiles, host keys, protected credentials and uploads/downloads after launch.
 
-- `updates/README.md`
-- `updates/RELEASE_RUNBOOK.md`
-- `updates/SECURITY.md`
-- `updates/DEPLOYMENT.md`
+Windows portable/NSIS/MSI and Linux AppImage/DEB/RPM upgrades have different OS integration and uninstall rules; verify the matching package. macOS Preview builds require separate platform checks and are not equivalent to notarized Developer ID releases.
 
-## Android
-
-Android is distributed as the verified APK release asset produced by the Android gate. Android does not consume the desktop Tauri updater contract.
-
-## Verification
-
-Always verify the release checksum file before manual installation or redistribution. A release must not be advertised as stable/FINAL merely because an update package exists.
+See [Installation](INSTALLATION.md) and the [release process](../release/PROCESS.md).

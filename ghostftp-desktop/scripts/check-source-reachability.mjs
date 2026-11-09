@@ -157,7 +157,6 @@ for (const crateRoot of rustCrates) {
 const utilityDirs = [
   path.join(projectRoot, ".github", "scripts"),
   path.join(projectRoot, "updates", "scripts"),
-  path.join(projectRoot, "android", "scripts"),
 ];
 const utilityFiles = utilityDirs.flatMap((dir) =>
   walk(dir, (file) => /\.(?:mjs|sh)$/.test(file)),
@@ -166,7 +165,6 @@ const referenceFiles = [
   ...walk(path.join(projectRoot, ".github", "workflows"), (file) => /\.ya?ml$/.test(file)),
   ...walk(path.join(projectRoot, ".github", "scripts"), (file) => /\.(?:mjs|sh)$/.test(file)),
   ...walk(path.join(projectRoot, "updates"), (file) => /\.(?:md|mjs|sh)$/.test(file)),
-  ...walk(path.join(projectRoot, "android"), (file) => /\.(?:md|mjs|sh|kts)$/.test(file)),
   path.join(projectRoot, "ghostftp-desktop", "package.json"),
   path.join(projectRoot, "docs", "development", "BUILDING.md"),
   path.join(projectRoot, "docs", "release", "PROCESS.md"),
@@ -197,7 +195,7 @@ if (unreachableRust.length) {
 }
 if (unreferencedUtilities.length) {
   failures.push(
-    "Unreferenced CI/update/Android utility scripts detected:",
+    "Unreferenced CI/update utility scripts detected:",
     ...unreferencedUtilities.map((file) => ` - ${file}`),
   );
 }

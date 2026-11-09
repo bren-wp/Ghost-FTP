@@ -1,4 +1,4 @@
-> **Current development (7 November 2026): Ghost FTP 0.99.35 Preview.** Windows/Linux SFTP and Agent resume now verify previously transferred bytes; FTP/FTPS restart safely rather than append to an unverified prefix. Published v0.99.34 is immutable; complete real-server and native pixel-perfect acceptance remains unverified.
+> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only release line, with FTP/FTPS/SFTP and cloud transfer security under review. Public v0.99.35 stays immutable. No unverified claims of perfect UI parity or universal provider interoperability.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Published v0.99.32 remains immutable. Windows/Linux unsigned installers can be manually installed; signed in-app updates still require verified signatures. New update-fallback, safe download link and data-preservation safeguards are under exact-head test; physical desktop production acceptance is not yet certified.
 
@@ -6,7 +6,6 @@
 
 > **Current development (3 November 2026): Ghost FTP 0.99.31 Preview.** The latest public release is v0.99.30. This source cycle implements platform-wide security, privacy and dead-code regression checks, with device-level acceptance and stable signing remaining separate requirements.
 
-> **Current development (2 November 2026): Ghost FTP 0.99.30 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.29 is the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
 
 <div align="center">
 
@@ -20,9 +19,9 @@
 
 Move files, manage connections and keep important server work organized with an elegant, privacy-conscious file-transfer client.
 
-**Windows** · **Linux** · **Android** · **macOS Preview**
+**Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.35 (development Preview) · Previously published: v0.99.34. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.36 (development Preview) · Previously published: v0.99.35. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -70,7 +69,7 @@ Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel 
 
 ## Client-only distribution (0.99.30 development Preview)
 
-Only the **Ghost FTP graphical client** is distributed for Windows, Linux, macOS and Android. Installers, binaries and source packages for the previously separate Server, Demo and CLI have been removed from this source train. FTP, FTPS, SFTP and the existing client-side transfer engines are retained where supported by each platform.
+Only the **Ghost FTP graphical client** is distributed for Windows, Linux and macOS. Installers, binaries and source packages for the previously separate Server, Demo and CLI have been removed from this source train. FTP, FTPS, SFTP and the existing client-side transfer engines are retained where supported by each platform.
 
 Published v0.99.29 and earlier releases remain immutable. See [platform packages](docs/distribution/PLATFORM_PACKAGES.md), [published v0.99.27 release notes](docs/releases/0.99.27.md), and [0.99.28 Windows/Linux reliability changes](docs/releases/0.99.28.md).
 
@@ -78,7 +77,7 @@ Published v0.99.29 and earlier releases remain immutable. See [platform packages
 
 ### 🔐 Connections you can trust
 
-Connect to servers with **FTP, explicit FTPS or SFTP** on Windows, Linux and Android. See connection status clearly, manage reusable Sites and use temporary connections without saving credentials. Encrypted protocols validate the server's identity; ordinary FTP remains unencrypted.
+Connect to servers with **FTP, explicit FTPS or SFTP** on Windows and Linux. See connection status clearly, manage reusable Sites and use temporary connections without saving credentials. Encrypted protocols validate the server's identity; ordinary FTP remains unencrypted.
 
 ### 📁 A better place for files
 
@@ -114,23 +113,21 @@ The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/
 | --- | --- | --- |
 | **🪟 Windows x64** | Portable EXE, Setup EXE, MSI | FTP, explicit FTPS, SFTP |
 | **🐧 Linux x86-64** | AppImage, DEB (Debian/Ubuntu family), RPM (Fedora/openSUSE/RHEL family), standalone ELF; [distro/package matrix](docs/distribution/LINUX_PACKAGE_MATRIX.md) | FTP, explicit FTPS, SFTP |
-| **🤖 Android** | Installable Preview APK; separate unsigned APK/AAB for release signing | FTP, explicit FTPS, SFTP |
 | **🍎 macOS — Shared Desktop candidate (0.99.4)** | Separate Preview ZIP after exact-source CI passes | Shared Rust FTP, explicit FTPS and SFTP; real-machine acceptance pending |
 | **🍎 macOS — legacy SwiftUI** | Existing Preview ZIP | FTP only; FTPS/SFTP intentionally unavailable |
 
 **[View all Ghost FTP releases, including the latest Preview →](https://github.com/bren-wp/Ghost-FTP/releases)**
 
-Android's unsigned release packages are intended for your authorized signing process; the installable Preview uses a separate preview identity. The macOS Preview is not a Developer ID-signed, notarized App Store distribution. Availability in Google Play and Apple's distribution channels is subject to platform-specific signing, testing and review.
+The macOS Preview is not a Developer ID-signed, notarized App Store distribution. Availability through Apple's distribution channels requires platform-specific signing, testing and review.
 
 ## Cloud storage, without confusion
 
-Windows and Linux offer cloud and remote-storage integrations, including S3-compatible and WebDAV services and supported account-based connectors. The new shared macOS desktop candidate reuses these integrations; the legacy SwiftUI macOS app and Android also support direct object transfers via short-lived provider-signed HTTPS links. **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on those platforms.
+Windows and Linux offer cloud and remote-storage integrations, including S3-compatible and WebDAV services and supported account-based connectors. The new shared macOS desktop candidate reuses these integrations; the legacy SwiftUI macOS app also supports direct object transfers via short-lived provider-signed HTTPS links. **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on those platforms.
 
 [Cloud storage information](docs/product/CLOUD_STORAGE.md) · [Privacy policy](https://ghostftp.com/hr/privacy)
 
 ## Privacy that stays in your hands
 
-On Android, open **Settings** for direct access to our [Privacy Policy](docs/legal/PRIVACY.md), [Terms of use](EULA.txt) and the **Brendigo** author credit. The same approved links are available in Help & About. Ordinary FTP, FTPS and SFTP transfers never require a Ghost FTP account.
 
 ## Questions? We're here to help.
 

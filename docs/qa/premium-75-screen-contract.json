@@ -1,10 +1,9 @@
 {
-  "title": "Ghost FTP premium 75-screen reference traceability",
+  "title": "Ghost FTP Windows + Linux premium 59-screen reference traceability",
   "referenceArchive": "GhostFTP-Premium-Brand-UI(8).zip",
-  "referenceKind": "Visual concepts, not installed app screenshots. Explicit user-supplied 2026-10-25 design supersedes older violet Android mockups.",
+  "referenceKind": "Windows/Linux desktop-only reference concepts; no screenshot has been certified as pixel-perfect.",
   "sizes": {
-    "desktop": "1290x852",
-    "android": "480x960"
+    "desktop": "1290x852"
   },
   "acceptanceRule": "No item is complete until visually compared against an actual installed build and real interactions tested; file mapping alone is not 1:1 evidence",
   "platforms": {
@@ -363,104 +362,6 @@
         "id": "delete-confirm",
         "source": "screens/linux/delete-confirm.png",
         "surface": "ghostftp-desktop/src/components/ConfirmModal.tsx",
-        "visual_acceptance": "pending"
-      }
-    ],
-    "android": [
-      {
-        "id": "files",
-        "source": "screens/android/files.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "sites",
-        "source": "screens/android/sites.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "connect",
-        "source": "screens/android/connect.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "transfers",
-        "source": "screens/android/transfers.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "sync",
-        "source": "screens/android/sync.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "settings",
-        "source": "screens/android/settings.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "about",
-        "source": "screens/android/about.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "new-folder",
-        "source": "screens/android/new-folder.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "rename",
-        "source": "screens/android/rename.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "delete",
-        "source": "screens/android/delete.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "upload",
-        "source": "screens/android/upload.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "download",
-        "source": "screens/android/download.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "host-key",
-        "source": "screens/android/host-key.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "activity",
-        "source": "screens/android/activity.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "disconnected",
-        "source": "screens/android/disconnected.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
-        "visual_acceptance": "pending"
-      },
-      {
-        "id": "transfer-detail",
-        "source": "screens/android/transfer-detail.png",
-        "surface": "android/app/src/main/java/com/ghostftp/android/MainActivity.kt",
         "visual_acceptance": "pending"
       }
     ]

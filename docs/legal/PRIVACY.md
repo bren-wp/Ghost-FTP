@@ -1,10 +1,10 @@
 # Ghost FTP Privacy
 
-Ghost FTP is designed as a local-first file-transfer application for Windows, Linux and Android. Connection profiles, settings and transfer state are stored on the user's device. Ordinary FTP, explicit FTPS and SFTP transfers run between the user's device and the endpoint selected by the user; Ghost FTP does not require a Brendigo-hosted transfer proxy.
+Ghost FTP is designed as a local-first file-transfer application for Windows, Linux and macOS. Connection profiles, settings and transfer state are stored on the user's device. Ordinary FTP, explicit FTPS and SFTP transfers run between the user's device and the endpoint selected by the user; Ghost FTP does not require a Brendigo-hosted transfer proxy.
 
 ## Credentials
 
-Where supported by the desktop build, secrets are stored through operating-system credential facilities or protected references instead of ordinary profile data. Password fields are masked. Android session passwords remain in memory for the active session and are cleared on disconnect or Activity destruction.
+Where supported by the desktop build, secrets are stored through operating-system credential facilities or protected references instead of ordinary profile data. Password fields are masked; active session secrets must be cleared on disconnect and never persisted to ordinary profiles.
 
 Passwords, passphrases, SSH private-key contents, tokens and equivalent secrets must not be written to normal application, notification or crash logs.
 
@@ -44,7 +44,7 @@ Ghost FTP does not claim ownership of files, server data, connection profiles or
 
 ## Privacy and product information
 
-Ghost FTP is authored by Brendigo. Privacy Policy and Terms of use are available at the bottom of Android Settings and in Help & About, using the same approved HTTPS destinations. Ordinary FTP/FTPS/SFTP transfers require no Ghost FTP account; therefore no Ghost FTP account-deletion workflow exists. Server-side data remains under the control of the selected provider or server operator.
+Ghost FTP is authored by Brendigo. Privacy Policy and Terms of use are available through desktop Help & About, using the same approved HTTPS destinations. Ordinary FTP/FTPS/SFTP transfers require no Ghost FTP account; therefore no Ghost FTP account-deletion workflow exists. Server-side data remains under the control of the selected provider or server operator.
 
 ## Canonical privacy record
 
@@ -52,4 +52,4 @@ This file is the canonical privacy description for the Ghost FTP software config
 
 ## Temporary signed cloud storage links
 
-On macOS and Android, users may transfer one object using a temporary provider-signed HTTPS URL. This URL is a bearer credential. The client keeps it only in volatile session memory and clears the UI after use; it is never included in connection profile files, backups, recent-transfer history or diagnostics. Files move directly between the user-selected device and provider endpoint; Ghost FTP does not proxy the contents. The provider may collect normal request metadata and enforce its own retention and access policy. System TLS verification is mandatory and redirects are rejected. Users control the link's expiry, scope and permission on the cloud provider's side.
+On supported macOS desktop workflows, users may transfer one object using a temporary provider-signed HTTPS URL. This URL is a bearer credential. The client keeps it only in volatile session memory and clears the UI after use; it is never included in connection profile files, backups, recent-transfer history or diagnostics. Files move directly between the user-selected device and provider endpoint; Ghost FTP does not proxy the contents. The provider may collect normal request metadata and enforce its own retention and access policy. System TLS verification is mandatory and redirects are rejected. Users control the link's expiry, scope and permission on the cloud provider's side.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "reference": "docs/qa/PREMIUM_REFERENCE_75.json",
-  "note": "Real-runtime evidence only. Design PNGs, CI mock views and illustrative concepts are NOT accepted as capture proof.",
+  "note": "Only desktop runtime screenshot evidence is accepted. Source concepts are not runtime captures.",
   "screens": [
     {
       "id": "windows/brand",
@@ -353,102 +353,6 @@
     },
     {
       "id": "linux/delete-confirm",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/files",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/sites",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/connect",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/transfers",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/sync",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/settings",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/about",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/new-folder",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/rename",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/delete",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/upload",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/download",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/host-key",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/activity",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/disconnected",
-      "status": "unverified",
-      "capture": null,
-      "review": null
-    },
-    {
-      "id": "android/transfer-detail",
       "status": "unverified",
       "capture": null,
       "review": null

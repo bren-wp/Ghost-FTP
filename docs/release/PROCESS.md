@@ -1,4 +1,4 @@
-> **Current development (7 November 2026): Ghost FTP 0.99.35 Preview.** Windows/Linux SFTP and Ghost FTP Agent now verify resumed transfer prefixes, while FTP/FTPS restart from zero where prefix identity cannot be proven. Published v0.99.34 remains immutable; live provider interoperability and 1:1 native UI parity remain unverified.
+> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Maintained Windows, Linux and macOS desktop clients only. Native signing, cloud provider tests and pixel-accurate screenshot QA remain acceptance gates. Published v0.99.35 is immutable.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Last public edition v0.99.32; Windows/Linux native installers are directly usable without a paid code-signing certificate but need authentic checksums, verified connections and target-device acceptance. Automatic updater remains signed-only; global stable labeling remains gated separately.
 
@@ -106,8 +106,8 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.35**
-- Previous canonical release: **0.99.34**
+- Active source/release cycle: **0.99.36**
+- Previous canonical release: **0.99.35**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Newest edition is always visible under Releases

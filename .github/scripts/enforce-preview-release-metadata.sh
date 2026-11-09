@@ -19,7 +19,7 @@ enforce_preview() {
   test "$(jq -r '.tag_name' <<< "$release")" = "$tag"
   test "$(jq -r '.target_commitish' <<< "$release")" = "$sha"
   test "$(jq -r '.assets | length' <<< "$release")" -ge 21
-  for name in "GhostFTP-v$version-SHA256SUMS.txt" "GhostFTP-Android-v$version.apk.unsigned" "GhostFTP-macOS-v$version-Preview.zip"; do
+  for name in "GhostFTP-v$version-SHA256SUMS.txt" "GhostFTP-macOS-v$version-Preview.zip"; do
     test "$(jq -r --arg name "$name" '[.assets[].name | select(. == $name)] | length' <<< "$release")" -eq 1
   done
   test "$(jq '[.assets[] | select((.size > 0) and (.digest | type == "string") and (.digest | test("^sha256:[a-f0-9]{64}$")))] | length' <<< "$release")" -eq "$(jq '.assets | length' <<< "$release")"

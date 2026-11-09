@@ -4,7 +4,7 @@ Version 1.1 (Preview component clarification) — 29 October 2026
 This addendum clarifies the scope of the existing Ghost FTP Commercial Software License Agreement below. It is intended for the public distribution of Ghost FTP Client, Ghost FTP Server, Ghost CLI and Ghost FTP Demo Preview builds. It does not independently set or modify prices, subscriptions, purchaser entitlements or governing law in the underlying agreement. Any conflict with mandatory consumer, commercial or privacy law is resolved in favour of that mandatory law.
 
 A. COVERED COMPONENTS
-The Software includes, where supplied under a licensed edition: Ghost FTP desktop clients for Windows, Linux and macOS, the Android client, the independent Ghost FTP Server daemon/Windows installer/Linux packages, the Ghost CLI command-line client, and the optional self-contained Ghost FTP Demo executable. Availability, functionality, support and platform coverage vary by release and are stated in the public release notes and documentation. A named component is not a promise that it is production-ready or included in every commercial entitlement.
+The Software includes, where supplied under a licensed edition: Ghost FTP desktop clients for Windows, Linux and macOS, the independent Ghost FTP Server daemon/Windows installer/Linux packages, the Ghost CLI command-line client, and the optional self-contained Ghost FTP Demo executable. Availability, functionality, support and platform coverage vary by release and are stated in the public release notes and documentation. A named component is not a promise that it is production-ready or included in every commercial entitlement.
 
 B. DEMONSTRATION EDITION
 Ghost FTP Demo displays fictional profiles and example folders and simulates upload, download, progress, cancellation and synchronization plans locally in memory. It is a product walkthrough only; its progress is not a measurement of real transfer performance. The demo does not connect to external servers, store real passwords or alter customer files. Any promotional copy must distinguish SIMULATION from actual client or server capabilities. The demo does not give the user rights to access any third-party server.
@@ -28,7 +28,7 @@ Version 1.0 — Effective 19 September 2026
 
 IMPORTANT — READ CAREFULLY BEFORE INSTALLING OR USING GHOST FTP.
 
-This Commercial Software License Agreement (the “Agreement”) is a legally binding agreement governing the installation, access to, and use of the Ghost FTP applications for Windows, Linux and Android, their installers/packages, updates, documentation, associated command-line components, and related materials (collectively, the “Software”).
+This Commercial Software License Agreement (the “Agreement”) is a legally binding agreement governing the installation, access to, and use of the Ghost FTP desktop applications for Windows, Linux and macOS, their installers/packages, updates, documentation, associated command-line components, and related materials (collectively, the “Software”).
 
 LICENSOR
 “Licensor” means Brendigo LTD and Brendigo, obrt za programiranje, acting individually or together as applicable to the order, invoice, subscription, licence key, distribution channel, or other commercial arrangement under which the Software is supplied. The entity identified on the applicable commercial document is the contracting licensor. Where no entity is identified, Brendigo LTD and Brendigo, obrt za programiranje jointly administer the licence for the Ghost FTP product.

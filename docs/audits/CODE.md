@@ -1,4 +1,4 @@
-> **Current development (7 November 2026): Ghost FTP 0.99.35 Preview.** Windows/Linux SFTP and Ghost FTP Agent now verify resumed transfer prefixes, while FTP/FTPS restart from zero where prefix identity cannot be proven. Published v0.99.34 remains immutable; live provider interoperability and 1:1 native UI parity remain unverified.
+> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only product and release train. Security and dead-code regression audits remain mandatory; production and pixel-perfect acceptance require native test evidence. Previously published v0.99.35 remains immutable.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Windows and Linux are the current installation and data-preservation priority; published v0.99.32 is the previous immutable version. Unsigned native packages are installable manually; publisher-signed automatic updates retain mandatory signature verification. CI and real-device stability are separate acceptance gates.
 
@@ -39,7 +39,7 @@ Current comprehensive 0.95.50 source inventory: [Windows/Linux, Android, macOS a
 
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.34**.
+Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.35**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
@@ -101,4 +101,4 @@ TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and An
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.35. Previous canonical release: 0.99.34. See `docs/releases/0.99.34.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.36. Previous canonical release: 0.99.35. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.

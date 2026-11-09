@@ -50,13 +50,11 @@ const operationalDocs = [
   "docs/guides/SUPPORT.md",
   "docs/guides/UNINSTALL.md",
   "docs/guides/UPDATES.md",
-  "docs/mobile/ANDROID_PARITY.md",
   "docs/product/FEATURES.md",
   "docs/product/ROADMAP.md",
   "docs/product/STATUS_AND_NEXT.md",
   "docs/product/UI_UX.md",
   "docs/qa/README.md",
-  "docs/qa/ANDROID.md",
   "docs/qa/CLICK.md",
   "docs/qa/INSTALLER.md",
   "docs/qa/PIXEL_PARITY.md",
@@ -117,7 +115,6 @@ for (const rel of [
   "ghostftp-desktop/README.md",
   "docs/README.md",
   "docs/build/STATUS.md",
-  "docs/mobile/ANDROID_PARITY.md",
   "docs/product/STATUS_AND_NEXT.md",
   "docs/ROADMAP.md",
   "docs/product/ROADMAP.md",
@@ -174,7 +171,7 @@ requireIncludes(".github/workflows/ghostftp-release.yml", "github.event.workflow
 
 
 /*
- * Exact premium reference inventory imported from the user's 75-screen
+ * Exact desktop premium reference inventory imported from the user's Windows/Linux
  * visual concept archive. This is an audit of the reference registry, NOT
  * a pixel-parity assertion or evidence of functioning UI controls.
  */
@@ -183,7 +180,7 @@ requireIncludes(".github/workflows/ghostftp-release.yml", "github.event.workflow
   requireFile(rel);
   if (exists(rel)) {
     const reference = JSON.parse(read(rel));
-    const expected = { windows: 30, linux: 29, android: 16 };
+    const expected = { windows: 30, linux: 29 };
     let total = 0;
     for (const [platform, count] of Object.entries(expected)) {
       const screens = reference.screens?.[platform];
@@ -196,8 +193,8 @@ requireIncludes(".github/workflows/ghostftp-release.yml", "github.event.workflow
     }
     if (reference.type !== "concept-reference-only" ||
         reference.qa_state !== "unverified" ||
-        reference.total !== 75 || total !== 75) {
-      failures.push(`${rel}: concepts must remain explicitly unverified, total=75`);
+        reference.total !== 59 || total !== 59) {
+      failures.push(`${rel}: concepts must remain explicitly unverified, total=59`);
     }
     if (!Array.isArray(reference.screens?.windows) ||
         !Array.isArray(reference.screens?.linux) ||
@@ -206,8 +203,10 @@ requireIncludes(".github/workflows/ghostftp-release.yml", "github.event.workflow
       failures.push(`${rel}: Linux and Windows reference screen names drifted`);
     }
     const size = reference.screen_size || {};
-    for (const [platform, width, height] of
-      [["windows", 1290, 852], ["linux", 1290, 852], ["android", 480, 960]]) {
+    for (const [platform, width, height] of [
+      ["windows", 1290, 852],
+      ["linux", 1290, 852],
+    ]) {
       if (JSON.stringify(size[platform]) !== JSON.stringify([width, height])) {
         failures.push(`${rel}: incorrect ${platform} reference viewport`);
       }

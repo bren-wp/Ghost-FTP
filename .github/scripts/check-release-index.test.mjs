@@ -17,7 +17,6 @@ test("post-publication verifies newest Preview is visible on public Releases ind
   assert.ok(verify.includes('test "$LATEST_TAG" = "$TAG"'));
   assert.ok(verify.includes('sort_by(ltrimstr("v") | split(".") | map(tonumber))'));
   assert.ok(verify.includes("sha256:[a-f0-9]{64}"));
-  assert.ok(verify.includes("GhostFTP-Android-v$VERSION.aab.unsigned"));
   assert.ok(verify.includes("GhostFTP-macOS-v$VERSION-Preview.zip"));
   assert.ok(verify.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
   assert.ok(verify.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));

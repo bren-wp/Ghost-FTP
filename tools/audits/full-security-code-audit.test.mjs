@@ -72,14 +72,11 @@ test("PEM format mention is not mistaken for a committed private key", () => {
   );
 });
 
-test("all four maintained native platform security configurations fail closed on weakening", () => {
+test("maintained desktop and Go security configurations fail closed on weakening", () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const paths = [
     "ghostftp-desktop/src-tauri/tauri.conf.json",
     "ghostftp-desktop/src-tauri/capabilities/default.json",
-    "android/app/src/main/AndroidManifest.xml",
-    "android/app/src/main/res/xml/data_extraction_rules.xml",
-    "android/app/src/main/java/com/ghostftp/android/CloudNetworkSafety.kt",
     "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift",
     "tools/ghostftp-runtime/security.go",
   ];
@@ -94,11 +91,8 @@ test("all four maintained native platform security configurations fail closed on
   weaken(paths[0], "requireSignedVersion\": true", "requireSignedVersion\": false", "signed updater");
   weaken(paths[0], "script-src 'self'", "script-src *", "strict CSP");
   weaken(paths[1], '"dialog:default"', '"shell:allow-execute"', "without broad shell");
-  weaken(paths[2], 'android:allowBackup="false"', 'android:allowBackup="true"', "backups disabled");
-  weaken(paths[3], '<exclude domain="file" path="." />', '<include domain="file" path="." />', "file");
-  weaken(paths[4], '.followSslRedirects(false)', '.followSslRedirects(true)', "trusted cloud");
-  weaken(paths[5], 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly', 'kSecAttrAccessibleAfterFirstUnlock', "Keychain");
-  weaken(paths[6], 'dec.Decode(&struct{}{})', 'decoderSkipsExtraJSON()', "Go local runtime");
+  weaken(paths[2], 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly', 'kSecAttrAccessibleAfterFirstUnlock', "Keychain");
+  weaken(paths[3], 'dec.Decode(&struct{}{})', 'decoderSkipsExtraJSON()', "Go local runtime");
 });
 
 test("native desktop upload/download integrity guards are required across SFTP and FTP/FTPS", () => {

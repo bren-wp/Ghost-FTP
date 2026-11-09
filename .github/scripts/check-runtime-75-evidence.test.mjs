@@ -12,7 +12,7 @@ const copy = () => structuredClone(baseline);
 
 test("every reference is present and no concept art is reported as accepted runtime UI", () => {
   const result = validateRuntimeEvidence(reference, baseline, root);
-  assert.deepEqual(result, { total: 75, pass: 0, fail: 0, unverified: 75 });
+  assert.deepEqual(result, { total: 59, pass: 0, fail: 0, unverified: 59 });
 });
 
 test("missing, duplicate, reordered or falsely counted references are rejected", () => {

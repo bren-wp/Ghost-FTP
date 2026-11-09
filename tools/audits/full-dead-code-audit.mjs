@@ -29,9 +29,8 @@ export function walk(directory) {
 }
 
 export function declaredTypes(source, language) {
-  const regex = language === "kotlin"
-    ? /^(?:(?:public|internal|private|protected|data|sealed|open|abstract|final|enum|annotation|value|expect|actual)\s+)*(?:class|object|interface|typealias)\s+([A-Za-z_]\w*)\b/gm
-    : /^(?:(?:public|internal|private|fileprivate|open|final|indirect|@MainActor|@Observable)\s+)*(?:class|struct|enum|actor|protocol|typealias)\s+([A-Za-z_]\w*)\b/gm;
+  if (language !== "swift") throw new Error("Unsupported native module audit language: " + language);
+  const regex = /^(?:(?:public|internal|private|fileprivate|open|final|indirect|@MainActor|@Observable)\s+)*(?:class|struct|enum|actor|protocol|typealias)\s+([A-Za-z_]\w*)\b/gm;
   return [...source.matchAll(regex)].map((m) => m[1]);
 }
 
@@ -44,7 +43,6 @@ export function candidateModules(entries, language, external = []) {
   const others = [...entries, ...external];
   return entries.flatMap(([file, source]) => {
     if (language === "swift" && /@main\b/.test(source)) return [];
-    // Activity and service classes may be referenced by AndroidManifest.xml.
     const names = declaredTypes(source, language);
     // Top-level helpers, extensions, property-only modules and build-generated
     // declarations have no class-like name; absence of a type is not evidence
@@ -108,7 +106,7 @@ export function rustTestModuleRanges(source) {
  */
 export function privateSymbolCandidates(entries, language, external = []) {
   const patterns = {
-    kotlin: /^\s*(?:private|internal)\s+(?:suspend\s+)?fun\s+([A-Za-z_]\w*)\s*\(/gm,
+
     swift: /^\s*(?:private|fileprivate)\s+(?:static\s+|class\s+)?func\s+([A-Za-z_]\w*)\s*\(/gm,
     rust: /^\s*(?:(?:pub\((?:crate|super|self)\)\s+)?)(?:async\s+)?fn\s+([A-Za-z_]\w*)\s*\(/gm,
     // Include unexported arrow callbacks as advisory symbols, in addition
@@ -122,8 +120,7 @@ export function privateSymbolCandidates(entries, language, external = []) {
   const testRanges = language === "rust"
     ? new Map(entries.map(([file, source]) => [file, rustTestModuleRanges(source)]))
     : new Map();
-  const reserved = new Set(["init", "main", "body", "onCreate", "onDestroy", "onStart",
-    "onStop", "onResume", "onPause", "onSaveInstanceState", "onActivityResult"]);
+  const reserved = new Set(["init", "main", "body"]);
   return entries.flatMap(([file, source]) => [...source.matchAll(pattern)]
     .filter((m) => !reserved.has(m[1] || m[2]))
     // Exclude only Rust functions INSIDE a cfg(test) module or with an
@@ -146,31 +143,15 @@ export function privateSymbolCandidates(entries, language, external = []) {
     })));
 }
 
-export function resourceCandidates(resources, sources) {
-  const references = sources.map(([, text]) => text).join("\n");
-  return resources.filter((file) => {
-    const name = path.basename(file).replace(/\.(?:xml|png|webp|jpg|jpeg)$/i, "");
-    return !new RegExp("\\b" + name.replace(/[^A-Za-z0-9_]/g, "") + "\\b").test(references);
-  });
-}
-
 export function audit(directory = root) {
   const files = walk(directory);
   const inside = (prefix) => path.join(directory, prefix);
   const lookup = (prefix, suffix) => files.filter((p) => p.startsWith(inside(prefix)) && p.endsWith(suffix))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
-  const kotlin = lookup("android/app/src/main/java/", ".kt");
-  const kotlinTests = [...lookup("android/app/src/test/", ".kt"), ...lookup("android/app/src/androidTest/", ".kt")];
   const swift = lookup("macos/Sources/", ".swift");
   const swiftTests = lookup("macos/Tests/", ".swift");
-  const manifestFile = inside("android/app/src/main/AndroidManifest.xml");
-  const manifest = fs.existsSync(manifestFile) ? fs.readFileSync(manifestFile, "utf8") : "";
   const swiftPackage = inside("macos/Package.swift");
   const packageText = fs.existsSync(swiftPackage) ? fs.readFileSync(swiftPackage, "utf8") : "";
-  const androidResources = files.filter((p) => p.startsWith(inside("android/app/src/main/res/")));
-  const xmlReferences = androidResources.filter((p) => p.endsWith(".xml"))
-    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
-  const resources = androidResources.filter((p) => /\/(?:drawable|mipmap[^/]*|xml)\//.test(posix(p)) && /\.(?:xml|png|webp|jpg|jpeg)$/i.test(p));
   const go = files.filter((p) => /\/tools\/ghostftp-(?:installer|runtime)\/.*\.go$/.test(posix(p)));
   const goSources = go.filter((p) => !p.endsWith("_test.go"))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
@@ -190,7 +171,7 @@ export function audit(directory = root) {
   const tsTests = typescript.filter((p) => /\.(?:test|spec)\.(?:ts|tsx)$/.test(p))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const scripts = files.filter((p) => /\.(?:sh|mjs|py)$/.test(p) &&
-    [".github/scripts/", "ghostftp-desktop/scripts/", "android/scripts/", "macos/scripts/", "updates/scripts/", "tools/"]
+    [".github/scripts/", "ghostftp-desktop/scripts/", "macos/scripts/", "updates/scripts/", "tools/"]
       .some((prefix) => p.startsWith(inside(prefix))));
   const refs = files.filter((p) => /\.(?:md|mjs|js|json|yaml|yml|sh|py|kts|rs|kt|swift|ts|tsx)$/.test(p))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
@@ -200,36 +181,28 @@ export function audit(directory = root) {
     return !refs.some(([other, text]) => other !== relative && (text.includes(relative) || text.includes(name)));
   }).map((p) => posix(path.relative(directory, p))).sort();
   const blockers = [];
-  if (!manifest.includes("SplashActivity") || !kotlin.some(([p]) => p.endsWith("/SplashActivity.kt"))) blockers.push("Android launcher missing");
   if (!swift.some(([, source]) => /@main\b/.test(source))) blockers.push("macOS @main source missing");
   for (const name of ["ghostftp-installer", "ghostftp-runtime"]) {
     if (!go.some((p) => posix(p).endsWith("/" + name + "/main.go"))) blockers.push("Go tool entrypoint missing: " + name);
   }
   if (!rust.some((p) => posix(p).endsWith("/src/lib.rs"))) blockers.push("Tauri lib.rs missing");
   if (!typescript.some((p) => posix(p).endsWith("/src/main.tsx"))) blockers.push("React main.tsx missing");
-  const relative = (p) => posix(path.relative(directory, p));
   return {
     method: "Source-level conservative reference inventory; CANDIDATES are not proven dead code",
     counts: {
       workingTreeFiles: files.length,
       typescript: typescript.length,
       rust: rust.length,
-      kotlin: kotlin.length,
-      kotlinTests: kotlinTests.length,
-      androidResources: androidResources.length,
       swift: swift.length,
       swiftTests: swiftTests.length,
       go: go.length,
       operationalScripts: scripts.length,
     },
     candidateFiles: {
-      androidKotlin: candidateModules(kotlin, "kotlin", [...kotlinTests, ["AndroidManifest.xml", manifest]]).sort((a, b) => a.file.localeCompare(b.file)),
       macosSwift: candidateModules(swift, "swift", [...swiftTests, ["Package.swift", packageText]]).sort((a, b) => a.file.localeCompare(b.file)),
-      androidResources: resourceCandidates(resources, [...kotlin, ...kotlinTests, ...xmlReferences, ["AndroidManifest.xml", manifest]]).map(relative).sort(),
       operationalScripts: possibleUnreferencedScripts,
     },
     advisoryPrivateSymbols: {
-      androidKotlin: privateSymbolCandidates(kotlin, "kotlin", kotlinTests),
       macosSwift: privateSymbolCandidates(swift, "swift", swiftTests),
       desktopRust: privateSymbolCandidates(rustSources, "rust", rustTests),
       desktopTypeScript: privateSymbolCandidates(tsSources, "typescript", tsTests),
@@ -238,7 +211,6 @@ export function audit(directory = root) {
     entrypointBlockers: blockers,
     requiredFollowUp: [
       "TS/Rust graph: npm run check:dead, cargo check/test/clippy on all targets and features",
-      "Android: Gradle unit tests, Android Lint, R8 shrinker, manifest and resources, emulator",
       "macOS: swift build/test, package contract and actual macOS app launch",
       "Go: go test, go vet and GOOS-specific build tags",
       "Shell/CI: references, platform builds, release and rollback workflow",
@@ -252,7 +224,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.includes("--json")) console.log(JSON.stringify(result, null, 2));
   else {
     console.log("Full repository source inventory: " + JSON.stringify(result.counts));
-    console.log("Candidate counts (Kotlin/Swift/resources/scripts): " +
+    console.log("Candidate counts (Swift/scripts): " +
       Object.values(result.candidateFiles).map((items) => items.length).join("/"));
     console.log("Advisory candidates MUST NOT be removed solely from this report.");
     console.log("Unreferenced nonpublic function candidates by platform: " +

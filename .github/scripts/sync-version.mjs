@@ -9,7 +9,7 @@ const checkOnly = process.argv.includes("--check");
 const nextIndex = process.argv.indexOf("--check-next");
 const baseVersion = nextIndex >= 0 ? process.argv[nextIndex + 1] : null;
 const config = JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8"));
-const { version, previousVersion, previousPublishedVersion, build, releaseDate, androidVersionCode, legacyVersion, legacyDisplay } = config;
+const { version, previousVersion, previousPublishedVersion, build, releaseDate, legacyVersion, legacyDisplay } = config;
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 if (!semverPattern.test(version)) throw new Error(`invalid SemVer: ${version}`);
@@ -31,7 +31,6 @@ if (previousPublishedVersion && !semverPattern.test(previousPublishedVersion)) {
 if (previousPublishedVersion === version) {
   throw new Error("previousPublishedVersion must not equal the active version");
 }
-if (!Number.isInteger(androidVersionCode) || androidVersionCode <= 0) throw new Error("androidVersionCode must be positive");
 if (previousVersion) validateVersionTrain(previousVersion, version);
 
 const drift = [];
@@ -105,25 +104,6 @@ updateJson("ghostftp-desktop/src-tauri/tauri.conf.json", (j) => { j.version = ve
     [/PRODUCT_VERSION_BADGE = "[^"]+"/, `PRODUCT_VERSION_BADGE = "${version}"`],
     [/PRODUCT_BUILD = "[^"]+"/, `PRODUCT_BUILD = "${build}"`],
     [/PRODUCT_RELEASE_DATE = "[^"]+"/, `PRODUCT_RELEASE_DATE = "${releaseDate}"`],
-  ]) text = replaceRequired(text, pattern, value, rel);
-  apply(rel, text);
-}
-{
-  const rel = "android/app/build.gradle.kts";
-  let text = read(rel);
-  text = replaceRequired(text, /versionCode = \d+/, `versionCode = ${androidVersionCode}`, rel);
-  text = replaceRequired(text, /versionName = "[^"]+"/, `versionName = "${version}"`, rel);
-  apply(rel, text);
-}
-{
-  const rel = "android/app/src/main/java/com/ghostftp/android/ReleaseInfo.kt";
-  let text = read(rel);
-  for (const [pattern, value] of [
-    [/const val VERSION = "[^"]+"/, `const val VERSION = "${version}"`],
-    [/const val VERSION_DISPLAY = "[^"]+"/, `const val VERSION_DISPLAY = "${version}"`],
-    [/const val VERSION_BADGE = "[^"]+"/, `const val VERSION_BADGE = "${version}"`],
-    [/const val BUILD = "[^"]+"/, `const val BUILD = "${build}"`],
-    [/const val RELEASE_DATE = "[^"]+"/, `const val RELEASE_DATE = "${releaseDate}"`],
   ]) text = replaceRequired(text, pattern, value, rel);
   apply(rel, text);
 }
