@@ -13,7 +13,6 @@ The Windows and Linux applications expose only simple product language such as â
 - Signature verification: mandatory Tauri updater signature verification
 - Public key: embedded in the desktop application
 - Private key: GitHub Actions secret only; never committed or uploaded to the update-service host
-- Android: distributed independently as a verified APK release asset; Android does not use this desktop updater contract
 
 The public service follows the Tauri v2 updater contract: `version`, optional human-readable `notes` / `pub_date`, and per-platform `url` + signature content.
 
@@ -39,7 +38,7 @@ The former separate preview/stable template files were removed because the deskt
 4. The release workflow verifies all exact-SHA gates.
 5. The release workflow normalizes the verified packages and detects whether a complete signed updater pair exists.
 6. If both signatures exist, it generates and verifies `GhostFTP-v<version>-latest.json` plus `GhostFTP-v<version>-Update-Service.zip`; if signatures are absent, those updater assets are deliberately omitted.
-7. Partial updater proof is forbidden: signatures, manifest and Update-Service package must be all present and consistent or all absent. This does not block the normal stable package release.
+7. Partial updater proof is forbidden: signatures, manifest and Update-Service package must be all present and consistent or all absent. This does not block the normal manual Preview package release.
 8. Only after a signed updater bundle exists and its release asset digests are verified may the update-service operator atomically replace `/updates/latest.json`.
 
 See `DEPLOYMENT.md` for the update-service hosting procedure.
@@ -49,7 +48,7 @@ See `DEPLOYMENT.md` for the update-service hosting procedure.
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password protected
 
-These secrets are not required for the normal stable GitHub release. They are required only to produce the cryptographically signed Windows/Linux in-app updater bundle. The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
+These secrets are not required for the normal manual Preview GitHub release. They are required only to produce the cryptographically signed Windows/Linux in-app updater bundle. The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
 
 ## Failure behavior
 
