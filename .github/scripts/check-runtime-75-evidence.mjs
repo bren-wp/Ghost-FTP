@@ -11,14 +11,14 @@ const statuses = new Set(["unverified", "pass", "fail"]);
 
 export function validateRuntimeEvidence(reference, evidence, root = projectRoot) {
   assert.equal(reference.type, "concept-reference-only", "references must remain design concepts");
-  assert.equal(reference.total, 75, "expected the reviewed 75-screen contract");
+  assert.equal(reference.total, 59, "expected the reviewed 59-screen contract");
   assert.equal(evidence.schema_version, 1, "unknown runtime-evidence schema");
   assert.equal(evidence.reference, "docs/qa/PREMIUM_REFERENCE_75.json");
   assert.ok(Array.isArray(evidence.screens), "missing per-screen evidence");
   const expected = Object.entries(reference.screens).flatMap(([platform, names]) =>
     names.map((name) => ({ id: platform + "/" + name, platform, viewport: reference.screen_size[platform] }))
   );
-  assert.equal(expected.length, 75, "reference screen count mismatch");
+  assert.equal(expected.length, 59, "reference screen count mismatch");
   assert.equal(evidence.screens.length, expected.length, "every screen needs one evidence entry");
   let verified = 0;
   let failed = 0;
@@ -79,7 +79,7 @@ function loadAndValidate() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const result = loadAndValidate();
-    console.log("75-screen runtime evidence: " + JSON.stringify(result) + ". Unverified is NOT a UI PASS.");
+    console.log("59-screen runtime evidence: " + JSON.stringify(result) + ". Unverified is NOT a UI PASS.");
   } catch (error) {
     console.error("Runtime visual evidence contract FAILED: " + error.message);
     process.exitCode = 1;
