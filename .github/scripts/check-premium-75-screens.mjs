@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const contract = JSON.parse(fs.readFileSync(path.join(root, "docs/qa/premium-59-screen-contract.json"), "utf8"));
+const contract = JSON.parse(fs.readFileSync(path.join(root, "docs/qa/premium-75-screen-contract.json"), "utf8"));
 const expected = { windows: 30, linux: 29 };
 const errors = [];
 const seen = new Set();
