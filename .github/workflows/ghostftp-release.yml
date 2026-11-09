@@ -99,8 +99,12 @@ jobs:
             local label="$2"
             local state run_url
             for attempt in $(seq 1 270); do
-              state="$(gh run list --workflow "$workflow" --commit "$SOURCE_SHA" --limit 1 --json status,conclusion --jq '.[0] | ((.status // "") + ":" + (.conclusion // ""))' || true)"
-              run_url="$(gh run list --workflow "$workflow" --commit "$SOURCE_SHA" --limit 1 --json url --jq '.[0].url // ""' || true)"
+              # Metadata workflow_run events may be skipped after a failed
+              # publication. Only exact-SHA push verification authorizes a
+              # release; never mistake a later skipped follow-up for failed CI.
+              GATES="$(gh run list --workflow "$workflow" --commit "$SOURCE_SHA" --limit 30 --json event,status,conclusion,url,createdAt || true)"
+              state="$(jq -r '[.[] | select(.event == "push")] | sort_by(.createdAt) | reverse | .[0] | ((.status // "") + ":" + (.conclusion // ""))' <<< "$GATES" 2>/dev/null || true)"
+              run_url="$(jq -r '[.[] | select(.event == "push")] | sort_by(.createdAt) | reverse | .[0].url // ""' <<< "$GATES" 2>/dev/null || true)"
               echo "$label for $SOURCE_SHA: ${state:-not-found} ${run_url:+($run_url)}"
               if [ "$state" = "completed:success" ]; then return 0; fi
               if [[ "$state" == completed:* ]] && [ "$state" != "completed:success" ]; then
