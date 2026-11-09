@@ -116,7 +116,6 @@ jobs:
           wait_for_gate "ghostftp-preview-metadata.yml" "immutable Preview metadata and historical asset provenance"
           wait_for_gate "ghostftp-quality.yml" "source audit"
           wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
-          wait_for_gate "ghostftp-android.yml" "Android"
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
           wait_for_gate "ghostftp-macos.yml" "macOS SwiftUI preview"
           wait_for_gate "ghostftp-macos-shared-desktop.yml" "macOS shared desktop parity"
@@ -178,7 +177,6 @@ jobs:
           mkdir -p dist/native
           git archive --format=zip --output="dist/GhostFTP-v$VERSION-Source.zip" HEAD
           zip -qr "dist/GhostFTP-v$VERSION-Desktop-Source.zip" ghostftp-desktop
-          zip -qr "dist/GhostFTP-v$VERSION-Android-Source.zip" android
           zip -qr "dist/GhostFTP-v$VERSION-macOS-Source.zip" macos
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
           zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
@@ -191,26 +189,6 @@ jobs:
           set -euo pipefail
           gh run download "${{ needs.select-trigger.outputs.native_run_id }}" -D dist/native
           find dist/native -type f -print
-
-      - name: Download verified Android APK/AAB artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          RUN_ID="$(gh run list --workflow "ghostftp-android.yml" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
-          test -n "$RUN_ID"
-          mkdir -p dist/android
-          gh run download "$RUN_ID" --name GhostFTP-Android-APK -D dist/android
-          find dist/android -type f -print
-          UNSIGNED_ANDROID_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
-          PREVIEW_ANDROID_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
-          UNSIGNED_ANDROID_AAB="$(find dist/android -type f -iname '*Release-Unsigned.aab.unsigned' | head -n1 || true)"
-          test -n "$UNSIGNED_ANDROID_APK"; test -s "$UNSIGNED_ANDROID_APK"
-          test -n "$PREVIEW_ANDROID_APK"; test -s "$PREVIEW_ANDROID_APK"
-          test -n "$UNSIGNED_ANDROID_AAB"; test -s "$UNSIGNED_ANDROID_AAB"
-          unzip -tqq "$UNSIGNED_ANDROID_AAB"
-          echo "::notice::Android production package is intentionally unsigned; installable preview evidence is retained separately."
 
       - name: Download verified macOS preview artifact
         env:
@@ -265,9 +243,6 @@ jobs:
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -name 'GhostFTP-Linux-amd64.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -name 'GhostFTP-Linux-x86_64.rpm' | head -n1 || true)"
-          ANDROID_UNSIGNED_APK="$(find dist/android -type f -iname '*Release-Unsigned.apk.unsigned' | head -n1 || true)"
-          ANDROID_PREVIEW_APK="$(find dist/android -type f -iname '*Installable-Preview.apk' | head -n1 || true)"
-          ANDROID_UNSIGNED_AAB="$(find dist/android -type f -iname '*Release-Unsigned.aab.unsigned' | head -n1 || true)"
           MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
           MACOS_SHARED_ARM="dist/macos-shared/arm64/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
           MACOS_SHARED_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
@@ -276,7 +251,6 @@ jobs:
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
-          test -n "$ANDROID_UNSIGNED_APK"; test -n "$ANDROID_PREVIEW_APK"; test -n "$ANDROID_UNSIGNED_AAB"; test -s "$ANDROID_UNSIGNED_AAB"
           test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
           test -s "$MACOS_SHARED_ARM"
           test -s "$MACOS_SHARED_INTEL"
@@ -304,9 +278,6 @@ jobs:
           fi
           cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
-          cp "$ANDROID_UNSIGNED_APK" "dist/GhostFTP-Android-v$VERSION.apk.unsigned"
-          cp "$ANDROID_UNSIGNED_AAB" "dist/GhostFTP-Android-v$VERSION.aab.unsigned"
-          cp "$ANDROID_PREVIEW_APK" "dist/GhostFTP-Android-v$VERSION-Installable-Preview.apk"
           cp "$MACOS_PREVIEW" "dist/GhostFTP-macOS-v$VERSION-Preview.zip"
           cp "$MACOS_SHARED_ARM" "dist/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
           cp "$MACOS_SHARED_INTEL" "dist/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
@@ -326,7 +297,6 @@ jobs:
 
           (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
-          rm -rf dist/native dist/android dist/macos dist/macos-shared
 
       - name: Build update-service deployment package
         if: ${{ hashFiles('dist/GhostFTP-Windows-x64-Setup-v*.exe.sig') != '' && hashFiles('dist/GhostFTP-Linux-x86_64-v*.AppImage.sig') != '' }}
