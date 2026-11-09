@@ -1,87 +1,31 @@
-# Ghost FTP Repository Structure
+# Ghost FTP repository structure
 
-Ghost FTP keeps the repository product-oriented. Public/source-root naming is **Ghost FTP / GhostFTP** first; framework-specific names are confined to internal locations where changing them would create build risk.
-
-## Top-level layout
+**Active platforms:** Windows, Linux and macOS desktop. The standalone server, demo and CLI applications are retired. This is a desktop client repository.
 
 ```text
 Ghost-FTP/
-├── android/                   Native Android application
-├── ghostftp-desktop/          Production Windows/Linux desktop source
+├── ghostftp-desktop/          Windows/Linux Tauri, React/TypeScript and Rust engine
+├── macos/                     Native SwiftUI desktop client
 ├── tools/
-│   ├── ghostftp-runtime/      Support/compatibility runtime tooling
-│   └── ghostftp-installer/    Support/compatibility installer tooling
-├── updates/                   Update-manifest templates/tools
-├── docs/                      Product, QA, build, legal and historical docs
-├── version.json               Canonical active version/build metadata
-├── .github/workflows/         Quality, build, Android and release automation
+│   ├── ghostftp-runtime/      Go compatibility/runtime helpers
+│   └── ghostftp-installer/    Go compatibility installer helpers
+├── updates/                   Signed desktop updater metadata and tooling
+├── assets/                    Shared desktop branding
+├── docs/                      Product, QA, security, legal and release documentation
+├── .github/                   CI, release governance and audit scripts
+├── version.json               Canonical release metadata
 ├── README.md
-├── CHANGELOG.md
 ├── SECURITY.md
 ├── LICENSE.txt
 └── EULA.txt
 ```
 
-## Source-root responsibilities
+## Source ownership
 
-### `ghostftp-desktop/`
+`ghostftp-desktop/src-tauri` owns the Windows/Linux native transfer engine, session security, key handling, data protection and app packaging. `ghostftp-desktop/src` owns the desktop UI. `macos/` contains the independently maintained native SwiftUI client. `tools/` contains compatibility helpers and is **not** the public desktop GUI. `updates/` contains the signed-update service contract, not a separate public website.
 
-Authoritative production desktop GUI/protocol engine: React/TypeScript UI, Rust backend, file-transfer engine, native window integration, updater, credential handling, agent components and packaging.
+## Expected desktop packages
 
-### `android/`
+Windows x64: portable EXE, NSIS Setup EXE and MSI. Linux x86_64: native binary, AppImage, DEB and RPM. macOS: architecture-specific app ZIP/DMG Preview where built. Every release package must be verified against the same exact-source commit and SHA-256 manifest. Signing/notarization requirements remain separate from installability.
 
-Authoritative native Android source and mobile protocol/file workflows.
-
-### `tools/ghostftp-runtime/`
-
-Support/compatibility tooling. It must not replace or be described as the production desktop GUI.
-
-### `tools/ghostftp-installer/`
-
-Support/compatibility installer tooling. Production Windows end-user packaging comes from the native desktop/Tauri NSIS build.
-
-### `updates/`
-
-Desktop update-service templates, signing/deployment tooling and operator documentation. No separate website application is maintained in this repository.
-
-### `docs/`
-
-Documentation grouped by purpose:
-
-```text
-docs/
-├── assets/        Brand and visual QA media
-├── architecture/ Repository structure/naming rules
-├── audits/        Historical point-in-time audits
-├── build/         Current build status/runtime notes
-├── development/   Source-build guidance
-├── guides/        Installation, updates, support and uninstall
-├── legal/         Privacy and third-party notices
-├── mobile/        Android parity/contract
-├── product/       Features, status, roadmap and UI/UX contract
-├── qa/            Interaction, installer, protocol, responsive and visual QA
-├── release/       Current canonical release process
-└── releases/      Canonical release notes + historical provenance
-```
-
-## Naming policy
-
-Use **Ghost FTP** for user-facing copy and **GhostFTP** for technical/public artifact filenames.
-
-Examples:
-
-- `GhostFTP-Windows-x64-Portable-v<version>.exe`
-- `GhostFTP-Windows-x64-Setup-v<version>.exe`
-- `GhostFTP-Linux-x86_64-v<version>.AppImage`
-- `GhostFTP-Android-v<version>.apk.unsigned` — unsigned production build artifact
-- `GhostFTP-Android-v<version>-Installable-Preview.apk` — separately installable CI validation artifact
-
-See [NAMING.md](NAMING.md).
-
-## Internal framework names
-
-Framework-required names remain where required, such as `src-tauri/`, `tauri.conf.json` and `@tauri-apps/*`.
-
-## Stability principle
-
-Repository cleanup must not break persisted product identifiers or installed-client compatibility. Bundle IDs, updater identifiers, deep-link schemes and data locations are migration-sensitive.
+Historical release archives are retained as immutable evidence, not active platform definitions. Do not rename persistent app IDs, updater keys, deep-link schemes, profile or keychain locations without migration tests.
