@@ -1,77 +1,19 @@
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only release line, with FTP/FTPS/SFTP and cloud transfer security under review. Public v0.99.35 stays immutable. No unverified claims of perfect UI parity or universal provider interoperability.
+# Ghost FTP desktop roadmap — 0.99.36 Preview
 
-> **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Published v0.99.32 remains immutable. Windows/Linux unsigned installers can be manually installed; signed in-app updates still require verified signatures. New update-fallback, safe download link and data-preservation safeguards are under exact-head test; physical desktop production acceptance is not yet certified.
+**Current development line:** 0.99.36. **Previous canonical release:** v0.99.35. The supported product is a graphical file-transfer client for Windows, Linux and macOS; historical editions remain immutable.
 
-> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+## Current work
 
-> **Authoritative current state (3 November 2026):** Ghost FTP **0.99.31 development Preview**; v0.99.30 is the latest publicly published version. The new cycle audits active Windows/Linux, Android and macOS code, plus maintained Go compatibility tools, security/privacy controls, dead-code reachability and regressions. Older notes retain historical context; no claim of total vulnerability freedom or complete device acceptance.
+- **Security and privacy:** verify FTP/FTPS/SFTP authentication, SSH known-host identity, TLS hostname/CA validation, temporary credentials, local keyring/Keychain and backup handling
+- **Integrity:** per-file upload and download checks, interrupted transfer state, durable staging, overwrite/rename/skip semantics, same-size mutation, multi-gigabyte boundaries and failure recovery
+- **Server compatibility:** test with actual FTP/explicit FTPS/SFTP servers; audit WebDAV, cloud, object storage and account connectors using real permitted endpoints
+- **Windows:** native WebView2 startup, screen navigation, installer/portable use, upgrade/rollback, OS credential vault and file association checks
+- **Linux:** GTK/WebKit startup, AppImage/DEB/RPM package behavior, Secret Service, GNOME/KDE/Wayland tests and native paths
+- **macOS:** SwiftUI client FTP correctness, Keychain, signed HTTPS/provider flows and DMG/ZIP validation; FTPS/SFTP remain unavailable until implemented securely
+- **Visual acceptance:** native 1290×852 capture for 30 Windows and 29 Linux references, plus actual interaction/keyboard/a11y tests at multiple display scales
 
-> **Authoritative current state (2 November 2026):** Ghost FTP **0.99.30 development Preview**; v0.99.29 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
+## Production gates
 
-> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
+A Preview source change is not a stable release or independent penetration test. Require exact commit SHA from quality, protocol E2E, native desktop build, Windows hardening and both macOS verification workflows. Then test installation and authenticated transfer operations on physical devices. Preserve the signed updater's fail-closed policy and immutable release lineage.
 
-> Ghost FTP **0.99.4** (release cycle), following published v0.99.3. Distribution status is verified from GitHub Releases; unsigned/mobile and notarization limitations remain explicit.
-
-> **Development cycle:** Ghost FTP 0.99.6 Preview. Previous verified public release: v0.99.5. Android responsive reference acceptance is pending.
-
-# Ghost FTP Roadmap
-
-This roadmap separates the current **0.99.31 development Preview** state from future work. Planned, recommended and long-term items are not claims of implemented functionality. Previous canonical release: **0.99.35**.
-
-## Implemented
-
-- Native React + TypeScript + Tauri + Rust desktop application for Windows and Linux.
-- Native Kotlin Android application.
-- FTP, explicit FTPS and SFTP connection paths.
-- SFTP password/private-key authentication and host-key verification.
-- Ephemeral Quick Connect by default with explicitly saved profiles.
-- Sites management with favorites, recent metadata, bookmarks, tags, folders, import/export, connection testing and advisory duplicate detection on Windows/Linux.
-- Dual-pane local/remote file management, queue/history, retry/cancel/pause/resume controls and bandwidth settings.
-- SHA-256, file properties and supported permission/chmod workflows.
-- OS credential/keychain-backed secret separation where supported.
-- Custom frameless Ghost FTP titlebar and adaptive desktop layouts.
-- Advertised interface locales with automated key-parity CI.
-- Native Windows NSIS and Linux executable/AppImage/DEB/RPM build targets.
-- Installable Android APK build path with package/signature verification in CI.
-- Quality, protocol E2E, canonical native build, Android and Windows hardening gates.
-- Release-image provenance checks for README/documentation images.
-- Privacy-first default: no required analytics or telemetry.
-
-## Current hardening focus
-
-- Keep one authoritative Windows/Linux production build path with native-window QA evidence.
-- Keep documentation imagery pinned to the latest published release.
-- Keep Windows helper/background processes free of unintended console-window flashes.
-- Keep dependency graphs locked and version/Cargo metadata synchronized atomically.
-- Maintain real FTP/explicit-FTPS/SFTP E2E coverage for release-relevant source.
-- Maintain Android lint/build/package verification on every pull request to `main`.
-
-## Before stable 1.0
-
-- Windows 10/11 clean install, upgrade, reinstall and uninstall lifecycle acceptance.
-- Windows installed + portable visual acceptance including titlebar and snap behavior.
-- Linux package install/update/remove acceptance on target distributions.
-- Android install/upgrade/storage/protocol acceptance on target devices.
-- Security failure-path review on target systems.
-- Production signing policy and verification.
-- Final accessibility/keyboard/high-contrast review.
-- Broader protocol failure-injection/overwrite/resume/reconnect coverage.
-- Reproducible-build/provenance documentation with independently repeatable verification.
-
-## Recommended
-
-- Per-profile reconnect and keep-alive policy.
-- Transfer-history export and richer schedule management.
-- Per-profile bandwidth limits.
-- Verify-after-transfer checksums where both sides support them.
-- Batch rename and remote-edit conflict detection.
-- Encrypted selected-profile import/export.
-- Richer Sites templates/search and optional duplicate resolution review (never destructive without user confirmation).
-- Full screen-reader, high-contrast and touch-target audits.
-- SBOM, dependency vulnerability scanning, secret scanning and provenance attestations.
-- Optional managed Linux repositories when distribution policy requires them.
-
-For the detailed engineering backlog, see [product/ROADMAP.md](product/ROADMAP.md). For authoritative current source/build state, see [product/STATUS_AND_NEXT.md](product/STATUS_AND_NEXT.md) and [build/STATUS.md](build/STATUS.md).
-
-
-Current development line: 0.99.36. Previous canonical release: 0.99.35. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
+No mock accounts, invented server responses, fabricated screenshots or unsupported claims of pixel-perfect parity.
