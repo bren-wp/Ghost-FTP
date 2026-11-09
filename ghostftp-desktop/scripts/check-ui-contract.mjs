@@ -344,11 +344,11 @@ if (!transfersStore.includes("initialized: true")) {
 }
 
 const transferSchedule = read("src/stores/transferScheduleStore.ts");
+const scheduleTime = read("src/lib/scheduleTime.ts");
 for (const required of [
   "validDateInput",
-  "parseLocalOccurrence",
-  "now.getTime() < anchor.getTime()",
-  "due.getTime() >= anchor.getTime()",
+  "mostRecentOccurrence",
+  "lastRunAt: Date.now()",
   "if (!transfers.initialized) return;",
   "Transfer schedule disabled",
   'target.status === "queued"',
@@ -358,6 +358,17 @@ for (const required of [
 ]) {
   if (!transferSchedule.includes(required)) {
     failures.push(`Transfer scheduler missing start-date/stale-target safety: ${required}`);
+  }
+}
+for (const required of [
+  "parseLocalOccurrence",
+  "now.getTime() < anchor.getTime()",
+  "due.getTime() >= anchor.getTime()",
+  "parsed.getHours() !== hour",
+  "parsed.getMinutes() !== minute",
+]) {
+  if (!scheduleTime.includes(required)) {
+    failures.push(`Transfer calendar safety regression: ${required}`);
   }
 }
 for (const forbidden of ["panelOpen", "togglePanel", "setPanelOpen", "autoOpenTransferPanel"]) {
