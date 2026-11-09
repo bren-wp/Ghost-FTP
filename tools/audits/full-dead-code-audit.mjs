@@ -150,8 +150,6 @@ export function audit(directory = root) {
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const swift = lookup("macos/Sources/", ".swift");
   const swiftTests = lookup("macos/Tests/", ".swift");
-  const manifestFile = inside("android/app/src/main/AndroidManifest.xml");
-  const manifest = fs.existsSync(manifestFile) ? fs.readFileSync(manifestFile, "utf8") : "";
   const swiftPackage = inside("macos/Package.swift");
   const packageText = fs.existsSync(swiftPackage) ? fs.readFileSync(swiftPackage, "utf8") : "";
   const go = files.filter((p) => /\/tools\/ghostftp-(?:installer|runtime)\/.*\.go$/.test(posix(p)));
