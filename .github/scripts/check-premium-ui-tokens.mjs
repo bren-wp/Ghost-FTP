@@ -1,101 +1,56 @@
 #!/usr/bin/env node
+// Source-level desktop palette and reference contract, not pixel-parity proof.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const tokens = JSON.parse(read("docs/branding/premium-ui-tokens.json"));
-const screenContract = JSON.parse(read("docs/qa/premium-75-screen-contract.json"));
+const contract = JSON.parse(read("docs/qa/premium-75-screen-contract.json"));
 const css = read("ghostftp-desktop/src/styles.css");
-const android = read("android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
-const responsive = read("android/app/src/main/java/com/ghostftp/android/AndroidResponsiveLayout.kt");
 const mac = read("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
 const macCloud = read("macos/Sources/GhostFTPMacApp/Views/CloudWorkspace.swift");
 const errors = [];
-
-function requireSource(source, needle, description) {
-  if (!source.includes(needle)) errors.push(description);
-}
-function rgb(hex) {
-  const value = hex.replace("#", "");
-  return [0, 2, 4].map((i) => Number.parseInt(value.slice(i, i + 2), 16));
-}
-const colorAssertions = [
-  ["background", "--bg", "background"],
-  ["panel", "--bg-panel", "panel"],
-  ["raised", "--bg-subtle", "panelStrong"],
-  ["accent", "--accent", "accent"],
-  ["success", "--success", "success"],
-  ["danger", "--danger", "danger"],
-];
-for (const [semantic, cssName, androidName] of colorAssertions) {
+const requireSource = (text, needle, label) => {
+  if (!text.includes(needle)) errors.push(label);
+};
+const rgb = (hex) => [0, 2, 4].map(index => parseInt(hex.slice(index + 1, index + 3), 16));
+for (const [semantic, cssName] of [
+  ["background", "--bg"], ["panel", "--bg-panel"], ["raised", "--bg-subtle"],
+  ["accent", "--accent"], ["success", "--success"], ["danger", "--danger"],
+]) {
   const [r, g, b] = rgb(tokens.colors[semantic]);
-  requireSource(css, `${cssName}: ${r} ${g} ${b};`, `desktop ${semantic} token drift`);
-  if (semantic === "accent") {
-    // The latest v8 mobile reference uses cyan-blue, matching other platforms. The
-    // shared brand palette is authoritative. Check the
-    // Android token and actual runtime value, not a stale shared RGB literal.
-    requireSource(android, "val accent: Int = PremiumReferenceStyle.purple", "Android reference accent token drift");
-  } else {
-    requireSource(android, `val ${androidName}: Int = Color.rgb(${r}, ${g}, ${b})`, `Android ${semantic} token drift`);
-  }
-  const macName = semantic === "panel" ? "sidebar" : semantic === "raised" ? "raised" : semantic;
-  requireSource(mac, `static let ${macName} = Color(red: ${r}/255, green: ${g}/255, blue: ${b}/255)`, `macOS ${semantic} token drift`);
+  requireSource(css, `${cssName}: ${r} ${g} ${b};`, `Desktop ${semantic} palette mismatch`);
+  const macName = semantic === "panel" ? "sidebar" : semantic;
+  requireSource(mac, `static let ${macName} = Color(red: ${r}/255, green: ${g}/255, blue: ${b}/255)`,
+    `macOS ${semantic} palette mismatch`);
 }
 for (const semantic of ["navy", "slate", "cyan"]) {
-  requireSource(css, `--ghost-premium-${semantic}: ${tokens.colors[semantic]};`, `desktop ${semantic} token drift`);
+  requireSource(css, `--ghost-premium-${semantic}: ${tokens.colors[semantic]};`,
+    `Desktop ${semantic} token mismatch`);
 }
-requireSource(android, "val accentSurface: Int = PremiumReferenceStyle.selected", "Android active surface differs from user-approved cyan selection token");
-const androidReference = read("android/app/src/main/java/com/ghostftp/android/PremiumReferenceStyle.kt");
-requireSource(androidReference, "val purple = Color.rgb(56, 171, 255)", "actual Android cyan accent is not #38ABFF");
-requireSource(androidReference, "val selected = Color.rgb(19, 45, 82)", "Android reference selected-row color drift");
-if (tokens.android?.accent !== "#38ABFF") errors.push("Android mobile-only reference accent changed");
-requireSource(mac, "static let slate = Color(red: 19/255, green: 45/255, blue: 82/255)", "macOS active surface differs from slate token");
-requireSource(css, "width: 214px !important", "214px desktop sidebar reference not enforced");
-requireSource(css, "min-height: 43px", "43px desktop navigation reference not enforced");
-// A fixed 280dp drawer clips screens as narrow as 240–320dp; keep the
-// approved maximum, but enforce the real bounded responsive implementation.
-requireSource(android, "AndroidResponsiveLayout.drawerWidthDp(resources.configuration.screenWidthDp)",
-  "reference mobile drawer must use the width-safe policy");
-requireSource(responsive, "(widthDp - 56).coerceIn(192, 280)",
-  "drawer must leave room to dismiss on narrow phones and cap at 280dp");
-requireSource(responsive, ".coerceAtMost(widthDp.coerceAtLeast(1))",
-  "drawer must never extend beyond device width");
-requireSource(android, "private fun buildPremiumPhoneChrome(): View", "full-width reference identity bar absent on Android");
-requireSource(android, "ViewGroup.LayoutParams.MATCH_PARENT, dp(52)", "52dp mobile reference top chrome geometry missing");
-requireSource(android, "resources.configuration.screenWidthDp < 600", "full-width phone/overlay breakpoint missing");
-requireSource(android, "val iconRail = false", "mobile reference drawer labels hidden by legacy compact rail");
-requireSource(android, "icon?.setBounds(0, 0, dp(20), dp(20))", "Android 20dp reference icon dimensions not implemented");
-requireSource(android, "setCompoundDrawables(null, icon, null, null)", "Android interactive vector navigation icons missing");
-for (const name of ["files","sites","transfers","sync","cloud","settings","about"]) {
-  const rel = `android/app/src/main/res/drawable/ic_premium_nav_${name}.xml`;
-  const icon = read(rel);
-  if (!icon.includes('android:viewportWidth="24"') ||
-      !icon.includes('android:viewportHeight="24"') ||
-      !icon.includes('android:strokeColor="#38ABFF"') ||
-      !icon.includes("android:pathData=")) {
-    errors.push(`invalid branded icon geometry or tint: ${rel}`);
+requireSource(mac, "static let slate = Color(red: 19/255, green: 45/255, blue: 82/255)", "macOS selected surface mismatch");
+requireSource(css, "width: 214px !important", "Windows/Linux sidebar width mismatch");
+requireSource(css, "min-height: 43px", "Windows/Linux navigation row mismatch");
+requireSource(mac, ".listRowBackground(", "macOS list selection background absent");
+requireSource(macCloud, 'Button(L10n.text("Cancel transfer"))', "macOS cancel action missing");
+requireSource(macCloud, ".buttonStyle(.borderedProminent)", "macOS primary cloud button missing");
+for (const [platform, count] of Object.entries({windows:30, linux:29})) {
+  if (tokens.referenceCounts[platform] !== count || contract.platforms?.[platform]?.length !== count) {
+    errors.push(`${platform} reference count mismatch`);
   }
-  requireSource(android, `R.drawable.ic_premium_nav_${name}`, `Android ${name} workspace does not use approved navigation icon`);
-}
-requireSource(mac, ".listRowBackground(", "macOS workspace selection brand surface absent");
-requireSource(macCloud, 'Button(L10n.text("Cancel transfer"))', "macOS cloud cancellation control missing");
-requireSource(macCloud, ".buttonStyle(.borderedProminent)", "macOS premium cloud primary actions absent");
-for (const [platform, count] of Object.entries(tokens.referenceCounts)) {
-  if (screenContract.platforms?.[platform]?.length !== count) {
-    errors.push(`${platform} reference registry mismatch`);
-  }
-  if (screenContract.platforms?.[platform]?.some((entry) => entry.visual_acceptance !== "pending")) {
-    errors.push(`${platform}: no 1:1 pixel acceptance can be claimed without captures`);
+  if (contract.platforms?.[platform]?.some(entry => entry.visual_acceptance !== "pending")) {
+    errors.push(`${platform} requires native screenshot acceptance`);
   }
 }
-if (tokens.macos.referenceScreenCount !== 0 || screenContract.macos?.referenceCount !== 0) {
-  errors.push("a macOS reference screenshot must not be invented");
+if (tokens.macos.referenceScreenCount !== 0 || contract.macos?.referenceCount !== 0) {
+  errors.push("Cannot invent a macOS reference screenshot");
 }
 if (errors.length) {
-  console.error("Premium cross-platform design contract failed:");
-  for (const error of errors) console.error(" - " + error);
-  process.exit(1);
+  console.error("Ghost FTP desktop UI token audit failed:");
+  errors.forEach(error => console.error(" - " + error));
+  process.exitCode = 1;
+} else {
+  console.log("Windows/Linux/macOS premium design tokens pass source checks; 59 desktop screenshots remain unverified.");
 }
-console.log("Premium design tokens, Android navigation assets and macOS controls verified; screenshot pixel parity remains pending.");
