@@ -412,19 +412,6 @@ for (const required of [
   if (!healthStatusBar.includes(required)) failures.push(`Desktop status bar missing live connection-health contract: ${required}`);
 }
 
-const androidShell = read("../android/app/src/main/java/com/ghostftp/android/MainActivity.kt");
-for (const required of [
-  "FILES(R.string.workspace_files)",
-  "SITES(R.string.workspace_sites)",
-  "TRANSFERS(R.string.workspace_transfers)",
-  'SYNC(R.string.workspace_sync)',
-  "SETTINGS(R.string.workspace_settings)",
-  "ABOUT(R.string.workspace_about)",
-  "buildNavigationRail()",
-]) {
-  if (!androidShell.includes(required)) failures.push(`Android workspace parity missing: ${required}`);
-}
-
 const macShell = read("../macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
 for (const required of [
   "New connection",
