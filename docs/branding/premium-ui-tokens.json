@@ -24,31 +24,15 @@
     "navRowHeightPx": 43,
     "topChromeHeightPx": 52
   },
-  "android": {
-    "referenceWidthPx": 480,
-    "referenceHeightPx": 960,
-    "compactRailWidthDp": 62,
-    "iconSizeDp": 20,
-    "compactTextSp": 9,
-    "overlayBelowDp": 600,
-    "phoneTopChromeHeightDp": 52,
-    "drawerWidthDp": 280,
-    "actionFooterHeightDp": 59,
-    "accent": "#38ABFF",
-    "note": "2026-10-16 user-approved 16-screen mobile mockup, 480x960 reference, native interactive views; Windows/Linux desktop blue palette unchanged",
-    "accentLight": "#7EDEFF",
-    "selected": "#132D52"
-  },
   "macos": {
     "referenceScreenCount": 0,
     "policy": "Share semantic identity and native platform behavior. No 1:1 macOS screenshot can be claimed without an approved macOS visual reference."
   },
   "referenceCounts": {
     "windows": 30,
-    "linux": 29,
-    "android": 16
+    "linux": 29
   },
-  "status": "implementation in progress; visual and device acceptance pending",
+  "status": "Windows/Linux/macOS desktop implementation in progress; visual and device acceptance pending",
   "acceptance": {
     "requireRealAppCaptures": true,
     "requireWorkingActions": true,
