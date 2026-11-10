@@ -539,6 +539,20 @@ for (const required of [
   }
 }
 
+const selectorStyles = read("src/styles.css");
+const selectorComponent = read("src/components/QuickConnectionDialog.tsx");
+if (!/className="ghost-protocol-picker"[\\s\\S]*?<select value=\\{protocol\\}[\\s\\S]*?<\\/select>[\\s\\S]*?<ChevronDown className="ghost-protocol-chevron" size=\\{15\\} aria-hidden="true" \\/>/.test(selectorComponent)) {
+  failures.push("New Connection protocol picker must retain a native keyboard-accessible select and decorative SVG");
+}
+for (const [label, pattern] of [
+  ["consistent native dark option popup", /\\.ghost-protocol-picker select \\{[^}]*color-scheme:\\s*dark/],
+  ["GTK/WebView2 chrome normalization", /\\.ghost-protocol-picker select \\{[^}]*appearance:\\s*none/],
+  ["option contrast", /\\.ghost-protocol-picker select option \\{[^}]*background-color:\\s*#0b192b;[^}]*color:\\s*#e5f3ff/],
+  ["non-interactive shared chevron", /\\.ghost-protocol-chevron \\{[^}]*pointer-events:\\s*none/],
+]) {
+  if (!pattern.test(selectorStyles)) failures.push("New Connection cross-platform selector missing: " + label);
+}
+
 const newConnection = read("src/components/QuickConnectionDialog.tsx");
 for (const required of [
   "Save profile",
