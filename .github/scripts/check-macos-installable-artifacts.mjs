@@ -14,8 +14,11 @@ for (const token of ["hdiutil create", "hdiutil verify", "hdiutil attach",
 for (const arch of ["arm64", "x86_64"]) {
   assert.ok(release.includes("GhostFTP-macOS-Shared-" + arch + "-v$VERSION-Installable-Preview.dmg"),
     "Release must ship DMG for " + arch);
-  assert.ok(publish.includes("GhostFTP-macOS-Shared-" + arch + '-v' + "$" + '{VERSION}-Installable-Preview.dmg'),
+  const assetContract = JSON.parse(read(".github/scripts/release-artifacts.json"));
+  assert.ok(assetContract.required.includes("GhostFTP-macOS-Shared-" + arch + "-v{version}-Installable-Preview.dmg"),
     "Published release inventory must require DMG for " + arch);
+  assert.ok(publish.includes("validate-release-assets.mjs"),
+    "Publisher must validate the same canonical inventory as post-release QA");
 }
 assert.ok(release.includes('sha256sum -c "$MANIFEST"'));
 assert.ok(quality.includes("node .github/scripts/check-macos-installable-artifacts.mjs"));
