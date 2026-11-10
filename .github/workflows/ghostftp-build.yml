@@ -363,9 +363,8 @@ jobs:
           # Every capture starts the real binary under a disposable X11,
           # D-Bus, HOME, and native WebKit session. No synthetic FTP traffic
           # or credentials are used to match the concept artwork.
-          for view in splash main siteManager newConnection transferCenter settings sync about; do
+          for view in main siteManager newConnection transferCenter settings sync about; do
             case "$view" in
-              splash) label=Splash ;;
               main) label=Files ;;
               siteManager) label=Sites ;;
               newConnection) label=New-Connection ;;
@@ -710,7 +709,6 @@ jobs:
           $SWP_SHOWWINDOW = 0x0040
           $PW_RENDERFULLCONTENT = 0x00000002
           $views = @(
-            @{ key = 'splash'; label = 'Splash' },
             @{ key = 'main'; label = 'Native-Window' },
             @{ key = 'siteManager'; label = 'Site-Manager' },
             @{ key = 'newConnection'; label = 'New-Connection' },

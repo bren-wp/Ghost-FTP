@@ -1,3 +1,12 @@
+## 0.99.41 Preview — 10 November 2026
+
+- Remove the Windows/Linux startup splash overlay and artificial 620 ms delay; show the real Files workspace on the first React paint. Keep Rust initialization, transfer listeners, settings migration, notifications, deep links and updater loading unchanged.
+- Retire obsolete splash QA routing in Rust/Tauri, Linux Xvfb captures and Windows WebView2 captures. Seven genuine native workspace captures remain mandatory; historical splash pixels are preserved for provenance but not displayed as a current application view.
+- Fix the HTML document's incorrect zh-CN default locale (`lang="en"`), allowing accessible language metadata to match the primary UI language.
+- Improve scheduled transfer checks after wake, window focus, online reconnection and WebView pageshow; retain the existing in-flight/last-run deduplication rules, interval cleanup and DST-safe calendar logic. This does not promise execution when the app is closed.
+- Add negative source/runtime QA checks that block splash reintroduction and validate the seven active screenshot contracts; do not invent screenshots or fake server data.
+- This patch requires exact-head CI results and real installation QA before stable/production acceptance. Cloud accounts, package signing and 59-screen 1:1 alignment are separate remaining work.
+
 ## 0.99.40 Preview — 10 November 2026
 
 - Correct the remaining P0 Preview metadata race: GitHub marked public v0.99.39 `prerelease:false` after its successful SHA-256 and post-release verification. All 21 assets remained present. The external actor or mechanism causing that later edit is not established.

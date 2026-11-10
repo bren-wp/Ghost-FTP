@@ -49,3 +49,34 @@ process.env.TZ = "Europe/Zagreb";
     const second = mostRecentOccurrence(schedule, new Date("2026-10-25T02:45:00+01:00"));
     assert.equal(first?.getTime(), second?.getTime());
   });
+
+test("a missed schedule remains due after laptop sleep without generating a second occurrence", () => {
+  const schedule = { mode: "daily", date: "2026-11-01", time: "13:00" };
+  const wake = new Date("2026-11-10T17:00:00+01:00");
+  const due = mostRecentOccurrence(schedule, wake);
+  assert.equal(due?.toISOString(), new Date("2026-11-10T13:00:00+01:00").toISOString());
+  const lastRunAt = due?.getTime() ?? 0;
+  assert.ok(lastRunAt > 0);
+  assert.equal(mostRecentOccurrence(schedule, wake)?.getTime(), lastRunAt,
+    "multiple resume/focus/online events must resolve to the same deduplication key");
+});
+
+test("native-window wake triggers check transfers and remove every event listener on unmount", () => {
+  const store = readFileSync(new URL("../src/stores/transferScheduleStore.ts", import.meta.url), "utf8");
+  for (const [target, event] of [
+    ["document", "visibilitychange"],
+    ["window", "focus"],
+    ["window", "online"],
+    ["window", "pageshow"],
+  ]) {
+    assert.ok(store.includes(target + '.addEventListener("' + event + '"'),
+      "wake listener missing: " + event);
+    assert.ok(store.includes(target + '.removeEventListener("' + event + '"'),
+      "unmount leak: wake listener not removed: " + event);
+  }
+  assert.ok(store.includes('document.visibilityState === "visible"'));
+  assert.ok(store.includes("const timer = window.setInterval(runSafely, 10_000)"));
+  assert.ok(store.includes("window.clearInterval(timer)"));
+  assert.ok(store.includes("if (tickBusy) return"), "duplicate concurrent retries must be blocked");
+  assert.ok(store.includes("due.getTime() <= schedule.lastRunAt"), "each occurrence is handled once");
+});

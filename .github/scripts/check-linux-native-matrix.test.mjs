@@ -7,7 +7,6 @@ import { resolve } from "node:path";
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 const map = {
-  splash: "Splash",
   main: "Files",
   siteManager: "Sites",
   newConnection: "New-Connection",
@@ -17,26 +16,35 @@ const map = {
   about: "About",
 };
 
-test("seven Linux QA captures are mapped to real Tauri and React views", () => {
+test("seven Linux QA captures open actual workspaces without a splash screen", () => {
   const capture = read(".github/scripts/capture-linux-premium.sh");
   const build = read(".github/workflows/ghostftp-build.yml");
   const rust = read("ghostftp-desktop/src-tauri/src/lib.rs");
   const react = read("ghostftp-desktop/src/App.tsx");
-  assert.match(build, /for view in splash main siteManager newConnection transferCenter settings sync about; do/);
+  assert.match(build, /for view in main siteManager newConnection transferCenter settings sync about; do/);
   assert.match(build, /path: qa\/linux\/\*\*/);
   assert.ok(capture.includes("No user profiles"));
   for (const [view, label] of Object.entries(map)) {
     assert.ok(capture.includes(`${view}) qa_image="Linux-${label}-1290x852.png"`), view);
     assert.ok(build.includes(`${view}) label=${label} ;;`), view);
     assert.ok(rust.includes(`"${view}"`), `Tauri did not allow-list ${view}`);
-    if (view !== "main" && view !== "splash") {
+    if (view !== "main") {
       assert.ok(react.includes(`qaView === "${view}"`), `React did not route ${view}`);
     }
   }
-  assert.ok(react.includes('__GHOSTFTP_QA_VIEW__ === "splash"'));
-  assert.ok(react.includes("<StartupSplash />"));
+  assert.ok(!react.includes("StartupSplash"), "The frontend must not import a splash component");
+  assert.ok(!react.includes("startupVisible"), "No artificial startup delay should block Files");
+  assert.ok(!rust.includes('"splash"'), "Native QA must not expose a retired splash view");
+  assert.ok(!capture.includes("Linux-Splash-1290x852.png"), "No Linux splash capture");
+  assert.ok(!build.includes("key = 'splash'"), "No Windows splash capture");
+  assert.ok(!build.includes("for view in splash"), "No Linux splash workflow view");
   assert.ok(!capture.includes("WEBKIT_DISABLE_SANDBOX"));
   assert.ok(!capture.includes("export GDK_GL=disable"));
+  assert.ok(!read("ghostftp-desktop/index.html").includes('lang="zh-CN"'), "Default language must not claim Chinese");
+  assert.ok(read("ghostftp-desktop/index.html").includes('lang="en"'));
+  assert.ok(!read("ghostftp-desktop/src/styles.css").includes(".ghost-startup-splash"), "No orphaned splash overlay CSS");
+  assert.ok(!read("README.md").includes('src="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png"'), "No obsolete splash in active README gallery");
+  assert.ok(read(".github/scripts/promote-real-linux-readme.sh").includes("seven real native Ghost FTP screens"));
 });
 
 test("GitHub release notes disclose Linux distro package families", () => {

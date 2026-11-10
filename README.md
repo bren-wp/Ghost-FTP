@@ -1,4 +1,4 @@
-> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Hardening late GitHub prerelease metadata repair and SHA-256-verified release checks. Public predecessor: v0.99.39. Signing, real external providers and 59-screen 1:1 verification remain separate.
+> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows and Linux open directly into Files, without a splash-screen delay. Scheduled transfers re-check on window wake and reconnection. Public predecessor: v0.99.40 (verification required). No claims of production signing, live-provider acceptance or full pixel-perfect verification.
 
 <div align="center">
 
@@ -14,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.40 (development Preview) · Previously published: v0.99.39. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.41 (development Preview) · Previously published: v0.99.40. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -24,7 +24,7 @@ Move files, manage connections and keep important server work organized with an 
 
 ## Made for Windows & Linux
 
-**Dependable transfers. A focused workspace.** Ghost FTP 0.99.40 hardens the release lifecycle against late GitHub Preview metadata changes while preserving Windows/Linux transfer reliability. Windows and Linux share native Rust/Tauri transfer handling, FTP/FTPS/SFTP security checks and responsive file-management tools. Native integration, cloud-provider and pixel-perfect acceptance remain independently verifiable requirements—not assumed guarantees.
+**Dependable transfers. A focused workspace.** Ghost FTP 0.99.41 opens directly into the Files workspace on Windows and Linux, without an unnecessary startup splash. The saved transfer scheduler also promptly re-checks due work after a suspended window or network reconnect. Windows and Linux share native Rust/Tauri transfer handling, FTP/FTPS/SFTP security checks and responsive file-management tools. Native integration, cloud-provider and pixel-perfect acceptance remain independently verifiable requirements—not assumed guarantees.
 
 ## See Ghost FTP in action
 
@@ -57,7 +57,7 @@ Move files, manage connections and keep important server work organized with an 
 
 Linux visuals are captured from the **actual running Ghost FTP executable**, not the supplied designs. The [native Linux QA artifact (v0.99.19)](https://github.com/bren-wp/Ghost-FTP/actions/runs/40793685872/artifacts/12862768368) contains the original **1290×852 Files and Sync screenshots**, including SHA-256 checksums and launch logs. See the [evidence and measured differences](docs/qa/PHASE3_REAL_WINDOWS_LINUX_SYNC_V0_99_19_2026_10_29.md). Historical artifact availability is subject to GitHub Actions retention.
 
-The current Preview README gallery includes **eight genuine Linux windows**: Splash, Files, Sites, New Connection, Transfers, Settings, Sync and About. These are byte-verified native QA captures from GitHub Actions run 41524829466 at source SHA 01d816df5bdd3c76a8fa9c062371777cd345aa28, **not screenshots from the published v0.99.29 release**. They are evidence for comparison, not proof of pixel-perfect 1:1 design acceptance. Reference mockups are **never** repurposed as product screenshots.
+The historical Preview gallery includes **seven genuine Linux workspaces**: Files, Sites, New Connection, Transfers, Settings, Sync and About. The former splash image is archived as an earlier QA capture, but the desktop app now launches directly into Files. These are byte-verified native QA captures from GitHub Actions run 41524829466 at source SHA 01d816df5bdd3c76a8fa9c062371777cd345aa28, **not screenshots from the published v0.99.29 release**. They are evidence for comparison, not proof of pixel-perfect 1:1 design acceptance. Reference mockups are **never** repurposed as product screenshots.
 
 
 ## Install Ghost FTP on macOS without paid Apple signing
@@ -146,26 +146,25 @@ Made by **Brendigo**.
 
 <!-- BEGIN:real-linux-native-captures -->
 
-### Linux — eight real native Ghost FTP screens
+### Linux — seven real native Ghost FTP workspaces
 
 <table>
 <tr>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png" alt="Genuine Linux Ghost FTP Splash window" width="390" /></a><br /><strong>Splash</strong></td>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-files.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-files.png" alt="Genuine Linux Ghost FTP Files window" width="390" /></a><br /><strong>Files</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-files.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-files.png" alt="Genuine Linux Ghost FTP Files workspace" width="390" /></a><strong>Files</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png" alt="Genuine Linux Ghost FTP Sites workspace" width="390" /></a><strong>Sites</strong></td>
 </tr>
 <tr>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png" alt="Genuine Linux Ghost FTP Sites window" width="390" /></a><br /><strong>Sites</strong></td>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png" alt="Genuine Linux Ghost FTP New-Connection window" width="390" /></a><br /><strong>New-Connection</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png" alt="Genuine Linux Ghost FTP New Connection workspace" width="390" /></a><strong>New Connection</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png" alt="Genuine Linux Ghost FTP Transfers workspace" width="390" /></a><strong>Transfers</strong></td>
 </tr>
 <tr>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png" alt="Genuine Linux Ghost FTP Transfers window" width="390" /></a><br /><strong>Transfers</strong></td>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png" alt="Genuine Linux Ghost FTP Settings window" width="390" /></a><br /><strong>Settings</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png" alt="Genuine Linux Ghost FTP Settings workspace" width="390" /></a><strong>Settings</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png" alt="Genuine Linux Ghost FTP Sync workspace" width="390" /></a><strong>Sync</strong></td>
 </tr>
 <tr>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png" alt="Genuine Linux Ghost FTP Sync window" width="390" /></a><br /><strong>Sync</strong></td>
-<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-about.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-about.png" alt="Genuine Linux Ghost FTP About window" width="390" /></a><br /><strong>About</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-about.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-about.png" alt="Genuine Linux Ghost FTP About workspace" width="390" /></a><strong>About</strong></td>
 </tr>
 </table>
-<p>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>; source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. Captured at 1290×852 in Xvfb, no fabricated FTP connections, no design mockups. Native capture does not establish pixel-perfect 1:1 design parity.</p>
+<p>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>; source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. Captured at 1290×852 in Xvfb, no fabricated FTP connections, no design mockups. These seven screenshots predate the no-splash update; they remain historical evidence, not screenshots of the new build or pixel-perfect acceptance. The old splash PNG is retained only in historical QA data, not in the active gallery.</p>
 
 <!-- END:real-linux-native-captures -->
