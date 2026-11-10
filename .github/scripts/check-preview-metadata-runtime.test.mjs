@@ -19,11 +19,21 @@ const PINNED = {
   "0.99.24": "f36026188b3defedb9464ad04e4c234afb8a399b",
   "0.99.25": "2e00a640c65dcd4d73c0401071703c9312eb7881",
 };
+const VERSION_METADATA = JSON.parse(fs.readFileSync(path.join(ROOT, "version.json"), "utf8"));
+const PREVIOUS_PUBLISHED = VERSION_METADATA.previousPublishedVersion;
 const RECENT = {
   "0.99.37": "12656d9c78189b916ca3bf04fbb281a84e066013",
   "0.99.38": "6a192fbb41cc6af89e0ad75432156f97c869253d",
   "0.99.39": "fb213d07a1c9da8a037ad20e8e7a32f6040f66d2",
+  "0.99.40": "e9e3f21bf6daa9e109ed4e26cee82931815e9857",
 };
+// Unit-test-only fixtures: as the release train advances, model the newest
+// canonical predecessor without falsely asserting an actual GitHub release
+// exists. The production script verifies the REAL immutable remote tag SHA.
+if (!(PREVIOUS_PUBLISHED in RECENT)) {
+  RECENT[PREVIOUS_PUBLISHED] = createHash("sha1")
+    .update("unit-fixture:" + PREVIOUS_PUBLISHED).digest("hex");
+}
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 // This fake emulates *both* legacy metadata API checks and the modern
@@ -159,8 +169,11 @@ test("release corrector quarantines incomplete v0.99.24 and repairs recent 21-as
   assert.equal(newer.prerelease, true);
   assert.equal(newer.name, "Ghost FTP 0.99.25 Preview");
   for (const [version, release] of Object.entries(recent)) {
-    assert.equal(release.prerelease,true,version+" must be reclassified Preview");
-    assert.equal(release.name,"Ghost FTP "+version+" Preview");
+    // The corrector checks recent historical editions and the rolling
+    // predecessor/current pair, not every intervening archived version.
+    const shouldRepair = ["0.99.37", "0.99.38", PREVIOUS_PUBLISHED].includes(version);
+    assert.equal(release.prerelease, shouldRepair, version+" unexpected classification");
+    if (shouldRepair) assert.equal(release.name,"Ghost FTP "+version+" Preview");
     assert.equal(release.assets.length,21);
     assert.equal(release.target_commitish,RECENT[version]);
   }
@@ -177,13 +190,13 @@ test("release corrector blocks historical asset tampering before any recent muta
   assert.notEqual(result.status,0);
   assert.match(result.stderr,/asset inventory changed; manual provenance review required/);
   assert.equal(newer.prerelease,false,"must fail before editing other releases");
-  assert.equal(recent["0.99.39"].prerelease,false);
+  assert.equal(recent[PREVIOUS_PUBLISHED].prerelease,false);
 });
 
 test("release corrector refuses tampered released SHA256SUMS without changing the affected release", () => {
   const {result,recent} = runScenario(data =>
-    fs.writeFileSync(path.join(data,"0.99.39.sum"),"corrupt\n"));
+    fs.writeFileSync(path.join(data,PREVIOUS_PUBLISHED + ".sum"),"corrupt\n"));
   assert.notEqual(result.status,0);
   assert.match(result.stderr,/SHA256SUMS|SHA-256/);
-  assert.equal(recent["0.99.39"].prerelease,false);
+  assert.equal(recent[PREVIOUS_PUBLISHED].prerelease,false);
 });
