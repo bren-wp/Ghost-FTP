@@ -62,19 +62,32 @@ function calendarDay(date: Date, daysBack: number): string {
 export function mostRecentOccurrence(schedule: ScheduleClock, now: Date): Date | null {
   if (!Number.isFinite(now.getTime())) return null;
   const anchor = parseLocalOccurrence(schedule.date, schedule.time);
-  if (!anchor || now.getTime() < anchor.getTime()) return null;
-  if (schedule.mode === "once") return anchor;
+  if (schedule.mode === "once") {
+    // A one-shot occurrence must never fire at a silently shifted DST time.
+    if (!anchor || now.getTime() < anchor.getTime()) return null;
+    return anchor;
+  }
+  if (!validDateInput(schedule.date) || !validClock(schedule.time)) return null;
+
+  // A recurring schedule's starting calendar date is valid even if its chosen
+  // hour falls inside the spring DST gap. That single nonexistent occurrence
+  // must be skipped, not permanently disable every future daily/weekly run.
+  const afterStart = (due: Date): boolean =>
+    anchor ? due.getTime() >= anchor.getTime() : localDateInputValue(due) >= schedule.date;
 
   if (schedule.mode === "daily") {
     for (const daysBack of [0, 1]) {
       const due = parseLocalOccurrence(calendarDay(now, daysBack), schedule.time);
-      if (due && due.getTime() <= now.getTime() && due.getTime() >= anchor.getTime()) return due;
+      if (due && due.getTime() <= now.getTime() && afterStart(due)) return due;
     }
   } else if (schedule.mode === "weekly") {
-    const daysBack = (now.getDay() - anchor.getDay() + 7) % 7;
+    // Use a stable calendar noon for the weekday when the 02:xx start time
+    // does not exist (DST gap); never use a shifted wall-clock timestamp.
+    const startWeekday = new Date(`${schedule.date}T12:00:00`).getDay();
+    const daysBack = (now.getDay() - startWeekday + 7) % 7;
     for (const back of [daysBack, daysBack + 7]) {
       const due = parseLocalOccurrence(calendarDay(now, back), schedule.time);
-      if (due && due.getTime() <= now.getTime() && due.getTime() >= anchor.getTime()) return due;
+      if (due && due.getTime() <= now.getTime() && afterStart(due)) return due;
     }
   }
   return null;

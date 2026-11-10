@@ -50,6 +50,47 @@ process.env.TZ = "Europe/Zagreb";
     assert.equal(first?.getTime(), second?.getTime());
   });
 
+test("daily recurring schedule survives a DST-gap start date without shifting its clock", () => {
+  const schedule = { mode: "daily", date: "2026-03-29", time: "02:30" };
+  assert.equal(
+    mostRecentOccurrence(schedule, new Date("2026-03-29T04:00:00+02:00")),
+    null,
+    "the nonexistent start-day hour must be skipped"
+  );
+  assert.equal(
+    mostRecentOccurrence(schedule, new Date("2026-03-30T02:29:00+02:00")),
+    null,
+    "the first valid daily occurrence must not run early"
+  );
+  assert.equal(
+    mostRecentOccurrence(schedule, new Date("2026-03-30T03:00:00+02:00"))?.getTime(),
+    new Date("2026-03-30T02:30:00+02:00").getTime(),
+    "the following day's valid local 02:30 must execute normally"
+  );
+});
+
+test("weekly recurring schedule survives a DST-gap start date without changing weekday", () => {
+  const schedule = { mode: "weekly", date: "2026-03-29", time: "02:30" };
+  assert.equal(
+    mostRecentOccurrence(schedule, new Date("2026-04-04T23:59:00+02:00")),
+    null,
+    "no valid Sunday occurrence has elapsed before the first Sunday after the gap"
+  );
+  assert.equal(
+    mostRecentOccurrence(schedule, new Date("2026-04-05T03:00:00+02:00"))?.getTime(),
+    new Date("2026-04-05T02:30:00+02:00").getTime(),
+    "the next Sunday must run at the exact valid 02:30"
+  );
+});
+
+test("one-shot DST-gap dates remain rejected, never rewritten into a later transfer", () => {
+  const schedule = { mode: "once", date: "2026-03-29", time: "02:30" };
+  assert.equal(
+    mostRecentOccurrence(schedule, new Date("2026-04-05T03:00:00+02:00")),
+    null
+  );
+});
+
 test("a missed schedule remains due after laptop sleep without generating a second occurrence", () => {
   const schedule = { mode: "daily", date: "2026-11-01", time: "13:00" };
   const wake = new Date("2026-11-10T17:00:00+01:00");
