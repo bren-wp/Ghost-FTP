@@ -6,6 +6,10 @@ on:
   # Detect and correct external metadata drift, including changes made after a push.
   schedule:
     - cron: '*/15 * * * *'
+  # External release edits can change the Preview classification after CI.
+  # An Actions-token PATCH does not generate another workflow event.
+  release:
+    types: [edited, published]
   workflow_run:
     workflows: ["Ghost FTP release"]
     types: [completed]
@@ -20,19 +24,19 @@ concurrency:
 
 jobs:
   metadata:
-    if: ${{ github.repository == 'bren-wp/Ghost-FTP' && (((github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)) }}
+    if: ${{ github.repository == 'bren-wp/Ghost-FTP' && (((github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) || (github.event_name == 'release' && github.event.release.draft == false && startsWith(github.event.release.tag_name, 'v0.99.'))) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event_name == 'release' && 'main' || (github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha) }}
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Verify and correct Preview classification without modifying release assets or tags
         env:
           GH_TOKEN: ${{ github.token }}
-          GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || github.event_name == 'schedule' && 'schedule' || 'push' }}
+          GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || github.event_name == 'release' && 'release-edited' || github.event_name == 'schedule' && 'schedule' || 'push' }}
           GHOSTFTP_PUBLISHED_SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
@@ -40,5 +44,11 @@ jobs:
           bash .github/scripts/enforce-preview-release-metadata.sh
           if [ "$GHOSTFTP_METADATA_EVENT" = "successful-release" ]; then
             VERSION="$(node -p 'require("./version.json").version')"
+            bash .github/scripts/check-release-index.sh "$VERSION" "$GHOSTFTP_PUBLISHED_SOURCE_SHA"
+            # Catch metadata changes which arrive AFTER the initial publication
+            # verification. The recurring schedule and release.edited event
+            # continue to heal later drift, without touching immutable assets.
+            sleep 95
+            bash .github/scripts/enforce-preview-release-metadata.sh
             bash .github/scripts/check-release-index.sh "$VERSION" "$GHOSTFTP_PUBLISHED_SOURCE_SHA"
           fi
