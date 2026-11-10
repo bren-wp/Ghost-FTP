@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -56,4 +58,35 @@ test("local dist validates real content, rejects symlink and ignores staging dir
     fs.writeFileSync(path.join(tmp, records[0].name), "tampered");
     assert.throws(() => validateLocalReleaseDirectory(version, tmp), /SHA-256 mismatch/);
   } finally { fs.rmSync(tmp, {recursive:true, force:true}); }
+});
+
+test("metadata repair accepts false Preview ONLY with verified complete immutable assets, never as public release", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ghostftp-preview-repair-"));
+  try {
+    const { records, sums } = fixture();
+    const releasePath = path.join(tmp, "release.json");
+    const checksumPath = path.join(tmp, "sums.txt");
+    const script = fileURLToPath(new URL("./validate-release-assets.mjs", import.meta.url));
+    fs.writeFileSync(checksumPath, sums);
+    const verify = (mode) => spawnSync(process.execPath,
+      [script, version, mode, releasePath, "--checksums", checksumPath], { encoding: "utf8" });
+    let release = { draft: false, prerelease: false, tag_name: "v" + version, assets: records };
+    fs.writeFileSync(releasePath, JSON.stringify(release));
+    assert.equal(verify("--metadata-repair-json").status, 0, "misclassified complete release may be repaired");
+    assert.notEqual(verify("--release-json").status, 0, "strict publication gate must reject false Preview");
+    release = {...release, draft: true};
+    fs.writeFileSync(releasePath, JSON.stringify(release));
+    assert.notEqual(verify("--metadata-repair-json").status, 0, "Draft cannot be repaired as published");
+    release = {...release, draft: false, assets: records.slice(1)};
+    fs.writeFileSync(releasePath, JSON.stringify(release));
+    assert.notEqual(verify("--metadata-repair-json").status, 0, "incomplete published inventory cannot be repaired");
+    release = {...release, assets: records, prerelease: true};
+    fs.writeFileSync(releasePath, JSON.stringify(release));
+    assert.equal(verify("--release-json").status, 0, "strict publication gate accepts complete Preview");
+    assert.equal(verify("--metadata-repair-json").status, 0, "idempotent repair accepts true Preview");
+    fs.writeFileSync(checksumPath, Buffer.from("corrupt data\n"));
+    assert.notEqual(verify("--metadata-repair-json").status, 0, "tampered checksums block repair");
+  } finally {
+    fs.rmSync(tmp, {recursive:true, force:true});
+  }
 });

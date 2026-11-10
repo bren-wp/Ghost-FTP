@@ -1,3 +1,10 @@
+## 0.99.40 Preview — 10 November 2026
+
+- Correct the remaining P0 Preview metadata race: GitHub marked public v0.99.39 `prerelease:false` after its successful SHA-256 and post-release verification. All 21 assets remained present. The external actor or mechanism causing that later edit is not established.
+- Repair recent fully checked desktop Previews not just immediately after release but also on main push, scheduled metadata checks and external release edits. Preserve published artifacts, tags and immutable SHA-256 provenance.
+- Before PATCH, verify source version at immutable tag, exact release asset inventory and downloaded SHA256SUMS. Add strict separation between metadata-repair mode (accepts misclassified release only to correct it) and post-release acceptance (requires `prerelease:true`).
+- Re-run post-release metadata check after a delay to detect late changes; keep a scheduled fallback. Do not label unsigned packages Stable or claim verified real-cloud/physical-device and pixel-perfect UI tests.
+
 ## 0.99.39 Preview — 10 November 2026
 
 - Fixed the post-release CI mismatch: a canonical asset contract replaces the obsolete minimum of 25, supporting the 21 core desktop packages or the complete four-file optional signed updater group.

@@ -1,3 +1,5 @@
+> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Repair late GitHub prerelease metadata drift with verified checksums and post-publication regression gates. Public predecessor: v0.99.39. Live-provider, production signing and full pixel-parity acceptance remain separate.
+
 > **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
 
 > **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
