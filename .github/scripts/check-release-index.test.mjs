@@ -3,41 +3,43 @@ import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import test from "node:test";
-
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const read=(p)=>fs.readFileSync(path.join(root,p),"utf8");
 
-test("post-publication verifies newest Preview is visible on public Releases index",()=>{
+test("publisher and post-release checker share one exact manifest",()=>{
   const verify=read(".github/scripts/check-release-index.sh");
+  const publish=read(".github/scripts/publish-release.sh");
   const workflow=read(".github/workflows/ghostftp-preview-metadata.yml");
+  const manifest=JSON.parse(read(".github/scripts/release-artifacts.json"));
+  assert.equal(manifest.schema,1);
+  assert.equal(manifest.required.length,21);
+  assert.equal(manifest.optional_updater.length,4);
+  assert.equal(new Set([...manifest.required,...manifest.optional_updater]).size,25);
+  for(const script of [publish,verify]) assert.ok(script.includes("validate-release-assets.mjs"));
+  assert.ok(publish.includes("--list-required"));
+  assert.ok(publish.includes("--list-optional"));
+  assert.ok(publish.includes("--dist dist"));
+  assert.ok(verify.includes("--release-json"));
+  assert.ok(verify.includes("--checksums"));
+  assert.ok(verify.includes("gh release download"));
   assert.ok(verify.includes("https://github.com/$REPO/releases"));
   assert.ok(verify.includes('repos/$REPO/releases?per_page=100'));
   assert.ok(verify.includes("--paginate --slurp"));
   assert.ok(verify.includes('repos/$REPO/releases?per_page=30'));
   assert.ok(verify.includes('test "$LATEST_TAG" = "$TAG"'));
   assert.ok(verify.includes('sort_by(ltrimstr("v") | split(".") | map(tonumber))'));
-  assert.ok(verify.includes("sha256:[a-f0-9]{64}"));
-  assert.ok(verify.includes("GhostFTP-macOS-v$VERSION-Preview.zip"));
-  assert.ok(verify.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
-  assert.ok(verify.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));
-  assert.ok(verify.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"));
-  assert.ok(verify.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"));
+  assert.ok(!verify.includes(' -ge 25'));
   assert.ok(workflow.includes("bash .github/scripts/check-release-index.sh"));
   assert.ok(workflow.includes("GHOSTFTP_PUBLISHED_SOURCE_SHA"));
-  for(const text of ["gh release delete","--cleanup-tag","git push origin :refs/tags/"]){
-    assert.ok(!verify.includes(text));
-  }
+  assert.ok(read(".github/workflows/ghostftp-quality.yml").includes("validate-release-assets.test.mjs"));
+  for(const text of ["gh release delete","--cleanup-tag","git push origin :refs/tags/"]) assert.ok(!verify.includes(text));
 });
-
 test("README links to all public Previews, never stable-only /releases/latest",()=>{
   const readme=read("README.md");
   assert.ok(readme.includes("[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases)"));
   assert.ok(!readme.includes("releases/latest"));
-  const version = JSON.parse(read("version.json"));
-  assert.ok(readme.includes(`Ghost FTP ${version.version} (development Preview)`));
-  // The source may be ready for review before its predecessor is actually
-  // published. Never require README to call an unpublished tag "verified".
-  // Release promotion itself separately checks the real immutable tag.
-  assert.equal(version.previousPublishedVersion, version.previousVersion);
-  assert.ok(readme.includes(`Previously published: v${version.previousPublishedVersion}`));
+  const version=JSON.parse(read("version.json"));
+  assert.ok(readme.includes("Ghost FTP "+version.version+" (development Preview)"));
+  assert.equal(version.previousPublishedVersion,version.previousVersion);
+  assert.ok(readme.includes("Previously published: v"+version.previousPublishedVersion));
 });
