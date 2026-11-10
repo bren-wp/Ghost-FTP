@@ -53,4 +53,4 @@ Implemented behavior, source inspection, automated CI and target-OS acceptance a
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.42. Previous canonical release: 0.99.42. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.42. Previous canonical release: 0.99.41. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
