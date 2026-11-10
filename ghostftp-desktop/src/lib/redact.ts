@@ -5,14 +5,18 @@ const SECRET_QUERY =
   /([?&](?:token|code|password|passphrase|secret|client[_-]?secret|id[_-]?token|session[_-]?token|client[_-]?assertion|api[_-]?key|access[_-]?token|refresh[_-]?token|x-amz-signature|x-amz-security-token|x-amz-credential|x-goog-signature|x-goog-credential|sig|signature|awsaccesskeyid|googleaccessid)=)[^&\s]+/gi;
 // URL query fields are handled by SECRET_QUERY. Do not re-match those
 // assignments and accidentally discard unrelated query parameters.
+// Passwords in diagnostic strings may be JSON-escaped, quoted shell arguments,
+// or truncated by a transport error. Match escaped quotes as part of the secret,
+// and mask an unterminated quoted value to end-of-message rather than leaking
+// its remainder. Input is bounded above before these patterns run.
 const SECRET_ASSIGNMENT =
-  /\b(?<![?&])((?:password|passphrase|secret|token|client[_-]?secret|id[_-]?token|session[_-]?token|client[_-]?assertion|api[_-]?key|access[_-]?token|refresh[_-]?token|aws_secret_access_key|pgpassword)\s*(?:=|:)\s*)(?:"[^"]*"|'[^']*'|[^\s;]+)/gi;
+  /\b(?<![?&])((?:password|passphrase|secret|token|client[_-]?secret|id[_-]?token|session[_-]?token|client[_-]?assertion|api[_-]?key|access[_-]?token|refresh[_-]?token|aws_secret_access_key|pgpassword)\s*(?:=|:)\s*)(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|"(?:\\[\s\S]|[^"\\])*$|'(?:\\[\s\S]|[^'\\])*$|[^\s;]+)/gi;
 const SECRET_FLAG =
-  /(\s--?(?:password|passphrase|secret|token|client-secret|id-token|session-token|client-assertion|api-key|apikey|access-token|refresh-token)(?:=|\s+))(?:"[^"]*"|'[^']*'|\S+)/gi;
+  /(\s--?(?:password|passphrase|secret|token|client-secret|id-token|session-token|client-assertion|api-key|apikey|access-token|refresh-token)(?:=|\s+))(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|"(?:\\[\s\S]|[^"\\])*$|'(?:\\[\s\S]|[^'\\])*$|\S+)/gi;
 const AUTH_HEADER =
   /\b((?:authorization|proxy-authorization)\s*:\s*)(?:bearer|basic)?\s*[^\s,;]+/gi;
 const JSON_SECRET =
-  /(["'](?:password|passphrase|secret|token|client[_-]?secret|id[_-]?token|session[_-]?token|client[_-]?assertion|api[_-]?key|access[_-]?token|refresh[_-]?token)["']\s*:\s*)["'][^"']*["']/gi;
+  /(["'](?:password|passphrase|secret|token|client[_-]?secret|id[_-]?token|session[_-]?token|client[_-]?assertion|api[_-]?key|access[_-]?token|refresh[_-]?token)["']\s*:\s*)(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|"(?:\\[\s\S]|[^"\\])*$|'(?:\\[\s\S]|[^'\\])*$)/gi;
 const BEARER_TOKEN = /\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi;
 const URL_PASSWORD =
   /([a-z][a-z0-9+.-]*:\/\/[^:\s/@]+:)[^@\s/]+@/gi;
