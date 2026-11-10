@@ -1,3 +1,11 @@
+## 0.99.46 Preview — 11 November 2026
+
+- Align Windows WebView2 and Linux WebKit/GTK **New Connection → Protocol** selector styling: same dark field surface, option foreground/background, and one shared decorative chevron while retaining the native keyboard-accessible `<select>` with real SFTP/FTP/FTPS values and the existing change handler.
+- Preserve operating-system forced-colors/high-contrast accessibility by restoring the native dropdown arrow and system palette in that mode.
+- Add regression assertions for the real native control, color scheme, options, non-interactive icon and forced-colors fallback. Preserve direct Files startup, credential protections and transfer behavior.
+- The source mismatch baseline is the genuine Windows/Linux v0.99.43 New Connection screenshot pair (46.5378% different RGBA pixels across full 1290×852 images), **not** reference-art acceptance; a new installed v0.99.46 visual audit is still needed.
+- Previous public Preview: v0.99.45. Release only after exact-head CI, authentic package SHA-256 inventory and post-publication validation. No claim of 59/59 pixel-perfect parity or production signing.
+
 ## 0.99.45 Preview — 10 November 2026
 
 - Fix credential redaction in Windows/Linux desktop diagnostics when quoted JSON, plain assignment or CLI secret values contain escaped quotation marks; never expose the trailing portion of a password or OAuth token.

@@ -1,3 +1,5 @@
+> **Current UI QA (11 November 2026):** Ghost FTP 0.99.46 Preview development. Public predecessor: v0.99.45. Cross-platform New Connection protocol selector now uses a consistent accessible dark theme; exact native screenshot acceptance remains pending. [Verified v0.99.43 New Connection screenshot mismatch and remediation contract](NEW_CONNECTION_SELECTOR_0.99.46.md).
+
 > **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
 
 # Direct Files startup and native QA
