@@ -7,7 +7,7 @@ test -n "$GH_TOKEN"
 test "$(node -p 'require("./version.json").channel')" = "preview"
 CURRENT="$(node -p 'require("./version.json").version')"
 MODE="$GHOSTFTP_METADATA_EVENT"
-case "$MODE" in push|schedule|successful-release) ;; *) exit 1 ;; esac
+case "$MODE" in push|schedule|successful-release|release-edited) ;; *) exit 1 ;; esac
 
 enforce_preview() {
   local version="$1" sha="$2" tag="v$1" release id name after
@@ -95,8 +95,67 @@ audit_incomplete_v09924
 # stable GitHub metadata. Reclassify only after the normal immutable gates.
 enforce_preview "0.99.25" "2e00a640c65dcd4d73c0401071703c9312eb7881"
 
+# Recent desktop releases have one exact package contract, unlike legacy tags.
+# Re-check their immutable source and the FULL downloadable SHA256SUMS before
+# repairing GitHub's editable prerelease/name fields. Never touch body or assets.
+PREVIOUS="$(node -p 'require("./version.json").previousPublishedVersion')"
+
+repair_recent() {
+  local version="$1" pinned_sha="${2:-}" tag="v$1"
+  local release sha source_version tmp checksum
+  # A push runs before the release workflow. No public current release exists
+  # yet: that is expected, not evidence of a successful publication.
+  if [ "$version" = "$CURRENT" ] && [ "$MODE" != "successful-release" ]; then
+    if ! gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" >/dev/null 2>&1; then
+      echo "::notice::$tag not yet publicly visible; release workflow is responsible for publishing it."
+      return 0
+    fi
+  fi
+  release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
+  sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')"
+  [[ "$sha" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Non-commit tag for $tag" >&2; exit 1; }
+  if [ -n "$pinned_sha" ] && [ "$sha" != "$pinned_sha" ]; then
+    echo "::error::Source SHA for $tag drifted from expected $pinned_sha." >&2
+    exit 1
+  fi
+  test "$(jq -r '.target_commitish' <<< "$release")" = "$sha" || {
+    echo "::error::Release $tag target SHA disagrees with the immutable tag." >&2
+    exit 1
+  }
+  source_version="$(gh api "repos/$GITHUB_REPOSITORY/contents/version.json?ref=$tag" --jq '.content' |
+    base64 --decode | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version')"
+  test "$source_version" = "$version" || {
+    echo "::error::Tag $tag does not contain matching version.json." >&2
+    exit 1
+  }
+  checksum="GhostFTP-v${version}-SHA256SUMS.txt"
+  tmp="$(mktemp -d)"
+  printf '%s\n' "$release" > "$tmp/release.json"
+  gh release download "$tag" --pattern "$checksum" --dir "$tmp" >/dev/null
+  test -s "$tmp/$checksum" || { echo "::error::Missing released checksums for $tag" >&2; exit 1; }
+  # Metadata repair may read prerelease:false to FIX it. This is NOT the
+  # normal post-publication gate, which still rejects prerelease:false.
+  node .github/scripts/validate-release-assets.mjs "$version" \
+    --metadata-repair-json "$tmp/release.json" --checksums "$tmp/$checksum"
+  rm -rf "$tmp"
+  enforce_preview "$version" "$sha"
+}
+
 if [ "$MODE" = successful-release ]; then
   SOURCE_SHA="$GHOSTFTP_PUBLISHED_SOURCE_SHA"
   test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-  enforce_preview "$CURRENT" "$SOURCE_SHA"
 fi
+
+# Repair past misclassified 21-asset desktop releases as well as the moving
+# predecessor/current pair. On main push the current version may not yet
+# exist; on successful-release it MUST exist and match the source SHA.
+declare -A SEEN_RECENT
+for recent in "0.99.37" "0.99.38" "$PREVIOUS" "$CURRENT"; do
+  if [ -n "${SEEN_RECENT[$recent]:-}" ]; then continue; fi
+  SEEN_RECENT[$recent]=1
+  if [ "$MODE" = successful-release ] && [ "$recent" = "$CURRENT" ]; then
+    repair_recent "$recent" "$SOURCE_SHA"
+  else
+    repair_recent "$recent"
+  fi
+done
