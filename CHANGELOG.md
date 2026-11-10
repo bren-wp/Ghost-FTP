@@ -1,3 +1,11 @@
+## 0.99.39 Preview — 10 November 2026
+
+- Fixed the post-release CI mismatch: a canonical asset contract replaces the obsolete minimum of 25, supporting the 21 core desktop packages or the complete four-file optional signed updater group.
+- Publication and post-release checks validate exactly the same asset inventory. The public checker downloads the actual SHA256SUMS file and verifies asset names, nonzero sizes, upload states and every remote SHA-256 digest.
+- Regression tests cover complete/partial manifests, checksum corruption, unexpected packages, symlinks and missing artifacts.
+- Preserved Windows/Linux client functionality, existing macOS preview packaging and immutable historical releases. Android remains retired.
+- No claim of stable production signing, live-provider coverage, or 1:1 pixel-verification for 59 references.
+
 ## 0.99.38 Preview — 10 November 2026
 
 - Prevent repeat release publication failure: skip directories and symlinks under `dist/` in BOTH upload and remote SHA-256 loops. Retain exact 21-file inventory, checksummed immutable drafts and no signed-updater fallback.
