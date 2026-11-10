@@ -146,6 +146,68 @@ if [ "$MODE" = successful-release ]; then
   test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 fi
 
+# Restore the ORIGINAL published filename of one known v0.99.41 asset.
+# On 10 Nov 2026 its public GitHub release metadata was edited after successful
+# publication: asset ID 729952759 was renamed from the checksum-manifest name
+# to a non-Preview name, and the release was marked stable. This is a
+# single-incident, fail-closed metadata-only correction. Never rewrite bytes.
+repair_v09941_asset_name() {
+  local tag="v0.99.41"
+  local source_sha="0e420f35683ca8f85285e50bbbfb0286562ff5cd"
+  local asset_id="729952759"
+  local old_name="GhostFTP-macOS-v0.99.41.zip"
+  local expected_name="GhostFTP-macOS-v0.99.41-Preview.zip"
+  local expected_digest="sha256:201600cd6de99ac805f848a3ccdb951edcd84a4a3e2299fb2542e6d8d9fa254c"
+  local checksum="GhostFTP-v0.99.41-SHA256SUMS.txt"
+  local checksum_digest="0bc07fa0acb79f427dab8bb075ad19d5561046416c5ab1ea787cd7bc5c264cda"
+  local release normalized tmp patched current
+  # Older source unit fixtures may predate the publication of this release.
+  if ! release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"; then
+    return 0
+  fi
+  if jq -e --arg name "$expected_name" '[.assets[] | select(.name == $name)] | length == 1' <<< "$release" >/dev/null; then
+    return 0
+  fi
+  test "$(jq -r '.target_commitish' <<< "$release")" = "$source_sha" || {
+    echo "::error::v0.99.41 source changed; asset recovery forbidden." >&2; exit 1;
+  }
+  test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')" = "$source_sha" || {
+    echo "::error::v0.99.41 immutable tag changed; asset recovery forbidden." >&2; exit 1;
+  }
+  test "$(jq -r '.draft' <<< "$release")" = false
+  test "$(jq -r '.assets | length' <<< "$release")" = 21
+  test "$(jq -r --argjson id "$asset_id" --arg name "$old_name" --arg digest "$expected_digest" \
+    '[.assets[] | select(.id == $id and .name == $name and .digest == $digest and .size == 1250624 and .state == "uploaded")] | length' <<< "$release")" = 1 || {
+    echo "::error::v0.99.41 asset identity, size or hash changed; manual provenance review required." >&2; exit 1;
+  }
+  tmp="$(mktemp -d)"
+  gh release download "$tag" --pattern "$checksum" --dir "$tmp" >/dev/null
+  test "$(sha256sum "$tmp/$checksum" | awk '{print $1}')" = "$checksum_digest" || {
+    echo "::error::v0.99.41 original published SHA256SUMS changed; manual review required." >&2; exit 1;
+  }
+  # Verify the ENTIRE original checksum manifest by temporarily normalizing
+  # ONLY the erroneous API asset label, leaving all IDs, sizes and hashes intact.
+  jq --argjson id "$asset_id" --arg name "$expected_name" \
+    '.assets |= map(if .id == $id then .name = $name else . end)' \
+    <<< "$release" > "$tmp/normalized.json"
+  node .github/scripts/validate-release-assets.mjs 0.99.41 \
+    --metadata-repair-json "$tmp/normalized.json" --checksums "$tmp/$checksum"
+  patched="$(gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" -f name="$expected_name")"
+  test "$(jq -r '.id' <<< "$patched")" = "$asset_id"
+  test "$(jq -r '.name' <<< "$patched")" = "$expected_name"
+  test "$(jq -r '.digest' <<< "$patched")" = "$expected_digest"
+  test "$(jq -r '.size' <<< "$patched")" = 1250624
+  current="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag")"
+  test "$(jq -c '[.assets[] | {id,name,size,digest}] | sort_by(.id)' <<< "$current")" = \
+       "$(jq -c '[.assets[] | {id,name,size,digest}] | sort_by(.id)' "$tmp/normalized.json")" || {
+    echo "::error::v0.99.41 asset inventory changed during filename restoration." >&2; exit 1;
+  }
+  rm -rf "$tmp"
+  echo "::notice::Restored verified original v0.99.41 asset filename without changing its bytes, ID, size or SHA-256."
+}
+
+repair_v09941_asset_name
+
 # Repair past misclassified 21-asset desktop releases as well as the moving
 # predecessor/current pair. On main push the current version may not yet
 # exist; on successful-release it MUST exist and match the source SHA.
