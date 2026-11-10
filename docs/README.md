@@ -1,3 +1,5 @@
+> **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
+
 > **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
 
 > **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**

@@ -1,3 +1,5 @@
+> **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
+
 > **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
 
 > **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
@@ -22,9 +24,9 @@
 
 > **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
 
-> Active source/release cycle: **0.99.44 Preview**. Previous canonical release: **0.99.43**. Client-only packages required.
+> Active source/release cycle: **0.99.45 Preview**. Previous canonical release: **0.99.44**. Client-only packages required.
 
-> Active source/release cycle: **0.99.44 Preview**. Previous canonical release: **0.99.43**. Client-only packages required.
+> Active source/release cycle: **0.99.45 Preview**. Previous canonical release: **0.99.44**. Client-only packages required.
 
 # Ghost FTP Versioning
 
@@ -55,8 +57,8 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.44**
-- Previous canonical release: **0.99.43**
+- Active source/release cycle: **0.99.45**
+- Previous canonical release: **0.99.44**
 - Previous source version: **0.99.8** (verified prior published release).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.

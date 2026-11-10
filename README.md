@@ -5,6 +5,8 @@
 
 # Ghost FTP
 
+> **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
+
 > **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
 
 > **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
@@ -17,7 +19,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.44 (development Preview) · Previously published: v0.99.43. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.45 (development Preview) · Previously published: v0.99.44. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 

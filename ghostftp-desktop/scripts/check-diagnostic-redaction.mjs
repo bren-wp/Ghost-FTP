@@ -23,6 +23,31 @@ assert.equal(redact("https://api.example.invalid/?client_secret=OAuthSecretValue
   "https://api.example.invalid/?client_secret=<redacted>&limit=20");
 assert.equal(redact('{"client_secret":"OAuthSecretValue","id_token":"JWTvalue","client_assertion":"proof"}'),
   '{"client_secret":"<redacted>","id_token":"<redacted>","client_assertion":"<redacted>"}');
+const escapedQuote = String.fromCharCode(92) + '"';
+assert.equal(
+  redact('{"client_secret":"prefix' + escapedQuote + 'suffix","id_token":"another-secret"}'),
+  '{"client_secret":"<redacted>","id_token":"<redacted>"}',
+  "escaped quote must not expose the second half of an OAuth credential"
+);
+assert.equal(
+  redact('password="prefix' + escapedQuote + 'suffix" next=visible'),
+  "password=<redacted> next=visible",
+  "escaped quote in a plain assignment must not reveal a credential suffix"
+);
+assert.equal(
+  redact('args --client-secret="prefix' + escapedQuote + 'suffix" --verbose'),
+  "args --client-secret=<redacted> --verbose",
+  "escaped quote in a CLI option must not reveal a credential suffix"
+);
+assert.equal(redact('{"id_token":"missing closing quote'), '{"id_token":"<redacted>"');
+assert.equal(redact('client_secret="unclosed value with spaces'), "client_secret=<redacted>");
+assert.equal(redact('args --client-secret="unclosed value with spaces'), "args --client-secret=<redacted>");
+assert.equal(
+  redact('{"client_secret":"first","id_token":"second"}'),
+  '{"client_secret":"<redacted>","id_token":"<redacted>"}',
+  "separate valid JSON secrets must remain independently redacted"
+);
+
 assert.equal(
   redact("https://ftp.example.invalid/download?token=VeryPrivate&file=sample"),
   "https://ftp.example.invalid/download?token=<redacted>&file=sample",
