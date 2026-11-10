@@ -6250,6 +6250,19 @@ input.ghost-pane-address:focus-visible {
   pointer-events: none;
 }
 
+/* Windows forced-color / high-contrast mode must restore the OS-native arrow
+   and system palette rather than suppressing accessible visual affordances. */
+@media (forced-colors: active) {
+  .ghost-new-connection-panel .ghost-protocol-picker select {
+    appearance: auto;
+    -webkit-appearance: auto;
+    color-scheme: normal;
+    background-color: Canvas;
+    color: CanvasText;
+  }
+  .ghost-protocol-chevron { display: none; }
+}
+
 .ghost-new-connection-security-note {
   display: flex;
   align-items: flex-start;
