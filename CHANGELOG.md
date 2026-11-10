@@ -1,3 +1,10 @@
+## 0.99.42 Preview — 10 November 2026
+
+- Advance source and release metadata past immutable public v0.99.41, preserving its tag and original build artifacts.
+- Add a pinned, SHA-256-verified recovery for one modified historical macOS release asset filename; reject any mismatched size, ID, tag, digest or complete published checksum manifest before making a metadata-only correction.
+- Retain strict Preview classification and full 21-artifact release integrity validation; add a regression test for unverified asset-name drift.
+- Preserve Windows/Linux direct Files startup without splash; production signing, real-device acceptance and all 59 visual-reference comparisons remain unverified.
+
 ## 0.99.41 Preview — 10 November 2026
 
 - Remove the Windows/Linux startup splash overlay and artificial 620 ms delay; show the real Files workspace on the first React paint. Keep Rust initialization, transfer listeners, settings migration, notifications, deep links and updater loading unchanged.
