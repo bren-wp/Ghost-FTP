@@ -1,3 +1,10 @@
+## 0.99.44 Preview — 10 November 2026
+
+- Fix a Windows/Linux recurring transfer scheduler edge case where a daily or weekly schedule started during a nonexistent spring DST local time (for example Europe/Zagreb 02:30 on 29 March 2026) and was previously blocked forever.
+- Only the nonexistent wall-clock occurrence is skipped; later daily and weekly occurrences remain eligible on their chosen local time and weekday, while impossible one-time transfers remain blocked.
+- Add real calendar regression tests for gap-day starts and following valid occurrences, retaining existing fall DST deduplication, wake/resume checks and direct Files startup without splash.
+- Preview predecessor: public v0.99.43. Release requires full exact-head native, security, protocol, documentation and post-release checks; 59-screen pixel-perfect acceptance and production signing remain unverified.
+
 ## 0.99.43 Preview — 10 November 2026
 
 - Redact OAuth client secrets, ID tokens, session tokens and client assertions in plaintext, JSON, command-line and URL diagnostic output.
