@@ -1,4 +1,4 @@
-> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Hardening late GitHub prerelease metadata repair and SHA-256-verified release checks. Public predecessor: v0.99.39. Signing, real external providers and 59-screen 1:1 verification remain separate.
+> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows and Linux open directly into Files, without a splash-screen delay. Scheduled transfers re-check on window wake and reconnection. Public predecessor: v0.99.40 (verification required). No claims of production signing, live-provider acceptance or full pixel-perfect verification.
 
 <div align="center">
 
@@ -14,7 +14,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.40 (development Preview) · Previously published: v0.99.39. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.41 (development Preview) · Previously published: v0.99.40. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -24,7 +24,7 @@ Move files, manage connections and keep important server work organized with an 
 
 ## Made for Windows & Linux
 
-**Dependable transfers. A focused workspace.** Ghost FTP 0.99.40 hardens the release lifecycle against late GitHub Preview metadata changes while preserving Windows/Linux transfer reliability. Windows and Linux share native Rust/Tauri transfer handling, FTP/FTPS/SFTP security checks and responsive file-management tools. Native integration, cloud-provider and pixel-perfect acceptance remain independently verifiable requirements—not assumed guarantees.
+**Dependable transfers. A focused workspace.** Ghost FTP 0.99.41 opens directly into the Files workspace on Windows and Linux, without an unnecessary startup splash. The saved transfer scheduler also promptly re-checks due work after a suspended window or network reconnect. Windows and Linux share native Rust/Tauri transfer handling, FTP/FTPS/SFTP security checks and responsive file-management tools. Native integration, cloud-provider and pixel-perfect acceptance remain independently verifiable requirements—not assumed guarantees.
 
 ## See Ghost FTP in action
 
