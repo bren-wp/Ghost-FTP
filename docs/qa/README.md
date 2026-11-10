@@ -1,3 +1,9 @@
+> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
+
+# Direct Files startup and native QA
+
+Ghost FTP Windows/Linux startup opens the real Files workspace immediately. The retired splash is not an active view or a capture target; historical QA pixels are preserved solely for provenance. Seven current screenshot targets are Files, Sites, New Connection, Transfers, Settings, Sync and About. Capture artifacts remain evidence, not 1:1 visual acceptance. Native application launch, backend initialization and real network operations must still be validated independently.
+
 # Ghost FTP desktop QA index
 
 The supported desktop platforms are Windows, Linux and macOS. Run source-level, protocol-level and installed native-app tests on the same exact commit SHA.

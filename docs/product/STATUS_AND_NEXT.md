@@ -1,3 +1,5 @@
+> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
+
 > **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Repair late GitHub prerelease metadata drift with verified checksums and post-publication regression gates. Public predecessor: v0.99.39. Live-provider, production signing and full pixel-parity acceptance remain separate.
 
 > **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
@@ -30,7 +32,7 @@ Current development source: **0.99.4** (SQLite transactional synchronization saf
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.39**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.40**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -185,4 +187,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.40. Previous canonical release: 0.99.39. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.41. Previous canonical release: 0.99.40. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
