@@ -20,8 +20,8 @@
 
 # Ghost FTP build and QA status
 
-- **Active source/release cycle:** Ghost FTP **0.99.45** Preview.
-- **Previous canonical release:** Ghost FTP **0.99.44**.
+- **Active source/release cycle:** Ghost FTP **0.99.46** Preview.
+- **Previous canonical release:** Ghost FTP **0.99.45**.
 - **Active platforms:** Windows, Linux and macOS desktop.
 - **Primary sources:** `ghostftp-desktop/`, `macos/`; Go compatibility helpers in `tools/`.
 - **Windows/Linux:** React, TypeScript, Rust/Tauri; portable EXE, NSIS, MSI, standalone Linux binary, AppImage, DEB and RPM
