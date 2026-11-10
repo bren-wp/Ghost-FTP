@@ -6223,6 +6223,33 @@ input.ghost-pane-address:focus-visible {
   border-color: #6ed8ff;
 }
 .ghost-new-connection-panel .ghost-ref-field input::placeholder { color: #819bb6; }
+/* One real, keyboard-accessible native select with a shared visual shell.
+   GTK/WebKit and Windows WebView2 otherwise paint different gray OS chrome.
+   The dark scheme also styles the native option popup; no fake dropdown is used. */
+.ghost-protocol-picker { position: relative; min-width: 0; }
+.ghost-new-connection-panel .ghost-protocol-picker select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+  background-color: #0b192b;
+  color: #e5f3ff;
+  padding-right: 36px;
+  cursor: pointer;
+}
+.ghost-new-connection-panel .ghost-protocol-picker select option {
+  background-color: #0b192b;
+  color: #e5f3ff;
+}
+.ghost-protocol-chevron {
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a9c7df;
+  pointer-events: none;
+}
+
 .ghost-new-connection-security-note {
   display: flex;
   align-items: flex-start;
