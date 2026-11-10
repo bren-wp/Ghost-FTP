@@ -90,6 +90,23 @@ for (const [rel, needle] of [
   if (!read(rel).includes(needle)) failures.push(`${rel}: missing update release contract: ${needle}`);
 }
 
+
+const releaseAssets = JSON.parse(read(".github/scripts/release-artifacts.json"));
+const expectedOptional = [
+  "GhostFTP-Windows-x64-Setup-v{version}.exe.sig",
+  "GhostFTP-Linux-x86_64-v{version}.AppImage.sig",
+  "GhostFTP-v{version}-latest.json",
+  "GhostFTP-v{version}-Update-Service.zip",
+];
+if (JSON.stringify(releaseAssets.optional_updater) !== JSON.stringify(expectedOptional)) {
+  failures.push("canonical release asset manifest must preserve complete signed updater contract");
+}
+for (const rel of [".github/scripts/publish-release.sh", ".github/scripts/check-release-index.sh"]) {
+  if (!read(rel).includes("validate-release-assets.mjs")) {
+    failures.push(`${rel}: must share the exact release manifest validator`);
+  }
+}
+
 for (const [rel, needle] of [
   [".github/workflows/ghostftp-release.yml", "Verify optional signed updater publication"],
   [".github/workflows/ghostftp-release.yml", "Signed updater publication is incomplete; signatures, manifest and Update-Service package must be all present or all absent."],
@@ -99,10 +116,6 @@ for (const [rel, needle] of [
   [".github/scripts/publish-release.sh", "UPDATER_PRESENT"],
   [".github/scripts/publish-release.sh", "Signed updater publication is incomplete; updater proof must be all present or all absent."],
   [".github/scripts/publish-release.sh", "Publishing verified packages without a signed in-app updater bundle."],
-  [".github/scripts/publish-release.sh", "GhostFTP-Windows-x64-Setup-v${VERSION}.exe.sig"],
-  [".github/scripts/publish-release.sh", "GhostFTP-Linux-x86_64-v${VERSION}.AppImage.sig"],
-  [".github/scripts/publish-release.sh", "GhostFTP-v${VERSION}-latest.json"],
-  [".github/scripts/publish-release.sh", "GhostFTP-v${VERSION}-Update-Service.zip"],
   [".github/scripts/publish-release.sh", "updates/scripts/verify-manifest.mjs"],
 ]) {
   if (!read(rel).includes(needle)) {
