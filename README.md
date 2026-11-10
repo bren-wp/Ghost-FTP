@@ -1,4 +1,3 @@
-> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows and Linux open directly into Files, without a splash-screen delay. Scheduled transfers re-check on window wake and reconnection. Public predecessor: v0.99.40 (verification required). No claims of production signing, live-provider acceptance or full pixel-perfect verification.
 
 <div align="center">
 
