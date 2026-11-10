@@ -43,3 +43,27 @@ test("README links to all public Previews, never stable-only /releases/latest",(
   assert.equal(version.previousPublishedVersion,version.previousVersion);
   assert.ok(readme.includes("Previously published: v"+version.previousPublishedVersion));
 });
+
+test("published Preview metadata can be healed after late release.edited without bypassing strict gates",()=>{
+  const wf=read(".github/workflows/ghostftp-preview-metadata.yml");
+  const script=read(".github/scripts/enforce-preview-release-metadata.sh");
+  const validator=read(".github/scripts/validate-release-assets.mjs");
+  assert.ok(wf.includes("types: [edited, published]"));
+  assert.ok(wf.includes("github.event_name == 'release'"));
+  assert.ok(wf.includes("github.event_name == 'release' && 'main'"));
+  assert.ok(wf.includes("GHOSTFTP_METADATA_EVENT:"));
+  assert.ok(wf.includes("sleep 95"), "post-publication must catch late metadata edits");
+  assert.equal(wf.split('bash .github/scripts/check-release-index.sh "$VERSION" "$GHOSTFTP_PUBLISHED_SOURCE_SHA"').length-1, 2);
+  assert.ok(script.includes("release-edited"));
+  assert.ok(script.includes('for recent in "0.99.37" "0.99.38" "$PREVIOUS" "$CURRENT"'));
+  assert.ok(script.includes("--metadata-repair-json"));
+  assert.ok(script.includes('gh release download "$tag" --pattern "$checksum"'));
+  assert.ok(script.includes('contents/version.json?ref=$tag'));
+  assert.ok(script.includes('test "$source_version" = "$version"'));
+  assert.ok(script.includes('test "$(git rev-parse HEAD)" = "$SOURCE_SHA"'));
+  assert.ok(script.includes('repair_recent "$recent" "$SOURCE_SHA"'));
+  assert.ok(validator.includes('mode === "--metadata-repair-json"'));
+  assert.ok(validator.includes('ensure(release.prerelease === true, "Preview must be classified as prerelease")'));
+  assert.ok(!script.includes("gh release delete"));
+  assert.ok(!script.includes("git push --force"));
+});
