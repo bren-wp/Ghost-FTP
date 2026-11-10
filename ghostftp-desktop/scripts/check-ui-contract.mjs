@@ -549,6 +549,8 @@ for (const [label, pattern] of [
   ["GTK/WebView2 chrome normalization", /\.ghost-protocol-picker select \{[^}]*appearance:\s*none/],
   ["option contrast", /\.ghost-protocol-picker select option \{[^}]*background-color:\s*#0b192b;[^}]*color:\s*#e5f3ff/],
   ["non-interactive shared chevron", /\.ghost-protocol-chevron \{[^}]*pointer-events:\s*none/],
+  ["high-contrast OS control fallback", /@media \(forced-colors: active\) \{[\s\S]*?\.ghost-protocol-picker select \{[^}]*appearance:\s*auto/],
+  ["high-contrast system text palette", /@media \(forced-colors: active\) \{[\s\S]*?\.ghost-protocol-picker select \{[^}]*color:\s*CanvasText/],
 ]) {
   if (!pattern.test(selectorStyles)) failures.push("New Connection cross-platform selector missing: " + label);
 }
