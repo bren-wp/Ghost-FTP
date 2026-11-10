@@ -5,6 +5,8 @@
 
 # Ghost FTP
 
+> **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
+
 ### More Than Transfer. Total Control.
 
 **Your files. Your servers. One beautifully focused workspace.**

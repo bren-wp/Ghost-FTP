@@ -1,3 +1,5 @@
+> **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
+
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
 > **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
@@ -12,8 +14,8 @@
 
 # Ghost FTP build and QA status
 
-- **Active source/release cycle:** Ghost FTP **0.99.42** Preview.
-- **Previous canonical release:** Ghost FTP **0.99.41**.
+- **Active source/release cycle:** Ghost FTP **0.99.43** Preview.
+- **Previous canonical release:** Ghost FTP **0.99.42**.
 - **Active platforms:** Windows, Linux and macOS desktop.
 - **Primary sources:** `ghostftp-desktop/`, `macos/`; Go compatibility helpers in `tools/`.
 - **Windows/Linux:** React, TypeScript, Rust/Tauri; portable EXE, NSIS, MSI, standalone Linux binary, AppImage, DEB and RPM
