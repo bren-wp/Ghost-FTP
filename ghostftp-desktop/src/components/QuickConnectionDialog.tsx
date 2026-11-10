@@ -144,7 +144,16 @@ export function QuickConnectionDialog({ prefill, onClose, cancelLabel = "Cancel"
           <section className="ghost-new-connection-panel" aria-labelledby="ghost-new-server-heading">
             <h3 id="ghost-new-server-heading" className="ghost-new-connection-panel-heading"><Server size={13} aria-hidden="true"/> Server details</h3>
             <div className="ghost-new-connection-server-grid">
-              <Field label="Protocol"><select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;if(p!==protocol){clearSecrets();}setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);if(p!=="sftp"){setUseKey(false);}}}><option value="sftp">SFTP (SSH File Transfer)</option><option value="ftp">FTP</option><option value="ftps">FTPS (FTP over TLS)</option></select></Field>
+              <Field label="Protocol">
+                <div className="ghost-protocol-picker">
+                  <select value={protocol} disabled={actionBusy} onChange={(e)=>{const p=e.target.value as Protocol;if(p!==protocol){clearSecrets();}setProtocol(p);setPort(PROTOCOL_DEFAULT_PORT[p]);if(p!=="sftp"){setUseKey(false);}}}>
+                    <option value="sftp">SFTP (SSH File Transfer)</option>
+                    <option value="ftp">FTP</option>
+                    <option value="ftps">FTPS (FTP over TLS)</option>
+                  </select>
+                  <ChevronDown className="ghost-protocol-chevron" size={15} aria-hidden="true" />
+                </div>
+              </Field>
               <Field label="Port"><input type="number" min={1} max={65535} value={port} disabled={actionBusy} onChange={(e)=>setPort(Number(e.target.value))} aria-label="Server port"/></Field>
             </div>
             <div className="ghost-new-connection-host"><Field label="Host / Address"><input value={host} disabled={actionBusy} onChange={(e)=>setHost(e.target.value)} placeholder="Hostname or IP address" autoComplete="off" spellCheck={false}/></Field></div>
