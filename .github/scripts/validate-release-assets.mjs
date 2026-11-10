@@ -114,16 +114,24 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else if (mode === "--dist" && value) {
       const result = validateLocalReleaseDirectory(version, value);
       console.log(`Verified local release manifest: ${result.assetCount} exact assets (signed updater: ${result.optionalUpdater}).`);
-    } else if (mode === "--release-json" && value && arg4 === "--checksums" && arg5) {
+    } else if ((mode === "--release-json" || mode === "--metadata-repair-json") &&
+      value && arg4 === "--checksums" && arg5) {
       const release = JSON.parse(fs.readFileSync(value, "utf8"));
       ensure(release.draft === false, "release remains Draft");
-      ensure(release.prerelease === true, "Preview must be classified as prerelease");
+      if (mode === "--release-json") {
+        // The actual publication gate is STRICT: false is never acceptable.
+        ensure(release.prerelease === true, "Preview must be classified as prerelease");
+      } else {
+        // This path is restricted to metadata repair, BEFORE a PATCH. It is
+        // deliberately separate from the strict post-publication checker.
+        ensure(typeof release.prerelease === "boolean", "invalid prerelease classification");
+      }
       ensure(release.tag_name === "v" + version, "release tag mismatch");
       const result = validateReleaseAssets(version, release.assets,
         fs.readFileSync(arg5));
-      console.log(`Verified public Preview: ${result.assetCount} exact assets; all names, sizes and remote SHA-256 digests match SHA256SUMS.`);
+      console.log(`Verified ${mode === "--release-json" ? "public Preview" : "immutable Preview repair inventory"}: ${result.assetCount} exact assets; all GitHub SHA-256 digests match the downloaded SHA256SUMS.`);
     } else {
-      fail("usage: VERSION (--list-required|--list-optional|--dist DIRECTORY|--release-json FILE --checksums FILE)");
+      fail("usage: VERSION (--list-required|--list-optional|--dist DIRECTORY|--release-json FILE --checksums FILE|--metadata-repair-json FILE --checksums FILE)");
     }
   } catch (error) {
     console.error("::error::" + error.message);
