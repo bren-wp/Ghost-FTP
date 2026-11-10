@@ -173,8 +173,8 @@ const isVerified09553Capture = (manifest, file, digest) =>
   manifest.images?.[file] === digest &&
   verified09553WindowsCaptures.get(file) === digest;
 
-// Preview-only Linux images are permitted ONLY when they match the eight
-// exact, authentic Tauri/WebKit 1290x852 PNG blobs from successful native
+// Seven active Linux workspace captures and one archived historic splash
+// are permitted ONLY when they match the eight original Tauri/WebKit 1290x852 PNG blobs from successful native
 // GitHub Actions run 41524829466, source SHA 01d816df5bdd3c76a8fa9c062371777cd345aa28.
 // The run completed Linux native build and screenshot promotion successfully.
 // This does not relax validation of other documentation images, and the
@@ -198,11 +198,20 @@ const linuxSourceEvidence = linuxSection.includes(`actions/runs/${verifiedPrevie
   linuxSection.includes(`source SHA <code>${verifiedPreviewLinuxSource}</code>`) &&
   linuxSection.includes("real Linux Tauri/WebKit UI");
 const linuxPreviewFailures = [];
+const visibleLinuxCaptures = (linuxSection.match(/<img\b[^>]*\bsrc="docs\\/assets\\/screenshots\/native-linux\/ghostftp-linux-[^"]+\.png"/g) ?? []).length;
+if (visibleLinuxCaptures !== 7) {
+  linuxPreviewFailures.push(`README must display seven genuine Linux workspaces, found ${visibleLinuxCaptures}`);
+}
+
 for (const [imagePath, gitBlob] of verifiedPreviewLinuxImages) {
   const absolute = path.join(root, imagePath);
-  if (!linuxSection.includes(`src="${imagePath}"`)) {
-    linuxPreviewFailures.push(`${imagePath}: missing from verified README Linux preview gallery`);
-    continue;
+  // The removed startup splash is historical proof only, not an active
+  // Windows/Linux screen or a current README gallery entry. Preserve its
+  // original Git blob/hash checks; NEVER substitute a synthetic screenshot.
+  const archivedSplash = imagePath.endsWith("/ghostftp-linux-splash.png");
+  if (archivedSplash ? linuxSection.includes(`src="${imagePath}"`) :
+      !linuxSection.includes(`src="${imagePath}"`)) {
+    linuxPreviewFailures.push(`${imagePath}: ${archivedSplash ? "obsolete splash must not appear in the active gallery" : "missing from verified README Linux gallery"}`);
   }
   if (!fs.existsSync(absolute)) {
     linuxPreviewFailures.push(`${imagePath}: pinned native screenshot missing`);

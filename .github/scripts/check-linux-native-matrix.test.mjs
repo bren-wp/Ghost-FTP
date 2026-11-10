@@ -40,6 +40,11 @@ test("seven Linux QA captures open actual workspaces without a splash screen", (
   assert.ok(!build.includes("for view in splash"), "No Linux splash workflow view");
   assert.ok(!capture.includes("WEBKIT_DISABLE_SANDBOX"));
   assert.ok(!capture.includes("export GDK_GL=disable"));
+  assert.ok(!read("ghostftp-desktop/index.html").includes('lang="zh-CN"'), "Default language must not claim Chinese");
+  assert.ok(read("ghostftp-desktop/index.html").includes('lang="en"'));
+  assert.ok(!read("ghostftp-desktop/src/styles.css").includes(".ghost-startup-splash"), "No orphaned splash overlay CSS");
+  assert.ok(!read("README.md").includes('src="docs/assets/screenshots/native-linux/ghostftp-linux-splash.png"'), "No obsolete splash in active README gallery");
+  assert.ok(read(".github/scripts/promote-real-linux-readme.sh").includes("seven real native Ghost FTP screens"));
 });
 
 test("GitHub release notes disclose Linux distro package families", () => {
