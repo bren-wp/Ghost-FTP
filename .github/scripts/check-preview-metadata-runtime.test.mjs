@@ -26,6 +26,7 @@ const RECENT = {
   "0.99.38": "6a192fbb41cc6af89e0ad75432156f97c869253d",
   "0.99.39": "fb213d07a1c9da8a037ad20e8e7a32f6040f66d2",
   "0.99.40": "e9e3f21bf6daa9e109ed4e26cee82931815e9857",
+  "0.99.41": "0e420f35683ca8f85285e50bbbfb0286562ff5cd",
 };
 // Unit-test-only fixtures: as the release train advances, model the newest
 // canonical predecessor without falsely asserting an actual GitHub release
@@ -199,4 +200,19 @@ test("release corrector refuses tampered released SHA256SUMS without changing th
   assert.notEqual(result.status,0);
   assert.match(result.stderr,/SHA256SUMS|SHA-256/);
   assert.equal(recent[PREVIOUS_PUBLISHED].prerelease,false);
+});
+
+
+test("v0.99.41 unexpected historical asset rename must fail closed before any release metadata mutation", () => {
+  const {result,recent} = runScenario(data => {
+    const file = path.join(data, "0.99.41.json");
+    const release = JSON.parse(fs.readFileSync(file, "utf8"));
+    const asset = release.assets.find(a => a.name === "GhostFTP-macOS-v0.99.41-Preview.zip");
+    assert.ok(asset);
+    asset.name = "GhostFTP-macOS-v0.99.41.zip";
+    fs.writeFileSync(file, JSON.stringify(release));
+  });
+  assert.notEqual(result.status, 0, "unproven asset identity must never be auto-repaired");
+  assert.match(result.stderr, /asset identity|manual provenance|asset recovery forbidden/);
+  assert.equal(recent["0.99.41"].prerelease, false);
 });
