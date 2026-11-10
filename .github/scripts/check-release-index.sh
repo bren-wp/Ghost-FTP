@@ -1,56 +1,48 @@
 #!/usr/bin/env bash
-# Post-release proof: newest immutable edition appears on public Releases.
-# GitHub /releases/latest intentionally omits prerelease/Preview versions.
+# Post-release proof: newest immutable Preview is publicly visible and every
+# artifact matches the SAME release-artifacts.json contract as the publisher.
+# GitHub /releases/latest intentionally excludes previews.
 set -euo pipefail
 VERSION="$1"
 SOURCE_SHA="$2"
 REPO="$GITHUB_REPOSITORY"
-test -n "$VERSION"; test -n "$SOURCE_SHA"; test -n "$GH_TOKEN"
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
-test "$REPO" = "bren-wp/Ghost-FTP"
+die() { echo "::error::$*" >&2; exit 1; }
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Invalid version: $VERSION"
+[[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || die "Invalid source SHA"
+[[ -n "$GH_TOKEN" ]] || die "GH_TOKEN is required"
+[[ "$REPO" = "bren-wp/Ghost-FTP" ]] || die "Wrong repository: $REPO"
 TAG="v$VERSION"
-test "$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
+CHECKSUM_FILE="GhostFTP-v$VERSION-SHA256SUMS.txt"
+TAG_SHA="$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq '.object.sha')"
+[[ "$TAG_SHA" = "$SOURCE_SHA" ]] || die "Immutable $TAG tag points to $TAG_SHA, expected $SOURCE_SHA"
 
-# Pagination and numeric SemVer sorting avoid misleading published_at dates.
 INVENTORY="$(gh api "repos/$REPO/releases?per_page=100" --paginate --slurp)"
-test "$(jq --arg tag "$TAG" '[.[][] | select(.draft == false and .tag_name == $tag)] | length' <<< "$INVENTORY")" -eq 1
+MATCHES="$(jq --arg tag "$TAG" '[.[][] | select(.draft == false and .tag_name == $tag)] | length' <<< "$INVENTORY")"
+[[ "$MATCHES" = 1 ]] || die "Expected one public $TAG release, found $MATCHES"
 LATEST_TAG="$(jq -r '
   [.[][] | select(.draft == false) | .tag_name |
     select(test("^v[0-9]+[.][0-9]+[.][0-9]+$"))] |
   sort_by(ltrimstr("v") | split(".") | map(tonumber)) | last // empty
 ' <<< "$INVENTORY")"
-test "$LATEST_TAG" = "$TAG" || {
-  echo "::error::Newest published GitHub Release is $LATEST_TAG, expected $TAG" >&2
-  exit 1
-}
-
-# The actual Releases page includes this version on its first API page.
+test "$LATEST_TAG" = "$TAG" || die "Newest published GitHub Release is $LATEST_TAG, expected $TAG"
 FIRST_PAGE="$(gh api "repos/$REPO/releases?per_page=30")"
-test "$(jq --arg tag "$TAG" '[.[] | select(.draft == false and .tag_name == $tag)] | length' <<< "$FIRST_PAGE")" -eq 1
+[[ "$(jq --arg tag "$TAG" '[.[] | select(.draft == false and .tag_name == $tag)] | length' <<< "$FIRST_PAGE")" = 1 ]] ||
+  die "$TAG is not visible on first GitHub Releases API page"
+
 RELEASE="$(gh api "repos/$REPO/releases/tags/$TAG")"
-test "$(jq -r '.draft' <<< "$RELEASE")" = false
-test "$(jq -r '.prerelease' <<< "$RELEASE")" = true
-test "$(jq -r '.target_commitish' <<< "$RELEASE")" = "$SOURCE_SHA"
-test "$(jq -r '.html_url' <<< "$RELEASE")" = "https://github.com/$REPO/releases/tag/$TAG"
-test "$(jq -r '.assets | length' <<< "$RELEASE")" -ge 25
-test "$(jq '[.assets[] | select(.size > 0 and (.digest | type == "string") and (.digest | test("^sha256:[a-f0-9]{64}$")))] | length' <<< "$RELEASE")" -eq "$(jq '.assets | length' <<< "$RELEASE")"
-for name in \
-  "GhostFTP-Windows-x64-Portable-v$VERSION.exe" \
-  "GhostFTP-Windows-x64-Setup-v$VERSION.exe" \
-  "GhostFTP-Windows-x64-Setup-v$VERSION.msi" \
-  "GhostFTP-Linux-x86_64-v$VERSION.AppImage" \
-  "GhostFTP-Linux-amd64-v$VERSION.deb" \
-  "GhostFTP-Linux-x86_64-v$VERSION.rpm" \
-  "GhostFTP-macOS-v$VERSION-Preview.zip" \
-  "GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip" \
-  "GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip" \
-  "GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg" \
-  "GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg" \
-  "GhostFTP-v$VERSION-SHA256SUMS.txt"; do
-  test "$(jq -r --arg name "$name" '[.assets[] | select(.name == $name)] | length' <<< "$RELEASE")" -eq 1 || {
-    echo "::error::Missing required artifact from public Releases: $name" >&2
-    exit 1
-  }
-done
-echo "::notice::Verified $TAG on https://github.com/$REPO/releases with $(jq '.assets|length' <<< "$RELEASE") digest-checked Preview assets from $SOURCE_SHA."
+[[ "$(jq -r '.draft' <<< "$RELEASE")" = false ]] || die "$TAG remains Draft"
+[[ "$(jq -r '.prerelease' <<< "$RELEASE")" = true ]] || die "$TAG is not marked Preview/prerelease"
+[[ "$(jq -r '.target_commitish' <<< "$RELEASE")" = "$SOURCE_SHA" ]] || die "$TAG release target SHA mismatch"
+[[ "$(jq -r '.html_url' <<< "$RELEASE")" = "https://github.com/$REPO/releases/tag/$TAG" ]] ||
+  die "$TAG URL mismatch"
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+printf '%s\n' "$RELEASE" > "$TMP/release.json"
+gh release download "$TAG" --pattern "$CHECKSUM_FILE" --dir "$TMP" >/dev/null ||
+  die "Cannot download published SHA256SUMS for $TAG"
+[[ -s "$TMP/$CHECKSUM_FILE" ]] || die "Published SHA256SUMS missing/empty for $TAG"
+node .github/scripts/validate-release-assets.mjs "$VERSION" \
+  --release-json "$TMP/release.json" --checksums "$TMP/$CHECKSUM_FILE" ||
+  die "Published release asset contract failed for $TAG"
+echo "::notice::Verified public $TAG Preview: exact release manifest, sizes and SHA-256 cross-checks from $SOURCE_SHA."

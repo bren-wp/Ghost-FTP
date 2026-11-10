@@ -1,11 +1,13 @@
+> **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
+
 > **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
 
 > **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
 
 # Ghost FTP build and QA status
 
-- **Active source/release cycle:** Ghost FTP **0.99.38** Preview.
-- **Previous canonical release:** Ghost FTP **0.99.37**.
+- **Active source/release cycle:** Ghost FTP **0.99.39** Preview.
+- **Previous canonical release:** Ghost FTP **0.99.38**.
 - **Active platforms:** Windows, Linux and macOS desktop.
 - **Primary sources:** `ghostftp-desktop/`, `macos/`; Go compatibility helpers in `tools/`.
 - **Windows/Linux:** React, TypeScript, Rust/Tauri; portable EXE, NSIS, MSI, standalone Linux binary, AppImage, DEB and RPM

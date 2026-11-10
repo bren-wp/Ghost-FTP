@@ -1,3 +1,5 @@
+> **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
+
 > **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
 
 > **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
@@ -24,7 +26,7 @@
 
 > Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.99.4** and latest public release **0.99.3**.
 
-This prioritized improvement backlog covers Ghost FTP **0.99.30**. Previous canonical release: **0.99.37**. Items here are recommendations, not claims of completed functionality.
+This prioritized improvement backlog covers Ghost FTP **0.99.30**. Previous canonical release: **0.99.38**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
@@ -150,4 +152,4 @@ User-facing and release-facing names should use:
 Framework-specific words such as Tauri should be kept only where technically required by the build ecosystem. Renaming `src-tauri` purely for appearance is not recommended because it increases maintenance/build risk without improving the user experience.
 
 
-Current development line: 0.99.38. Previous canonical release: 0.99.37. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.39. Previous canonical release: 0.99.38. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.

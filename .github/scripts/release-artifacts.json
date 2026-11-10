@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "note": "Canonical published desktop asset inventory. The optional updater group must be fully present or fully absent. Entries are expanded with {version}.",
+  "required": [
+    "GhostFTP-Windows-x64-Portable-v{version}.exe",
+    "GhostFTP-Windows-x64-Setup-v{version}.exe",
+    "GhostFTP-Windows-x64-Setup-v{version}.msi",
+    "GhostFTP-Windows-x64-v{version}.zip",
+    "GhostFTP-Windows-x64-v{version}-Native-QA.zip",
+    "GhostFTP-Linux-x86_64-v{version}",
+    "GhostFTP-Linux-x86_64-v{version}.AppImage",
+    "GhostFTP-Linux-amd64-v{version}.deb",
+    "GhostFTP-Linux-x86_64-v{version}.rpm",
+    "GhostFTP-Linux-x86_64-v{version}.tar.gz",
+    "GhostFTP-macOS-v{version}-Preview.zip",
+    "GhostFTP-macOS-Shared-arm64-v{version}-Preview.zip",
+    "GhostFTP-macOS-Shared-x86_64-v{version}-Preview.zip",
+    "GhostFTP-macOS-Shared-arm64-v{version}-Installable-Preview.dmg",
+    "GhostFTP-macOS-Shared-x86_64-v{version}-Installable-Preview.dmg",
+    "GhostFTP-v{version}-Source.zip",
+    "GhostFTP-v{version}-Desktop-Source.zip",
+    "GhostFTP-v{version}-macOS-Source.zip",
+    "GhostFTP-v{version}-Updates.zip",
+    "GhostFTP-v{version}-Documentation.zip",
+    "GhostFTP-v{version}-SHA256SUMS.txt"
+  ],
+  "optional_updater": [
+    "GhostFTP-Windows-x64-Setup-v{version}.exe.sig",
+    "GhostFTP-Linux-x86_64-v{version}.AppImage.sig",
+    "GhostFTP-v{version}-latest.json",
+    "GhostFTP-v{version}-Update-Service.zip"
+  ]
+}
