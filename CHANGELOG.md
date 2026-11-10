@@ -1,3 +1,11 @@
+## 0.99.45 Preview — 10 November 2026
+
+- Fix credential redaction in Windows/Linux desktop diagnostics when quoted JSON, plain assignment or CLI secret values contain escaped quotation marks; never expose the trailing portion of a password or OAuth token.
+- Fail closed on unterminated quoted secret values by redacting through the end of the diagnostic instead of leaving a readable suffix.
+- Add regression cases for escaped and malformed credential values, retaining existing 64 KiB input cap, signed cloud URL handling and sensitive log masking.
+- Preserve FTP/FTPS/SFTP, direct Files startup without a splash, installed native packages and macOS compatibility. Previous public Preview: v0.99.44.
+- Native CI, protocol, security, quality, device acceptance and 59-reference visual comparisons remain separate gates; do not infer stable/production certification.
+
 ## 0.99.44 Preview — 10 November 2026
 
 - Fix a Windows/Linux recurring transfer scheduler edge case where a daily or weekly schedule started during a nonexistent spring DST local time (for example Europe/Zagreb 02:30 on 29 March 2026) and was previously blocked forever.
