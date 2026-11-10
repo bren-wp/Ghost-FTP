@@ -198,7 +198,9 @@ const linuxSourceEvidence = linuxSection.includes(`actions/runs/${verifiedPrevie
   linuxSection.includes(`source SHA <code>${verifiedPreviewLinuxSource}</code>`) &&
   linuxSection.includes("real Linux Tauri/WebKit UI");
 const linuxPreviewFailures = [];
-const visibleLinuxCaptures = (linuxSection.match(/<img\b[^>]*\bsrc="docs\\/assets\\/screenshots\/native-linux\/ghostftp-linux-[^"]+\.png"/g) ?? []).length;
+const visibleLinuxCaptures = [...linuxSection.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)]
+  .map((match) => match[1])
+  .filter((src) => src.startsWith("docs/assets/screenshots/native-linux/ghostftp-linux-") && src.endsWith(".png")).length;
 if (visibleLinuxCaptures !== 7) {
   linuxPreviewFailures.push(`README must display seven genuine Linux workspaces, found ${visibleLinuxCaptures}`);
 }
