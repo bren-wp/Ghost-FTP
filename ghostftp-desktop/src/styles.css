@@ -6064,74 +6064,9 @@ input.ghost-pane-address:focus-visible {
 }
 
 
-/* Desktop startup branding is rendered by the actual Tauri app, not a concept PNG.
-   Sibling QA splash routes preserve it for capture without blocking the real UI. */
+/* The single desktop window opens directly into its real Files workspace.
+   Keep the shell positioning for its existing in-app overlays and dialogs. */
 .ghost-app-shell { position: relative; }
-.ghost-startup-splash {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding: clamp(14px, 4vw, 48px);
-  background: radial-gradient(ellipse 72% 54% at 50% 48%, #0c213b 0%, #071324 52%, #050d19 100%);
-  color: #edf6ff;
-}
-.ghost-startup-card {
-  width: min(760px, 100%);
-  max-width: 100%;
-  padding: clamp(26px, 5vw, 50px);
-  border: 1px solid rgba(75, 155, 230, .33);
-  border-radius: 25px;
-  background: linear-gradient(155deg, rgba(20, 48, 78, .96), rgba(8, 26, 49, .98));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055),
-              0 24px 80px rgba(0, 0, 0, .27),
-              0 0 46px rgba(31, 132, 231, .08);
-}
-.ghost-startup-brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(17px, 3vw, 27px);
-}
-.ghost-startup-brand svg { flex: 0 0 auto; filter: drop-shadow(0 10px 20px rgba(5, 16, 33, .4)); }
-.ghost-startup-name {
-  font-size: clamp(31px, 5.4vw, 65px);
-  font-weight: 800;
-  letter-spacing: -.055em;
-  line-height: 1.03;
-}
-.ghost-startup-name span { color: #67bdff; }
-.ghost-startup-tagline {
-  margin-top: 10px;
-  color: #a0bdd7;
-  font-size: clamp(9px, 1.25vw, 13px);
-  letter-spacing: .18em;
-  font-weight: 550;
-}
-.ghost-startup-rule {
-  height: 1px;
-  margin: clamp(26px, 5vw, 43px) 0 17px;
-  background: linear-gradient(90deg, transparent, rgba(126, 222, 255, .37), transparent);
-}
-.ghost-startup-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  color: #7497b9;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .13em;
-}
-.ghost-startup-version { color: #8edbff; font-variant-numeric: tabular-nums; }
-@media (max-width: 540px) {
-  .ghost-startup-brand { flex-direction: column; text-align: center; }
-  .ghost-startup-card { border-radius: 18px; }
-  .ghost-startup-tagline { letter-spacing: .1em; }
-  .ghost-startup-footer { flex-wrap: wrap; justify-content: center; text-align: center; }
-}
-
 
 /* User-reference Sites screen: factual profile cards on Windows/Linux. */
 .ghost-site-manager-hero {

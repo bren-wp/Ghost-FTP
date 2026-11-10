@@ -14,7 +14,6 @@ output="$(realpath -m "$2")"
 # Never inject synthetic server data, success states, or authentication.
 qa_view="${GHOSTFTP_QA_VIEW:-main}"
 case "$qa_view" in
-  splash) qa_image="Linux-Splash-1290x852.png" ;;
   main) qa_image="Linux-Files-1290x852.png" ;;
   siteManager) qa_image="Linux-Sites-1290x852.png" ;;
   newConnection) qa_image="Linux-New-Connection-1290x852.png" ;;
