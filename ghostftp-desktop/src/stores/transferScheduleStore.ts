@@ -221,7 +221,25 @@ export function initTransferScheduler() {
     void runScheduleTick().catch((error) =>
       console.error("Unexpected transfer scheduler failure", messageOf(error))
     );
+  // Use the normal low-overhead poll while the app is running, but do not
+  // wait up to another interval after laptop wake, restored connectivity or
+  // returning to a previously suspended native WebView.
+  // lastRunAt + tickBusy prevent duplicate retries from coincident events.
+  const onVisible = () => {
+    if (document.visibilityState === "visible") runSafely();
+  };
   runSafely();
   const timer = window.setInterval(runSafely, 10_000);
-  return () => window.clearInterval(timer);
+  document.addEventListener("visibilitychange", onVisible);
+  window.addEventListener("focus", runSafely);
+  window.addEventListener("online", runSafely);
+  window.addEventListener("pageshow", runSafely);
+
+  return () => {
+    window.clearInterval(timer);
+    document.removeEventListener("visibilitychange", onVisible);
+    window.removeEventListener("focus", runSafely);
+    window.removeEventListener("online", runSafely);
+    window.removeEventListener("pageshow", runSafely);
+  };
 }
