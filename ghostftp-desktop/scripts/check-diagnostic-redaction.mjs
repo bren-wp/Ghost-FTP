@@ -15,6 +15,14 @@ const redact = exported.redactSensitiveText;
 
 assert.equal(typeof redact, "function");
 assert.equal(redact("password=TopSecret42"), "password=<redacted>");
+assert.equal(redact("client_secret=OAuthSecretValue"), "client_secret=<redacted>");
+assert.equal(redact("session_token: SessionKeyValue"), "session_token: <redacted>");
+assert.equal(redact("args --client-secret=OAuthSecretValue --id-token JWTvalue"),
+  "args --client-secret=<redacted> --id-token <redacted>");
+assert.equal(redact("https://api.example.invalid/?client_secret=OAuthSecretValue&limit=20"),
+  "https://api.example.invalid/?client_secret=<redacted>&limit=20");
+assert.equal(redact('{"client_secret":"OAuthSecretValue","id_token":"JWTvalue","client_assertion":"proof"}'),
+  '{"client_secret":"<redacted>","id_token":"<redacted>","client_assertion":"<redacted>"}');
 assert.equal(
   redact("https://ftp.example.invalid/download?token=VeryPrivate&file=sample"),
   "https://ftp.example.invalid/download?token=<redacted>&file=sample",
@@ -24,6 +32,7 @@ const signedCloudUrls = [
   "https://storage.googleapis.com/bucket/private?X-Goog-Credential=account-id&X-Goog-Signature=google-secret-signature",
   "https://account.blob.core.windows.net/container/private?sv=2026-01-01&sig=azure-secret-signature&sp=rw",
   "https://bucket.r2.cloudflarestorage.com/my/private?X-Amz-Signature=cloudflare-secret",
+  "https://bucket.s3.amazonaws.com/private?X-Amz-Security-Token=security-key",
 ];
 for (const url of signedCloudUrls) {
   const result = redact("Transfer failed for " + url);

@@ -5,6 +5,8 @@
 
 # Ghost FTP
 
+> **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
+
 ### More Than Transfer. Total Control.
 
 **Your files. Your servers. One beautifully focused workspace.**
@@ -13,7 +15,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.42 (development Preview) · Previously published: v0.99.41. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.43 (development Preview) · Previously published: v0.99.42. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -23,7 +25,7 @@ Move files, manage connections and keep important server work organized with an 
 
 ## Release integrity
 
-The 0.99.42 Preview development cycle preserves the splash-free Windows/Linux UI and corrects a verified historical release metadata incident without replacing archived binaries. Production signing and pixel-by-pixel visual acceptance remain separate.
+The 0.99.43 Preview development cycle preserves splash-free Windows/Linux startup and hardens OAuth credential redaction in diagnostics without changing historical release artifacts. Production signing and pixel-by-pixel visual acceptance remain separate.
 
 ## Made for Windows & Linux
 

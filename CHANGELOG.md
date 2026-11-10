@@ -1,3 +1,10 @@
+## 0.99.43 Preview — 10 November 2026
+
+- Redact OAuth client secrets, ID tokens, session tokens and client assertions in plaintext, JSON, command-line and URL diagnostic output.
+- Treat an AWS security-token-bearing cloud URL as sensitive in its entirety to avoid exposing private resource paths.
+- Add regression tests; preserve FTP/FTPS/SFTP behavior, Windows/Linux direct-to-Files startup and macOS compatibility.
+- Previous published version: v0.99.42. New release requires exact-head cross-platform, protocol, security, dead-code and post-release checks.
+
 ## 0.99.42 Preview — 10 November 2026
 
 - Advance source and release metadata past immutable public v0.99.41, preserving its tag and original build artifacts.
