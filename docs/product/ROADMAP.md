@@ -160,4 +160,4 @@ User-facing and release-facing names should use:
 Framework-specific words such as Tauri should be kept only where technically required by the build ecosystem. Renaming `src-tauri` purely for appearance is not recommended because it increases maintenance/build risk without improving the user experience.
 
 
-Current development line: 0.99.42. Previous canonical release: 0.99.42. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.42. Previous canonical release: 0.99.41. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
