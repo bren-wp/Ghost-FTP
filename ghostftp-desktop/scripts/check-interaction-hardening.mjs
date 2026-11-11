@@ -144,6 +144,11 @@ for (const [file, contract, discarded] of [
   requireIncludes(file, [contract], "awaitable destructive confirmation callback");
   requireExcludes(file, [discarded], "fire-and-forget destructive confirmation");
 }
+requireIncludes("src/components/FindDuplicates.tsx", [
+  'e.key === "Escape" && !confirming && !deleting',
+  "}, [close, confirming, deleting]);",
+], "destructive duplicate delete must not be dismissed by parent Escape");
+
 const siteDeleteSource = read("src/components/SiteManagerDialog.tsx")
   .split("const remove = async () => {")[1]?.split("  const exportSites =")[0] ?? "";
 if (!siteDeleteSource.includes("await deleteProfile(selected.id);") ||
