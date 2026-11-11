@@ -1,11 +1,10 @@
 # Ghost FTP repository structure
 
-**Active platforms:** Windows, Linux and macOS desktop. The standalone server, demo and CLI applications are retired. This is a desktop client repository.
+**Active platforms:** Windows and Linux desktop. The standalone server, demo and CLI applications are retired. This is a desktop client repository.
 
 ```text
 Ghost-FTP/
 ├── ghostftp-desktop/          Windows/Linux Tauri, React/TypeScript and Rust engine
-├── macos/                     Native SwiftUI desktop client
 ├── tools/
 │   ├── ghostftp-runtime/      Go compatibility/runtime helpers
 │   └── ghostftp-installer/    Go compatibility installer helpers
@@ -26,6 +25,6 @@ Ghost-FTP/
 
 ## Expected desktop packages
 
-Windows x64: portable EXE, NSIS Setup EXE and MSI. Linux x86_64: native binary, AppImage, DEB and RPM. macOS: architecture-specific app ZIP/DMG Preview where built. Every release package must be verified against the same exact-source commit and SHA-256 manifest. Signing/notarization requirements remain separate from installability.
+Windows x64: portable EXE, NSIS Setup EXE and MSI. Linux x86_64: native binary, AppImage, DEB and RPM. Every release package must be verified against the same exact-source commit and SHA-256 manifest. Signing/notarization requirements remain separate from installability.
 
 Historical release archives are retained as immutable evidence, not active platform definitions. Do not rename persistent app IDs, updater keys, deep-link schemes, profile or keychain locations without migration tests.
