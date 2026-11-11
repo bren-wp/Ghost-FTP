@@ -1,0 +1,36 @@
+# Ghost FTP 0.99.47 — Windows/Linux maintenance, dead-code and security audit
+
+**Scope:** current desktop client and automation in pull request #280. **Audit boundary:** repository-level static source review and maintained CI regression coverage. This document does not claim a completed penetration test, signed production release, or successful native-device acceptance.
+
+## Platform retirement and impact
+
+- Remove 43 dedicated application, Swift test, macOS CI/configuration and installation files; remove platform-only branches from Tauri Rust file operations, desktop window chrome, keyboard shortcuts and source-backed UI contracts.
+- Canonical asset contract is now **15 mandatory files** for Windows/Linux/source/docs/checksums and **4 optional, indivisible signed-updater files**. Both sets require independent bytes/checksum verification before publication.
+- Historical releases, tags, metadata repair evidence and asset SHA-256 history remain immutable. Deleting old published packages or rewriting prior release records is not authorized.
+- The current version is **0.99.47 Preview**; the last verified predecessor is **v0.99.46**.
+
+## Full repository dead-code review (source evidence)
+
+The conservative inventory scans maintained TypeScript, Rust, Go and operational scripts. It reports possible unused symbols, scripts and entrypoint blockers, but does not equate a single textual reference to proven dead code. The retired Swift source, dead branch guards and obsolete script references are removed. For any other candidate, first verify TypeScript module reachability, Rust workspace compilation/tests/Clippy, Go tests/vet, dynamic Tauri event bindings, workflow invocation and user-data backward compatibility before deletion.
+
+## Security controls retained and requiring regression verification
+
+| Security domain | Required control | Remaining independent acceptance |
+| --- | --- | --- |
+| FTP/FTPS/SFTP | Correct TLS certificate/hostname and SSH host-key verification; plain FTP explicitly unencrypted | Live positive/negative test servers |
+| Transfer integrity | Verified remote prefix before SFTP/Agent resume; exact downloaded byte lengths, staged writes and durable storage | Multi-GiB, crash/power-loss and interruption testing |
+| Destructive file actions | Atomic no-overwrite rename, symlink protection and safe root refusal | Real Windows/Linux filesystem and race tests |
+| Cloud grants / OAuth | HTTPS, bounded response, no redirects, pinned public endpoints, secret redaction | Authorized provider accounts, refresh/revocation |
+| UI/IPC | Tight CSP, main-window capabilities, bounded localhost bridge request parsing and access revocation | Penetration and hostile-local-client tests |
+| Release & updates | Immutable source SHA, explicit Preview metadata, optional signed updates only, SHA-256 asset inventory | Native package signing and clean-upgrade/rollback validation |
+
+The regression audit scans runtime code for explicit TLS/host-key bypasses, leaked credentials, wildcard local CORS, embedded private keys and remote script execution; it also checks source-level guards for staged transfers, cloud access, bridge and updater configuration. Those heuristics cannot prove the absence of novel vulnerabilities or runtime exploitability.
+
+## Known open acceptance work
+
+- CI exact-head run results and native Windows/Linux packaging must be individually confirmed.
+- Production publisher signatures and signed in-place upgrades require independent validation.
+- All **59** desktop UI concept references remain pending installed-app pixel comparison; no 0% deviation claim.
+- Live credential-provider interactions, accessibility, performance, memory/battery endurance and interruption recovery remain manual test requirements.
+
+**Release rule:** never mark CI as passed or publish a version before actual workflow success and SHA-256 asset verification. Do not remove historical immutable release records.
