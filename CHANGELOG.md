@@ -1,3 +1,10 @@
+## 0.99.48 Preview — 12 November 2026
+
+- Fix immutable release-lineage CI failure caused by a post-publication README change retaining the already tagged v0.99.47 version. Preserve the historical tag, all published binaries and checksums unchanged.
+- Synchronize Windows/Linux version information across Tauri/Rust, TypeScript, Go, installer and update metadata without third-party dependency upgrades.
+- Clarify current README privacy/security guidance and current-version documentation while retaining authentic native screenshot provenance.
+- Publication remains gated by exact-source native Windows/Linux builds, quality/security/dead-code checks, FTP/FTPS/SFTP E2E, Windows hardening, Preview metadata verification and real SHA-256 asset checks. This is an unsigned Preview, not verified pixel-perfect production software. Previous public release: v0.99.47.
+
 ## 0.99.47 Preview — 11 November 2026
 
 - Fix four destructive desktop confirmation paths (saved Sites, duplicate files, disk usage deletion, and Snippets): return the real asynchronous operation to the shared ConfirmModal, so its busy state and close behavior match actual backend completion rather than closing before the request completes.

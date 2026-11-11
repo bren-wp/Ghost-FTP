@@ -13,7 +13,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux**
 
-<sub>Ghost FTP 0.99.47 (development Preview) · Previously published: v0.99.46. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.48 (development Preview) · Previously published: v0.99.47. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -100,6 +100,7 @@ Windows and Linux offer cloud and remote-storage integrations, including S3-comp
 
 ## Privacy that stays in your hands
 
+Ghost FTP operates without a mandatory Ghost FTP account or background telemetry. Server credentials remain in the platform credential store where supported; plain FTP is not encrypted. Follow the [security documentation](SECURITY.md) and independently verify server identity when using encrypted protocols.
 
 ## Questions? We're here to help.
 
