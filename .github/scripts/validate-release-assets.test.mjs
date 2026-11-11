@@ -21,11 +21,11 @@ function fixture(signed = false) {
   records.push({ name: checksum, size: sums.length, digest: "sha256:" + hash(sums), state: "uploaded" });
   return { records, sums, checksum };
 }
-test("manifest covers the exact current 21-file desktop baseline and optional complete signer group", () => {
-  assert.equal(expectedReleaseAssets(version).required.length, 21);
+test("manifest covers the exact current 15-file Windows/Linux desktop baseline and optional complete signer group", () => {
+  assert.equal(expectedReleaseAssets(version).required.length, 15);
   assert.equal(expectedReleaseAssets(version).optional.length, 4);
-  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(false)).slice(0,2)).assetCount, 21);
-  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(true)).slice(0,2)).assetCount, 25);
+  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(false)).slice(0,2)).assetCount, 15);
+  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(true)).slice(0,2)).assetCount, 19);
 });
 test("missing, extra and partial signed updater artifacts are rejected", () => {
   const { records, sums } = fixture();
@@ -51,7 +51,7 @@ test("local dist validates real content, rejects symlink and ignores staging dir
     }
     fs.mkdirSync(path.join(tmp, "native"));
     fs.writeFileSync(path.join(tmp, "native", "do-not-release"), "secret");
-    assert.equal(validateLocalReleaseDirectory(version, tmp).assetCount, 21);
+    assert.equal(validateLocalReleaseDirectory(version, tmp).assetCount, 15);
     fs.symlinkSync(path.join(tmp, "native", "do-not-release"), path.join(tmp, "leak.txt"));
     assert.throws(() => validateLocalReleaseDirectory(version, tmp), /symlinked/);
     fs.unlinkSync(path.join(tmp, "leak.txt"));

@@ -21,7 +21,6 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes("LATEST_ID"));
   assert.ok(workflow.includes("TRIGGER_RUN_ID"));
   assert.ok(workflow.includes("needs.select-trigger.outputs.native_run_id"));
-  // macOS-only and documentation changes must also create a native
   // build; a path-filtered build would never trigger workflow_run publication.
   const native = read(".github/workflows/ghostftp-build.yml");
   const pushBlock = native.split("  push:")[1].split("  pull_request:")[0];
@@ -32,25 +31,7 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes('wait_for_gate "ghostftp-quality.yml"'));
   assert.ok(workflow.includes('wait_for_gate "ghostftp-protocol-e2e.yml"'));
   assert.ok(workflow.includes('wait_for_gate "validate-win-hardening.yml"'));
-  assert.ok(workflow.includes('wait_for_gate "ghostftp-macos.yml"'));
-  assert.ok(workflow.includes('wait_for_gate "ghostftp-macos-shared-desktop.yml"'));
   assert.ok(!workflow.includes('ghostftp-server.yml'), "retired standalone server must not be a release gate");
-  assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"));
-  assert.ok(workflow.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"));
-  assert.ok(workflow.includes("GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"));
-  assert.ok(workflow.includes("GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"));
-  const macOSShared = read(".github/workflows/ghostftp-macos-shared-desktop.yml");
-  assert.ok(macOSShared.includes("cargo test -p ghostftp --lib --locked"));
-  assert.ok(macOSShared.includes("npm run tauri -- build --bundles app"));
-  assert.ok(macOSShared.includes("codesign --verify --deep --strict"));
-  // The original SwiftUI macOS app is Ghost FTP.app. Never publish a new
-  // candidate that silently occupies the same Finder installation path.
-  const sharedConfig = JSON.parse(read("ghostftp-desktop/src-tauri/tauri.macos.conf.json"));
-  assert.equal(sharedConfig.productName, "Ghost FTP Desktop");
-  assert.ok(macOSShared.includes("Ghost FTP Desktop.app"));
-  assert.ok(!macOSShared.includes('APP="ghostftp-desktop/src-tauri/target/release/bundle/macos/Ghost FTP.app"'));
-  assert.ok(!macOSShared.includes("security import"));
-  assert.ok(!macOSShared.includes("gh release delete"));
   assert.ok(workflow.includes("RECOVERY_STATE"));
   assert.ok(workflow.includes("false:true:21"));
   assert.ok(workflow.includes("Refusing v0.95.52 while v0.95.51"));
@@ -100,7 +81,6 @@ test("draft asset file iteration cannot hash a staging directory or follow symli
     const dist = path.join(temp, "dist");
     fs.mkdirSync(dist);
     fs.writeFileSync(path.join(dist, "GhostFTP-test.zip"), "real release bytes");
-    fs.mkdirSync(path.join(dist, "macos"));
     fs.mkdirSync(path.join(dist, "native"));
     fs.writeFileSync(path.join(dist, "native", "secret.txt"), "not a release asset");
     fs.symlinkSync(path.join(dist, "native", "secret.txt"), path.join(dist, "GhostFTP-leak.zip"));
