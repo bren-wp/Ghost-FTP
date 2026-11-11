@@ -7,7 +7,7 @@ test -n "$GH_TOKEN"
 test "$(node -p 'require("./version.json").channel')" = "preview"
 CURRENT="$(node -p 'require("./version.json").version')"
 MODE="$GHOSTFTP_METADATA_EVENT"
-case "$MODE" in push|schedule|successful-release|release-edited) ;; *) exit 1 ;; esac
+case "$MODE" in push|schedule|successful-release|release-edited|manual) ;; *) exit 1 ;; esac
 
 enforce_preview() {
   local version="$1" sha="$2" tag="v$1" release id name after

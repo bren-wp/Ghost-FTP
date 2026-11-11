@@ -1,6 +1,9 @@
 name: Enforce immutable Ghost FTP Preview release metadata
 # Correct post-publication Preview classification only; no deletion anywhere.
 on:
+  # A trusted maintainer may correct Preview metadata immediately after an
+  # external edit; this never overwrites historical tags, binaries or checksums.
+  workflow_dispatch:
   push:
     branches: [main]
   # Detect and correct external metadata drift, including changes made after a push.
@@ -24,7 +27,7 @@ concurrency:
 
 jobs:
   metadata:
-    if: ${{ github.repository == 'bren-wp/Ghost-FTP' && (((github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) || (github.event_name == 'release' && github.event.release.draft == false && startsWith(github.event.release.tag_name, 'v0.99.'))) }}
+    if: ${{ github.repository == 'bren-wp/Ghost-FTP' && (((github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) || (github.event_name == 'release' && github.event.release.draft == false && startsWith(github.event.release.tag_name, 'v0.99.'))) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -36,7 +39,7 @@ jobs:
       - name: Verify and correct Preview classification without modifying release assets or tags
         env:
           GH_TOKEN: ${{ github.token }}
-          GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || github.event_name == 'release' && 'release-edited' || github.event_name == 'schedule' && 'schedule' || 'push' }}
+          GHOSTFTP_METADATA_EVENT: ${{ github.event_name == 'workflow_run' && 'successful-release' || github.event_name == 'release' && 'release-edited' || github.event_name == 'schedule' && 'schedule' || github.event_name == 'workflow_dispatch' && 'manual' || 'push' }}
           GHOSTFTP_PUBLISHED_SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |

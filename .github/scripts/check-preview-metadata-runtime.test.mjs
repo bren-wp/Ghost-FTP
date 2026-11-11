@@ -130,7 +130,7 @@ function recentFixture(version, index) {
   };
 }
 
-function runScenario(change) {
+function runScenario(change, mode = "push") {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "ghostftp-release-metadata-test-"));
   const bin = path.join(directory, "bin");
   const data = path.join(directory, "state");
@@ -150,7 +150,7 @@ function runScenario(change) {
       cwd: ROOT, encoding:"utf8", timeout:60000,
       env:{...process.env, PATH:bin+path.delimiter+process.env.PATH,
         GH_TOKEN:"fake-for-local-unit-test", GITHUB_REPOSITORY:"bren-wp/Ghost-FTP",
-        GHOSTFTP_METADATA_EVENT:"push", MOCK_GH_DIRECTORY:data},
+        GHOSTFTP_METADATA_EVENT:mode, MOCK_GH_DIRECTORY:data},
     });
     const get = version => JSON.parse(fs.readFileSync(path.join(data, version + ".json"), "utf8"));
     return {result,historical:get("0.99.24"),newer:get("0.99.25"),
@@ -179,6 +179,15 @@ test("release corrector quarantines incomplete v0.99.24 and repairs recent 21-as
     assert.equal(release.target_commitish,RECENT[version]);
   }
   assert.match(result.stdout, /not yet publicly visible/, "the next unpublished version may be absent on push");
+});
+
+test("manual Preview metadata recovery repairs a published predecessor after external classification drift", () => {
+  const {result, recent, newer} = runScenario(null, "manual");
+  assert.equal(result.status, 0, [result.stdout, result.stderr, result.error].join("\n"));
+  assert.equal(recent[PREVIOUS_PUBLISHED].prerelease, true);
+  assert.equal(recent[PREVIOUS_PUBLISHED].name, "Ghost FTP " + PREVIOUS_PUBLISHED + " Preview");
+  assert.equal(recent[PREVIOUS_PUBLISHED].assets.length, 21);
+  assert.equal(newer.prerelease, true, "legacy release still receives verified correction");
 });
 
 test("release corrector blocks historical asset tampering before any recent mutation", () => {
