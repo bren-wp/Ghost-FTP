@@ -35,9 +35,9 @@ test("all release entry points contain only Ghost FTP client packages", () => {
     ]) assert.ok(!source.includes(forbidden), `${file}: retired ${forbidden}`);
   }
   const contract = JSON.parse(read(".github/scripts/release-artifacts.json"));
-  assert.equal(contract.required.length, 21);
+  assert.equal(contract.required.length, 15);
   assert.equal(contract.optional_updater.length, 4);
-  assert.ok(contract.required.every(name => !/android|server|ghostftp-cli/i.test(name)));
+  assert.ok(contract.required.every(name => !/android|server|ghostftp-cli|macos|\\.dmg/i.test(name)));
   assert.ok(read(".github/scripts/check-release-index.sh").includes("validate-release-assets.mjs"));
   assert.ok(!read(".github/scripts/check-release-index.sh").includes("-ge 25"));
   assert.ok(read(".github/scripts/publish-release.sh").includes("sha256sum -c"));

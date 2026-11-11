@@ -2,7 +2,7 @@
 
 GitHub Releases is the canonical source for published Ghost FTP binaries and checksums.
 
-Use the [complete official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), not the GitHub `/releases/latest` shortcut (which may omit prereleases). Development source is **0.99.36 Preview**; [v0.99.35](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.35) is the last published predecessor. A development source version does not imply a downloadable artifact already exists.
+Use the [complete official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), not the GitHub `/releases/latest` shortcut (which may omit prereleases). Development source is **0.99.47 Preview**; [v0.99.46](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.46) is the last published predecessor. A development source version does not imply a downloadable artifact already exists.
 
 ## Verify downloads
 
@@ -53,10 +53,6 @@ The authoritative source directories are:
 
 Support/compatibility tooling under `tools/` must not be confused with the production desktop packages described above.
 
-
-## macOS Desktop — installer without Developer ID
-
-Download the **Apple Silicon (arm64)** or **Intel (x86_64)** DMG Preview from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open it, and drag `Ghost FTP Desktop.app` into `Applications`. It has no paid Apple Developer signature or notarization, so the first launch can require `System Settings → Privacy & Security → Open Anyway`. Do not disable Gatekeeper globally. [Instructions in Croatian and English](MACOS_INSTALLATION.md).
 
 ## Unsigned Windows/Linux installation and manual upgrade
 

@@ -14,7 +14,7 @@
 
 # Ghost FTP desktop roadmap — 0.99.36 Preview
 
-**Current development line:** 0.99.47. **Previous canonical release:** v0.99.46. The supported product is a graphical file-transfer client for Windows, Linux and macOS; historical editions remain immutable.
+**Current development line:** 0.99.47. **Previous canonical release:** v0.99.46. The supported product is a graphical file-transfer client for Windows and Linux; historical editions remain immutable.
 
 ## Current work
 
@@ -23,11 +23,9 @@
 - **Server compatibility:** test with actual FTP/explicit FTPS/SFTP servers; audit WebDAV, cloud, object storage and account connectors using real permitted endpoints
 - **Windows:** native WebView2 startup, screen navigation, installer/portable use, upgrade/rollback, OS credential vault and file association checks
 - **Linux:** GTK/WebKit startup, AppImage/DEB/RPM package behavior, Secret Service, GNOME/KDE/Wayland tests and native paths
-- **macOS:** SwiftUI client FTP correctness, Keychain, signed HTTPS/provider flows and DMG/ZIP validation; FTPS/SFTP remain unavailable until implemented securely
 - **Visual acceptance:** native 1290×852 capture for 30 Windows and 29 Linux references, plus actual interaction/keyboard/a11y tests at multiple display scales
 
 ## Production gates
 
-A Preview source change is not a stable release or independent penetration test. Require exact commit SHA from quality, protocol E2E, native desktop build, Windows hardening and both macOS verification workflows. Then test installation and authenticated transfer operations on physical devices. Preserve the signed updater's fail-closed policy and immutable release lineage.
 
 No mock accounts, invented server responses, fabricated screenshots or unsupported claims of pixel-perfect parity.

@@ -11,16 +11,28 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const contract = JSON.parse(fs.readFileSync(path.join(root, ".github/scripts/release-artifacts.json"), "utf8"));
+const historicalContract = JSON.parse(fs.readFileSync(path.join(root, ".github/scripts/release-artifacts-legacy.json"), "utf8"));
+const retirementStart = [0, 99, 47];
+function manifestForVersion(version) {
+  const parts = version.split(".").map(Number);
+  ensure(parts.length === 3 && parts.every(Number.isSafeInteger), "invalid semantic version");
+  for (let i = 0; i < 3; i++) {
+    if (parts[i] < retirementStart[i]) return historicalContract;
+    if (parts[i] > retirementStart[i]) return contract;
+  }
+  return contract;
+}
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const fail = (message) => { throw new Error("Release asset verification: " + message); };
 const ensure = (condition, message) => { if (!condition) fail(message); };
 
 export function expectedReleaseAssets(version) {
   ensure(/^\d+\.\d+\.\d+$/.test(version), "invalid semantic version");
-  ensure(contract.schema === 1, "unsupported release artifact contract schema");
+  const selected = manifestForVersion(version);
+  ensure(selected.schema === 1, "unsupported release artifact contract schema");
   const expand = (template) => template.replaceAll("{version}", version);
-  const required = contract.required.map(expand);
-  const optional = contract.optional_updater.map(expand);
+  const required = selected.required.map(expand);
+  const optional = selected.optional_updater.map(expand);
   ensure(required.length > 0, "empty required asset inventory");
   ensure(new Set([...required, ...optional]).size === required.length + optional.length,
     "duplicate names in release asset contract");
@@ -86,7 +98,7 @@ export function validateReleaseAssets(version, records, checksumBytes) {
     ensure(byName.get(name).digest === "sha256:" + digest,
       `SHA-256 mismatch between GitHub and SHA256SUMS for ${name}`);
   }
-  return { assetCount: expected.length, optionalUpdater: expected.length > contract.required.length };
+  return { assetCount: expected.length, optionalUpdater: expected.length > expectedReleaseAssets(version).required.length };
 }
 
 export function validateLocalReleaseDirectory(version, directory) {

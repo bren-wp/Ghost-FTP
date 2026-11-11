@@ -12,9 +12,9 @@ test("publisher and post-release checker share one exact manifest",()=>{
   const workflow=read(".github/workflows/ghostftp-preview-metadata.yml");
   const manifest=JSON.parse(read(".github/scripts/release-artifacts.json"));
   assert.equal(manifest.schema,1);
-  assert.equal(manifest.required.length,21);
+  assert.equal(manifest.required.length,15);
   assert.equal(manifest.optional_updater.length,4);
-  assert.equal(new Set([...manifest.required,...manifest.optional_updater]).size,25);
+  assert.equal(new Set([...manifest.required,...manifest.optional_updater]).size,19);
   for(const script of [publish,verify]) assert.ok(script.includes("validate-release-assets.mjs"));
   assert.ok(publish.includes("--list-required"));
   assert.ok(publish.includes("--list-optional"));

@@ -95,13 +95,6 @@ jobs:
         run: |
           node --test .github/scripts/check-retired-platform.test.mjs
           node .github/scripts/check-retired-platform.mjs
-      - name: Enforce macOS Developer ID distribution safeguards
-        shell: bash
-        run: node .github/scripts/check-macos-production-gate.mjs
-      - name: Verify unsigned macOS installable DMG and release contract
-        shell: bash
-        run: node .github/scripts/check-macos-installable-artifacts.mjs
-
       - name: Reject vulnerable Tauri IPC and updater dependency versions
         shell: bash
         run: node .github/scripts/check-tauri-security-dependencies.mjs
@@ -190,25 +183,22 @@ jobs:
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
           grep -Fq 'sha256sum -c' .github/scripts/publish-release.sh
 
-      - name: Verify desktop multilingual UI and native macOS catalog
+      - name: Windows/Linux desktop branding and localization inventory
         shell: bash
         run: |
-          node ghostftp-desktop/scripts/check-i18n-parity.mjs
-          node tools/audits/check-localization-inventory.mjs
+          set -euo pipefail
           node tools/audits/check-cross-platform-branding.mjs
+          node tools/audits/check-localization-inventory.mjs
 
       - name: Cross-platform premium branding integration contract
         shell: bash
         run: |
           set -euo pipefail
           grep -Fq -- '--bg: 7 14 26;' ghostftp-desktop/src/styles.css
-          # Keep the original desktop cyan branding while the two approved
+          # Preserve the approved desktop cyan branding.
           grep -Fq -- '--accent: 56 171 255;' ghostftp-desktop/src/styles.css
           grep -Fq '"accent": "#38ABFF"' docs/branding/premium-ui-tokens.json
-          grep -Fq 'GhostPremiumPalette.accent' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
-          grep -Fq 'static let sidebar = Color(red: 13/255, green: 25/255, blue: 43/255)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'background: rgb(var(--bg-panel)) !important;' ghostftp-desktop/src/styles.css
-          grep -Fq 'No macOS mockups were provided' docs/product/PREMIUM_BRAND_2026.md
           test -s assets/branding/ghostftp-app-icon.svg
           grep -Fq 'viewBox="0 0 1280 330"' ghostftp-desktop/branding/ghostftp-logo.svg
           grep -Fq 'MORE THAN TRANSFER. TOTAL CONTROL.' ghostftp-desktop/branding/ghostftp-logo.svg
@@ -222,10 +212,8 @@ jobs:
           grep -Fq 'PRODUCT_SITE = "https://ghostftp.com"' ghostftp-desktop/src/lib/release.ts
           grep -Fq 'const PROJECT_REPOSITORY_URL = "https://github.com/bren-wp/Ghost-FTP";' ghostftp-desktop/src/components/AboutDialog.tsx
           grep -Fq 'More Than Transfer. Total Control.' ghostftp-desktop/src/components/AboutDialog.tsx
-          grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           grep -Fq 'PRODUCT_SUPPORT_URL' ghostftp-desktop/src/components/AboutDialog.tsx
           grep -Fq 'PRODUCT_PRIVACY_URL' ghostftp-desktop/src/components/AboutDialog.tsx
-          grep -Fq 'https://ghostftp.com' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
           ! grep -Fq 'Open the GitHub issue tracker' ghostftp-desktop/src/components/AboutDialog.tsx
 
       - name: Real premium Help/About reference hierarchy
@@ -237,8 +225,6 @@ jobs:
           grep -Fq 'void check(false)' ghostftp-desktop/src/components/AboutDialog.tsx
           grep -Fq '.ghost-about-reference-resources' ghostftp-desktop/src/styles.css
           ! grep -Fq 'function AboutLandscape(' ghostftp-desktop/src/components/AboutDialog.tsx
-          grep -Fq 'private func identityCard(version: String)' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
-          grep -Fq 'FTPS and SFTP remain disabled' macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift
 
       - name: Reject unsupported screenshot acceptance claims and fake runtime screenshots
         shell: bash
@@ -273,10 +259,6 @@ jobs:
         shell: bash
         run: node .github/scripts/check-live-transfers-parity.mjs
 
-      - name: macOS signed cloud peer routing and bearer-token safety
-        shell: bash
-        run: node .github/scripts/check-macos-pinned-cloud.mjs
-
       - name: Retired historical backfill cannot restore deleted platform packages
         shell: bash
         run: |
@@ -294,7 +276,6 @@ jobs:
           grep -Fq '"windows": ["main"]' ghostftp-desktop/src-tauri/capabilities/default.json
           grep -Fq '.inner_size(1290.0, 852.0)' ghostftp-desktop/src-tauri/src/lib.rs
           grep -Fq '.min_inner_size(480.0, 600.0)' ghostftp-desktop/src-tauri/src/lib.rs
-          grep -Fq '.decorations(cfg!(target_os = "macos"))' ghostftp-desktop/src-tauri/src/lib.rs
           ! grep -RniE 'http://127\\.0\\.0\\.1|browser shell' \
             ghostftp-desktop/src ghostftp-desktop/src-tauri/src tools/ghostftp-runtime tools/ghostftp-installer \
             --exclude-dir=target

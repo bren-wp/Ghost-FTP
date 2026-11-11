@@ -9,7 +9,7 @@ import test from "node:test";
 import { expectedReleaseAssets, validateLocalReleaseDirectory, validateReleaseAssets } from "./validate-release-assets.mjs";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const version = "0.99.39";
+const version = "0.99.47";
 function fixture(signed = false) {
   const { required, optional, checksum } = expectedReleaseAssets(version);
   const names = [...required.filter(n => n !== checksum), ...(signed ? optional : [])];
@@ -21,12 +21,30 @@ function fixture(signed = false) {
   records.push({ name: checksum, size: sums.length, digest: "sha256:" + hash(sums), state: "uploaded" });
   return { records, sums, checksum };
 }
-test("manifest covers the exact current 21-file desktop baseline and optional complete signer group", () => {
-  assert.equal(expectedReleaseAssets(version).required.length, 21);
+test("manifest covers the exact current 15-file Windows/Linux desktop baseline and optional complete signer group", () => {
+  assert.equal(expectedReleaseAssets(version).required.length, 15);
   assert.equal(expectedReleaseAssets(version).optional.length, 4);
-  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(false)).slice(0,2)).assetCount, 21);
-  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(true)).slice(0,2)).assetCount, 25);
+  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(false)).slice(0,2)).assetCount, 15);
+  assert.equal(validateReleaseAssets(version, ...Object.values(fixture(true)).slice(0,2)).assetCount, 19);
 });
+test("prior release manifests remain immutable with the original 21-asset inventory", () => {
+  const previousVersion = "0.99.46";
+  const { required, optional, checksum } = expectedReleaseAssets(previousVersion);
+  assert.equal(required.length, 21);
+  assert.equal(optional.length, 4);
+  assert.ok(required.some(name => name.includes("macOS")), "historic published platform must remain verifiable");
+  const assets = required.filter(name => name !== checksum).map(name => {
+    const bytes = Buffer.from("historical bytes: " + name);
+    return { name, size: bytes.length, digest: "sha256:" + hash(bytes), state: "uploaded" };
+  });
+  const sums = Buffer.from(assets.map(asset => asset.digest.slice(7) + "  " + asset.name).join("\n") + "\n");
+  assets.push({ name: checksum, size: sums.length, digest: "sha256:" + hash(sums), state: "uploaded" });
+  assert.equal(validateReleaseAssets(previousVersion, assets, sums).assetCount, 21);
+  assert.throws(() => validateReleaseAssets(version, assets, sums), /asset inventory mismatch/);
+  assert.throws(() => validateReleaseAssets(previousVersion, assets.slice(1), sums), /asset inventory mismatch/);
+  assert.throws(() => validateReleaseAssets(previousVersion, assets.map((asset,i) => i === 0 ? {...asset, digest:"sha256:"+"0".repeat(64)} : asset), sums), /SHA-256 mismatch/);
+});
+
 test("missing, extra and partial signed updater artifacts are rejected", () => {
   const { records, sums } = fixture();
   assert.throws(() => validateReleaseAssets(version, records.slice(1), sums), /missing/);
@@ -51,7 +69,7 @@ test("local dist validates real content, rejects symlink and ignores staging dir
     }
     fs.mkdirSync(path.join(tmp, "native"));
     fs.writeFileSync(path.join(tmp, "native", "do-not-release"), "secret");
-    assert.equal(validateLocalReleaseDirectory(version, tmp).assetCount, 21);
+    assert.equal(validateLocalReleaseDirectory(version, tmp).assetCount, 15);
     fs.symlinkSync(path.join(tmp, "native", "do-not-release"), path.join(tmp, "leak.txt"));
     assert.throws(() => validateLocalReleaseDirectory(version, tmp), /symlinked/);
     fs.unlinkSync(path.join(tmp, "leak.txt"));

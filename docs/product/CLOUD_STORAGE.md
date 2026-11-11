@@ -1,72 +1,32 @@
-# Cloud storage privacy and security scope — 0.93.0 candidate
+# Ghost FTP cloud storage security — Windows and Linux
 
-| App | Authenticated cloud connections | Signed single-object transfer |
+**Active product:** Windows/Linux Rust/Tauri graphical client, Ghost FTP 0.99.47 Preview. Historical platform-specific functionality documented in earlier releases is not part of current distribution.
+
+| Platform | Cloud connections | Required validation |
 | --- | --- | --- |
-| Windows | Existing S3/R2/B2, GCS, Azure, WebDAV, Google Drive, OneDrive, Dropbox, Box integrations | Use authenticated providers |
-| Linux | Same desktop adapters | Use authenticated providers |
-| macOS | Not yet available | S3-compatible/GCS signed HTTPS PUT/GET, Azure SAS |
-| Android | Not yet available | S3-compatible/GCS signed HTTPS PUT/GET, Azure SAS |
+| Windows | S3-compatible, GCS, Azure Blob, WebDAV, Google Drive, OneDrive, Dropbox, Box adapters | OAuth consent, refresh, key vault and real provider E2E |
+| Linux | Same Rust desktop adapters | Secret Service persistence, consent and live provider E2E |
 
-**Google Drive and Google Cloud Storage are distinct services.** Full Drive support on mobile/macOS requires separate OAuth 2.0 PKCE and secure refresh-token storage. A Drive share-page link is not a signed object URL and must not be silently treated as one.
+## Authorized account connections
 
-## Windows/Linux: connect a cloud account (0.95.48 Preview)
+In **Sites → Connect Cloud**, account-based providers use the browser's OAuth 2.0 authorization-code flow with PKCE S256, localhost callback and randomized anti-CSRF state. The provider receives the password directly; Ghost FTP must never request account credentials or persist OAuth client secrets in saved profiles.
 
-In **Sites → Connect Cloud**, choose Google Drive, OneDrive, Dropbox or Box and click
-**Connect in browser**. The provider authenticates the user on its own web page.
-Ghost FTP does not request provider account passwords or OAuth client secrets.
-The app obtains short-lived access tokens via OAuth 2.0 authorization-code +
-PKCE S256 with a localhost callback and a randomly generated CSRF state.
-Tokens and the public application Client ID needed for refresh are kept in
-the operating-system keyring per saved account; older token records remain
-readable. The saved site contains only connection metadata.
+Real public native desktop client IDs must be registered with providers. Without a configured ID, an authorized user may configure an appropriate public client ID and its redirect URL. Tokens belong in the operating-system credential service, not in SQLite or logs. Connection metadata alone is saved in the site record. Grant revocation, vault-lock behavior and upgrade migration require actual-device verification.
 
-**An OAuth Client ID is required.** Production-quality one-click account
-connection needs Brendigo to register public native desktop OAuth applications
-with Google, Microsoft, Dropbox and Box and configure their public IDs in
-desktop builds. This Preview does not contain invented or borrowed provider
-IDs. Without a preconfigured ID, the wizard displays an Advanced public
-Client ID field. An authorized user can register their own public/desktop
-application and set its redirect URL to `http://localhost:53682/`. The app
-must never ask for or persist a provider client secret in a saved profile.
-If the browser flow is cancelled or times out, no connection is saved.
+Google Drive and Google Cloud Storage are distinct services. S3-compatible services, Backblaze B2, GCS, Azure Blob and WebDAV/Nextcloud use their own endpoint and credentials; an arbitrary Drive share page is not a signed object grant.
 
-Google Drive uses the Drive API and differs from Google Cloud Storage.
-**S3-compatible services, Backblaze B2, GCS, Azure Blob and WebDAV/Nextcloud**
-require endpoint/bucket/container/host details and their respective
-credential methods, not a Google Drive account login. Their existing
-desktop protocol adapters have not been replaced by this OAuth wizard.
+## Transport and file security requirements
 
-Manual device validation is still required for consent, refresh/relaunch,
-locked OS vaults, revocation and provider scopes. The Linux kernel-keyutils
-backend must not be called Secret Service until persistence migration is
-implemented and existing credentials are safely migrated.
+- FTP carries data in plaintext; prefer explicit FTPS with valid certificate/hostname verification or SFTP with a verified SSH host key.
+- Never log bearer tokens, private keys, authorization headers or signed URLs, including query strings, on failure paths.
+- Reject unsafe redirects and private/loopback destinations for network-grant and signed cloud transfer functionality; server peer validation must occur on the actual connection, not a disconnected preflight.
+- WebDAV Basic/Bearer authentication requires valid HTTPS, no URL userinfo/query/fragment and no automatic 30x credential forwarding.
+- Limit remote inventory sizes, response payloads and transfer resources. Downloads must not mark success on truncation or replace protected symlinks/special nodes.
+- The signed in-app updater requires an authenticated manifest and signatures; a SHA-256 checksum alone is not an OS-publisher signature.
+- Never invent connected provider states, successful transfers or screenshots for marketing.
 
-## Invariants
+## Outstanding production evidence
 
-- Never log, persist or echo a signed URL or its query. It is a bearer credential and the UI masks it.
-- Accept only HTTPS signed objects with expected cloud signature query keys **and known cloud provider hostnames**; do not bypass operating-system certificate and hostname verification. Supported initial host families: AWS S3, Cloudflare R2, Backblaze B2, GCS, Azure Blob, DigitalOcean Spaces, Wasabi and Scaleway S3. Arbitrary custom S3 domains are blocked on mobile/macOS pending explicit trust configuration.
-- Reject HTTP redirects and destinations with userinfo, fragments, literal IPs or private-looking hostnames. Android 0.94.0 uses direct-only OkHttp with a public-IP DNS policy at the connecting transport, rather than a disconnected preflight. This does not establish device-level DNS/VPN attack resistance or address macOS transport gaps; signed links must be generated by trusted providers.
-- Download operations reject partial HTTP 206 responses when no Range was requested; only a complete GET can replace a destination file.
-- No Ghost FTP cloud proxy, analytics or secret-sharing service is added. Files move to/from the third-party provider selected by the user.
-- Uploads/downloads have a 1 GiB single-object limit. Android stages downloads before writing to a user-chosen SAF document; macOS stages downloads before replacing chosen files.
-- Short-lived cloud signed links may require predeclared Content-Type or provider headers. Match your provider's signed operation and permissions. S3 / GCS PUT and Azure SAS block blob PUT are supported targets; general signed POST form uploads are not.
-- Maintain existing six exact-SHA PR/merged-main CI gates and the official immutable-tag/checksum release policy.
+Execute credentialed E2E tests with authorized provider accounts, token expiry/revocation, invalid certificate/SSH host-key tests, transfer cancellation, multi-GiB integrity tests and target-Windows/Linux credential-vault restore/rollback. Static scans and offline mocks are **not** sufficient for production security certification.
 
-## Future parity and acceptance
-
-Run real S3/R2/GCS/Azure signed-object tests, expiry/403/revocation tests, Android on-device SAF checks, macOS file privacy/TLS testing, correct region/bucket browsers, secure token exchange, user-driven OAuth account disconnection, multipart/resumable transfers and localization checks. Do not label these as implemented.
-
-## Authenticated WebDAV protection on Windows/Linux
-
-The WebDAV client now rejects plaintext HTTP, URL userinfo, query and fragments before Basic/Bearer authorization. Automatic 30x following is disabled to prevent credential leakage to a redirected endpoint. Users must configure a certificate-valid HTTPS WebDAV root.
-
-## 0.93.0 signed URL parsing hardening
-
-Android/macOS require exactly one nonempty signature query value matching the supported provider: `X-Amz-Signature` for S3-style hosts, `X-Goog-Signature` for GCS, or `sig` for Azure Blob. Signed download requests use identity content encoding and reject unexpected encoded responses. These changes do not authenticate the URL locally, remove DNS rebinding risk or guarantee SAF atomic writes. See the [signed cloud threat model](../security/CLOUD_SIGNED_URL_THREAT_MODEL.md), [provider matrix](../cloud/PROVIDERS.md) and [test matrix](../qa/CLOUD_E2E.md).
-
-## 0.94.0 Android network and cancellation improvements
-
-- `CloudNetworkSafety.kt` supplies provider allowlisted DNS answers to the actual OkHttp connection. Any resolved private/CGNAT/documentation/reserved IPv4 or non-global IPv6 answer rejects the request; no proxies, automatic redirects or HTTP replay retries are allowed.
-- `SignedCloudTransfer.kt` uses bounded streaming PUT/GET with cancellation checks and default TLS certificate/hostname validation. URLs are transient secrets, never included in user-visible exception messages.
-- The UI provides an explicit Cancel cloud transfer action and attempts to delete newly created, incomplete SAF destination documents on failed download. If cleanup is rejected by a third-party document provider, the UI warns the user instead of falsely claiming success.
-- These changes need real vendor/account and device validation before promotion. macOS does not yet share the Android routing enforcement; Google Drive OAuth is still unavailable on both platforms.
+See [Cloud provider matrix](../cloud/PROVIDERS.md), [cloud E2E](../qa/CLOUD_E2E.md), and [security/privacy handbook](../handbook/SECURITY_PRIVACY.md).

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  walk, declaredTypes, identifierUsedOutside, candidateModules,
+  walk,
   audit, privateSymbolCandidates, rustTestModuleRanges,
 } from "./full-dead-code-audit.mjs";
 
@@ -19,32 +19,21 @@ const temporary = (callback) => {
   finally { fs.rmSync(root, {recursive: true, force: true}); }
 };
 
-test("Swift module inventory conservatively treats OS entrypoints as reachable", () => {
-  assert.deepEqual(declaredTypes("struct Pane: View {}\nfinal class Store {}\n", "swift"), ["Pane", "Store"]);
-  assert.throws(() => declaredTypes("class Example", "java"), /Unsupported native module audit language/);
-  assert.equal(identifierUsedOutside("Profile", "A.swift", [["A.swift","struct Profile"], ["B.swift","Profile()"]]), true);
-  assert.equal(identifierUsedOutside("Profile", "A.swift", [["A.swift","struct Profile"], ["B.swift","Profiles()"]]), false);
-  assert.deepEqual(candidateModules([["App.swift","@main\nstruct App {}"]], "swift"), []);
-  assert.deepEqual(candidateModules([["Extension.swift","extension String { var sanitized: String { self } }"]], "swift"), []);
-});
-
 test("maintained platform entrypoints are checked and symlink recursion is blocked", () => temporary((root, put) => {
   put("ghostftp-desktop/src/main.tsx", "export {}");
   put("ghostftp-desktop/src-tauri/src/lib.rs", "pub fn work() {}");
-  put("macos/Sources/App.swift", "@main\nstruct App {}");
   put("tools/ghostftp-installer/main.go", "package main\nfunc main() {}");
   put("tools/ghostftp-runtime/main.go", "package main\nfunc main() {}");
   put("docs/build/STATUS.md", "documentation is a source file");
   assert.deepEqual(audit(root).entrypointBlockers, []);
   assert.equal(audit(root).counts.go, 2);
-  fs.symlinkSync(root, path.join(root, "macos", "loop"), "dir");
-  assert.equal(walk(root).length, 6);
-  fs.rmSync(path.join(root, "macos/Sources/App.swift"));
-  assert.deepEqual(audit(root).entrypointBlockers, ["macOS @main source missing"]);
+  fs.symlinkSync(root, path.join(root, "ghostftp-desktop", "loop"), "dir");
+  assert.equal(walk(root).length, 5);
+  fs.rmSync(path.join(root, "ghostftp-desktop/src/main.tsx"));
+  assert.deepEqual(audit(root).entrypointBlockers, ["React main.tsx missing"]);
 }));
 
-test("source symbol audit is advisory across Swift, Rust, TypeScript and Go", () => {
-  assert.deepEqual(privateSymbolCandidates([["macos/View.swift","private func orphan() {}"]], "swift").map(x=>x.name), ["orphan"]);
+test("source symbol audit is advisory across Rust, TypeScript and Go", () => {
   assert.deepEqual(privateSymbolCandidates([["src/engine.rs","fn orphan_worker() {}"]], "rust").map(x=>x.name), ["orphan_worker"]);
   assert.deepEqual(privateSymbolCandidates([["src/ui.ts","const orphanArrow = () => 1;"]], "typescript").map(x=>x.name), ["orphanArrow"]);
   assert.deepEqual(privateSymbolCandidates([["tools/main.go","func unusedWorker() {}"]], "go").map(x=>x.name), ["unusedWorker"]);
@@ -74,7 +63,6 @@ test("whole-project inventory sees desktop scripts and excludes generated files"
     ["ghostftp-desktop/src/main.tsx", "function unusedUi() {}"],
     ["ghostftp-desktop/src-tauri/src/lib.rs", "fn unusedRust() {}"],
     ["ghostftp-desktop/src-tauri/tests/protocol_e2e.rs", "#[test]\nfn realTest() {}"],
-    ["macos/Sources/App.swift", "@main\nstruct App {}\nprivate func unusedSwift() {}"],
     ["tools/ghostftp-installer/main.go", "package main\nfunc main() {}\nfunc unusedInstaller() {}"],
     ["tools/ghostftp-runtime/main.go", "package main\nfunc main() {}"],
     ["ghostftp-desktop/target/generated.rs", "generated"],
@@ -83,7 +71,6 @@ test("whole-project inventory sees desktop scripts and excludes generated files"
   assert.deepEqual(report.entrypointBlockers, []);
   assert.ok(report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="unusedRust"));
   assert.ok(!report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="realTest"));
-  assert.ok("macosSwift" in report.advisoryPrivateSymbols);
   assert.ok("desktopTypeScript" in report.advisoryPrivateSymbols);
   assert.ok("installerRuntimeGo" in report.advisoryPrivateSymbols);
   assert.equal(report.counts.rust, 2);

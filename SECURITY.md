@@ -1,6 +1,6 @@
 # Ghost FTP — Security policy
 
-**Publisher:** Brendigo · **Current supported product:** Ghost FTP graphical client for Windows, Linux and macOS (Preview). The historical Server, CLI and Demo products were retired from current source starting with v0.99.24.
+**Publisher:** Brendigo · **Current supported product:** Ghost FTP graphical client for Windows and Linux (Preview). The historical Server, CLI and Demo products were retired from current source starting with v0.99.24.
 
 This is the public, non-sensitive security policy for supported Ghost FTP editions. It deliberately does **not** include private keys, internal deployment addresses, administrative secrets, exploit instructions, customer environment identifiers or unreleased vulnerability information. Security is enforced by the code, permissions and tests—not by relying on undocumented or hidden weaknesses.
 
@@ -8,7 +8,6 @@ This is the public, non-sensitive security policy for supported Ghost FTP editio
 
 The latest public release and its support classification are recorded on the [official GitHub Releases page](https://github.com/bren-wp/Ghost-FTP/releases). A `Preview` label means an evaluation/development build, **not** a production security certification. No claim is made that any release is free of vulnerabilities. Only use a release in an environment suited to its documented maturity and update it when supported security fixes are published.
 
-The Windows/Linux Tauri desktop and native macOS client have distinct runtime and credential boundaries. The removed standalone Server, Demo and CLI are not included in new builds. Previous public artifacts remain historical downloads; their service installations and saved data are not removed by upgrading the graphical client.
 
 ## Security principles
 

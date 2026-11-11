@@ -328,7 +328,7 @@ mod tests {
         // Windows PowerShell cold start can contend with the concurrently
         // running Rust workspace tests on hosted CI machines. Keep a hard
         // deadline, but allow a realistic startup margin without weakening the
-        // eventual exit status or output assertions. Linux/macOS stay fast.
+        // eventual exit status or output assertions. Linux stays fast.
         let startup_budget = if cfg!(windows) { 60 } else { 20 };
         let s = tokio::time::timeout(Duration::from_secs(startup_budget), async {
             loop {

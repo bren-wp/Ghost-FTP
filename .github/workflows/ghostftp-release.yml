@@ -121,8 +121,6 @@ jobs:
           wait_for_gate "ghostftp-quality.yml" "source audit"
           wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
-          wait_for_gate "ghostftp-macos.yml" "macOS SwiftUI preview"
-          wait_for_gate "ghostftp-macos-shared-desktop.yml" "macOS shared desktop parity"
 
           # The known empty v0.95.51 public release must be repaired from
           # its exact-source CI artifacts before a successor can publish.
@@ -181,7 +179,6 @@ jobs:
           mkdir -p dist/native
           git archive --format=zip --output="dist/GhostFTP-v$VERSION-Source.zip" HEAD
           zip -qr "dist/GhostFTP-v$VERSION-Desktop-Source.zip" ghostftp-desktop
-          zip -qr "dist/GhostFTP-v$VERSION-macOS-Source.zip" macos
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
           zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
@@ -193,46 +190,6 @@ jobs:
           set -euo pipefail
           gh run download "${{ needs.select-trigger.outputs.native_run_id }}" -D dist/native
           find dist/native -type f -print
-
-      - name: Download verified macOS preview artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          RUN_ID="$(gh run list --workflow "ghostftp-macos.yml" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
-          test -n "$RUN_ID"
-          mkdir -p dist/macos
-          gh run download "$RUN_ID" --name GhostFTP-macOS-Preview -D dist/macos
-          MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
-          test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
-          echo "::notice::macOS artifact is an ad-hoc-signed development Preview, not a Developer ID/notarized production package."
-
-      - name: Download tested macOS shared Rust/Tauri desktop Preview
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          RUN_ID="$(gh run list --workflow "ghostftp-macos-shared-desktop.yml" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion --jq 'map(select(.status == "completed" and .conclusion == "success")) | .[0].databaseId // ""')"
-          test -n "$RUN_ID"
-          for ARCH in arm64 x86_64; do
-            DEST="dist/macos-shared/$ARCH"
-            mkdir -p "$DEST"
-            gh run download "$RUN_ID" --name "GhostFTP-macOS-Shared-$ARCH-Preview" -D "$DEST"
-            ARCHIVE="GhostFTP-macOS-Shared-$ARCH-v$VERSION-Preview.zip"
-            DMG="GhostFTP-macOS-Shared-$ARCH-v$VERSION-Installable-Preview.dmg"
-            MANIFEST="GhostFTP-macOS-Shared-$ARCH-SHA256SUMS.txt"
-            test -s "$DEST/$ARCHIVE"
-            test -s "$DEST/$DMG"
-            test -s "$DEST/$MANIFEST"
-            grep -Fq " $ARCHIVE" "$DEST/$MANIFEST"
-            grep -Fq " $DMG" "$DEST/$MANIFEST"
-            test "$(wc -l < "$DEST/$MANIFEST" | tr -d ' ')" = "2"
-            (cd "$DEST" && sha256sum -c "$MANIFEST")
-            unzip -tqq "$DEST/$ARCHIVE"
-          done
-          echo "Verified both Apple Silicon and Intel native macOS shared desktop packages."
 
       - name: Normalize release artifacts
         shell: bash
@@ -247,19 +204,9 @@ jobs:
           APPIMAGE_SIG="$(find dist/native -type f -iname '*.AppImage.sig' | head -n1 || true)"
           DEB="$(find dist/native -type f -name 'GhostFTP-Linux-amd64.deb' | head -n1 || true)"
           RPM="$(find dist/native -type f -name 'GhostFTP-Linux-x86_64.rpm' | head -n1 || true)"
-          MACOS_PREVIEW="$(find dist/macos -type f -name "GhostFTP-macOS-v$VERSION-Preview.zip" | head -n1 || true)"
-          MACOS_SHARED_ARM="dist/macos-shared/arm64/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
-          MACOS_SHARED_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
-          MACOS_DMG_ARM="dist/macos-shared/arm64/GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"
-          MACOS_DMG_INTEL="dist/macos-shared/x86_64/GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"
 
           test -n "$WIN_EXE"; test -n "$WIN_SETUP"; test -n "$WIN_MSI"; test -n "$LINUX_BIN"
           test -n "$APPIMAGE"; test -n "$DEB"; test -n "$RPM"
-          test -n "$MACOS_PREVIEW"; test -s "$MACOS_PREVIEW"
-          test -s "$MACOS_SHARED_ARM"
-          test -s "$MACOS_SHARED_INTEL"
-          test -s "$MACOS_DMG_ARM"
-          test -s "$MACOS_DMG_INTEL"
           if [ -n "$WIN_SETUP_SIG" ] || [ -n "$APPIMAGE_SIG" ]; then
             test -n "$WIN_SETUP_SIG"
             test -n "$APPIMAGE_SIG"
@@ -282,11 +229,6 @@ jobs:
           fi
           cp "$DEB" "dist/GhostFTP-Linux-amd64-v$VERSION.deb"
           cp "$RPM" "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm"
-          cp "$MACOS_PREVIEW" "dist/GhostFTP-macOS-v$VERSION-Preview.zip"
-          cp "$MACOS_SHARED_ARM" "dist/GhostFTP-macOS-Shared-arm64-v$VERSION-Preview.zip"
-          cp "$MACOS_SHARED_INTEL" "dist/GhostFTP-macOS-Shared-x86_64-v$VERSION-Preview.zip"
-          cp "$MACOS_DMG_ARM" "dist/GhostFTP-macOS-Shared-arm64-v$VERSION-Installable-Preview.dmg"
-          cp "$MACOS_DMG_INTEL" "dist/GhostFTP-macOS-Shared-x86_64-v$VERSION-Installable-Preview.dmg"
 
           QA_DIR="$(find dist/native -type d -name 'GhostFTP-Windows-x64-Preview-QA' | head -n1 || true)"
           test -n "$QA_DIR"

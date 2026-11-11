@@ -12,6 +12,6 @@ Use **Ghost FTP** for interface labels, product copy and release titles, and **G
 - `GhostFTP-Linux-x86_64-v<version>.rpm`
 - `GhostFTP-v<version>-Desktop-Source.zip`
 
-The supported source roots are `ghostftp-desktop/`, `macos/`, `tools/ghostftp-runtime/`, `tools/ghostftp-installer/` and `updates/`. Framework-specific names such as `src-tauri/`, `tauri.conf.json` and `@tauri-apps/*` remain unchanged.
+The supported source roots are `ghostftp-desktop/`, `tools/ghostftp-runtime/`, `tools/ghostftp-installer/` and `updates/`. Framework-specific names such as `src-tauri/`, `tauri.conf.json` and `@tauri-apps/*` remain unchanged.
 
 The installed desktop identifier `com.ghostftp.desktop`, `ghostftp://` scheme and user-data locations are migration-sensitive. A filename rebrand is not permission to break installed-client upgrades.

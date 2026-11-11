@@ -11,7 +11,7 @@ Ghost FTP Windows/Linux startup opens the real Files workspace immediately. The 
 
 # Ghost FTP desktop QA index
 
-The supported desktop platforms are Windows, Linux and macOS. Run source-level, protocol-level and installed native-app tests on the same exact commit SHA.
+The supported desktop platforms are Windows and Linux. Run source-level, protocol-level and installed native-app tests on the same exact commit SHA.
 
 ## Source and security QA
 
@@ -23,6 +23,6 @@ The supported desktop platforms are Windows, Linux and macOS. Run source-level, 
 
 ## Native acceptance gates
 
-Windows: portable/NSIS/MSI installation, application launch, WebView2, key vault, upload/download, transfer queue and updates. Linux: AppImage/DEB/RPM, GTK/WebKit, keyring, Wayland/X11, file selection and transfers. macOS: SwiftUI workspace, Keychain, FTP and signed cloud transport; FTPS/SFTP remain disabled pending secure implementation.
+Windows: portable/NSIS/MSI installation, application launch, WebView2, key vault, upload/download, transfer queue and updates. Linux: AppImage/DEB/RPM, GTK/WebKit, keyring, Wayland/X11, file selection and transfers.
 
 Code checks and mockup comparisons are not certification for all actual systems, permissions, server types or 1:1 pixel parity.

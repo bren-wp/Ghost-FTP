@@ -18,10 +18,29 @@ enforce_preview() {
   test "$(jq -r '.draft' <<< "$release")" = false
   test "$(jq -r '.tag_name' <<< "$release")" = "$tag"
   test "$(jq -r '.target_commitish' <<< "$release")" = "$sha"
-  test "$(jq -r '.assets | length' <<< "$release")" -ge 21
-  for name in "GhostFTP-v$version-SHA256SUMS.txt" "GhostFTP-macOS-v$version-Preview.zip"; do
-    test "$(jq -r --arg name "$name" '[.assets[].name | select(. == $name)] | length' <<< "$release")" -eq 1
-  done
+  # Old immutable releases had 21 required assets; new Windows/Linux releases
+  # have 15. Inspect the versioned audit manifest, never pretend an old release
+  # follows a new distribution contract.
+  local -a required_assets
+  mapfile -t required_assets < <(node .github/scripts/validate-release-assets.mjs "$version" --list-required)
+  case "${#required_assets[@]}" in
+    21)
+      # Historical metadata-only repairs retain the original fail-closed
+      # inventory count and two identity markers. Exact historical asset names
+      # are additionally checked against SHA256SUMS by repair_recent below.
+      test "$(jq -r '.assets | length' <<< "$release")" -ge 21
+      for name in "GhostFTP-v$version-SHA256SUMS.txt" "GhostFTP-macOS-v$version-Preview.zip"; do
+        test "$(jq -r --arg name "$name" '[.assets[].name | select(. == $name)] | length' <<< "$release")" -eq 1
+      done
+      ;;
+    15)
+      test "$(jq -r '.assets | length' <<< "$release")" -ge "${#required_assets[@]}"
+      for name in "${required_assets[@]}"; do
+        test "$(jq -r --arg name "$name" '[.assets[].name | select(. == $name)] | length' <<< "$release")" -eq 1
+      done
+      ;;
+    *) echo "::error::Unknown immutable release asset schema for v$version." >&2; exit 1 ;;
+  esac
   test "$(jq '[.assets[] | select((.size > 0) and (.digest | type == "string") and (.digest | test("^sha256:[a-f0-9]{64}$")))] | length' <<< "$release")" -eq "$(jq '.assets | length' <<< "$release")"
   id="$(jq -r '.id' <<< "$release")"
   test "$id" -gt 0

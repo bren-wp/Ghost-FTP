@@ -101,7 +101,7 @@ test "$(jq -r '.tag_name' <<< "$RELEASE_INFO")" = "$TAG"
 # GitHub may return 422 after accepting a request; recheck the remote digest
 # before deciding whether an upload actually failed.
 for file in dist/*; do
-  # Native, macOS and other staging directories are not release assets.
+  # Native artifact staging directories are not release assets.
   # Symlinks are also excluded to prevent uploading unintended files.
   [[ -f "$file" && ! -L "$file" ]] || continue
   test -s "$file"

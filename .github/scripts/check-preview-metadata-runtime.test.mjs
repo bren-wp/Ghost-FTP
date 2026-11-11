@@ -6,10 +6,10 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { expectedReleaseAssets } from "./validate-release-assets.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const OBSERVED = JSON.parse(fs.readFileSync(path.join(ROOT, ".github/scripts/v0.99.24-observed-assets.json"), "utf8"));
-const CONTRACT = JSON.parse(fs.readFileSync(path.join(ROOT, ".github/scripts/release-artifacts.json"), "utf8"));
 const PINNED = {
   "0.95.53": "27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af",
   "0.99.0": "900d76e6e3273058270a48affe2664f968910a1b",
@@ -113,7 +113,7 @@ function legacyFixture(version, index) {
 }
 
 function recentFixture(version, index) {
-  const required = CONTRACT.required.map(n => n.replaceAll("{version}", version));
+  const required = expectedReleaseAssets(version).required;
   const checksum = `GhostFTP-v${version}-SHA256SUMS.txt`;
   const assets = required.filter(n => n !== checksum).map((name, i) => {
     const bytes = Buffer.from("package bytes for " + name);
@@ -160,7 +160,7 @@ function runScenario(change, mode = "push") {
   }
 }
 
-test("release corrector quarantines incomplete v0.99.24 and repairs recent 21-asset Preview metadata", () => {
+test("release corrector quarantines incomplete v0.99.24 and verifies historical and modern Preview metadata", () => {
   const {result, historical, newer, recent} = runScenario();
   assert.equal(result.status, 0, [result.stdout,result.stderr,result.error].join("\n"));
   assert.match(result.stdout, /Historical v0\.99\.24 remains INCOMPLETE/);
@@ -175,7 +175,7 @@ test("release corrector quarantines incomplete v0.99.24 and repairs recent 21-as
     const shouldRepair = ["0.99.37", "0.99.38", PREVIOUS_PUBLISHED].includes(version);
     assert.equal(release.prerelease, shouldRepair, version+" unexpected classification");
     if (shouldRepair) assert.equal(release.name,"Ghost FTP "+version+" Preview");
-    assert.equal(release.assets.length,21);
+    assert.equal(release.assets.length,expectedReleaseAssets(version).required.length);
     assert.equal(release.target_commitish,RECENT[version]);
   }
   assert.match(result.stdout, /not yet publicly visible/, "the next unpublished version may be absent on push");
@@ -186,7 +186,7 @@ test("manual Preview metadata recovery repairs a published predecessor after ext
   assert.equal(result.status, 0, [result.stdout, result.stderr, result.error].join("\n"));
   assert.equal(recent[PREVIOUS_PUBLISHED].prerelease, true);
   assert.equal(recent[PREVIOUS_PUBLISHED].name, "Ghost FTP " + PREVIOUS_PUBLISHED + " Preview");
-  assert.equal(recent[PREVIOUS_PUBLISHED].assets.length, 21);
+  assert.equal(recent[PREVIOUS_PUBLISHED].assets.length, expectedReleaseAssets(PREVIOUS_PUBLISHED).required.length);
   assert.equal(newer.prerelease, true, "legacy release still receives verified correction");
 });
 

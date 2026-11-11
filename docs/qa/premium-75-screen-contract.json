@@ -366,9 +366,5 @@
       }
     ]
   },
-  "macos": {
-    "referenceCount": 0,
-    "policy": "No standalone macOS reference supplied. Follow canonical design tokens and approved icon while preserving safe SwiftUI platform behaviour; remain Preview until FTPS/SFTP and signing verified."
-  },
   "referenceArchiveSha256": "1cdaea3e60c0ec4b14c3e8fa515351ba0710ee9022060e7f107b8bb9fbf6e877"
 }

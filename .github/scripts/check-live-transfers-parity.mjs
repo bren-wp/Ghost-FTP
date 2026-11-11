@@ -8,7 +8,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const desktop = read("ghostftp-desktop/src/components/TransferCenterDialog.tsx");
 const css = read("ghostftp-desktop/src/styles.css");
-const mac = read("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
 
 for (const text of [
   'className="ghost-transfer-overview"',
@@ -48,27 +47,4 @@ for (const text of [
   "grid-template-columns: repeat(2, minmax(0, 1fr))",
 ]) assert.ok(css.includes(text), `Missing keyboard/compact desktop transfer layout: ${text}`);
 
-for (const text of [
-  'history.records.filter { $0.status == .running }.count',
-  'history.records.filter { $0.status == .completed }.count',
-  'history.records.filter { $0.status == .failed }.count',
-  'history.records.filter { $0.status == .cancelled }.count',
-  'accessibilityIdentifier("ghostftp-transfer-overview")',
-]) assert.ok(mac.includes(text), `Missing real macOS history metric: ${text}`);
-
-const historyStore = read("macos/Sources/GhostFTPMacApp/Services/TransferHistoryStore.swift");
-const macTests = read("macos/Tests/GhostFTPMacAppTests/WorkspaceStoreTests.swift");
-assert.ok(
-  historyStore.includes("records.removeAll { $0.status != .running }"),
-  "Clearing macOS history must retain running transfer records"
-);
-assert.ok(
-  mac.includes('Button(L10n.text("Clear finished"), role: .destructive)'),
-  "macOS history action must clearly describe its safe scope"
-);
-assert.ok(
-  macTests.includes("testClearingFinishedHistoryPreservesRunningTransferAndItsOutcome"),
-  "Missing macOS running-history-preservation regression"
-);
-
-console.log("Live Transfers UI: Windows/Linux backend-queue metrics, macOS actual credential-free history verified. Installed visual and device acceptance remain pending.");
+console.log("Live Transfers UI: Windows/Linux real backend-queue metrics verified. Installed visual and device acceptance remain pending.");

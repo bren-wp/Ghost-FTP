@@ -12,13 +12,12 @@
 
 > **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
 
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Maintained Windows, Linux and macOS desktop clients only. Native signing, cloud provider tests and pixel-accurate screenshot QA remain acceptance gates. Published v0.99.35 is immutable.
+> **Current development (11 November 2026): Ghost FTP 0.99.47 Preview.** Maintained Windows and Linux desktop clients only. Native signing, cloud provider tests and pixel-accurate screenshot QA remain acceptance gates. Published v0.99.46 is immutable.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Last public edition v0.99.32; Windows/Linux native installers are directly usable without a paid code-signing certificate but need authentic checksums, verified connections and target-device acceptance. Automatic updater remains signed-only; global stable labeling remains gated separately.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
 
-> **Authoritative current state (3 November 2026):** Ghost FTP **0.99.31 development Preview**; v0.99.30 is the latest publicly published version. The new cycle audits active Windows/Linux, Android and macOS code, plus maintained Go compatibility tools, security/privacy controls, dead-code reachability and regressions. Older notes retain historical context; no claim of total vulnerability freedom or complete device acceptance.
 
 > **Authoritative current state (2 November 2026):** Ghost FTP **0.99.30 development Preview**; v0.99.29 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
 
@@ -40,14 +39,12 @@ Previous canonical release: **0.99.46**. Live publication state is determined fr
 
 ## Cloud capabilities — 0.93.0 candidate
 
-Windows/Linux already support S3-compatible storage, GCS, Azure Blob, WebDAV, Google Drive, OneDrive, Dropbox and Box with existing native adapters. macOS and Android add private, direct signed-object transfer, **not** general S3 browsing or Google Drive OAuth account access. Live provider/device acceptance and all CI gates remain mandatory.
 
 ## Implemented
 
 | Area | Current capability |
 |---|---|
 | Desktop connections | FTP, explicit FTPS, SFTP, temporary connections, saved Sites, advisory duplicate discovery, private-key paths, host-key/TLS verification |
-| macOS saved sites | Local SwiftUI saved site inventory with advisory duplicate filter and editor warning (0.92.0); independent of and not equivalent to desktop protocol capability |
 | Desktop shell | One persistent native window for Files, Sites, Transfers, Sync & Backup, Settings and Help & About |
 | Desktop file browser | Local/remote browsing, upload/download, folder operations, rename, delete, duplicate, hidden files and multiple views |
 | Desktop file properties | SHA-256 plus supported chmod/permission and owner/group workflows |
@@ -57,8 +54,6 @@ Windows/Linux already support S3-compatible storage, GCS, Azure Blob, WebDAV, Go
 | Preferences | Themes, language, transfer limits, security settings, notifications and advanced controls |
 | Security/privacy | OS credential storage where supported, CSP, signed-updater path, credential redaction and no required telemetry |
 | Android | Native FTP, explicit FTPS and SFTP connection/listing/download/upload/delete/new-folder actions plus Files/Sites/Transfers/Sync & Backup/Settings/Help & About workspace parity |
-| Platforms | Windows portable + NSIS Setup; Linux binary/AppImage/DEB/RPM; Android APK; macOS ad-hoc-signed development Preview |
-| Release QA | Quality, protocol E2E, canonical native build, Android, Windows hardening and macOS exact-head gates |
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).

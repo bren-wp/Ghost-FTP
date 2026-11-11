@@ -12,13 +12,12 @@
 
 > **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
 
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only release line, with FTP/FTPS/SFTP and cloud transfer security under review. Public v0.99.35 stays immutable. No unverified claims of perfect UI parity or universal provider interoperability.
+> **Current development (11 November 2026): Ghost FTP 0.99.47 Preview.** Windows/Linux desktop-only release line, with FTP/FTPS/SFTP and cloud transfer security under review. Public v0.99.35 stays immutable. No unverified claims of perfect UI parity or universal provider interoperability.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Published v0.99.32 remains immutable. Windows/Linux unsigned installers can be manually installed; signed in-app updates still require verified signatures. New update-fallback, safe download link and data-preservation safeguards are under exact-head test; physical desktop production acceptance is not yet certified.
 
 > **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
 
-> **Authoritative current state (3 November 2026):** Ghost FTP **0.99.31 development Preview**; v0.99.30 is the latest publicly published version. The new cycle audits active Windows/Linux, Android and macOS code, plus maintained Go compatibility tools, security/privacy controls, dead-code reachability and regressions. Older notes retain historical context; no claim of total vulnerability freedom or complete device acceptance.
 
 > **Authoritative current state (2 November 2026):** Ghost FTP **0.99.30 development Preview**; v0.99.29 is the latest publicly published version. Standalone Ghost FTP Server, Demo and CLI are retired from current source and new release packages. Client protocol support remains platform-dependent; security and installed-device validation are not yet certified. Older entries below are historical.
 
@@ -32,7 +31,6 @@
 
 <h1 align="center">Ghost FTP Desktop</h1>
 <p align="center"><strong>More Than Transfer. Total Control.</strong></p>
-<p align="center">Shared desktop application for Windows and Linux; native macOS Rust/Tauri Preview is in acceptance.</p>
 
 <p align="center">
   <a href="../README.md">Product README</a> ·

@@ -423,20 +423,6 @@ for (const required of [
   if (!healthStatusBar.includes(required)) failures.push(`Desktop status bar missing live connection-health contract: ${required}`);
 }
 
-const macShell = read("../macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
-for (const required of [
-  "New connection",
-  "case files",
-  "case sites",
-  "case transfers",
-  "case sync",
-  "case settings",
-  "case about",
-  'case .sync: return L10n.text("Sync & Backup")',
-]) {
-  if (!macShell.includes(required)) failures.push(`macOS workspace parity missing: ${required}`);
-}
-
 const siteManagerCloud = read("src/components/SiteManagerDialog.tsx");
 for (const required of ['view === "cloud"', 'label="Cloud"', "s3", "azure", "gcs"]) {
   if (!siteManagerCloud.includes(required)) failures.push(`Sites must retain discoverable cloud filtering: ${required}`);

@@ -11,7 +11,7 @@
 
 Move files, manage connections and keep important server work organized with an elegant, privacy-conscious file-transfer client.
 
-**Windows** · **Linux** · **macOS Preview**
+**Windows** · **Linux**
 
 <sub>Ghost FTP 0.99.47 (development Preview) · Previously published: v0.99.46. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
@@ -63,13 +63,9 @@ Linux visuals are captured from the **actual running Ghost FTP executable**, not
 The historical Preview gallery includes **seven genuine Linux workspaces**: Files, Sites, New Connection, Transfers, Settings, Sync and About. The former splash image is archived as an earlier QA capture, but the desktop app now launches directly into Files. These are byte-verified native QA captures from GitHub Actions run 41524829466 at source SHA 01d816df5bdd3c76a8fa9c062371777cd345aa28, **not screenshots from the published v0.99.29 release**. They are evidence for comparison, not proof of pixel-perfect 1:1 design acceptance. Reference mockups are **never** repurposed as product screenshots.
 
 
-## Install Ghost FTP on macOS without paid Apple signing
-
-Ghost FTP Desktop is available as a separate **Apple Silicon ARM64** or **Intel x86_64** installable DMG Preview, as well as ZIP. No Apple Developer account or Developer ID signing certificate is required. Download the matching package from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases), open its DMG in Finder, drag **Ghost FTP Desktop.app** to **Applications**, then open the installed app. Because this development Preview is not notarized, you may need **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper. The embedded code uses only free ad-hoc signing for Apple Silicon integrity. Full [Croatian/English installation instructions](docs/guides/MACOS_INSTALLATION.md).
-
 ## Client-only distribution (0.99.30 development Preview)
 
-Only the **Ghost FTP graphical client** is distributed for Windows, Linux and macOS. Installers, binaries and source packages for the previously separate Server, Demo and CLI have been removed from this source train. FTP, FTPS, SFTP and the existing client-side transfer engines are retained where supported by each platform.
+Only the **Ghost FTP graphical client** is distributed for Windows and Linux. Installers, binaries and source packages for the previously separate Server, Demo and CLI have been removed from this source train. FTP, FTPS, SFTP and the existing client-side transfer engines are retained where supported by each platform.
 
 Published v0.99.29 and earlier releases remain immutable. See [platform packages](docs/distribution/PLATFORM_PACKAGES.md), [published v0.99.27 release notes](docs/releases/0.99.27.md), and [0.99.28 Windows/Linux reliability changes](docs/releases/0.99.28.md).
 
@@ -113,16 +109,13 @@ The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/
 | --- | --- | --- |
 | **🪟 Windows x64** | Portable EXE, Setup EXE, MSI | FTP, explicit FTPS, SFTP |
 | **🐧 Linux x86-64** | AppImage, DEB (Debian/Ubuntu family), RPM (Fedora/openSUSE/RHEL family), standalone ELF; [distro/package matrix](docs/distribution/LINUX_PACKAGE_MATRIX.md) | FTP, explicit FTPS, SFTP |
-| **🍎 macOS — Shared Desktop candidate (0.99.4)** | Separate Preview ZIP after exact-source CI passes | Shared Rust FTP, explicit FTPS and SFTP; real-machine acceptance pending |
-| **🍎 macOS — legacy SwiftUI** | Existing Preview ZIP | FTP only; FTPS/SFTP intentionally unavailable |
 
 **[View all Ghost FTP releases, including the latest Preview →](https://github.com/bren-wp/Ghost-FTP/releases)**
 
-The macOS Preview is not a Developer ID-signed, notarized App Store distribution. Availability through Apple's distribution channels requires platform-specific signing, testing and review.
 
 ## Cloud storage, without confusion
 
-Windows and Linux offer cloud and remote-storage integrations, including S3-compatible and WebDAV services and supported account-based connectors. The new shared macOS desktop candidate reuses these integrations; the legacy SwiftUI macOS app also supports direct object transfers via short-lived provider-signed HTTPS links. **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on those platforms.
+Windows and Linux offer cloud and remote-storage integrations, including S3-compatible and WebDAV services and supported account-based connectors.  **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on Windows and Linux.
 
 [Cloud storage information](docs/product/CLOUD_STORAGE.md) · [Privacy policy](https://ghostftp.com/hr/privacy)
 

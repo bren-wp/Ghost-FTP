@@ -11,6 +11,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 export function auditRetiredPlatform(root = ROOT) {
   const forbiddenPaths = [
     "android",
+    "macos",
+    "ghostftp-desktop/src-tauri/tauri.macos.conf.json",
+    ".github/workflows/ghostftp-macos.yml",
+    ".github/workflows/ghostftp-macos-shared-desktop.yml",
+    ".github/workflows/ghostftp-macos-developer-id.yml",
+    "ghostftp-desktop/scripts/check-macos-shortcut-modifiers.mjs",
+    "docs/guides/MACOS_INSTALLATION.md",
+    "docs/handbook/MACOS.md",
     "docs/mobile",
     ".github/workflows/ghostftp-android.yml",
     ".github/workflows/ghostftp-android-play-upload.yml",
@@ -41,8 +49,17 @@ export function auditRetiredPlatform(root = ROOT) {
     "docs/qa/PLATFORM_PARITY.md",
     "docs/qa/README.md",
     "docs/status/PRODUCTION_READINESS.md",
+    "ghostftp-desktop/src-tauri/Cargo.toml",
+    "ghostftp-desktop/src-tauri/src/lib.rs",
+    "ghostftp-desktop/src-tauri/src/remotefs/local.rs",
+    "ghostftp-desktop/src/lib/shortcuts.ts",
+    "ghostftp-desktop/src/components/TitleBar.tsx",
+    "ghostftp-desktop/src/styles.css",
+    "ghostftp-desktop/scripts/check-ui-contract.mjs",
+    "ghostftp-desktop/scripts/check-interaction-hardening.mjs",
+    "ghostftp-desktop/scripts/check-premium-files-reference.mjs",
   ];
-  const oldPlatform = /(?:\bandroid\b|ghostftp-android|\b(?:apk|aab)\b|androidversioncode)/i;
+  const oldPlatform = /(?:\bandroid\b|ghostftp-android|\b(?:apk|aab)\b|androidversioncode|\bmacos\b|swiftui|\.dmg\b|apple-native)/i;
   for (const rel of activeFiles) {
     const absolute = path.join(root, rel);
     if (!fs.existsSync(absolute)) {
@@ -67,7 +84,7 @@ export function auditRetiredPlatform(root = ROOT) {
     }
   }
   return {passed: findings.length===0, findings, activeFilesChecked: activeFiles.length,
-    activePlatforms:["windows","linux","macos"]};
+    activePlatforms:["windows","linux"]};
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result=auditRetiredPlatform();

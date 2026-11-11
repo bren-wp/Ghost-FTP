@@ -40,18 +40,13 @@ jobs:
           node .github/scripts/sync-version.mjs
           node .github/scripts/sync-version.mjs --check
 
-      - name: Validate canonical Cargo lockfile
-        shell: bash
-        run: bash .github/scripts/refresh-cargo-lock.sh
-
-      - name: Verify native macOS credential vault stays in the locked graph
+      - name: Reconcile platform retirement with pinned Cargo lockfile
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq '"apple-native"' ghostftp-desktop/src-tauri/Cargo.toml
-          grep -Fq '"security-framework 2.11.1"' ghostftp-desktop/src-tauri/Cargo.lock
-          grep -Fq '"security-framework 3.7.0"' ghostftp-desktop/src-tauri/Cargo.lock
-          echo "Native Apple Keychain and existing TLS security framework lock graph preserved."
+          bash .github/scripts/reconcile-cargo-lock-retirement.sh
+          bash .github/scripts/refresh-cargo-lock.sh
+
 
       - name: Diagnose Cargo feature-graph drift without publishing changes
         if: failure()
