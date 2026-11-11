@@ -102,7 +102,9 @@ test("Windows/Linux Sites shows real saved-profile cards with separate keyboard 
   assert.ok(sites.includes('className="ghost-site-row-favorite"'));
   assert.ok(sites.includes('aria-current={active ? "true" : undefined}'));
   assert.ok(sites.includes("await connect(selected.id)"));
-  assert.ok(sites.includes("await deleteProfile(selected.id)"));
+  assert.ok(sites.includes("const deletionTarget = confirmDeleteId"), "deletion must pin the originally confirmed profile");
+  assert.ok(sites.includes("await deleteProfile(deletionTarget.id)"), "delete must await the pinned original profile, not a newly selected row");
+  assert.ok(sites.includes('onConfirm={remove}'), "confirmation must use the guarded async remove callback");
   assert.ok(sites.includes("profiles.filter("));
   assert.ok(styles.includes(".ghost-site-row.is-selected"));
   assert.ok(styles.includes(".ghost-site-row-main:focus-visible"));
