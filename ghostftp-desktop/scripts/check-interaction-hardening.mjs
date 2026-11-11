@@ -149,9 +149,18 @@ requireIncludes("src/components/FindDuplicates.tsx", [
   "}, [close, confirming, deleting]);",
 ], "destructive duplicate delete must not be dismissed by parent Escape");
 
+requireIncludes("src/components/SiteManagerDialog.tsx", [
+  "const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)",
+  "setConfirmDeleteId(selected.id)",
+  "profiles.find((profile) => profile.id === confirmDeleteId)",
+  "await deleteProfile(deletionTarget.id);",
+  "message={`Delete “${deletionTarget.name}”",
+  "onClose={() => setConfirmDeleteId(null)}",
+], "Site deletion must be pinned to the originally confirmed profile ID");
+
 const siteDeleteSource = read("src/components/SiteManagerDialog.tsx")
   .split("const remove = async () => {")[1]?.split("  const exportSites =")[0] ?? "";
-if (!siteDeleteSource.includes("await deleteProfile(selected.id);") ||
+if (!siteDeleteSource.includes("await deleteProfile(deletionTarget.id);") ||
     /catch\s*\(/.test(siteDeleteSource)) {
   failures.push("Site deletion errors must reject to ConfirmModal so the user can retry.");
 }
