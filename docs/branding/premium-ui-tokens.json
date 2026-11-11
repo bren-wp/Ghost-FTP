@@ -24,15 +24,11 @@
     "navRowHeightPx": 43,
     "topChromeHeightPx": 52
   },
-  "macos": {
-    "referenceScreenCount": 0,
-    "policy": "Share semantic identity and native platform behavior. No 1:1 macOS screenshot can be claimed without an approved macOS visual reference."
-  },
   "referenceCounts": {
     "windows": 30,
     "linux": 29
   },
-  "status": "Windows/Linux/macOS desktop implementation in progress; visual and device acceptance pending",
+  "status": "Windows/Linux desktop implementation in progress; visual and device acceptance pending",
   "acceptance": {
     "requireRealAppCaptures": true,
     "requireWorkingActions": true,
