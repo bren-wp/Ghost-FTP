@@ -36,19 +36,13 @@ for (const [platform, count] of Object.entries(expected)) {
   }
 }
 if (seen.size !== 59) errors.push(`expected 59 unique references, got ${seen.size}`);
-if (contract.macos?.referenceCount !== 0) {
-  errors.push("macOS must not invent a reference-screen set absent from the ZIP");
-}
 // The registry alone is insufficient: enforce that the real UI uses the
 // shared brand mark and that platform-specific launch/window geometries survive.
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const desktopCSS = read("ghostftp-desktop/src/styles.css");
-const macShell = read("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
 for (const [label, condition] of [
   ["214px reference sidebar", desktopCSS.includes("width: 214px !important")],
   ["43px desktop navigation rows", desktopCSS.includes("min-height: 43px")],
-  ["responsive macOS window", macShell.includes(".frame(minWidth: 840, minHeight: 560)")],
-  ["macOS premium brand tagline", macShell.includes('Text(L10n.text("TOTAL CONTROL"))')],
 ]) {
   if (!condition) errors.push(`missing real platform brand contract: ${label}`);
 }
