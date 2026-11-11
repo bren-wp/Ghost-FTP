@@ -1,3 +1,5 @@
+> **Ghost FTP 0.99.46 Preview development. Public predecessor: v0.99.45. Cross-platform New Connection protocol selector now uses a consistent accessible dark theme; exact native screenshot acceptance remains pending.**
+
 > **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
 
 > **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
@@ -124,8 +126,8 @@ The previous one-time latest-ten cleanup has ended. **No scheduled or post-relea
 
 ## Current release cycle
 
-- Active source/release cycle: **0.99.45**
-- Previous canonical release: **0.99.44**
+- Active source/release cycle: **0.99.46**
+- Previous canonical release: **0.99.45**
 - Live publication state is determined by GitHub Releases and exact tag/source verification.
 
 ## Newest edition is always visible under Releases

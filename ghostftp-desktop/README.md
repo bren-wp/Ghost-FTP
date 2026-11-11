@@ -1,8 +1,4 @@
-> **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
-
-> **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
-
-> **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
+> **Ghost FTP 0.99.46 Preview development. Public predecessor: v0.99.45. Cross-platform New Connection protocol selector now uses a consistent accessible dark theme; exact native screenshot acceptance remains pending.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -52,7 +48,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **0.99.45**. Previous canonical release: **0.99.44**.
+Current development line: **0.99.46**. Previous canonical release: **0.99.45**.
 
 ## Platform deliverables
 

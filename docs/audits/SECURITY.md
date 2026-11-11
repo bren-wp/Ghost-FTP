@@ -1,3 +1,5 @@
+> **Ghost FTP 0.99.46 Preview development. Public predecessor: v0.99.45. Cross-platform New Connection protocol selector now uses a consistent accessible dark theme; exact native screenshot acceptance remains pending.**
+
 > **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
 
 > **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
@@ -42,7 +44,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.44**.
+Previous canonical release: **0.99.45**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -145,4 +147,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.45. Previous canonical release: 0.99.44. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.
+Current development line: 0.99.46. Previous canonical release: 0.99.45. See `docs/releases/0.99.35.md` for the latest published Ghost FTP Preview and its acceptance limits.

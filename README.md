@@ -5,12 +5,6 @@
 
 # Ghost FTP
 
-> **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
-
-> **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
-
-> **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
-
 ### More Than Transfer. Total Control.
 
 **Your files. Your servers. One beautifully focused workspace.**
@@ -19,7 +13,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.45 (development Preview) · Previously published: v0.99.44. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.46 (development Preview) · Previously published: v0.99.45. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -29,11 +23,11 @@ Move files, manage connections and keep important server work organized with an 
 
 ## Release integrity
 
-The 0.99.43 Preview development cycle preserves splash-free Windows/Linux startup and hardens OAuth credential redaction in diagnostics without changing historical release artifacts. Production signing and pixel-by-pixel visual acceptance remain separate.
+The 0.99.46 Preview source maintains direct Files startup without splash on Windows/Linux and a cross-platform native protocol selector with high-contrast accessibility. Existing security controls and published releases remain intact; physical-device acceptance, production signing and 59-reference pixel-level review require separate evidence.
 
 ## Made for Windows & Linux
 
-**Dependable transfers. A focused workspace.** Ghost FTP 0.99.42 opens directly into the Files workspace on Windows and Linux, without an unnecessary startup splash. The saved transfer scheduler also promptly re-checks due work after a suspended window or network reconnect. Windows and Linux share native Rust/Tauri transfer handling, FTP/FTPS/SFTP security checks and responsive file-management tools. Native integration, cloud-provider and pixel-perfect acceptance remain independently verifiable requirements—not assumed guarantees.
+**Dependable transfers. A focused workspace.** Ghost FTP opens directly into the Files workspace on Windows and Linux, without an unnecessary startup splash. The saved transfer scheduler also promptly re-checks due work after a suspended window or network reconnect. Windows and Linux share native Rust/Tauri transfer handling, FTP/FTPS/SFTP security checks and responsive file-management tools. Native integration, cloud-provider and pixel-perfect acceptance remain independently verifiable requirements—not assumed guarantees.
 
 ## See Ghost FTP in action
 
