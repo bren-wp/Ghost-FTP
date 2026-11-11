@@ -9,7 +9,7 @@
 The reusable desktop `ConfirmModal` awaits the Promise returned by `onConfirm`, disables its buttons and shows a working state until it settles. However, the Sites delete callback discarded its Promise with `void remove()`; Find Duplicates, Disk Usage and Snippets likewise closed their dialogs before their asynchronous deletes returned. This made errors harder to retry and allowed workspace changes while an operation was still pending.
 
 Changed callback contracts:
-- **Sites:** `onConfirm={remove}`; `remove` now propagates any rejected credential/profile deletion to `ConfirmModal`, which surfaces the error and keeps the confirmation open.
+- **Sites:** `onConfirm={remove}`; the confirmation pins its target to the original saved profile ID, independent of later row selection or profile reload. `remove` propagates any rejected credential/profile deletion to `ConfirmModal`, which surfaces the error and keeps the confirmation open.
 - **Find Duplicates:** `onConfirm={deleteSelected}`; the parent Escape listener ignores Escape while confirming or deleting.
 - **Disk Usage:** `onConfirm={() => removeNode(confirmDel)}`, no early confirmation reset.
 - **Snippets:** `onConfirm={() => remove(deleting.id)}`, no early confirmation reset.

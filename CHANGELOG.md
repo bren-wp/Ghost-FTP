@@ -1,7 +1,7 @@
 ## 0.99.47 Preview — 11 November 2026
 
 - Fix four destructive desktop confirmation paths (saved Sites, duplicate files, disk usage deletion, and Snippets): return the real asynchronous operation to the shared ConfirmModal, so its busy state and close behavior match actual backend completion rather than closing before the request completes.
-- Saved Sites deletion failures propagate to ConfirmModal and leave its confirmation open for a safe retry, without a second error toast. Keep the protected selected site visible until successful deletion.
+- Saved Sites deletion is pinned to the original profile ID across live selection/reload changes, and backend failures propagate to ConfirmModal for an in-place retry without duplicate error toasts. Keep the protected selected site visible until successful deletion.
 - Prevent the Find Duplicates parent Escape handler from dismissing the workspace while the delete confirmation is visible or its backend delete is active.
 - Extend UI hardening regression checks for awaited callbacks, failure propagation, and Escape handling.
 - Add an authenticated manual GitHub Actions trigger for *metadata-only*, SHA-256-verified Preview classification recovery following external release record edits. Never rewrite tags, installer bytes, archive bodies, asset IDs, checksums or historical sources.
