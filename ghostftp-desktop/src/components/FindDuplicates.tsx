@@ -75,14 +75,15 @@ function FindDuplicates() {
           (p) => p.id === sessions.find((s) => s.sessionId === sessionId)?.profileId
         )?.name ?? sessionId);
 
-  // Esc closes (matches every other overlay).
+  // ConfirmModal owns Escape while a destructive confirmation is visible.
+  // Never close the underlying workspace while a delete is still in flight.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape" && !confirming && !deleting) close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [close]);
+  }, [close, confirming, deleting]);
 
   const scanning = state === "scanning";
   const selected = selectedPaths();
