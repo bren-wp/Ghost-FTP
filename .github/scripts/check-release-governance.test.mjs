@@ -139,7 +139,8 @@ test("all Preview releases remain immutable and cannot be classified stable", ()
   assert.ok(publishing.includes('make_latest:"false"'));
   assert.ok(publishing.includes("draft:false,prerelease:true"));
   assert.ok(repair.includes('make_latest:"false"'));
-  assert.ok(repair.includes('test "$(jq -r \'.assets | length\' <<< "$release")" -ge 21'));
+  assert.ok(repair.includes('node .github/scripts/validate-release-assets.mjs "$version" --list-required'), "must select version-specific immutable asset manifest");
+  assert.ok(repair.includes('test "$(jq -r \'.assets | length\' <<< "$release")" -ge "${#required_assets[@]}"'), "legacy and modern releases must preserve their exact required asset count");
   assert.ok(repair.includes("sha256:[a-f0-9]{64}"));
   assert.ok(repair.includes("0.99.0"));
   assert.ok(repair.includes("0.95.53"));
