@@ -84,7 +84,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     profiles[0] ? { ...profiles[0] } : null
   );
   const [action, setAction] = useState<Action>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [addingMeta, setAddingMeta] = useState<"tag" | "folder" | null>(null);
   const [metaValue, setMetaValue] = useState("");
@@ -169,6 +169,11 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const selected = editing
     ? profiles.find((profile) => profile.id === draft?.id) ?? null
     : filtered.find((profile) => profile.id === selectedId) ?? filtered[0] ?? null;
+  // Pin destructive confirmation to the originally chosen profile ID. A live
+  // profile reload or filter change must never redirect deletion to another row.
+  const deletionTarget = confirmDeleteId
+    ? profiles.find((profile) => profile.id === confirmDeleteId) ?? null
+    : null;
   const matchingSites = draft ? matchingSavedSites(draft, profiles) : [];
   const isConnected = selected
     ? sessions.some((session) => session.profileId === selected.id)
@@ -252,20 +257,20 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   };
 
   const remove = async () => {
-    if (!selected || action) return;
-    const index = profiles.findIndex((profile) => profile.id === selected.id);
+    if (!deletionTarget || action) return;
+    const index = profiles.findIndex((profile) => profile.id === deletionTarget.id);
     const next = profiles[index + 1] ?? profiles[index - 1] ?? null;
 
     setAction("delete");
     try {
-      await deleteProfile(selected.id);
+      await deleteProfile(deletionTarget.id);
       setSelectedId(next?.id ?? null);
       setDraft(next ? { ...next } : null);
       setEditing(false);
-      toast.info("Site deleted", selected.name);
-    } catch (error) {
-      toastError(error, `Couldn't delete ${selected.name}`);
+      toast.info("Site deleted", deletionTarget.name);
     } finally {
+      // Errors reject to ConfirmModal, which keeps the deletion confirmation
+      // open and displays a retryable failure instead of closing prematurely.
       setAction(null);
     }
   };
@@ -828,7 +833,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                         ? "Disconnect this site before deleting it."
                         : undefined
                     }
-                    onClick={() => setConfirmDelete(true)}
+                    onClick={() => setConfirmDeleteId(selected.id)}
                   >
                     <Trash2 size={13} />
                     {action === "delete" ? "Deleting…" : "Delete Site"}
@@ -873,14 +878,14 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
         />
       )}
 
-      {confirmDelete && selected && (
+      {deletionTarget && (
         <ConfirmModal
           title="Delete saved site?"
-          message={`Delete “${selected.name}” and its saved Ghost FTP credential? This cannot be undone.`}
+          message={`Delete “${deletionTarget.name}” and its saved Ghost FTP credential? This cannot be undone.`}
           confirmLabel="Delete Site"
           destructive
-          onClose={() => setConfirmDelete(false)}
-          onConfirm={() => void remove()}
+          onClose={() => setConfirmDeleteId(null)}
+          onConfirm={remove}
         />
       )}
     </div>

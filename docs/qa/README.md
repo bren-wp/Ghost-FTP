@@ -1,10 +1,13 @@
-> **Current UI QA (11 November 2026):** Ghost FTP 0.99.46 Preview development. Public predecessor: v0.99.45. Cross-platform New Connection protocol selector now uses a consistent accessible dark theme; exact native screenshot acceptance remains pending. [Verified v0.99.43 New Connection screenshot mismatch and remediation contract](NEW_CONNECTION_SELECTOR_0.99.46.md).
+> **Ghost FTP 0.99.47 Preview development. Verified published predecessor: v0.99.46. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
 
 # Direct Files startup and native QA
 
 Ghost FTP Windows/Linux startup opens the real Files workspace immediately. The retired splash is not an active view or a capture target; historical QA pixels are preserved solely for provenance. Seven current screenshot targets are Files, Sites, New Connection, Transfers, Settings, Sync and About. Capture artifacts remain evidence, not 1:1 visual acceptance. Native application launch, backend initialization and real network operations must still be validated independently.
+
+- [Destructive confirmation QA (v0.99.47)](DESTRUCTIVE_CONFIRMATIONS_0.99.47.md): awaited Sites, duplicate, disk and snippet delete actions; parent Escape suppression during active deletes
+- For later release classification drift, manually run **Enforce immutable Ghost FTP Preview release metadata** on `main`. This only verifies/pins published release metadata and checksums, not package contents.
 
 # Ghost FTP desktop QA index
 

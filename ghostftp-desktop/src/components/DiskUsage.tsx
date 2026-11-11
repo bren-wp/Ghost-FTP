@@ -327,11 +327,7 @@ function DiskUsage() {
           destructive
           confirmLabel="Delete"
           onClose={() => setConfirmDel(null)}
-          onConfirm={() => {
-            const n = confirmDel;
-            setConfirmDel(null);
-            void removeNode(n);
-          }}
+          onConfirm={() => removeNode(confirmDel)}
         />
       )}
     </div>,

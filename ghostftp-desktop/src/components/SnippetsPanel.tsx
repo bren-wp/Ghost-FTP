@@ -207,10 +207,7 @@ function SnippetsPanel() {
           destructive
           confirmLabel="Delete"
           onClose={() => setDeleting(null)}
-          onConfirm={() => {
-            void remove(deleting.id);
-            setDeleting(null);
-          }}
+          onConfirm={() => remove(deleting.id)}
         />
       )}
     </div>,

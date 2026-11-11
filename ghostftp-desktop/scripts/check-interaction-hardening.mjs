@@ -132,6 +132,39 @@ requireExcludes(
   "raw site-manager connection diagnostics"
 );
 
+// Destructive dialogs must await the actual backend operation. Discarding
+// promises (void delete...) made ConfirmModal close immediately, hid retryable
+// failures and re-enabled controls while a deletion was still pending.
+for (const [file, contract, discarded] of [
+  ["src/components/SiteManagerDialog.tsx", "onConfirm={remove}", "onConfirm={() => void remove()}"],
+  ["src/components/FindDuplicates.tsx", "onConfirm={deleteSelected}", "void deleteSelected();"],
+  ["src/components/DiskUsage.tsx", "onConfirm={() => removeNode(confirmDel)}", "void removeNode(n);"],
+  ["src/components/SnippetsPanel.tsx", "onConfirm={() => remove(deleting.id)}", "void remove(deleting.id);"],
+]) {
+  requireIncludes(file, [contract], "awaitable destructive confirmation callback");
+  requireExcludes(file, [discarded], "fire-and-forget destructive confirmation");
+}
+requireIncludes("src/components/FindDuplicates.tsx", [
+  'e.key === "Escape" && !confirming && !deleting',
+  "}, [close, confirming, deleting]);",
+], "destructive duplicate delete must not be dismissed by parent Escape");
+
+requireIncludes("src/components/SiteManagerDialog.tsx", [
+  "const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)",
+  "setConfirmDeleteId(selected.id)",
+  "profiles.find((profile) => profile.id === confirmDeleteId)",
+  "await deleteProfile(deletionTarget.id);",
+  "message={`Delete “${deletionTarget.name}”",
+  "onClose={() => setConfirmDeleteId(null)}",
+], "Site deletion must be pinned to the originally confirmed profile ID");
+
+const siteDeleteSource = read("src/components/SiteManagerDialog.tsx")
+  .split("const remove = async () => {")[1]?.split("  const exportSites =")[0] ?? "";
+if (!siteDeleteSource.includes("await deleteProfile(deletionTarget.id);") ||
+    /catch\s*\(/.test(siteDeleteSource)) {
+  failures.push("Site deletion errors must reject to ConfirmModal so the user can retry.");
+}
+
 requireIncludes(
   "src/components/SiteManagerDialog.tsx",
   [

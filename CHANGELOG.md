@@ -1,3 +1,12 @@
+## 0.99.47 Preview — 11 November 2026
+
+- Fix four destructive desktop confirmation paths (saved Sites, duplicate files, disk usage deletion, and Snippets): return the real asynchronous operation to the shared ConfirmModal, so its busy state and close behavior match actual backend completion rather than closing before the request completes.
+- Saved Sites deletion is pinned to the original profile ID across live selection/reload changes, and backend failures propagate to ConfirmModal for an in-place retry without duplicate error toasts. Keep the protected selected site visible until successful deletion.
+- Prevent the Find Duplicates parent Escape handler from dismissing the workspace while the delete confirmation is visible or its backend delete is active.
+- Extend UI hardening regression checks for awaited callbacks, failure propagation, and Escape handling.
+- Add an authenticated manual GitHub Actions trigger for *metadata-only*, SHA-256-verified Preview classification recovery following external release record edits. Never rewrite tags, installer bytes, archive bodies, asset IDs, checksums or historical sources.
+- Keep 59 Windows/Linux concept screenshots unverified pending real 1:1 acceptance; physical-device/provider and production signing checks remain necessary. Public predecessor: v0.99.46.
+
 ## 0.99.46 Preview — 11 November 2026
 
 - Align Windows WebView2 and Linux WebKit/GTK **New Connection → Protocol** selector styling: same dark field surface, option foreground/background, and one shared decorative chevron while retaining the native keyboard-accessible `<select>` with real SFTP/FTP/FTPS values and the existing change handler.
