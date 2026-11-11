@@ -1,10 +1,4 @@
-> **Ghost FTP 0.99.46 Preview development. Public predecessor: v0.99.45. Cross-platform New Connection protocol selector now uses a consistent accessible dark theme; exact native screenshot acceptance remains pending.**
-
-> **Ghost FTP 0.99.45 Preview development. Previous verified public release: v0.99.44. This cycle protects escaped or truncated credentials in diagnostics and preserves splash-free Windows/Linux startup.**
-
-> **Ghost FTP 0.99.44 Preview development. Previous verified public release: v0.99.43. This cycle repairs recurring DST-gap start dates; retain splash-free Windows/Linux startup.**
-
-> **Ghost FTP 0.99.43 Preview development. Previous verified public release: v0.99.42. This cycle hardens OAuth credential redaction; Windows/Linux must remain splash-free.**
+> **Ghost FTP 0.99.47 Preview development. Verified published predecessor: v0.99.46. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -26,9 +20,9 @@
 
 > **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
 
-> Active source/release cycle: **0.99.45 Preview**. Previous canonical release: **0.99.44**. Client-only packages required.
+> Active source/release cycle: **0.99.47 Preview**. Previous canonical release: **0.99.46**. Client-only packages required.
 
-> Active source/release cycle: **0.99.45 Preview**. Previous canonical release: **0.99.44**. Client-only packages required.
+> Active source/release cycle: **0.99.47 Preview**. Previous canonical release: **0.99.46**. Client-only packages required.
 
 # Ghost FTP Versioning
 
@@ -59,8 +53,8 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.45**
-- Previous canonical release: **0.99.44**
+- Active source/release cycle: **0.99.47**
+- Previous canonical release: **0.99.46**
 - Previous source version: **0.99.8** (verified prior published release).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.

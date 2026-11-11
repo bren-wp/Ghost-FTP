@@ -13,7 +13,7 @@ Move files, manage connections and keep important server work organized with an 
 
 **Windows** · **Linux** · **macOS Preview**
 
-<sub>Ghost FTP 0.99.46 (development Preview) · Previously published: v0.99.45. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+<sub>Ghost FTP 0.99.47 (development Preview) · Previously published: v0.99.46. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
 
@@ -23,7 +23,7 @@ Move files, manage connections and keep important server work organized with an 
 
 ## Release integrity
 
-The 0.99.46 Preview source maintains direct Files startup without splash on Windows/Linux and a cross-platform native protocol selector with high-contrast accessibility. Existing security controls and published releases remain intact; physical-device acceptance, production signing and 59-reference pixel-level review require separate evidence.
+Ghost FTP 0.99.47 Preview source now keeps destructive confirmation dialogs open while deletion is pending and supports authenticated on-demand repair of verified GitHub Preview metadata. Releases remain SHA-256-pinned; installed-device visual parity, 59-reference acceptance and production signing remain separately required.
 
 ## Made for Windows & Linux
 
