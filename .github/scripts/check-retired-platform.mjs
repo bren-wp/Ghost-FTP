@@ -17,6 +17,8 @@ export function auditRetiredPlatform(root = ROOT) {
     ".github/workflows/ghostftp-macos-shared-desktop.yml",
     ".github/workflows/ghostftp-macos-developer-id.yml",
     "ghostftp-desktop/scripts/check-macos-shortcut-modifiers.mjs",
+    "docs/guides/MACOS_INSTALLATION.md",
+    "docs/handbook/MACOS.md",
     "docs/mobile",
     ".github/workflows/ghostftp-android.yml",
     ".github/workflows/ghostftp-android-play-upload.yml",
@@ -47,8 +49,15 @@ export function auditRetiredPlatform(root = ROOT) {
     "docs/qa/PLATFORM_PARITY.md",
     "docs/qa/README.md",
     "docs/status/PRODUCTION_READINESS.md",
+    "ghostftp-desktop/src-tauri/Cargo.toml",
+    "ghostftp-desktop/src-tauri/src/lib.rs",
+    "ghostftp-desktop/src-tauri/src/remotefs/local.rs",
+    "ghostftp-desktop/src/lib/shortcuts.ts",
+    "ghostftp-desktop/scripts/check-ui-contract.mjs",
+    "ghostftp-desktop/scripts/check-interaction-hardening.mjs",
+    "ghostftp-desktop/scripts/check-premium-files-reference.mjs",
   ];
-  const oldPlatform = /(?:\bandroid\b|ghostftp-android|\b(?:apk|aab)\b|androidversioncode)/i;
+  const oldPlatform = /(?:\bandroid\b|ghostftp-android|\b(?:apk|aab)\b|androidversioncode|\bmacos\b|swiftui|\.dmg\b|apple-native)/i;
   for (const rel of activeFiles) {
     const absolute = path.join(root, rel);
     if (!fs.existsSync(absolute)) {

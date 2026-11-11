@@ -10,8 +10,6 @@ const app = source("ghostftp-desktop/src/App.tsx");
 const css = source("ghostftp-desktop/src/styles.css");
 const savedSiteDialog = source("ghostftp-desktop/src/components/QuickConnectionDialog.tsx");
 const desktopSidebar = source("ghostftp-desktop/src/components/ReferenceSiteSidebar.tsx");
-const macOS = source("macos/Sources/GhostFTPMacApp/Views/WorkspaceShell.swift");
-const macOSFiles = source("macos/Sources/GhostFTPMacApp/Views/ContentView.swift");
 const connectionStore = source("ghostftp-desktop/src/stores/connectionsStore.ts");
 const violations = [];
 const requireText = (actual, text, error) => {
@@ -41,16 +39,11 @@ if (savedSiteDialog.includes("await connectTemporary(") || savedSiteDialog.inclu
   violations.push("New saved-site dialog must not start network sessions");
 }
 requireText(desktopSidebar, 'aria-label="New connection"', "Sidebar lacks the single New connection action");
-requireText(macOS, "newSiteDraft = ConnectionProfile()", "macOS New connection does not start an unsaved draft");
-if (macOS.includes("profiles.addProfile()")) violations.push("macOS New connection persists an empty site before Save");
-requireText(macOSFiles, "session.connect(profile: profile, password: password)", "macOS temporary FTP Connect is not bound to its backend");
-requireText(macOSFiles, "profiles.save(profile)", "macOS saved-site draft cannot be persisted on explicit Save");
 requireText(chrome, 'type="submit"', "Quick connection cannot submit from keyboard");
 requireText(chrome, '"Connecting…"', "Quick Connect must report the pending state");
 requireText(chrome, '"Failed — check connection details"', "Quick Connect must report a failed attempt");
 requireText(connectionStore, 'password: ""', "Temporary sessions retain a password in the UI store");
 requireText(connectionStore, 'passphrase: undefined', "Temporary sessions retain a key passphrase in the UI store");
-requireText(macOS, "newSiteDraft = nil\n                    selectedSiteID = id", "macOS saved-site Open must clear an abandoned draft");
 if (/ghost-premium-quickconnect\s*>\s*label:nth-child\(2\)\s*\{\s*display:\s*none/i.test(css)) {
   violations.push("Compact desktop layout hides the required Quick Connect username");
 }

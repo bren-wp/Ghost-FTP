@@ -6,9 +6,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 
 /**
  * Current published production payload deliberately contains an unsigned
- * Windows/Linux packages and an ad-hoc signed macOS Preview. Stable distribution
+ * Windows/Linux Preview packages. Stable distribution
  * MUST remain disabled until desktop OS signers, installer upgrade proofs
- * and notarization are independently enforced in release CI.
+ * are independently enforced in release CI.
  */
 export function classifyReleaseChannel(channel) {
   if (channel === "preview") {
@@ -17,7 +17,7 @@ export function classifyReleaseChannel(channel) {
   if (channel === "stable") {
     throw new Error(
       "Stable release refused: Windows Authenticode, " +
-        "macOS Developer ID notarization and verified installer upgrades " +
+        "Linux package-signing acceptance and verified installer upgrades " +
         "are not mandatory release gates. Publish Preview only."
     );
   }
