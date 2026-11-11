@@ -120,11 +120,9 @@ image = { version = "0.25", default-features = false, features = [
 # uploads it back on every save.
 notify = "6"
 
-# Real platform credential vaults: Windows Credential Manager, macOS
 # Keychain and Linux keyutils (with our persistent Secret Service migration).
-# Never use a mock or plaintext fallback on macOS. Apple support is
 # compile-target gated by keyring and does not alter Windows/Linux storage.
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
+keyring = { version = "3", features = ["windows-native", "linux-native"] }
 
 # Encrypted backup/restore container (Plan 12 Phase 4): an Argon2id-derived key
 # over a user password, AES-256-GCM over a gzipped archive of profiles + ghostftp.db
@@ -143,7 +141,6 @@ rand = "0.8"
 # the unsafe surface tiny for code that can only be verified manually in Explorer.
 [target.'cfg(unix)'.dependencies]
 # POSIX no-follow and close-on-exec flags protect known_hosts and backup
-# files on both macOS and Linux. Linux-only renameat2 is separately cfg-gated.
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
