@@ -18,8 +18,14 @@ enforce_preview() {
   test "$(jq -r '.draft' <<< "$release")" = false
   test "$(jq -r '.tag_name' <<< "$release")" = "$tag"
   test "$(jq -r '.target_commitish' <<< "$release")" = "$sha"
-  test "$(jq -r '.assets | length' <<< "$release")" -ge 21
-  for name in "GhostFTP-v$version-SHA256SUMS.txt" "GhostFTP-macOS-v$version-Preview.zip"; do
+  # Old immutable releases had 21 required assets; new Windows/Linux releases
+  # have 15. Inspect the versioned audit manifest, never pretend an old release
+  # follows a new distribution contract.
+  local -a required_assets
+  mapfile -t required_assets < <(node .github/scripts/validate-release-assets.mjs "$version" --list-required)
+  test "${#required_assets[@]}" -ge 15
+  test "$(jq -r '.assets | length' <<< "$release")" -ge "${#required_assets[@]}"
+  for name in "${required_assets[@]}"; do
     test "$(jq -r --arg name "$name" '[.assets[].name | select(. == $name)] | length' <<< "$release")" -eq 1
   done
   test "$(jq '[.assets[] | select((.size > 0) and (.digest | type == "string") and (.digest | test("^sha256:[a-f0-9]{64}$")))] | length' <<< "$release")" -eq "$(jq '.assets | length' <<< "$release")"

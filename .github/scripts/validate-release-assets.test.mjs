@@ -9,7 +9,7 @@ import test from "node:test";
 import { expectedReleaseAssets, validateLocalReleaseDirectory, validateReleaseAssets } from "./validate-release-assets.mjs";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const version = "0.99.39";
+const version = "0.99.47";
 function fixture(signed = false) {
   const { required, optional, checksum } = expectedReleaseAssets(version);
   const names = [...required.filter(n => n !== checksum), ...(signed ? optional : [])];
@@ -27,6 +27,24 @@ test("manifest covers the exact current 15-file Windows/Linux desktop baseline a
   assert.equal(validateReleaseAssets(version, ...Object.values(fixture(false)).slice(0,2)).assetCount, 15);
   assert.equal(validateReleaseAssets(version, ...Object.values(fixture(true)).slice(0,2)).assetCount, 19);
 });
+test("prior release manifests remain immutable with the original 21-asset inventory", () => {
+  const previousVersion = "0.99.46";
+  const { required, optional, checksum } = expectedReleaseAssets(previousVersion);
+  assert.equal(required.length, 21);
+  assert.equal(optional.length, 4);
+  assert.ok(required.some(name => name.includes("macOS")), "historic published platform must remain verifiable");
+  const assets = required.filter(name => name !== checksum).map(name => {
+    const bytes = Buffer.from("historical bytes: " + name);
+    return { name, size: bytes.length, digest: "sha256:" + hash(bytes), state: "uploaded" };
+  });
+  const sums = Buffer.from(assets.map(asset => asset.digest.slice(7) + "  " + asset.name).join("\n") + "\n");
+  assets.push({ name: checksum, size: sums.length, digest: "sha256:" + hash(sums), state: "uploaded" });
+  assert.equal(validateReleaseAssets(previousVersion, assets, sums).assetCount, 21);
+  assert.throws(() => validateReleaseAssets(version, assets, sums), /asset inventory mismatch/);
+  assert.throws(() => validateReleaseAssets(previousVersion, assets.slice(1), sums), /asset inventory mismatch/);
+  assert.throws(() => validateReleaseAssets(previousVersion, assets.map((asset,i) => i === 0 ? {...asset, digest:"sha256:"+"0".repeat(64)} : asset), sums), /SHA-256 mismatch/);
+});
+
 test("missing, extra and partial signed updater artifacts are rejected", () => {
   const { records, sums } = fixture();
   assert.throws(() => validateReleaseAssets(version, records.slice(1), sums), /missing/);
