@@ -9,8 +9,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const IGNORED = new Set([".git", "node_modules", "target", "build", ".build", ".gradle", ".swiftpm", "dist", "coverage", ".idea"]);
-const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".swift", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml"]);
+const IGNORED = new Set([".git", "node_modules", "target", "build", ".build", ".gradle", "dist", "coverage", ".idea"]);
+const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml"]);
 const isSource = (p) => SOURCE_EXT.has(path.extname(p).toLowerCase());
 const toPosix = (p) => p.split(path.sep).join("/");
 
@@ -44,11 +44,11 @@ export function isRuntimeCode(file) {
     "ghostftp-desktop/src-tauri/src/", "ghostftp-desktop/src/lib/",
     "ghostftp-desktop/src/components/", "ghostftp-desktop/src/stores/",
     "ghostftp-desktop/src/hooks/",
-    "macos/Sources/", "tools/ghostftp-runtime/", "tools/ghostftp-installer/"
+    "tools/ghostftp-runtime/", "tools/ghostftp-installer/"
   ];
   return production.some(p => file.startsWith(p)) &&
     !/\/(?:test|tests|__tests__)\//i.test(file) &&
-    !/(?:\.test|_test)\.(?:rs|go|ts|tsx|kt|swift)$/i.test(file);
+    !/(?:\.test|_test)\.(?:rs|go|ts|tsx|kt)$/i.test(file);
 }
 export function scanDangerous(file, content) {
   if (!isRuntimeCode(file)) return [];
@@ -100,7 +100,6 @@ const REQUIRED = [
     "Agent did not acknowledge an empty upload",
     "Session::Ssh(_) | Session::Agent(_)",
   ]],
-  ["macos/Sources/GhostFTPMacApp/Services/FTPControlSession.swift", ["O_NOFOLLOW", "O_EXCL", "PrivateUploadSource.verifyUnchanged", "FTPControlCodec.appendListingChunk", "expectedDownloadSize", "verifyUploadSize"]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
   ["ghostftp-desktop/src-tauri/src/virtualfs/mod.rs", [
     "fn read_settings(", "std::io::ErrorKind::NotFound", "next_registration_journal(",
@@ -154,12 +153,6 @@ export function inspectPlatformSecurityConfig(source) {
     failures.push({ path: capsPath, required: "single main window without broad shell/filesystem capabilities" });
   }
 
-  const keychain = "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift";
-  for (const check of ["kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
-    "kSecAttrSynchronizable", "kCFBooleanFalse", "SecItemUpdate", "SecItemAdd"]) {
-    requireText(keychain, check, "local-only Keychain: " + check);
-  }
-
   const go = "tools/ghostftp-runtime/security.go";
   for (const check of ["dec.Decode(&struct{}{})", "pathContainsSymlink(", "chmodWithoutLinks("]) {
     requireText(go, check, "Go local runtime safety: " + check);
@@ -189,7 +182,6 @@ export function audit(root = ROOT) {
   const configPaths = [
     "ghostftp-desktop/src-tauri/tauri.conf.json",
     "ghostftp-desktop/src-tauri/capabilities/default.json",
-    "macos/Sources/GhostFTPMacApp/Security/KeychainStore.swift",
     "tools/ghostftp-runtime/security.go",
   ];
   const configSource = Object.fromEntries(configPaths.map(file => {
@@ -197,13 +189,12 @@ export function audit(root = ROOT) {
     return [file, fs.existsSync(absolute) ? fs.readFileSync(absolute, "utf8") : ""];
   }));
   const platformConfigBlockers = inspectPlatformSecurityConfig(configSource);
-  const counts = Object.fromEntries(["rs","ts","tsx","kt","swift","go","js","mjs","sh","yml","yaml","kts"]
+  const counts = Object.fromEntries(["rs","ts","tsx","kt","go","js","mjs","sh","yml","yaml","kts"]
     .map(ext=>[ext, sourceFiles.filter(file=>file.endsWith("."+ext)).length]));
   const findings = [
-    { severity:"blocking-production", surface:"macos FTPS/SFTP", state:"not-implemented", reason:"Native macOS session engine still rejects FTPS/SFTP. No validated TLS/SSH transfer implementation or live macOS protocol acceptance." },
-    { severity:"blocking-production", surface:"desktop signing", state:"not-verified", reason:"Windows Authenticode, Apple Developer ID notarization and in-place signed upgrade proofs remain acceptance blockers." },
+    { severity:"blocking-production", surface:"desktop signing", state:"not-verified", reason:"Windows Authenticode and signed in-place upgrade proofs remain acceptance blockers." },
     { severity:"manual-verification", surface:"data-integrity", state:"incomplete", reason:"Large (>4 GiB) SHA-256 end-to-end transfers, remote hashes, crash/power-loss recovery and physical-device storage migration were not shown by the static audit." },
-    { severity:"manual-verification", surface:"credential protection", state:"requires-device-validation", reason:"Native Windows Credential Manager, Linux Secret Service, Apple Keychain are used or referenced; verify secret lifetime, OS API errors and actual-user upgrade on target hardware." },
+    { severity:"manual-verification", surface:"credential protection", state:"requires-device-validation", reason:"Native Windows Credential Manager and Linux Secret Service are used or referenced; verify secret lifetime, OS API errors and actual-user upgrade on target hardware." },
     { severity:"manual-verification", surface:"visual UX/performance", state:"unverified", reason:"The 59 Windows/Linux reference screens and long running memory/battery benchmarks lack complete certified baseline evidence." }
   ];
   return {

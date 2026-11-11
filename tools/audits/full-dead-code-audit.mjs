@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const ignoredDirs = new Set([".git", "node_modules", ".gradle", ".build", "build", "target", "dist", ".swiftpm", ".idea", "coverage"]);
+const ignoredDirs = new Set([".git", "node_modules", ".gradle", ".build", "build", "target", "dist", ".idea", "coverage"]);
 const posix = (value) => value.replaceAll("\\", "/");
 const fromRoot = (file) => posix(path.relative(root, file));
 
@@ -26,34 +26,6 @@ export function walk(directory) {
     } else if (entry.isFile()) result.push(next);
   }
   return result;
-}
-
-export function declaredTypes(source, language) {
-  if (language !== "swift") throw new Error("Unsupported native module audit language: " + language);
-  const regex = /^(?:(?:public|internal|private|fileprivate|open|final|indirect|@MainActor|@Observable)\s+)*(?:class|struct|enum|actor|protocol|typealias)\s+([A-Za-z_]\w*)\b/gm;
-  return [...source.matchAll(regex)].map((m) => m[1]);
-}
-
-export function identifierUsedOutside(name, sourceFile, entries) {
-  const token = new RegExp("\\b" + name + "\\b");
-  return entries.some(([file, text]) => file !== sourceFile && token.test(text));
-}
-
-export function candidateModules(entries, language, external = []) {
-  const others = [...entries, ...external];
-  return entries.flatMap(([file, source]) => {
-    if (language === "swift" && /@main\b/.test(source)) return [];
-    const names = declaredTypes(source, language);
-    // Top-level helpers, extensions, property-only modules and build-generated
-    // declarations have no class-like name; absence of a type is not evidence
-    // that the source file is dead.
-    if (names.length === 0) return [];
-    if (names.some((name) => identifierUsedOutside(name, file, others))) return [];
-    return [{
-      file, declarations: names,
-      reason: "no textual cross-file type reference; OS entrypoints, extensions, reflection and test fixtures may still use it",
-    }];
-  });
 }
 
 /**
@@ -107,7 +79,6 @@ export function rustTestModuleRanges(source) {
 export function privateSymbolCandidates(entries, language, external = []) {
   const patterns = {
 
-    swift: /^\s*(?:private|fileprivate)\s+(?:static\s+|class\s+)?func\s+([A-Za-z_]\w*)\s*\(/gm,
     rust: /^\s*(?:(?:pub\((?:crate|super|self)\)\s+)?)(?:async\s+)?fn\s+([A-Za-z_]\w*)\s*\(/gm,
     // Include unexported arrow callbacks as advisory symbols, in addition
     // to ordinary local functions. Dynamic UI consumers still need review.
@@ -146,12 +117,6 @@ export function privateSymbolCandidates(entries, language, external = []) {
 export function audit(directory = root) {
   const files = walk(directory);
   const inside = (prefix) => path.join(directory, prefix);
-  const lookup = (prefix, suffix) => files.filter((p) => p.startsWith(inside(prefix)) && p.endsWith(suffix))
-    .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
-  const swift = lookup("macos/Sources/", ".swift");
-  const swiftTests = lookup("macos/Tests/", ".swift");
-  const swiftPackage = inside("macos/Package.swift");
-  const packageText = fs.existsSync(swiftPackage) ? fs.readFileSync(swiftPackage, "utf8") : "";
   const go = files.filter((p) => /\/tools\/ghostftp-(?:installer|runtime)\/.*\.go$/.test(posix(p)));
   const goSources = go.filter((p) => !p.endsWith("_test.go"))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
@@ -171,9 +136,9 @@ export function audit(directory = root) {
   const tsTests = typescript.filter((p) => /\.(?:test|spec)\.(?:ts|tsx)$/.test(p))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const scripts = files.filter((p) => /\.(?:sh|mjs|py)$/.test(p) &&
-    [".github/scripts/", "ghostftp-desktop/scripts/", "macos/scripts/", "updates/scripts/", "tools/"]
+    [".github/scripts/", "ghostftp-desktop/scripts/", "updates/scripts/", "tools/"]
       .some((prefix) => p.startsWith(inside(prefix))));
-  const refs = files.filter((p) => /\.(?:md|mjs|js|json|yaml|yml|sh|py|kts|rs|kt|swift|ts|tsx)$/.test(p))
+  const refs = files.filter((p) => /\.(?:md|mjs|js|json|yaml|yml|sh|py|kts|rs|kt|ts|tsx)$/.test(p))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const possibleUnreferencedScripts = scripts.filter((file) => {
     const relative = posix(path.relative(directory, file));
@@ -181,7 +146,6 @@ export function audit(directory = root) {
     return !refs.some(([other, text]) => other !== relative && (text.includes(relative) || text.includes(name)));
   }).map((p) => posix(path.relative(directory, p))).sort();
   const blockers = [];
-  if (!swift.some(([, source]) => /@main\b/.test(source))) blockers.push("macOS @main source missing");
   for (const name of ["ghostftp-installer", "ghostftp-runtime"]) {
     if (!go.some((p) => posix(p).endsWith("/" + name + "/main.go"))) blockers.push("Go tool entrypoint missing: " + name);
   }
@@ -193,17 +157,13 @@ export function audit(directory = root) {
       workingTreeFiles: files.length,
       typescript: typescript.length,
       rust: rust.length,
-      swift: swift.length,
-      swiftTests: swiftTests.length,
       go: go.length,
       operationalScripts: scripts.length,
     },
     candidateFiles: {
-      macosSwift: candidateModules(swift, "swift", [...swiftTests, ["Package.swift", packageText]]).sort((a, b) => a.file.localeCompare(b.file)),
       operationalScripts: possibleUnreferencedScripts,
     },
     advisoryPrivateSymbols: {
-      macosSwift: privateSymbolCandidates(swift, "swift", swiftTests),
       desktopRust: privateSymbolCandidates(rustSources, "rust", rustTests),
       desktopTypeScript: privateSymbolCandidates(tsSources, "typescript", tsTests),
       installerRuntimeGo: privateSymbolCandidates(goSources, "go", goTests),
@@ -211,7 +171,6 @@ export function audit(directory = root) {
     entrypointBlockers: blockers,
     requiredFollowUp: [
       "TS/Rust graph: npm run check:dead, cargo check/test/clippy on all targets and features",
-      "macOS: swift build/test, package contract and actual macOS app launch",
       "Go: go test, go vet and GOOS-specific build tags",
       "Shell/CI: references, platform builds, release and rollback workflow",
       "Only delete after compiler evidence plus dynamic compatibility and user-data review",
@@ -224,7 +183,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (process.argv.includes("--json")) console.log(JSON.stringify(result, null, 2));
   else {
     console.log("Full repository source inventory: " + JSON.stringify(result.counts));
-    console.log("Candidate counts (Swift/scripts): " +
+    console.log("Candidate counts (scripts): " +
       Object.values(result.candidateFiles).map((items) => items.length).join("/"));
     console.log("Advisory candidates MUST NOT be removed solely from this report.");
     console.log("Unreferenced nonpublic function candidates by platform: " +
