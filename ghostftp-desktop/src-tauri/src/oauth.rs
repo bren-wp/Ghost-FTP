@@ -737,7 +737,10 @@ mod tests {
     fn oauth_token_response_rejects_blank_access_and_handles_extreme_expiry() {
         for empty in ["", "   ", "\t"] {
             let raw = serde_json::json!({ "access_token": empty, "expires_in": 3600 });
-            assert!(token_set_from(&raw).is_err(), "accepted a blank bearer token");
+            assert!(
+                token_set_from(&raw).is_err(),
+                "accepted a blank bearer token"
+            );
         }
         let huge = token_set_from(&serde_json::json!({
             "access_token": "valid", "expires_in": i64::MAX
