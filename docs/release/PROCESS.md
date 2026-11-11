@@ -1,160 +1,28 @@
-> **Ghost FTP 0.99.47 Preview development. Verified published predecessor: v0.99.46. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
+# Ghost FTP release process — Windows/Linux desktop
 
-> **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
+**Active source:** 0.99.47 Preview. **Previous canonical public release:** v0.99.46. Check GitHub Releases for the actual newest published edition; development version numbers do not prove publication.
 
-> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
+The single source of truth is `version.json`. A new version requires synchronized desktop metadata, a matching `docs/releases/<version>.md` file and exact-source CI evidence. If the source version has merged but is **not** yet published, the release-repair path may reuse that unpublished version only under the repository's immutable-lineage checks.
 
-> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Repair late GitHub prerelease metadata drift with verified checksums and post-publication regression gates. Public predecessor: v0.99.39. Live-provider, production signing and full pixel-parity acceptance remain separate.
+## Required exact-source gates
 
-> **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
+1. Build and run Windows/Linux native package and installer smoke checks.
+2. Pass source quality, dead-code/security regression tests, frontend typecheck/build, Rust workspace tests/Clippy, Go tests and FTP/FTPS/SFTP protocol E2E.
+3. Pass GitHub release governance and verified artifact inventory tests; never skip a failed gate by labeling a different source stable.
+4. Confirm the source SHA is current main and equals the build/artifact provenance, and previousPublishedVersion matches the numerically newest immutable public edition.
+5. A successful main-branch `Ghost FTP native build` can trigger `Ghost FTP release` through `workflow_run`. The workflow waits for all remaining successful, same-SHA gates before publishing.
+6. Publish only after *all* artifacts have nonzero sizes, canonical filenames, signed-updater group coherence (if configured), SHA-256 checksums and independent GitHub asset digest checks.
 
-> **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
+## Release assets (current Windows/Linux)
 
-> **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
+Windows x64: Portable EXE, Setup EXE, MSI, ZIP bundle and native QA ZIP. Linux x86-64: native ELF, AppImage, DEB, RPM and tar.gz. Include full source ZIP, desktop-source ZIP, updates ZIP, documentation ZIP and SHA-256 manifest. The exact required inventory is defined by `.github/scripts/release-artifacts.json`.
 
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Maintained Windows, Linux and macOS desktop clients only. Native signing, cloud provider tests and pixel-accurate screenshot QA remain acceptance gates. Published v0.99.35 is immutable.
+Optional signed updater files are all-or-nothing: Windows installer signature, Linux AppImage signature, authenticated latest.json and Update-Service ZIP. If signing is unavailable, publish labeled unsigned **Preview** installable files with checksums, not a fictional signed automatic update.
 
-> **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Last public edition v0.99.32; Windows/Linux native installers are directly usable without a paid code-signing certificate but need authentic checksums, verified connections and target-device acceptance. Automatic updater remains signed-only; global stable labeling remains gated separately.
+Use the official [Releases index](https://github.com/bren-wp/Ghost-FTP/releases), not `/releases/latest` for Preview discovery. **Never delete or move published tags or change release asset bytes.** Historical editions retain their original platform assets and historical source notes as immutable evidence; subsequent editions are Windows/Linux only.
 
-> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+## Security and acceptance
 
-> **Current development (3 November 2026): Ghost FTP 0.99.31 Preview.** The previous published release v0.99.30 and its tags/assets are immutable; all checks require exact-source CI evidence.
+Windows Authenticode, target-Linux package signing/compatibility, data-preserving upgrade/rollback, cloud-provider consent/refresh, stress/crash recovery, accessibility and **59 real Windows/Linux reference comparisons** are independent outstanding production gates. A passing static scan is not a penetration test. Production signing and independently verified real-device visual acceptance are required before the stable channel can be enabled.
 
-> **Current development (2 November 2026): Ghost FTP 0.99.30 Preview.** The only supported product in this release train is the Ghost FTP client for Windows, Linux, Android and macOS. The standalone Ghost FTP Server, Demo and CLI are retired and are excluded from new builds, source and release assets. v0.99.29 remains the immutable previously published edition. Production signing/notarization and complete installed-device acceptance are outstanding; do not label this release Stable.
-
-> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.15 Preview**; latest published version **v0.99.14**. Older notes below retain their historical version context.
-
-# Ghost FTP Release Process
-
-Ghost FTP uses a canonical pre-1.0 semantic-version release train. Root `version.json` is the source of truth.
-
-A successful compile is not equivalent to stable/FINAL acceptance.
-
-The current distribution pipeline **only authorizes `preview`**. Until Windows Authenticode, Android Play signing/data-preserving upgrade and macOS Developer ID notarization are mandatory verified release gates, any `stable` channel must fail closed.
-
-Every releasable source version **must use an explicit `preview` or `stable` channel** in `version.json`. The source CI verifies this before merge; the release workflow independently enforces it. Until actual Android 16-screen pixel-parity and physical-device acceptance are complete, use `preview`, not `stable`.
-
-## Development/release flow
-
-1. Start from current `main`.
-2. Make meaningful product/code/documentation changes.
-3. Keep `version.json` and synchronized metadata consistent; do not create version-only commits.
-4. Keep `previousVersion` pointing to the preceding merged source (currently `0.99.28`) and `previousPublishedVersion` pointing to the latest verified public GitHub Release (currently `0.99.28`). Never call an unpublished merge a canonical release.
-5. Open a PR only after the preceding `main` version has been publicly released; the PR must set `previousVersion` and `previousPublishedVersion` to the base version. This prevents overlapping merges from skipping an edition.
-6. Require exact-head success for:
-   - Ghost FTP quality
-   - Ghost FTP protocol E2E
-   - Ghost FTP native build
-   - Ghost FTP Android
-   - Validate Windows hardening
-   - Ghost FTP macOS (development Preview gate)
-7. Read and fix concrete workflow logs if any gate fails.
-8. Merge only the tested source.
-9. After any merge to `main` (including Android-only, macOS-only or documentation changes), the native build runs without path filtering; if successful, it automatically triggers **Ghost FTP release**, provided every exact-SHA gate passes. No manual dispatch is required.
-10. The release job waits for the remaining exact-SHA gates and requires the actual latest public release to match `previousPublishedVersion` pointing to the latest verified public GitHub Release (`0.99.24`). Never call an unpublished merge a canonical release.
-11. Package normalized Windows/Linux/Android/source/documentation/native-QA assets and SHA-256 checksums from the verified source SHA.
-12. Publish `v<version>` at that exact source SHA and verify uploaded asset digests/count.
-13. Never retarget an existing version tag to different source.
-14. Every published release and tag is retained indefinitely unless the owner gives a new, explicit deletion instruction. Automatic release/tag pruning is prohibited.
-
-## Canonical asset names
-
-For version `<version>`:
-
-### Windows x64
-
-- `GhostFTP-Windows-x64-Portable-v<version>.exe`
-- `GhostFTP-Windows-x64-Setup-v<version>.exe`
-- `GhostFTP-Windows-x64-v<version>.zip`
-- `GhostFTP-Windows-x64-v<version>-Native-QA.zip`
-
-### Linux x86-64
-
-- `GhostFTP-Linux-x86_64-v<version>`
-- `GhostFTP-Linux-x86_64-v<version>.AppImage`
-- `GhostFTP-Linux-amd64-v<version>.deb`
-- `GhostFTP-Linux-x86_64-v<version>.rpm`
-- `GhostFTP-Linux-x86_64-v<version>.tar.gz`
-
-### Android
-
-- `GhostFTP-Android-v<version>.apk.unsigned`
-- `GhostFTP-Android-v<version>-Installable-Preview.apk`
-
-### macOS Preview
-
-- `GhostFTP-macOS-v<version>-Preview.zip`
-
-The macOS artifact is a separately verified ad-hoc-signed development Preview. It is not Developer ID signed/notarized and must not be represented as a production macOS package.
-
-### Signed desktop updater assets
-
-When in-app updater signing is enabled, publication requires all four updater assets below:
-
-- `GhostFTP-Windows-x64-Setup-v<version>.exe.sig`
-- `GhostFTP-Linux-x86_64-v<version>.AppImage.sig`
-- `GhostFTP-v<version>-latest.json`
-- `GhostFTP-v<version>-Update-Service.zip`
-
-The release workflow and final publication script fail closed if this optional updater set is partial or inconsistent. The manifest is validated for the exact version, and the copy packaged inside Update-Service must match the separately published manifest byte-for-byte.
-
-If no updater signatures are present, automatically triggered Preview releases may publish labeled development packages, checksums and QA evidence after the exact-SHA gates. In that mode no updater manifest or Update-Service bundle is emitted.
-
-### Client-only release contract
-
-From v0.99.24, no standalone Server, Demo or CLI files may be staged or published. Exact-source client tests, Android/macOS workflows, checksums and release inventory checks remain mandatory.
-
-### Source/documentation
-
-- `GhostFTP-v<version>-Source.zip`
-- `GhostFTP-v<version>-Desktop-Source.zip`
-- `GhostFTP-v<version>-Android-Source.zip`
-- `GhostFTP-v<version>-macOS-Source.zip`
-- `GhostFTP-v<version>-Updates.zip`
-- `GhostFTP-v<version>-Documentation.zip`
-- `GhostFTP-v<version>-SHA256SUMS.txt`
-
-## Permanent release and tag preservation
-
-The previous one-time latest-ten cleanup has ended. **No scheduled or post-release job may delete GitHub Releases or tags.** New editions are added alongside all retained historical editions. The train is `0.99.0`, `0.99.2`, …, `0.99.30`, then `1.0.0` subject to production signing and QA acceptance.
-
-## Current release cycle
-
-- Active source/release cycle: **0.99.47**
-- Previous canonical release: **0.99.46**
-- Live publication state is determined by GitHub Releases and exact tag/source verification.
-
-## Newest edition is always visible under Releases
-
-The permanent public download entry point is [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases), including the newest Preview. Never link to `/releases/latest` for prerelease discovery: GitHub excludes Preview from that endpoint. Following every successful publication, the metadata job checks the new tag against the entire public release inventory (numeric SemVer), confirms it appears on the first Releases page, verifies the source commit SHA, all platform artifacts and every hosted SHA-256 digest. Incomplete or missing publication causes a failing verification job; previous releases and tags are retained.
-
-## Preview-only metadata integrity
-
-After the automatic SHA-256 asset publication, a separate post-release workflow verifies tag identity, package inventory and uploaded digests. GitHub may reclassify a draft→published preview; the workflow corrects **only the release name and Preview flag** for verified packages. It never deletes or retargets any release, tag or asset. Main-push execution also corrects the already-misclassified v0.95.53 and v0.99.0 package metadata. All unsigned/ad-hoc signed packages must remain labeled Preview.
-
-## Release integrity
-
-- End-user desktop GUI assets come from `ghostftp-desktop/`.
-- Canonical Windows/Linux binaries and native QA evidence come from the same successful native build run.
-- Android publication must contain the verified unsigned production `com.ghostftp.android` build and the separately verified installable preview from the same release SHA. The unsigned production file must remain explicitly suffixed `.unsigned` so it is never misrepresented as directly installable.
-- Support/browser-host tooling is not a production desktop release asset.
-- The final publication script verifies the checksum file and independently requires every core Windows/Linux/Android/source/documentation/native-QA asset to exist and be non-empty before it can touch a version tag.
-- Optional signed updater assets are all-or-nothing and are verified separately from the required core asset set.
-- Publication fails if required artifacts/gates are missing.
-- Existing tags are never moved.
-- Public filenames use `GhostFTP`; product copy uses `Ghost FTP`.
-
-## Stable / FINAL gates
-
-Do not label an artifact FINAL until evidence exists for required installer lifecycle, target-OS visual acceptance, security failure paths, update/signing verification and accessibility acceptance.
-
-Blocked gates are BLOCKED, not PASS.
-
-## Automatic Preview promotion (0.95.52 onward)
-
-1. Every merged change requires a **new version** in `version.json`, synchronized desktop/Android/macOS/Go metadata and matching release notes. CI rejects unchanged versions on PRs.
-2. Merging the tested PR to `main` runs all platform CI workflows. A successful native build automatically starts release promotion (not PR or fork builds).
-3. Release promotion checks that the triggering build matches the latest native build and current `main` SHA, then waits for the five remaining exact-SHA gates.
-4. Assets are staged in a draft release. Upload, SHA-256, remote digests, asset inventory and source SHA must all verify before publication as **Preview prerelease**.
-5. Failed promotion stays unpublished; public release assets and existing tags cannot be overwritten. A failed check must be fixed with a new tested version.
-6. Stable promotion remains disabled until mandatory signing, notarization and full target-platform QA are proven.
+Every successfully verified merged change must have a new edition, but an unverified release must remain unpublished rather than bypass security and integrity gates. GitHub Actions failures must be diagnosed from actual failed steps before merging.
