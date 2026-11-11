@@ -23,7 +23,6 @@ import { workspaceLabel } from "@/lib/workspaces";
 import { useConnections } from "@/stores/connectionsStore";
 import { useSettings } from "@/stores/settingsStore";
 import { PRODUCT_VERSION_BADGE } from "@/lib/release";
-import { MOD_LABEL } from "@/lib/shortcuts";
 import { toastError } from "@/lib/errors";
 
 type PaneTarget = "local" | "remote" | "active";
@@ -54,7 +53,6 @@ async function safeWindowAction(action: "minimize" | "maximize" | "close") {
 }
 
 export function TitleBar() {
-  const nativeMac = MOD_LABEL === "⌘";
   const dialog = useLayout((s) => s.dialog);
   const returnDialog = useLayout((s) => s.returnDialog);
   const openDialog = useLayout((s) => s.openDialog);
@@ -181,11 +179,11 @@ export function TitleBar() {
   }, [workspace]);
 
   return (
-    <header className={`ghost-app-header ghost-simple-header ${nativeMac ? "ghost-macos-native-titlebar" : ""}`}>
+    <header className="ghost-app-header ghost-simple-header">
       <div
         className="ghost-title-row"
         onDoubleClick={(event) => {
-          if (nativeMac || (event.target as HTMLElement).closest("button,select,input")) return;
+          if ((event.target as HTMLElement).closest("button,select,input")) return;
           void safeWindowAction("maximize");
         }}
       >
@@ -200,19 +198,17 @@ export function TitleBar() {
           className="ghost-title-command-palette"
           onClick={() => openCommandPalette(true)}
           aria-label="Open command palette"
-          aria-keyshortcuts={nativeMac ? "Meta+K" : "Control+K"}
+          aria-keyshortcuts="Control+K"
           title="Search commands and files"
         >
           <Search size={13} aria-hidden="true" />
-          <span>{nativeMac ? "⌘" : "Ctrl"} + K</span>
+          <span>Ctrl + K</span>
         </button>
-        {!nativeMac && (
-          <div className="ghost-window-controls">
+        <div className="ghost-window-controls">
             <button aria-label="Minimize" onClick={() => void safeWindowAction("minimize")}><Minus size={14}/></button>
             <button aria-label="Maximize or restore" onClick={() => void safeWindowAction("maximize")}><Square size={12}/></button>
             <button className="danger" aria-label="Close" onClick={() => void safeWindowAction("close")}><X size={15}/></button>
-          </div>
-        )}
+        </div>
       </div>
 
       {workspace === "Files" && (

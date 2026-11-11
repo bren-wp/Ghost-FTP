@@ -53,6 +53,8 @@ export function auditRetiredPlatform(root = ROOT) {
     "ghostftp-desktop/src-tauri/src/lib.rs",
     "ghostftp-desktop/src-tauri/src/remotefs/local.rs",
     "ghostftp-desktop/src/lib/shortcuts.ts",
+    "ghostftp-desktop/src/components/TitleBar.tsx",
+    "ghostftp-desktop/src/styles.css",
     "ghostftp-desktop/scripts/check-ui-contract.mjs",
     "ghostftp-desktop/scripts/check-interaction-hardening.mjs",
     "ghostftp-desktop/scripts/check-premium-files-reference.mjs",

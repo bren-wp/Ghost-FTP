@@ -183,12 +183,19 @@ jobs:
           grep -Fq 'https://github.com/bren-wp/Ghost-FTP/releases' README.md
           grep -Fq 'sha256sum -c' .github/scripts/publish-release.sh
 
+      - name: Windows/Linux desktop branding and localization inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/audits/check-cross-platform-branding.mjs
+          node tools/audits/check-localization-inventory.mjs
+
       - name: Cross-platform premium branding integration contract
         shell: bash
         run: |
           set -euo pipefail
           grep -Fq -- '--bg: 7 14 26;' ghostftp-desktop/src/styles.css
-          # Keep the original desktop cyan branding while the two approved
+          # Preserve the approved desktop cyan branding.
           grep -Fq -- '--accent: 56 171 255;' ghostftp-desktop/src/styles.css
           grep -Fq '"accent": "#38ABFF"' docs/branding/premium-ui-tokens.json
           grep -Fq 'background: rgb(var(--bg-panel)) !important;' ghostftp-desktop/src/styles.css
