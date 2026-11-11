@@ -40,9 +40,12 @@ jobs:
           node .github/scripts/sync-version.mjs
           node .github/scripts/sync-version.mjs --check
 
-      - name: Validate canonical Cargo lockfile
+      - name: Reconcile platform retirement with pinned Cargo lockfile
         shell: bash
-        run: bash .github/scripts/refresh-cargo-lock.sh
+        run: |
+          set -euo pipefail
+          bash .github/scripts/reconcile-cargo-lock-retirement.sh
+          bash .github/scripts/refresh-cargo-lock.sh
 
 
       - name: Diagnose Cargo feature-graph drift without publishing changes
