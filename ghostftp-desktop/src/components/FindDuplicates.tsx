@@ -361,10 +361,7 @@ function FindDuplicates() {
           destructive
           confirmLabel="Delete"
           onClose={() => setConfirming(false)}
-          onConfirm={() => {
-            setConfirming(false);
-            void deleteSelected();
-          }}
+          onConfirm={deleteSelected}
         />
       )}
     </div>,

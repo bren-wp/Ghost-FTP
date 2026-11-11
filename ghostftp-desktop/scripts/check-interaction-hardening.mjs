@@ -132,6 +132,25 @@ requireExcludes(
   "raw site-manager connection diagnostics"
 );
 
+// Destructive dialogs must await the actual backend operation. Discarding
+// promises (void delete...) made ConfirmModal close immediately, hid retryable
+// failures and re-enabled controls while a deletion was still pending.
+for (const [file, contract, discarded] of [
+  ["src/components/SiteManagerDialog.tsx", "onConfirm={remove}", "onConfirm={() => void remove()}"],
+  ["src/components/FindDuplicates.tsx", "onConfirm={deleteSelected}", "void deleteSelected();"],
+  ["src/components/DiskUsage.tsx", "onConfirm={() => removeNode(confirmDel)}", "void removeNode(n);"],
+  ["src/components/SnippetsPanel.tsx", "onConfirm={() => remove(deleting.id)}", "void remove(deleting.id);"],
+]) {
+  requireIncludes(file, [contract], "awaitable destructive confirmation callback");
+  requireExcludes(file, [discarded], "fire-and-forget destructive confirmation");
+}
+const siteDeleteSource = read("src/components/SiteManagerDialog.tsx")
+  .split("const remove = async () => {")[1]?.split("  const exportSites =")[0] ?? "";
+if (!siteDeleteSource.includes("await deleteProfile(selected.id);") ||
+    /catch\s*\(/.test(siteDeleteSource)) {
+  failures.push("Site deletion errors must reject to ConfirmModal so the user can retry.");
+}
+
 requireIncludes(
   "src/components/SiteManagerDialog.tsx",
   [

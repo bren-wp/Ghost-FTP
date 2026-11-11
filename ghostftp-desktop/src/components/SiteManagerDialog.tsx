@@ -263,9 +263,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       setDraft(next ? { ...next } : null);
       setEditing(false);
       toast.info("Site deleted", selected.name);
-    } catch (error) {
-      toastError(error, `Couldn't delete ${selected.name}`);
     } finally {
+      // Errors reject to ConfirmModal, which keeps the deletion confirmation
+      // open and displays a retryable failure instead of closing prematurely.
       setAction(null);
     }
   };
@@ -880,7 +880,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           confirmLabel="Delete Site"
           destructive
           onClose={() => setConfirmDelete(false)}
-          onConfirm={() => void remove()}
+          onConfirm={remove}
         />
       )}
     </div>
