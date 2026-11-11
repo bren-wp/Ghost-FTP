@@ -1,4 +1,4 @@
-> **Ghost FTP 0.99.48 Preview development. Verified published predecessor: v0.99.47. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
+> **Ghost FTP 0.99.49 Preview development. Verified published predecessor: v0.99.48. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -14,8 +14,8 @@
 
 # Ghost FTP build and QA status
 
-- **Active source/release cycle:** Ghost FTP **0.99.48** Preview.
-- **Previous canonical release:** Ghost FTP **0.99.47**.
+- **Active source/release cycle:** Ghost FTP **0.99.49** Preview.
+- **Previous canonical release:** Ghost FTP **0.99.48**.
 - **Active platforms:** Windows and Linux desktop.
 - **Windows/Linux:** React, TypeScript, Rust/Tauri; portable EXE, NSIS, MSI, standalone Linux binary, AppImage, DEB and RPM
 - **Release integrity:** exact source SHA, immutable version history, SHA-256 artifact manifest, signed automatic updater policy

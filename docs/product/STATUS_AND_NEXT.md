@@ -1,4 +1,4 @@
-> **Ghost FTP 0.99.48 Preview development. Verified published predecessor: v0.99.47. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
+> **Ghost FTP 0.99.49 Preview development. Verified published predecessor: v0.99.48. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -35,7 +35,7 @@ Current development source: **0.99.4** (SQLite transactional synchronization saf
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.47**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.48**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -186,4 +186,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.48. Previous canonical release: 0.99.47. The latest published Preview is v0.99.47; see GitHub Releases and `docs/releases/0.99.47.md` for its acceptance limits.
+Current development line: 0.99.49. Previous canonical release: 0.99.48. The latest published Preview is v0.99.48; see GitHub Releases and `docs/releases/0.99.48.md` for its acceptance limits.

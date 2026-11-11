@@ -324,7 +324,7 @@ async fn accept_code(listener: &tokio::net::TcpListener, expected_state: &str) -
             OAuthCallback::Authorized(code) => {
                 let _ = respond(
                     &mut stream,
-                    "Ghost FTP is now connected. You can close this window.",
+                    "Authorization code received. Return to Ghost FTP to complete the connection.",
                 )
                 .await;
                 return Ok(code);
@@ -431,13 +431,22 @@ pub async fn refresh(config: &OAuthConfig, refresh_token: &str) -> Result<TokenS
 fn token_set_from(raw: &serde_json::Value) -> Result<TokenSet> {
     let parsed: TokenResponse =
         serde_json::from_value(raw.clone()).context("token response missing access_token")?;
+    // Provider responses are untrusted: an enormous expires_in must not
+    // overflow the timestamp or crash a desktop login/refresh request.
+    // Preserve exact opaque token bytes, but reject blank credentials.
+    anyhow::ensure!(
+        !parsed.access_token.trim().is_empty(),
+        "OAuth token response contains no usable access token"
+    );
     let expires_at = parsed
         .expires_in
-        .map(|s| now_secs() + s.max(0))
+        .map(|s| now_secs().saturating_add(s.max(0)))
         .unwrap_or(0);
     Ok(TokenSet {
         access_token: parsed.access_token,
-        refresh_token: parsed.refresh_token,
+        // Some providers send an empty refresh_token instead of omitting it.
+        // Treat that as absent so refresh() keeps the existing valid token.
+        refresh_token: parsed.refresh_token.filter(|s| !s.trim().is_empty()),
         expires_at,
         client_id: None,
     })
@@ -722,6 +731,31 @@ mod tests {
         let no_exp = token_set_from(&serde_json::json!({"access_token":"x"})).unwrap();
         assert_eq!(no_exp.expires_at, 0);
         assert!(is_expired(&no_exp)); // unknown expiry ⇒ treat as expired
+    }
+
+    #[test]
+    fn oauth_token_response_rejects_blank_access_and_handles_extreme_expiry() {
+        for empty in ["", "   ", "\t"] {
+            let raw = serde_json::json!({ "access_token": empty, "expires_in": 3600 });
+            assert!(token_set_from(&raw).is_err(), "accepted a blank bearer token");
+        }
+        let huge = token_set_from(&serde_json::json!({
+            "access_token": "valid", "expires_in": i64::MAX
+        }))
+        .expect("extreme provider expiry must not overflow");
+        assert_eq!(huge.expires_at, i64::MAX);
+
+        let empty_refresh = token_set_from(&serde_json::json!({
+            "access_token": "valid", "refresh_token": "", "expires_in": 60
+        }))
+        .unwrap();
+        assert_eq!(empty_refresh.refresh_token, None);
+        // Zero/negative durations remain expired (rather than becoming valid).
+        let expired = token_set_from(&serde_json::json!({
+            "access_token": "valid", "expires_in": -60
+        }))
+        .unwrap();
+        assert!(is_expired(&expired));
     }
 
     /// Round-trips tokens through the real OS keychain. `#[ignore]`d because it

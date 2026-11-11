@@ -1,3 +1,12 @@
+## 0.99.49 Preview — 12 November 2026
+
+- Guard OAuth token response parsing against provider-controlled extreme `expires_in` durations: use saturating timestamp arithmetic rather than an unchecked addition that could overflow or crash login/refresh.
+- Reject blank access tokens; treat blank refresh tokens as absent so the caller preserves a valid existing refresh token when appropriate. Keep all token bytes private and preserve the OS keychain contract.
+- Correct the browser callback text so it does not claim a successful cloud connection before the authorization code has been exchanged for a token.
+- Add Rust regressions for blank credentials, extreme and negative token expiry, and empty refresh tokens.
+- Preserve Windows/Linux-only distribution, existing genuine native screenshots and original historical release tags; no new macOS outputs. Required release artifacts remain 15, plus four optional signed-updater files only when complete.
+- Full live-provider, long-duration stress, device pixel parity, accessibility and production signing remain unverified; publish only after exact-source CI and release integrity checks. Previous public Preview: v0.99.48.
+
 ## 0.99.48 Preview — 12 November 2026
 
 - Fix immutable release-lineage CI failure caused by a post-publication README change retaining the already tagged v0.99.47 version. Preserve the historical tag, all published binaries and checksums unchanged.
