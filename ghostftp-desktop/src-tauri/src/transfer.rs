@@ -622,6 +622,45 @@ fn checked_object_download_progress(expected: u64, written: u64, next_bytes: usi
     Ok(next)
 }
 
+/// Full-file HTTP and cloud downloads do not send a Range header. An
+/// unsolicited 206 has a valid *partial* Content-Length, which must not be
+/// treated as the entire file. Other 2xx statuses (for example 204) do not
+/// provide a complete representation either. Check before creating staging.
+fn declared_full_http_download_length(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+) -> Result<Option<u64>> {
+    anyhow::ensure!(
+        status == reqwest::StatusCode::OK,
+        "download requires HTTP 200 complete representation, received HTTP {}",
+        status.as_u16()
+    );
+    anyhow::ensure!(
+        !headers.contains_key(reqwest::header::CONTENT_RANGE),
+        "download returned unexpected Content-Range without a Range request"
+    );
+    declared_plain_http_length(headers)
+}
+
+/// Reject oversized HTTP/cloud payloads *before* writing them to the staging
+/// file, rather than merely noticing at EOF after consuming disk space.
+fn checked_http_download_progress(
+    expected: Option<u64>,
+    written: u64,
+    next_bytes: usize,
+) -> Result<u64> {
+    let next = written
+        .checked_add(u64::try_from(next_bytes).context("HTTP chunk length overflow")?)
+        .context("HTTP download byte counter overflow")?;
+    if let Some(expected) = expected {
+        anyhow::ensure!(
+            next <= expected,
+            "HTTP download exceeds its declared Content-Length"
+        );
+    }
+    Ok(next)
+}
+
 /// The declared wire size is meaningful only for identity-encoded HTTP.
 fn declared_plain_http_length(headers: &reqwest::header::HeaderMap) -> Result<Option<u64>> {
     use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH};
@@ -3606,14 +3645,7 @@ impl TransferManager {
             .send()
             .await
             .with_context(|| format!("GET {remote_path}"))?;
-        if !resp.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "download {remote_path} failed: HTTP {}",
-                resp.status().as_u16()
-            ));
-        }
-
-        let expected_length = declared_plain_http_length(resp.headers())?;
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
         let mut file = tokio::fs::File::create(local_path)
             .await
@@ -3623,9 +3655,10 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("webdav chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -3713,14 +3746,7 @@ impl TransferManager {
             .send()
             .await
             .with_context(|| format!("GET {remote_path}"))?;
-        if !resp.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "download {remote_path} failed: HTTP {}",
-                resp.status().as_u16()
-            ));
-        }
-
-        let expected_length = declared_plain_http_length(resp.headers())?;
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
         let mut file = tokio::fs::File::create(local_path)
             .await
@@ -3730,9 +3756,10 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("http chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -3774,6 +3801,8 @@ impl TransferManager {
         let arg = serde_json::json!({ "path": dbx }).to_string();
         let resp = session.content_get("/2/files/download", &arg).await?;
 
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
         let mut file = tokio::fs::File::create(local_path)
             .await
             .with_context(|| format!("create {}", local_path.display()))?;
@@ -3782,9 +3811,10 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("dropbox chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -3794,6 +3824,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -4045,6 +4084,8 @@ impl TransferManager {
         let content = crate::remotefs::onedrive::content_ref(remote_path);
         let resp = session.get_stream(&content).await?;
 
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
         let mut file = tokio::fs::File::create(local_path)
             .await
             .with_context(|| format!("create {}", local_path.display()))?;
@@ -4053,9 +4094,10 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("onedrive chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -4065,6 +4107,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -4247,6 +4298,8 @@ impl TransferManager {
             .get_stream(&format!("/files/{file_id}?alt=media"))
             .await?;
 
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
         let mut file = tokio::fs::File::create(local_path)
             .await
             .with_context(|| format!("create {}", local_path.display()))?;
@@ -4255,9 +4308,10 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("drive chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -4267,6 +4321,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -4375,6 +4438,8 @@ impl TransferManager {
             .get_stream(&format!("/files/{file_id}/content"))
             .await?;
 
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
         let mut file = tokio::fs::File::create(local_path)
             .await
             .with_context(|| format!("create {}", local_path.display()))?;
@@ -4383,9 +4448,10 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("box chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -4395,6 +4461,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -5426,6 +5501,67 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
         assert!(verify_plain_http_download_length(Some(0), 0, 0).is_ok());
         assert!(verify_plain_http_download_length(Some(100), 100, 100).is_ok());
         assert!(verify_plain_http_download_length(None, 5, 5).is_ok());
+    }
+
+    #[test]
+    fn unexpected_partial_or_no_content_responses_never_commit_full_download() {
+        use reqwest::header::CONTENT_RANGE;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("4"));
+        assert_eq!(
+            declared_full_http_download_length(reqwest::StatusCode::OK, &headers).unwrap(),
+            Some(4)
+        );
+        for status in [
+            reqwest::StatusCode::PARTIAL_CONTENT,
+            reqwest::StatusCode::NO_CONTENT,
+            reqwest::StatusCode::RESET_CONTENT,
+            reqwest::StatusCode::NOT_MODIFIED,
+            reqwest::StatusCode::RANGE_NOT_SATISFIABLE,
+        ] {
+            assert!(declared_full_http_download_length(status, &headers).is_err());
+        }
+        headers.insert(CONTENT_RANGE, HeaderValue::from_static("bytes 0-3/100"));
+        assert!(declared_full_http_download_length(reqwest::StatusCode::OK, &headers).is_err());
+    }
+
+    #[test]
+    fn http_cloud_download_rejects_excess_before_disk_write_and_overflow() {
+        assert_eq!(checked_http_download_progress(Some(6), 0, 4).unwrap(), 4);
+        assert_eq!(checked_http_download_progress(Some(6), 4, 2).unwrap(), 6);
+        assert!(checked_http_download_progress(Some(6), 4, 3).is_err());
+        assert_eq!(checked_http_download_progress(None, 4, 3).unwrap(), 7);
+        assert!(checked_http_download_progress(None, u64::MAX, 1).is_err());
+        assert!(verify_plain_http_download_length(Some(6), 4, 4).is_err());
+        assert!(verify_plain_http_download_length(Some(6), 6, 5).is_err());
+    }
+
+    #[tokio::test]
+    async fn unsolicited_http_range_response_is_rejected_before_body_download() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let server = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind loopback HTTP fixture");
+        let url = format!("http://{}/download", server.local_addr().unwrap());
+        let accept = tokio::spawn(async move {
+            let (mut peer, _) = server.accept().await.expect("accept HTTP GET");
+            let mut request = [0u8; 2048];
+            let _ = peer.read(&mut request).await.expect("read HTTP GET");
+            peer.write_all(
+                b"HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-3/100\r\nContent-Length: 4\r\nConnection: close\r\n\r\ndata",
+            )
+            .await
+            .expect("return well-formed partial response");
+        });
+        let response = reqwest::Client::new()
+            .get(&url)
+            .send()
+            .await
+            .expect("make real loopback HTTP request");
+        assert!(declared_full_http_download_length(response.status(), response.headers()).is_err());
+        accept.await.expect("join HTTP fixture");
     }
 
     #[test]
