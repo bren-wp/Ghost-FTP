@@ -1,6 +1,6 @@
-# Ghost FTP 0.99.52 Preview — Windows/Linux production readiness
+# Ghost FTP 0.99.53 Preview — Windows/Linux production readiness
 
-**Decision: NOT CERTIFIED FOR STABLE PRODUCTION.** v0.99.51 is the verified public predecessor; v0.99.52 requires successful exact-commit CI, actual installed-native QA and remaining independent acceptance.
+**Decision: NOT CERTIFIED FOR STABLE PRODUCTION.** v0.99.52 is the verified public predecessor; v0.99.53 requires successful exact-commit CI, actual installed-native QA and remaining independent acceptance.
 
 | Surface | Verified from source | Remaining evidence |
 | --- | --- | --- |

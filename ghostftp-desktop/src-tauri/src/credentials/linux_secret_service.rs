@@ -9,7 +9,7 @@
 //! This module must never erase the old backend during migration.
 
 use anyhow::{anyhow, Result};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
@@ -21,30 +21,90 @@ const MAX_SECRET_BYTES: usize = 8191;
 const SECRET_TOOL_TIMEOUT: Duration = Duration::from_secs(30);
 const CHILD_POLL_INTERVAL: Duration = Duration::from_millis(20);
 
+// Drain both helper pipes before exit, or the OS pipe buffer can stall the child.
+// Refuse an unbounded amount of subprocess output.
+const MAX_HELPER_STDERR_BYTES: usize = 4096;
+
+fn read_bounded(pipe: impl Read, max_bytes: usize) -> Result<Vec<u8>> {
+    let mut output = Vec::new();
+    pipe.take((max_bytes + 1) as u64)
+        .read_to_end(&mut output)
+        .map_err(|_| anyhow!("Linux Secret Service output could not be read"))?;
+    Ok(output)
+}
+
 fn wait_bounded(mut child: Child, timeout: Duration) -> Result<Output> {
     let started = Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => {
-                return child
-                    .wait_with_output()
-                    .map_err(|_| anyhow!("Linux Secret Service response could not be read"));
+    std::thread::scope(|scope| {
+        let stdout_reader = child
+            .stdout
+            .take()
+            .map(|pipe| scope.spawn(move || read_bounded(pipe, MAX_SECRET_BYTES)));
+        let stderr_reader = child
+            .stderr
+            .take()
+            .map(|pipe| scope.spawn(move || read_bounded(pipe, MAX_HELPER_STDERR_BYTES)));
+
+        let status: Result<std::process::ExitStatus> = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break Ok(status),
+                Ok(None) if started.elapsed() >= timeout => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break Err(anyhow!(
+                        "Linux Secret Service timed out; unlock the keyring"
+                    ));
+                }
+                Ok(None) => std::thread::sleep(CHILD_POLL_INTERVAL),
+                Err(_) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break Err(anyhow!("Linux Secret Service process failed"));
+                }
             }
-            Ok(None) if started.elapsed() >= timeout => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(anyhow!(
-                    "Linux Secret Service timed out; unlock the keyring"
-                ));
-            }
-            Ok(None) => std::thread::sleep(CHILD_POLL_INTERVAL),
-            Err(_) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(anyhow!("Linux Secret Service process failed"));
-            }
+        };
+
+        let stdout = match stdout_reader {
+            Some(reader) => reader
+                .join()
+                .map_err(|_| anyhow!("Linux Secret Service output reader failed"))??,
+            None => Vec::new(),
+        };
+        let stderr = match stderr_reader {
+            Some(reader) => reader
+                .join()
+                .map_err(|_| anyhow!("Linux Secret Service error reader failed"))??,
+            None => Vec::new(),
+        };
+        Ok(Output {
+            status: status?,
+            stdout,
+            stderr,
+        })
+    })
+}
+
+// A write to child stdin can block indefinitely before calling wait_bounded.
+// Keep the deadline supervisor active while a worker handles the input pipe.
+fn write_then_wait_bounded(mut child: Child, secret: &[u8], timeout: Duration) -> Result<Output> {
+    let mut stdin = match child.stdin.take() {
+        Some(stdin) => stdin,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(anyhow!("Linux Secret Service pipe unavailable"));
         }
-    }
+    };
+    std::thread::scope(|scope| {
+        let writer = scope.spawn(move || stdin.write_all(secret));
+        let output = wait_bounded(child, timeout);
+        let written = writer
+            .join()
+            .map_err(|_| anyhow!("Linux Secret Service input writer failed"))?;
+        let output = output?;
+        written.map_err(|_| anyhow!("Linux Secret Service refused credential input"))?;
+        Ok(output)
+    })
 }
 
 fn command(operation: &str, service: &str, account: &str) -> Command {
@@ -111,20 +171,13 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let mut child = command.spawn().map_err(|_| {
+    let child = command.spawn().map_err(|_| {
         anyhow!("Linux Secret Service client is unavailable; install libsecret-tools")
     })?;
-    let written = child
-        .stdin
-        .take()
-        .ok_or_else(|| anyhow!("Linux Secret Service pipe unavailable"))?
-        .write_all(secret.as_bytes());
-    if written.is_err() {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err(anyhow!("Linux Secret Service refused the credential input"));
-    }
-    if !wait_bounded(child, SECRET_TOOL_TIMEOUT)?.status.success() {
+    if !write_then_wait_bounded(child, secret.as_bytes(), SECRET_TOOL_TIMEOUT)?
+        .status
+        .success()
+    {
         return Err(anyhow!(
             "Linux Secret Service refused to save the credential"
         ));
@@ -173,6 +226,52 @@ mod tests {
         let err = wait_bounded(child, Duration::from_millis(80)).unwrap_err();
         assert!(err.to_string().contains("timed out"));
         assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn blocked_stdin_write_is_interrupted_by_the_process_deadline() {
+        let mut helper = Command::new("sh");
+        helper
+            .args(["-c", "exec sleep 2"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let started = Instant::now();
+        let child = helper.spawn().expect("launch unresponsive helper");
+        // Larger than a typical Linux pipe buffer: the timeout must still fire.
+        let input = vec![b'x'; 512 * 1024];
+        let err = write_then_wait_bounded(child, &input, Duration::from_millis(80))
+            .expect_err("hung helper must time out");
+        assert!(err.to_string().contains("timed out"));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn credential_input_writer_closes_stdin_after_success() {
+        let mut helper = Command::new("sh");
+        helper
+            .args(["-c", "cat >/dev/null"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let child = helper.spawn().expect("launch input consumer");
+        let output = write_then_wait_bounded(child, b"test-secret", Duration::from_secs(2))
+            .expect("finish writing helper input");
+        assert!(output.status.success());
+    }
+
+    #[test]
+    fn oversized_helper_output_is_drained_without_unbounded_allocation() {
+        let mut helper = Command::new("sh");
+        helper
+            .args(["-c", "head -c 8193 /dev/zero"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        let child = helper.spawn().expect("launch output fixture");
+        let output = wait_bounded(child, Duration::from_secs(2))
+            .expect("drain a large credential response");
+        assert!(output.status.success());
+        assert_eq!(output.stdout.len(), MAX_SECRET_BYTES + 1);
     }
 
     #[test]
