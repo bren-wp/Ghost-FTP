@@ -645,9 +645,7 @@ pub async fn dynamics_connect(profile: &ConnectionProfile) -> Result<DynamicsSes
                 "Dataverse environment not found (404). Check the environment URL ({host})."
             ))
         }
-        s if !s.is_success() => {
-            return Err(anyhow!("dynamics WhoAmI failed ({})", s.as_u16()))
-        }
+        s if !s.is_success() => return Err(anyhow!("dynamics WhoAmI failed ({})", s.as_u16())),
         _ => {}
     }
     // Label: org host + the WhoAmI user id (the API returns guids only).
