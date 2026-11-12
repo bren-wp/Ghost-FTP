@@ -513,6 +513,24 @@ fn fresh_download_staging_path(final_path: &Path, id: &str) -> PathBuf {
     download_staging_path(final_path, &format!("{id}-{}", Uuid::new_v4().simple()))
 }
 
+/// An exclusive-open failure does *not* confer ownership of a staging
+/// pathname. Preserve the cause through protocol/reconnect error contexts so
+/// the runner never deletes a pre-existing user file/symlink on failure.
+#[derive(Debug)]
+struct DownloadStagingOpenFailure(std::io::Error);
+
+impl std::fmt::Display for DownloadStagingOpenFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "exclusive download staging open failed: {}", self.0)
+    }
+}
+
+impl std::error::Error for DownloadStagingOpenFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
 /// Exclusively create the staging file at the point of the actual write.
 /// File::create follows a pre-planted symlink and truncates an existing file
 /// before promotion can check its type. O_EXCL/CREATE_NEW rejects both.
@@ -522,6 +540,7 @@ async fn create_new_download_staging(path: &Path) -> Result<tokio::fs::File> {
         .create_new(true)
         .open(path)
         .await
+        .map_err(DownloadStagingOpenFailure)
         .with_context(|| format!("exclusively create download staging {}", path.display()))
 }
 
@@ -3194,6 +3213,7 @@ impl TransferManager {
                 }
                 let mut file = open
                     .open(&final_path)
+                    .map_err(DownloadStagingOpenFailure)
                     .with_context(|| format!("open {}", final_path.display()))?;
                 if offset > 0 {
                     file.set_len(offset)?;
@@ -3253,9 +3273,9 @@ impl TransferManager {
             Err(error) => {
                 return Err(match session.reconnect().await {
                     Ok(()) => error,
-                    Err(reconnect_error) => anyhow::anyhow!(
-                        "{error:#}; additionally failed to reconnect FTP session after download failure: {reconnect_error:#}"
-                    ),
+                    Err(reconnect_error) => error.context(format!(
+                        "additionally failed to reconnect FTP session after download failure: {reconnect_error:#}"
+                    )),
                 });
             }
         };
@@ -5120,9 +5140,16 @@ async fn run_download_task(
             dispatch_download(&mgr, &id, &session, &remote_path, &working_path, &app).await;
         if staged_download && !byte_resume && attempt.is_err() {
             // A failed whole-file attempt has no verified resumable prefix.
-            // Unlink only the unique staging path from this attempt, not the
-            // existing user destination or another transfer's staging file.
-            let _ = tokio::fs::remove_file(&working_path).await;
+            // If exclusive creation itself failed we never owned this path:
+            // do not unlink a preexisting user file or planted symlink.
+            let not_owned = attempt.as_ref().err().is_some_and(|error| {
+                error
+                    .downcast_ref::<DownloadStagingOpenFailure>()
+                    .is_some()
+            });
+            if !not_owned {
+                let _ = tokio::fs::remove_file(&working_path).await;
+            }
         }
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
@@ -5690,7 +5717,11 @@ mod tests {
         file.sync_all().await.unwrap();
         drop(file);
 
-        assert!(create_new_download_staging(&attempt_one).await.is_err());
+        let collision = create_new_download_staging(&attempt_one).await.unwrap_err();
+        assert!(
+            collision.downcast_ref::<DownloadStagingOpenFailure>().is_some(),
+            "failed exclusive creation must be distinguishable from an owned partial transfer"
+        );
         assert_eq!(tokio::fs::read(&attempt_one).await.unwrap(), b"partial data");
 
         let mut replacement = create_new_download_staging(&attempt_two).await.unwrap();
@@ -5716,7 +5747,8 @@ mod tests {
         tokio::fs::write(&valuable, b"important contents").await.unwrap();
         std::os::unix::fs::symlink(&valuable, &staging).unwrap();
 
-        assert!(create_new_download_staging(&staging).await.is_err());
+        let error = create_new_download_staging(&staging).await.unwrap_err();
+        assert!(error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
         assert_eq!(
             tokio::fs::read(&valuable).await.unwrap(),
             b"important contents"
