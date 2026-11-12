@@ -14,7 +14,7 @@ A privacy-conscious file-transfer client for everyday server work, organized tra
 
 **Ghost FTP 0.99.50 (development Preview) · Previously published: v0.99.49.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
 
-[**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [App screenshots](#real-screenshots-of-the-app) · [Installation](docs/guides/INSTALLATION.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [App screenshots](#real-screenshots-of-the-app) · [Installation](docs/guides/INSTALLATION.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 </div>
 
