@@ -18,7 +18,7 @@
 | Local credential protection | SRC OS vault | SRC Secret Service | SRC Keychain | Must test actual availability and migration |
 | Automatic signed update | SRC when signed artifact exists | SRC when signed artifact exists | TODO full production update | Reject unsigned/downgrade |
 | Native packages | EXE portable/NSIS/MSI | Binary/AppImage/DEB/RPM | ZIP/DMG Preview | Signatures and install behavior vary |
-| 1:1 screenshot acceptance | VERIFY 30 views | VERIFY 29 views | No approved visual reference | Concept renders are not real screenshots |
+| Functional, responsive and accessible UI | Test installed controls and scaling | Test installed controls and scaling | Not an active target | Real application behavior and accessibility are release requirements |
 
 ## Source ownership and acceptance
 

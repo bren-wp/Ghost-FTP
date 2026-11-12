@@ -2,7 +2,7 @@
 
 # Ghost FTP Client + Server — cross-platform parity and synchronization contract
 
-**Development scope:** v0.99.22 Preview, 29 October 2026. This record is evidence of source alignment and real feature availability, **not** a claim of fully approved 1:1 visual parity or production readiness.
+**Historical development scope:** v0.99.22 Preview, 29 October 2026. This record documents source alignment and real feature availability; the former design-reference comparison requirement has been retired.
 
 ## Design: one canonical identity
 
@@ -10,7 +10,7 @@ The canonical design source is [premium-ui-tokens.json](../branding/premium-ui-t
 
 Server admin at `ghost-server/admin-assets/` embeds **exactly the same ghost icon SVG bytes** as `ghostftp-desktop/branding/ghostftp-symbol.svg`. It has active Overview, Sessions, Security, Limits and Diagnostics navigation and responsive layouts. It must never expose fictional users, traffic graphs, permissions, file writes, fake transfer progress or editable server settings without a working server API. All displayed metrics come from its own real authenticated server response.
 
-Source-level regressions are checked by `.github/scripts/check-server-premium-parity.test.mjs` and the existing `.github/scripts/check-premium-ui-tokens.mjs`. Neither is a screenshot-diff engine. **Pixel-perfect acceptance remains pending** for all real Windows, Linux, Android, macOS and Server screens, including 1290×852 reference dimensions, dark/light themes, keyboard/screen-reader interactions, 200% DPI and mobile breakpoints.
+Source-level regressions are checked by the referenced tests. Current release acceptance uses functional interaction, security, native packaging and accessibility; fixed-reference pixel equality is not required.
 
 ## Synchronization: one actual server, not duplicated fake stores
 
