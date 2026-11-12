@@ -1,8 +1,8 @@
 ## 0.99.51 Preview — 12 November 2026
 
-- Secure Shopify and HubSpot REST calls before attaching bearer or Admin API credentials: reject cross-origin, downgraded, credentialed or fragment-bearing URLs; reject credential-bearing redirects. This also protects HubSpot task-status links supplied by API responses.
+- Secure Shopify, HubSpot and Dynamics 365 REST calls before attaching bearer or Admin API credentials: reject cross-origin, downgraded, credentialed or fragment-bearing URLs; reject credential-bearing redirects. This also protects HubSpot task-status links supplied by API responses.
 - Prevent automatic 429/5xx retries of POST, PUT, PATCH and DELETE in the shared cloud throttle. Only safe read methods can retry, avoiding duplicate creates, uploads or destructive operations after ambiguous provider responses. Add Rust regression coverage and a real loopback 503 POST test.
-- Bound Shopify's untrusted client-credentials token expiry to one day and reject blank bearer tokens, with a u64::MAX regression case.
+- Bound Shopify/Dynamics client-credentials token expiry to one day and reject blank bearer tokens, with a u64::MAX regression case.
 - Improve Transfer Center responsiveness for large histories: a stable bounded top-k log selector replaces sorting and copying every persisted transfer on each update; preserve backend transfer identity, tie order and user selection. Add UI selector tests.
 - Keep the authentic 14 Windows/Linux README images and link newer genuine v0.99.50 native CI captures, with 59/59 visual references explicitly pending pixel-diff acceptance. Maintain no new macOS distributions and preserve historical tags/assets.
 - Full dead-code/security audit, Rust workspace tests/Clippy, TypeScript, FTP/FTPS/SFTP E2E, Windows hardening and native Windows/Linux builds remain mandatory release gates. v0.99.50 is the prior public Preview.

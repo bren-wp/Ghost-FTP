@@ -113,7 +113,7 @@ A signed object URL is **not** a full cloud account login. Provider capabilities
 
 ## Built to protect your cloud data
 
-Ghost FTP 0.99.51 prevents Shopify and HubSpot credentials from being attached to cross-origin API requests or forwarded through HTTP redirects. Automatic retry on provider 429/5xx is reserved for safe read methods, not uploads, folder creation, renaming or deletes that could be applied twice. The recent-transfer history uses bounded top-k selection for smoother display with large queues. Live provider acceptance and comparative performance benchmarks remain separate from these verified source-level improvements.
+Ghost FTP 0.99.51 prevents Shopify, HubSpot and Dynamics 365 credentials from being attached to cross-origin API requests or forwarded through HTTP redirects. Automatic retry on provider 429/5xx is reserved for safe read methods, not uploads, folder creation, renaming or deletes that could be applied twice. The recent-transfer history uses bounded top-k selection for smoother display with large queues. Live provider acceptance and comparative performance benchmarks remain separate from these verified source-level improvements.
 
 ## Privacy, trust and reliable transfers
 

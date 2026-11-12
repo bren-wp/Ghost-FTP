@@ -1,6 +1,8 @@
 use crate::oauth::{self, OAuthConfig, RefreshingToken};
 use crate::profiles::ConnectionProfile;
-use crate::session::http_throttle::{send_retried, HttpThrottle};
+use crate::session::http_throttle::{
+    can_retry_method, send_retried, trusted_bearer_url, HttpThrottle,
+};
 use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, Method, StatusCode};
 use serde_json::Value;
@@ -32,6 +34,10 @@ const LIST_TTL: Duration = Duration::from_secs(30);
 
 /// Client-credentials tokens last ~1h; re-fetch this far ahead of expiry.
 const TOKEN_MARGIN: Duration = Duration::from_secs(300);
+
+fn bounded_dynamics_token_lifetime(seconds: u64) -> Duration {
+    Duration::from_secs(seconds.min(86_400))
+}
 
 /// Dataverse refuses web resources over 5 MB by default (org-configurable) —
 /// fail client-side, earlier and clearer.
@@ -193,7 +199,7 @@ impl DynamicsSession {
                 let text = resp.text().await.unwrap_or_default();
                 if !status.is_success() {
                     return Err(anyhow!(
-                        "dynamics token exchange failed ({}): {text}. Check the tenant id, \
+                        "dynamics token exchange failed ({}). Check the tenant id, \
                          client id and client secret, and that an application user exists for \
                          the app registration in this environment.",
                         status.as_u16()
@@ -206,10 +212,14 @@ impl DynamicsSession {
                     .and_then(|t| t.as_str())
                     .ok_or_else(|| anyhow!("dynamics token exchange returned no access_token"))?
                     .to_string();
+                anyhow::ensure!(
+                    !token.trim().is_empty(),
+                    "dynamics token exchange returned blank credential"
+                );
                 let expires_in = v.get("expires_in").and_then(|e| e.as_u64()).unwrap_or(3599);
                 *cache.lock().unwrap() = Some((
                     token.clone(),
-                    Instant::now() + Duration::from_secs(expires_in),
+                    Instant::now() + bounded_dynamics_token_lifetime(expires_in),
                 ));
                 Ok(token)
             }
@@ -225,25 +235,29 @@ impl DynamicsSession {
         path: &str,
         body: Option<&Value>,
     ) -> Result<reqwest::Response> {
-        let url = if path.starts_with("http") {
-            path.to_string()
-        } else {
-            format!("{}{path}", self.api_base)
-        };
+        // OData nextLink is server-supplied: never attach Dynamics tokens to
+        // foreign hosts, downgraded URLs or credentialed absolute links.
+        let url = trusted_bearer_url(&self.api_base, path)?;
         let body = body.cloned();
-        send_retried(&self.throttle, &format!("dynamics {path}"), move || {
-            let url = url.clone();
-            let method = method.clone();
-            let body = body.clone();
-            async move {
-                let token = self.token().await?;
-                let mut rb = self.client.request(method, &url).bearer_auth(&token);
-                if let Some(b) = &body {
-                    rb = rb.json(b);
+        let retry_method = method.clone();
+        send_retried(
+            &self.throttle,
+            "Dynamics API request",
+            retry_method,
+            move || {
+                let url = url.clone();
+                let method = method.clone();
+                let body = body.clone();
+                async move {
+                    let token = self.token().await?;
+                    let mut rb = self.client.request(method, url).bearer_auth(&token);
+                    if let Some(b) = &body {
+                        rb = rb.json(b);
+                    }
+                    Ok(rb)
                 }
-                Ok(rb)
-            }
-        })
+            },
+        )
         .await
     }
 
@@ -256,7 +270,9 @@ impl DynamicsSession {
         body: Option<&Value>,
     ) -> Result<reqwest::Response> {
         let resp = self.send_once(method.clone(), path, body).await?;
-        if resp.status() == StatusCode::UNAUTHORIZED {
+        // An ambiguous write must not be sent twice, even on a 401. The
+        // user can explicitly retry after inspecting remote state.
+        if resp.status() == StatusCode::UNAUTHORIZED && can_retry_method(&method) {
             if let Auth::Delegated(t) = &self.auth {
                 t.force_refresh().await?;
                 return self.send_once(method, path, body).await;
@@ -272,14 +288,14 @@ impl DynamicsSession {
         let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
             return Err(anyhow!(
-                "dynamics {path} failed ({}): {text}",
+                "Dynamics API request failed (HTTP {})",
                 status.as_u16()
             ));
         }
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
-        serde_json::from_str(&text).with_context(|| format!("parse dynamics {path} response"))
+        serde_json::from_str(&text).context("parse Dynamics API response")
     }
 
     /// The connection label: the org host plus the `WhoAmI` user.
@@ -392,8 +408,7 @@ impl DynamicsSession {
         let status = resp.status();
         if !status.is_success() {
             let code = status.as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("dynamics create {name} failed ({code}): {text}"));
+            return Err(anyhow!("dynamics create {name} failed ({code})"));
         }
         let id = resp
             .headers()
@@ -430,8 +445,7 @@ impl DynamicsSession {
         let status = resp.status();
         if !status.is_success() {
             let code = status.as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("dynamics update {name} failed ({code}): {text}"));
+            return Err(anyhow!("dynamics update {name} failed ({code})"));
         }
         self.sizes
             .lock()
@@ -449,8 +463,7 @@ impl DynamicsSession {
         let status = resp.status();
         if !status.is_success() && status != StatusCode::NOT_FOUND {
             let code = status.as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("dynamics delete {name} failed ({code}): {text}"));
+            return Err(anyhow!("dynamics delete {name} failed ({code})"));
         }
         Ok(())
     }
@@ -466,8 +479,7 @@ impl DynamicsSession {
         let status = resp.status();
         if !status.is_success() {
             let code = status.as_u16();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("dynamics PublishXml failed ({code}): {text}"));
+            return Err(anyhow!("dynamics PublishXml failed ({code})"));
         }
         Ok(())
     }
@@ -583,6 +595,8 @@ pub async fn dynamics_connect(profile: &ConnectionProfile) -> Result<DynamicsSes
     let client = Client::builder()
         .connect_timeout(Duration::from_secs(20))
         .timeout(Duration::from_secs(300))
+        // Never forward Dynamics access tokens on HTTP redirects.
+        .redirect(reqwest::redirect::Policy::none())
         .user_agent(concat!("Ghost FTP/", env!("CARGO_PKG_VERSION")))
         .build()
         .context("building Dynamics HTTP client")?;
@@ -632,7 +646,7 @@ pub async fn dynamics_connect(profile: &ConnectionProfile) -> Result<DynamicsSes
             ))
         }
         s if !s.is_success() => {
-            return Err(anyhow!("dynamics WhoAmI failed ({}): {text}", s.as_u16()))
+            return Err(anyhow!("dynamics WhoAmI failed ({})", s.as_u16()))
         }
         _ => {}
     }
@@ -643,4 +657,45 @@ pub async fn dynamics_connect(profile: &ConnectionProfile) -> Result<DynamicsSes
         }
     }
     Ok(session)
+}
+
+#[cfg(test)]
+mod cloud_guard_tests {
+    use super::*;
+
+    #[test]
+    fn dynamics_pagination_never_escapes_authorized_origin() {
+        let base = "https://contoso.crm.dynamics.com/api/data/v9.2";
+        assert!(trusted_bearer_url(base, "/WhoAmI").is_ok());
+        assert!(trusted_bearer_url(
+            base,
+            "https://contoso.crm.dynamics.com/api/data/v9.2/webresourceset?$skiptoken=next"
+        )
+        .is_ok());
+        for unsafe_url in [
+            "https://evil.invalid/collect",
+            "http://contoso.crm.dynamics.com/api/data/v9.2/webresourceset",
+            "https://bearer@contoso.crm.dynamics.com/api/data/v9.2",
+            "https://contoso.crm.dynamics.com.attacker.invalid/api/data/v9.2",
+        ] {
+            assert!(trusted_bearer_url(base, unsafe_url).is_err());
+        }
+    }
+
+    #[test]
+    fn extreme_dynamics_token_expiry_is_bounded() {
+        assert_eq!(bounded_dynamics_token_lifetime(60), Duration::from_secs(60));
+        assert_eq!(
+            bounded_dynamics_token_lifetime(u64::MAX),
+            Duration::from_secs(86_400)
+        );
+    }
+
+    #[test]
+    fn authorization_refresh_never_replays_mutations() {
+        assert!(can_retry_method(&Method::GET));
+        for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
+            assert!(!can_retry_method(&method));
+        }
+    }
 }

@@ -54,7 +54,7 @@ fn retry_after_delay(header: Option<&reqwest::header::HeaderValue>) -> Duration 
 
 /// Fail closed for provider writes: a 429/5xx does not prove a POST/PUT/PATCH/
 /// DELETE was not applied. Retries could create duplicate remote data.
-fn can_retry_method(method: &Method) -> bool {
+pub(crate) fn can_retry_method(method: &Method) -> bool {
     *method == Method::GET || *method == Method::HEAD || *method == Method::OPTIONS
 }
 
