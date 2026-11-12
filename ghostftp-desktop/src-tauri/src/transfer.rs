@@ -2618,12 +2618,18 @@ impl TransferManager {
             .await;
         match result {
             Ok(()) => {
-                if allow_replace {
+                let result = if allow_replace {
                     promote_staged_download(&staging, local_path, id).await
                 } else {
                     promote_staged_download_noreplace(&staging, local_path).await
+                };
+                // A Skip/Rename collision must never strand an Agent staging
+                // file, nor touch the destination owned by another process.
+                if !allow_replace && result.is_err() {
+                    let _ = tokio::fs::remove_file(&staging).await;
                 }
-            },
+                result
+            }
             Err(error) => {
                 if error.downcast_ref::<RestartFromPause>().is_none() {
                     let _ = tokio::fs::remove_file(&staging).await;
@@ -5882,7 +5888,10 @@ mod tests {
                 .await
                 .is_err()
         );
-        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"other process");
+        assert_eq!(
+            tokio::fs::read(&destination).await.unwrap(),
+            b"other process"
+        );
         assert_eq!(tokio::fs::read(&staged).await.unwrap(), b"downloaded");
 
         tokio::fs::remove_file(&destination).await.unwrap();
