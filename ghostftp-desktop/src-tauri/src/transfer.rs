@@ -5704,7 +5704,9 @@ mod tests {
         let root = std::env::temp_dir().join(format!("ghostftp-exclusive-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let final_path = root.join("original.bin");
-        tokio::fs::write(&final_path, b"preserve destination").await.unwrap();
+        tokio::fs::write(&final_path, b"preserve destination")
+            .await
+            .unwrap();
 
         let attempt_one = fresh_download_staging_path(&final_path, "transfer-1");
         let attempt_two = fresh_download_staging_path(&final_path, "transfer-1");
@@ -5719,10 +5721,15 @@ mod tests {
 
         let collision = create_new_download_staging(&attempt_one).await.unwrap_err();
         assert!(
-            collision.downcast_ref::<DownloadStagingOpenFailure>().is_some(),
+            collision
+                .downcast_ref::<DownloadStagingOpenFailure>()
+                .is_some(),
             "failed exclusive creation must be distinguishable from an owned partial transfer"
         );
-        assert_eq!(tokio::fs::read(&attempt_one).await.unwrap(), b"partial data");
+        assert_eq!(
+            tokio::fs::read(&attempt_one).await.unwrap(),
+            b"partial data"
+        );
 
         let mut replacement = create_new_download_staging(&attempt_two).await.unwrap();
         replacement.write_all(b"complete data").await.unwrap();
@@ -5732,7 +5739,10 @@ mod tests {
             tokio::fs::read(&final_path).await.unwrap(),
             b"preserve destination"
         );
-        assert_eq!(tokio::fs::read(&attempt_two).await.unwrap(), b"complete data");
+        assert_eq!(
+            tokio::fs::read(&attempt_two).await.unwrap(),
+            b"complete data"
+        );
 
         tokio::fs::remove_dir_all(&root).await.unwrap();
     }
@@ -5744,11 +5754,15 @@ mod tests {
         tokio::fs::create_dir_all(&root).await.unwrap();
         let valuable = root.join("private.txt");
         let staging = root.join("untrusted.part");
-        tokio::fs::write(&valuable, b"important contents").await.unwrap();
+        tokio::fs::write(&valuable, b"important contents")
+            .await
+            .unwrap();
         std::os::unix::fs::symlink(&valuable, &staging).unwrap();
 
         let error = create_new_download_staging(&staging).await.unwrap_err();
-        assert!(error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
+        assert!(error
+            .downcast_ref::<DownloadStagingOpenFailure>()
+            .is_some());
         assert_eq!(
             tokio::fs::read(&valuable).await.unwrap(),
             b"important contents"
