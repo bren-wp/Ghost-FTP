@@ -325,6 +325,8 @@ enum RetryInfo {
         session: Arc<Session>,
         remote_path: String,
         final_path: PathBuf,
+        /// An explicit Overwrite policy, never inferred from a stale preflight.
+        allow_replace: bool,
     },
     Upload {
         session: Arc<Session>,
@@ -343,6 +345,10 @@ enum PersistedRetryInfo {
         profile_id: String,
         remote_path: String,
         final_path: PathBuf,
+        /// Legacy saved rows lack a policy: default to non-overwrite to
+        /// preserve local files rather than silently authorizing replacement.
+        #[serde(default)]
+        allow_replace: bool,
     },
     Upload {
         profile_id: String,
@@ -363,11 +369,13 @@ impl PersistedRetryInfo {
             Self::Download {
                 remote_path,
                 final_path,
+                allow_replace,
                 ..
             } => RetryInfo::Download {
                 session,
                 remote_path: remote_path.clone(),
                 final_path: final_path.clone(),
+                allow_replace: *allow_replace,
             },
             Self::Upload {
                 local,
@@ -834,6 +842,27 @@ async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) ->
         let _ = tokio::fs::remove_file(&backup).await;
     }
     Ok(())
+}
+
+/// Finish a Skip/Rename download without racing another process or queued
+/// transfer which created the destination after the initial existence check.
+/// This is an atomic move-if-absent, not a check-then-rename sequence.
+async fn promote_staged_download_noreplace(staging: &Path, final_path: &Path) -> Result<()> {
+    let metadata = tokio::fs::symlink_metadata(staging)
+        .await
+        .context("inspect non-overwrite staging file")?;
+    anyhow::ensure!(
+        metadata.file_type().is_file(),
+        "non-overwrite promotion requires a regular staging file"
+    );
+    move_local_noreplace(staging, final_path)
+        .await
+        .with_context(|| {
+            format!(
+                "download target already occupied or cannot be created without replacing {}",
+                final_path.display()
+            )
+        })
 }
 
 const MAX_DIRECTORY_UPLOAD_ENTRIES: usize = 100_000;
@@ -1656,6 +1685,7 @@ impl TransferManager {
                 session,
                 remote_path,
                 final_path,
+                allow_replace,
             } => {
                 self.spawn_registered(
                     id.to_string(),
@@ -1665,6 +1695,7 @@ impl TransferManager {
                         session,
                         remote_path,
                         final_path,
+                        allow_replace,
                         app_for_task,
                     ),
                 )
@@ -1819,6 +1850,7 @@ impl TransferManager {
                 profile_id: session.profile().id.clone(),
                 remote_path: remote_path.clone(),
                 final_path: final_path.clone(),
+                allow_replace: policy == OverwritePolicy::Overwrite,
             },
         );
         self.insert(transfer.clone()).await;
@@ -1835,6 +1867,7 @@ impl TransferManager {
                 session: Arc::clone(&session),
                 remote_path: remote_path.clone(),
                 final_path: final_path.clone(),
+                allow_replace: policy == OverwritePolicy::Overwrite,
             },
         );
         self.waiting.lock().await.push_back(id.clone());
@@ -1852,7 +1885,15 @@ impl TransferManager {
         let id_for_task = id.clone();
         self.spawn_registered(
             id.clone(),
-            run_download_task(mgr, id_for_task, session, remote_path, final_path, app),
+            run_download_task(
+                mgr,
+                id_for_task,
+                session,
+                remote_path,
+                final_path,
+                policy == OverwritePolicy::Overwrite,
+                app,
+            ),
         )
         .await;
         Ok(id)
@@ -2569,13 +2610,20 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: Option<&AppHandle>,
+        allow_replace: bool,
     ) -> Result<()> {
         let staging = download_staging_path(local_path, id);
         let result = self
             .agent_download_core(id, session, remote_path, &staging, app)
             .await;
         match result {
-            Ok(()) => promote_staged_download(&staging, local_path, id).await,
+            Ok(()) => {
+                if allow_replace {
+                    promote_staged_download(&staging, local_path, id).await
+                } else {
+                    promote_staged_download_noreplace(&staging, local_path).await
+                }
+            },
             Err(error) => {
                 if error.downcast_ref::<RestartFromPause>().is_none() {
                     let _ = tokio::fs::remove_file(&staging).await;
@@ -2613,7 +2661,7 @@ impl TransferManager {
         // prefix. Delta mode is reserved for complete prior-file bases.
         if self.get(id).await.is_some_and(|t| t.transferred > 0) {
             return self
-                .run_agent_full_download_staged(id, session, remote_path, local_path, app)
+                .run_agent_full_download_staged(id, session, remote_path, local_path, app, true)
                 .await;
         }
 
@@ -2634,7 +2682,7 @@ impl TransferManager {
                 }
             }
         }
-        self.run_agent_full_download_staged(id, session, remote_path, local_path, app)
+        self.run_agent_full_download_staged(id, session, remote_path, local_path, app, true)
             .await
     }
 
@@ -5111,6 +5159,7 @@ async fn run_download_task(
     session: Arc<Session>,
     remote_path: String,
     final_path: PathBuf,
+    allow_replace: bool,
     app: AppHandle,
 ) {
     let Some(initial_permit) = mgr.admit(&id).await else {
@@ -5137,7 +5186,16 @@ async fn run_download_task(
             working_path = fresh_download_staging_path(&final_path, &id);
         }
         let attempt =
-            dispatch_download(&mgr, &id, &session, &remote_path, &working_path, &app).await;
+            dispatch_download(
+                &mgr,
+                &id,
+                &session,
+                &remote_path,
+                &working_path,
+                allow_replace,
+                &app,
+            )
+            .await;
         if staged_download && !byte_resume && attempt.is_err() {
             // A failed whole-file attempt has no verified resumable prefix.
             // If exclusive creation itself failed we never owned this path:
@@ -5205,7 +5263,13 @@ async fn run_download_task(
                     None => Err(anyhow::anyhow!("completed download record disappeared")),
                 };
                 match checked {
-                    Ok(()) => promote_staged_download(&working_path, &final_path, &id).await,
+                    Ok(()) => {
+                        if allow_replace {
+                            promote_staged_download(&working_path, &final_path, &id).await
+                        } else {
+                            promote_staged_download_noreplace(&working_path, &final_path).await
+                        }
+                    },
                     Err(error) => {
                         let _ = tokio::fs::remove_file(&working_path).await;
                         Err(error)
@@ -5298,6 +5362,7 @@ async fn dispatch_download(
     session: &Arc<Session>,
     remote_path: &str,
     final_path: &Path,
+    allow_replace: bool,
     app: &AppHandle,
 ) -> Result<()> {
     match &**session {
@@ -5351,8 +5416,22 @@ async fn dispatch_download(
         }
         Session::Agent(agent) => {
             debug_assert!(supports_delta(session));
-            mgr.run_agent_download_with_delta(id, agent.clone(), remote_path, final_path, app)
+            if allow_replace {
+                mgr.run_agent_download_with_delta(id, agent.clone(), remote_path, final_path, app)
+                    .await
+            } else {
+                // Agent delta mode reconstructs/updates an existing destination.
+                // For Skip/Rename use a staged full copy + atomic no-replace.
+                mgr.run_agent_full_download_staged(
+                    id,
+                    agent,
+                    remote_path,
+                    final_path,
+                    Some(app),
+                    false,
+                )
                 .await
+            }
         }
     }
 }
@@ -5785,6 +5864,49 @@ mod tests {
         assert!(verify_staged_download_bytes(&file, 0).await.is_ok());
         tokio::fs::remove_file(&file).await.unwrap();
         tokio::fs::remove_dir_all(&dir).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn rename_or_skip_download_never_replaces_racing_destination() {
+        let root = std::env::temp_dir().join(format!("ghostftp-noreplace-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let destination = root.join("download.bin");
+        let staged = download_staging_path(&destination, "skip");
+        tokio::fs::write(&staged, b"downloaded").await.unwrap();
+
+        // Another transfer or local process creates the destination *after*
+        // Skip/Rename policy resolution but before this download commits.
+        tokio::fs::write(&destination, b"other process").await.unwrap();
+        assert!(
+            promote_staged_download_noreplace(&staged, &destination)
+                .await
+                .is_err()
+        );
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"other process");
+        assert_eq!(tokio::fs::read(&staged).await.unwrap(), b"downloaded");
+
+        tokio::fs::remove_file(&destination).await.unwrap();
+        promote_staged_download_noreplace(&staged, &destination)
+            .await
+            .unwrap();
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"downloaded");
+        assert!(tokio::fs::symlink_metadata(&staged).await.is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[test]
+    fn persisted_download_policy_defaults_to_no_replace_for_legacy_rows() {
+        let legacy = serde_json::json!({
+            "kind": "download",
+            "profile_id": "p",
+            "remote_path": "/remote/file",
+            "final_path": "/tmp/file"
+        });
+        let decoded: PersistedRetryInfo = serde_json::from_value(legacy).unwrap();
+        match decoded {
+            PersistedRetryInfo::Download { allow_replace, .. } => assert!(!allow_replace),
+            PersistedRetryInfo::Upload { .. } => panic!("wrong persisted retry variant"),
+        }
     }
 
     #[tokio::test]
@@ -6234,6 +6356,7 @@ mod tests {
                     profile_id: "profile-1".to_string(),
                     remote_path: "/srv/archive.bin".to_string(),
                     final_path: PathBuf::from("/tmp/archive.bin"),
+                    allow_replace: false,
                 },
             );
             mgr.insert(Transfer {
@@ -6318,6 +6441,7 @@ mod tests {
                     profile_id: "p".to_string(),
                     remote_path: format!("/remote/{index}"),
                     final_path: PathBuf::from(format!("/tmp/{index}")),
+                    allow_replace: false,
                 },
             );
             mgr.insert(Transfer {
