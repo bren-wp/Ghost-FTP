@@ -5191,17 +5191,16 @@ async fn run_download_task(
         if staged_download && !byte_resume {
             working_path = fresh_download_staging_path(&final_path, &id);
         }
-        let attempt =
-            dispatch_download(
-                &mgr,
-                &id,
-                &session,
-                &remote_path,
-                &working_path,
-                allow_replace,
-                &app,
-            )
-            .await;
+        let attempt = dispatch_download(
+            &mgr,
+            &id,
+            &session,
+            &remote_path,
+            &working_path,
+            allow_replace,
+            &app,
+        )
+        .await;
         if staged_download && !byte_resume && attempt.is_err() {
             // A failed whole-file attempt has no verified resumable prefix.
             // If exclusive creation itself failed we never owned this path:
@@ -5275,7 +5274,7 @@ async fn run_download_task(
                         } else {
                             promote_staged_download_noreplace(&working_path, &final_path).await
                         }
-                    },
+                    }
                     Err(error) => {
                         let _ = tokio::fs::remove_file(&working_path).await;
                         Err(error)
@@ -5882,12 +5881,12 @@ mod tests {
 
         // Another transfer or local process creates the destination *after*
         // Skip/Rename policy resolution but before this download commits.
-        tokio::fs::write(&destination, b"other process").await.unwrap();
-        assert!(
-            promote_staged_download_noreplace(&staged, &destination)
-                .await
-                .is_err()
-        );
+        tokio::fs::write(&destination, b"other process")
+            .await
+            .unwrap();
+        assert!(promote_staged_download_noreplace(&staged, &destination)
+            .await
+            .is_err());
         assert_eq!(
             tokio::fs::read(&destination).await.unwrap(),
             b"other process"
