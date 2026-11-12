@@ -5142,11 +5142,10 @@ async fn run_download_task(
             // A failed whole-file attempt has no verified resumable prefix.
             // If exclusive creation itself failed we never owned this path:
             // do not unlink a preexisting user file or planted symlink.
-            let not_owned = attempt.as_ref().err().is_some_and(|error| {
-                error
-                    .downcast_ref::<DownloadStagingOpenFailure>()
-                    .is_some()
-            });
+            let not_owned = attempt
+                .as_ref()
+                .err()
+                .is_some_and(|error| error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
             if !not_owned {
                 let _ = tokio::fs::remove_file(&working_path).await;
             }
