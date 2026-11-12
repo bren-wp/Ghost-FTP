@@ -1,4 +1,4 @@
-> **Ghost FTP 0.99.52 Preview development. Verified published predecessor: v0.99.51. SSH terminal session lifecycle hardening; native acceptance, live cloud and all 59 reference screens remain pending.**
+> **Ghost FTP 0.99.53 Preview development. Verified published predecessor: v0.99.52. Linux Secret Service subprocess pipe/timeouts hardened; real keyring, cloud and 59-screen acceptance remain pending.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -35,7 +35,7 @@ Current development source: **0.99.4** (SQLite transactional synchronization saf
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.51**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.52**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -186,4 +186,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.52. Previous canonical release: 0.99.51. The latest published Preview is v0.99.50; see GitHub Releases and `docs/releases/0.99.50.md` for its acceptance limits.
+Current development line: 0.99.53. Previous canonical release: 0.99.52. The last published Preview is v0.99.52; see GitHub Releases and `docs/releases/0.99.52.md` for its acceptance limits.

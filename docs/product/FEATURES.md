@@ -1,4 +1,4 @@
-> **Ghost FTP 0.99.52 Preview development. Published predecessor: v0.99.51. SSH terminal lifecycle improvements; production signing, live-provider E2E, dead-code/security verification and all 59 visual comparisons remain pending.**
+> **Ghost FTP 0.99.53 Preview development. Verified published predecessor: v0.99.52. Linux Secret Service subprocess pipe/timeouts hardened; real keyring, cloud and 59-screen acceptance remain pending.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -14,9 +14,9 @@
 
 > **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
 
-> Active source/release cycle: **0.99.52 Preview**. Previous canonical release: **0.99.51**.
+> Active source/release cycle: **0.99.53 Preview**. Previous canonical release: **0.99.52**.
 
-> Active source/release cycle: **0.99.52 Preview**. Previous canonical release: **0.99.51**.
+> Active source/release cycle: **0.99.53 Preview**. Previous canonical release: **0.99.52**.
 
 > **Authoritative current state (26 October 2026):** Ghost FTP **0.99.16 Preview**; latest published version **v0.99.15**. Versioned details below may describe older releases.
 
@@ -172,7 +172,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes implemented functionality across the Ghost FTP 0.99.42 Preview development source. Previous canonical release: **0.99.51**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes implemented functionality across the Ghost FTP 0.99.42 Preview development source. Previous canonical release: **0.99.52**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 
