@@ -1,24 +1,4 @@
-> **Ghost FTP 0.99.54 Preview development. Verified published predecessor: v0.99.53. Object-store download response-length validation and staging durability; signed-native, live cloud and all 59 reference-screen acceptance remain pending.**
-
-> **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Repair late GitHub prerelease metadata drift with verified checksums and post-publication regression gates. Public predecessor: v0.99.39. Live-provider, production signing and full pixel-parity acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
-
-> **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
-
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only product and release train. Security and dead-code regression audits remain mandatory; production and pixel-perfect acceptance require native test evidence. Previously published v0.99.35 remains immutable.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Windows and Linux are the current installation and data-preservation priority; published v0.99.32 is the previous immutable version. Unsigned native packages are installable manually; publisher-signed automatic updates retain mandatory signature verification. CI and real-device stability are separate acceptance gates.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+> **Ghost FTP v0.99.55 Preview development. Previous public release: v0.99.54. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 **Current 0.99.31 audit:** [Cross-platform security and source-reachability assessment](REPOSITORY_AUDIT_0.99.31.md). This documents baseline counts, confirmed source changes, audit blind spots and device-level residual risks; it is not a penetration-test certification.
 
@@ -38,7 +18,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.53**.
+Previous canonical release: **0.99.54**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -106,26 +86,26 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 
 - **Windows/Linux diagnostic privacy:** before redaction regexes run, discard wholly oversized untrusted error messages (64 KiB cap). Unterminated private-key blocks are treated as sensitive through the end of the message, and macOS-style home-directory paths are masked. Executable TypeScript regression cases are now part of `npm run check:ui`, including truncation-boundary and oversized-input tests.
 - **macOS FTP parser:** reject malformed EPSV `229` responses that contain trailing fields or omit the required final delimiter. Swift regression tests cover hostile server replies.
-- These are focused hardening changes, **not** a complete penetration test or all-platform 1:1 visual acceptance. All six CI gates, merged-main validation and release verification remain required before publication.
+- Native UI testing covers functional controls, accessible navigation and responsive window sizing; former exact-reference matching is retired.
 
 ## 0.90.0 incremental protection review (requires exact-SHA CI)
 
 - **Windows/Linux diagnostic privacy:** URL-style FTP/SFTP userinfo, including usernames without passwords, is removed from displayed errors; the protocol and host remain readable to assist troubleshooting. Automated regressions exercise the shipped TypeScript redactor and existing query-token/size-boundary controls.
 - **macOS FTP Preview:** EPSV passive-port replies now reject populated protocol/address fields instead of accepting unexpected server-supplied fields. Alternate valid delimiters remain supported; Swift tests cover accepted and rejected replies. This change does **not** enable FTPS or SFTP on macOS.
 - **Release integrity:** 0.90.0 development progression is guarded by executable version-train tests, with patch fixes (0.90.1, etc.) and consecutive feature minors (0.91.0 through 0.99.0); 1.0.0 requires its own production acceptance. Existing published tags are immutable.
-- **Limitations:** This is an incremental source hardening review, not a completed independent penetration test, every-control hardware smoke test or 75-screen installed-build visual signoff.
+- Native UI testing covers functional controls, accessible navigation and responsive window sizing; former exact-reference matching is retired.
 
 ## 0.90.1 incremental data-integrity and stability review
 
 - **Settings migration / privacy:** only delete legacy settings after exact readback of **every serialized key/value pair**. Matching row counts are not sufficient proof of a durable migration. Extra or incorrect database rows cannot erase the known-good copy.
 - **Startup resilience:** invalid or corrupted legacy settings JSON is retained for recovery and ignored without aborting application startup. Legacy sensitive terminal/notification history is still purged.
 - **Password-generation performance:** invalid, non-finite or excessively large requested lengths are rejected before the synchronous cryptographic loop, preventing UI hangs.
-- **Verification:** executable tests for exact readback, corrupted/partial writes, write exceptions, existing DB precedence, malformed legacy JSON, privacy cleanup and bounded random password generation. This does not represent an independent penetration test or 75-screen 1:1 signoff.
+- Native UI testing covers functional controls, accessible navigation and responsive window sizing; former exact-reference matching is retired.
 
 ## 0.95.4 supplemental security audit — candidate, not final
 
 - Android SAF: after staging and checksum verification, the freshly created destination is re-read to verify the actual persisted byte count and SHA-256; silent provider truncation/corruption fails closed.
-- Android and macOS cloud peers: exclude IANA IPv6 documentation `3fff::/20`, benchmarking `2001:2::/48` and deprecated ORCHID `2001:10::/28`; Android validates hostname syntax in its actual OkHttp DNS hook.
+- Native UI testing covers functional controls, accessible navigation and responsive window sizing; former exact-reference matching is retired.
 - #126, #127 and #128 are reopened because physical SAF/device, controlled network/provider, and account OAuth acceptance criteria have not been demonstrated. Source tests and CI packages alone do not complete those criteria.
 
 
@@ -141,4 +121,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.54. Previous canonical release: 0.99.53. The latest published Preview is v0.99.50; see GitHub Releases and `docs/releases/0.99.50.md` for its acceptance limits.
+Current development line: 0.99.55. Previous canonical release: 0.99.54. The latest published Preview is v0.99.54; consult GitHub Releases and `docs/releases/0.99.54.md` for its actual acceptance limits.

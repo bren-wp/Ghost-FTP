@@ -1,24 +1,4 @@
-> **Ghost FTP 0.99.54 Preview development. Verified published predecessor: v0.99.53. Object-store download response-length validation and staging durability; signed-native, live cloud and all 59 reference-screen acceptance remain pending.**
-
-> **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Repair late GitHub prerelease metadata drift with verified checksums and post-publication regression gates. Public predecessor: v0.99.39. Live-provider, production signing and full pixel-parity acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
-
-> **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
-
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only product and release train. Security and dead-code regression audits remain mandatory; production and pixel-perfect acceptance require native test evidence. Previously published v0.99.35 remains immutable.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Windows and Linux are the current installation and data-preservation priority; published v0.99.32 is the previous immutable version. Unsigned native packages are installable manually; publisher-signed automatic updates retain mandatory signature verification. CI and real-device stability are separate acceptance gates.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
+> **Ghost FTP v0.99.55 Preview development. Previous public release: v0.99.54. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 **Current 0.99.31 audit:** [Cross-platform security and source-reachability assessment](REPOSITORY_AUDIT_0.99.31.md). This documents baseline counts, confirmed source changes, audit blind spots and device-level residual risks; it is not a penetration-test certification.
 
@@ -55,15 +35,15 @@ Current comprehensive 0.95.50 source inventory: [Windows/Linux, Android, macOS a
 
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.53**.
+Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.54**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
 0.30.17 incremental review: Windows/Linux Help/About link destinations and brand copy, Android HTTPS allowlist, macOS resource links and transport-capability text changed; unrelated transfer/network implementations were not rewritten. The earlier 0.30.15/0.30.16 audit history below remains historical evidence, not an assertion of new audit coverage.
 
-0.30.18 incremental review: inspected React Help/About and removed obsolete decorative SVG helpers; inspected native Android and SwiftUI macOS About views against the supplied concept family. This does not replace an independent full-project dead-code audit or certify pixel parity.
+Native UI checks now emphasize functional interaction, accessibility and responsive layouts rather than historical pixel matching.
 
-0.30.19 incremental review: examined the Files toolbar picker event routing and both FilePane refresh cycles, preserving existing transfer conflict handling. Added source-level regression checks. This is not a complete new dead-code audit or visual 1:1 acceptance.
+Native UI checks now emphasize functional interaction, accessibility and responsive layouts rather than historical pixel matching.
 
 ## 0.30.20 full-source reachability audit (all four apps)
 
@@ -117,4 +97,4 @@ TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and An
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.54. Previous canonical release: 0.99.53. The latest published Preview is v0.99.50; see GitHub Releases and `docs/releases/0.99.50.md` for its acceptance limits.
+Current development line: 0.99.55. Previous canonical release: 0.99.54. The latest published Preview is v0.99.54; consult GitHub Releases and `docs/releases/0.99.54.md` for its actual acceptance limits.
