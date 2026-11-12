@@ -268,8 +268,8 @@ mod tests {
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
         let child = helper.spawn().expect("launch output fixture");
-        let output = wait_bounded(child, Duration::from_secs(2))
-            .expect("drain a large credential response");
+        let output =
+            wait_bounded(child, Duration::from_secs(2)).expect("drain a large credential response");
         assert!(output.status.success());
         assert_eq!(output.stdout.len(), MAX_SECRET_BYTES + 1);
     }
