@@ -1,3 +1,16 @@
+## 0.99.54 Preview — 12 November 2026
+
+- Validate S3/object-store streamed downloads against the exact GET response metadata rather than relying on a potentially stale or unavailable directory-listing estimate.
+- Reject extra streamed bytes before writing them, reject truncated payloads and local persistence mismatches, and durably flush/sync the staged file before final promotion.
+- Add Rust unit regressions for exact, truncated, oversized, zero-length and overflowing object download counters. Existing rollback and staging protection remain.
+- No claims of independent live cloud-provider testing or pixel-perfect UI acceptance; Windows/Linux CI and real-protocol tests must pass before any publication.
+
+## 0.99.53 Preview — 12 November 2026
+
+- Protect Linux Secret Service credential operations from blocked stdin pipes and overlarge subprocess output by supervising processes and bounding reads.
+- Preserve legacy keyutils migration, read-back verification and fail-closed vault behavior. Add Rust regression coverage for blocked helper I/O.
+- Release with exact-source Rust/Clippy, frontend, protocol E2E and Windows/Linux native build checks; independent OS keyring tests remain outstanding.
+
 ## 0.99.52 Preview — 12 November 2026
 
 - Fix leaking SSH PTY map entries after remote terminal closure and make the 32-session capacity limit atomic across concurrent opens.
