@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, Mutex, Semaphore};
 use uuid::Uuid;
 
 /// Defence-in-depth for Tauri IPC values, not just frontend widgets.
@@ -43,13 +43,15 @@ struct PtyHandle {
 }
 
 pub struct PtyManager {
-    ptys: Mutex<HashMap<String, PtyHandle>>,
+    ptys: Arc<Mutex<HashMap<String, PtyHandle>>>,
+    slots: Arc<Semaphore>,
 }
 
 impl PtyManager {
     pub fn new() -> Self {
         Self {
-            ptys: Mutex::new(HashMap::new()),
+            ptys: Arc::new(Mutex::new(HashMap::new())),
+            slots: Arc::new(Semaphore::new(MAX_PTY_SESSIONS)),
         }
     }
 
@@ -61,9 +63,13 @@ impl PtyManager {
         app: AppHandle,
     ) -> Result<String> {
         validate_pty_size(cols, rows)?;
-        if self.ptys.lock().await.len() >= MAX_PTY_SESSIONS {
-            return Err(anyhow!("too many active terminal sessions"));
-        }
+        // Reserve before opening the remote channel: concurrent opens cannot
+        // bypass the terminal session limit.
+        let slot = self
+            .slots
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| anyhow!("too many active terminal sessions"))?;
         let id = Uuid::new_v4().to_string();
 
         let channel = {
@@ -78,8 +84,12 @@ impl PtyManager {
         let (tx, mut rx) = mpsc::channel::<PtyCommand>(64);
         let id_for_task = id.clone();
         let app_for_task = app.clone();
+        let ptys = Arc::clone(&self.ptys);
+        self.ptys.lock().await.insert(id.clone(), PtyHandle { tx });
 
         tokio::spawn(async move {
+            let _slot = slot;
+            let mut exit_code = None;
             let mut channel = channel;
             loop {
                 tokio::select! {
@@ -125,13 +135,7 @@ impl PtyManager {
                                 );
                             }
                             ChannelMsg::ExitStatus { exit_status } => {
-                                let _ = app_for_task.emit(
-                                    "terminal://exit",
-                                    TerminalExitEvent {
-                                        terminal_id: id_for_task.clone(),
-                                        code: Some(exit_status as i32),
-                                    },
-                                );
+                                exit_code = Some(exit_status as i32);
                             }
                             ChannelMsg::Close | ChannelMsg::Eof => break,
                             _ => {}
@@ -139,16 +143,16 @@ impl PtyManager {
                     }
                 }
             }
+            ptys.lock().await.remove(&id_for_task);
             let _ = app_for_task.emit(
                 "terminal://exit",
                 TerminalExitEvent {
                     terminal_id: id_for_task,
-                    code: None,
+                    code: exit_code,
                 },
             );
         });
 
-        self.ptys.lock().await.insert(id.clone(), PtyHandle { tx });
         Ok(id)
     }
 
@@ -156,18 +160,28 @@ impl PtyManager {
         if data.len() > MAX_PTY_INPUT {
             return Err(anyhow!("terminal input exceeds size limit"));
         }
-        let map = self.ptys.lock().await;
-        let h = map.get(id).ok_or_else(|| anyhow!("terminal not found"))?;
-        h.tx.send(PtyCommand::Input(data.into_bytes()))
+        let tx = self
+            .ptys
+            .lock()
+            .await
+            .get(id)
+            .map(|h| h.tx.clone())
+            .ok_or_else(|| anyhow!("terminal not found"))?;
+        tx.send(PtyCommand::Input(data.into_bytes()))
             .await
             .map_err(|_| anyhow!("terminal closed"))
     }
 
     pub async fn resize(&self, id: &str, cols: u32, rows: u32) -> Result<()> {
         validate_pty_size(cols, rows)?;
-        let map = self.ptys.lock().await;
-        let h = map.get(id).ok_or_else(|| anyhow!("terminal not found"))?;
-        h.tx.send(PtyCommand::Resize { cols, rows })
+        let tx = self
+            .ptys
+            .lock()
+            .await
+            .get(id)
+            .map(|h| h.tx.clone())
+            .ok_or_else(|| anyhow!("terminal not found"))?;
+        tx.send(PtyCommand::Resize { cols, rows })
             .await
             .map_err(|_| anyhow!("terminal closed"))
     }
@@ -190,5 +204,16 @@ mod ipc_security_tests {
         for (cols, rows) in [(0, 0), (1, 24), (65535, 1), (80, 1000)] {
             assert!(validate_pty_size(cols, rows).is_err());
         }
+    }
+
+    #[test]
+    fn terminal_capacity_is_atomic_and_released_when_task_ends() {
+        let manager = PtyManager::new();
+        let mut permits = (0..MAX_PTY_SESSIONS)
+            .map(|_| manager.slots.clone().try_acquire_owned().unwrap())
+            .collect::<Vec<_>>();
+        assert!(manager.slots.clone().try_acquire_owned().is_err());
+        permits.pop();
+        assert!(manager.slots.clone().try_acquire_owned().is_ok());
     }
 }

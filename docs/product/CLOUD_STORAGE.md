@@ -1,3 +1,5 @@
+> **Ghost FTP 0.99.52 Preview development. Published predecessor: v0.99.51. SSH terminal lifecycle improvements; production signing, live-provider E2E, dead-code/security verification and all 59 visual comparisons remain pending.**
+
 # Ghost FTP cloud storage security — Windows and Linux
 
 **Active product:** Windows/Linux Rust/Tauri graphical client, Ghost FTP 0.99.51 development Preview. Previous public edition: v0.99.50. Historical platform-specific functionality documented in earlier releases is not part of current distribution.

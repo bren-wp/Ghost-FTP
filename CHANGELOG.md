@@ -1,3 +1,9 @@
+## 0.99.52 Preview — 12 November 2026
+
+- Fix leaking SSH PTY map entries after remote terminal closure and make the 32-session capacity limit atomic across concurrent opens.
+- Preserve remote exit codes without duplicate `terminal://exit` events, and avoid awaiting channel sends while holding the terminal registry lock.
+- Add a session capacity regression test; native/live SSH and complete security, dead-code and visual acceptance remain outstanding.
+
 ## 0.99.51 Preview — 12 November 2026
 
 - Secure Shopify, HubSpot and Dynamics 365 REST calls before attaching bearer or Admin API credentials: reject cross-origin, downgraded, credentialed or fragment-bearing URLs; reject credential-bearing redirects. This also protects HubSpot task-status links supplied by API responses.

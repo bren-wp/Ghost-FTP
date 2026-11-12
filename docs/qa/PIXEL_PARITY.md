@@ -1,3 +1,5 @@
+> **Ghost FTP 0.99.52 Preview development. Published predecessor: v0.99.51. SSH terminal lifecycle improvements; production signing, live-provider E2E, dead-code/security verification and all 59 visual comparisons remain pending.**
+
 > **Active desktop scope (v0.99.51): Windows and Linux only.** See the [59-screen current acceptance ledger](WINDOWS_LINUX_59_ACCEPTANCE_0.99.51.md). Historical Android and macOS sections below are retained only as dated design/QA provenance, not as active Ghost FTP desktop support or claimed pixel-parity results.
 
 # Ghost FTP — installed-build visual acceptance

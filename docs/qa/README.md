@@ -1,4 +1,4 @@
-> **Ghost FTP 0.99.51 Preview development. Verified published predecessor: v0.99.50. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
+> **Ghost FTP 0.99.52 Preview development. Published predecessor: v0.99.51. SSH terminal lifecycle improvements; production signing, live-provider E2E, dead-code/security verification and all 59 visual comparisons remain pending.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
 
