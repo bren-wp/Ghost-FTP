@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -91,6 +92,54 @@ test("draft asset file iteration cannot hash a staging directory or follow symli
       dist,
     ], { encoding: "utf8" }).trim().split("\n");
     assert.deepEqual(output, ["GhostFTP-test.zip"]);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("bounded immutable tag visibility retries only 404 and refuses mismatched SHAs", () => {
+  const publisher = read(".github/scripts/publish-release.sh");
+  assert.ok(publisher.includes('bash .github/scripts/wait-release-tag-visible.sh "$TAG" "$SOURCE_SHA"'));
+  assert.ok(!publisher.includes("git tag -f"));
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "ghostftp-tag-visibility-"));
+  const expected = "a".repeat(40);
+  const wrong = "b".repeat(40);
+  try {
+    fs.writeFileSync(path.join(temp, "gh"), [
+      "#!/usr/bin/env bash",
+      "set -euo pipefail",
+      'n=0; if [ -f "$GHOSTFTP_TEST_COUNTER" ]; then n="$(cat "$GHOSTFTP_TEST_COUNTER")"; fi',
+      'n=$((n+1)); printf "%s\n" "$n" > "$GHOSTFTP_TEST_COUNTER"',
+      'case "$GHOSTFTP_TEST_MODE" in',
+      '  late) if [ "$n" -le 2 ]; then echo "gh: Not Found (HTTP 404)" >&2; exit 1; fi; echo "$GHOSTFTP_TEST_EXPECTED" ;;',
+      '  mismatch) echo "$GHOSTFTP_TEST_WRONG" ;;',
+      '  forbidden) echo "gh: Forbidden (HTTP 403)" >&2; exit 1 ;;',
+      '  missing) echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;;',
+      "  *) exit 3 ;;",
+      "esac",
+    ].join("\n") + "\n", { mode: 0o755 });
+    fs.writeFileSync(path.join(temp, "sleep"), "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
+    for (const [mode, status, attempts] of [
+      ["late", 0, 3], ["mismatch", 1, 1],
+      ["forbidden", 1, 1], ["missing", 1, 8],
+    ]) {
+      const counter = path.join(temp, "calls");
+      fs.rmSync(counter, { force: true });
+      const run = spawnSync("bash", [
+        path.join(root, ".github/scripts/wait-release-tag-visible.sh"),
+        "v0.99.50", expected,
+      ], { encoding: "utf8", env: {
+        ...process.env, PATH: temp + path.delimiter + process.env.PATH,
+        GITHUB_REPOSITORY: "bren-wp/Ghost-FTP",
+        GHOSTFTP_TEST_COUNTER: counter,
+        GHOSTFTP_TEST_MODE: mode,
+        GHOSTFTP_TEST_EXPECTED: expected,
+        GHOSTFTP_TEST_WRONG: wrong,
+      } });
+      assert.equal(run.status, status, mode + ": " + (run.stderr || run.stdout));
+      assert.equal(Number(fs.readFileSync(counter, "utf8").trim()), attempts,
+        mode + ": retry count must be bounded and SHA mismatch fail immediately");
+    }
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

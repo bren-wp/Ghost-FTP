@@ -1,3 +1,12 @@
+## 0.99.50 Preview — 12 November 2026
+
+- Make GitHub release publication resilient to a newly pushed tag temporarily returning HTTP 404 from the Git-ref API. Retry only bounded 404 propagation; immediately fail on an unexpected error or visible different commit SHA. Never force-move a tag or bypass checksum/signing gates.
+- Add executable regression tests for delayed tag visibility, wrong immutable SHA, permission failure and persistent 404 to the existing release-governance test suite.
+- Rewrite the product README with clearer benefits, Windows/Linux installation formats, protocol/cloud safety boundaries, direct support links, and **14 preserved genuine Windows/Linux screenshots** with authenticated capture provenance and newer real QA artifact links. No synthetic images.
+- Add a complete **59-screen Windows/Linux visual acceptance ledger** (30 Windows, 29 Linux) from the pinned reference inventory. Acceptance remains pending until actual installed screenshots and RGBA pixel differences can be measured; do not claim 0% mismatch.
+- Update public-facing cloud/QA/production-readiness documentation. Keep previous release tags, binaries, SHA-256 history and deprecated-platform archives immutable.
+- New release is allowed only after exact-source quality, Rust/Clippy, security/dead-code, protocol E2E, Windows hardening, native installer tests and checksummed artifact publication. Last public predecessor: v0.99.49.
+
 ## 0.99.49 Preview — 12 November 2026
 
 - Guard OAuth token response parsing against provider-controlled extreme `expires_in` durations: use saturating timestamp arithmetic rather than an unchecked addition that could overflow or crash login/refresh.

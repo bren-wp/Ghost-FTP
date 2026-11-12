@@ -1,3 +1,5 @@
+> **Active desktop scope (v0.99.50): Windows and Linux only.** See the [59-screen current acceptance ledger](WINDOWS_LINUX_59_ACCEPTANCE_0.99.50.md). Historical Android and macOS sections below are retained only as dated design/QA provenance, not as active Ghost FTP desktop support or claimed pixel-parity results.
+
 # Ghost FTP — installed-build visual acceptance
 
 Visual reference authority: the SHA-256-pinned `GhostFTP-Premium-Brand-UI(8).zip` reference, byte-identical to the user-supplied `(10).zip` (SHA-256 `1cdaea3e60c0ec4b14c3e8fa515351ba0710ee9022060e7f107b8bb9fbf6e877`), and the 75-entry source map in `docs/qa/premium-75-screen-contract.json`. Earlier v7 designs are historical only. The references are design **concepts**, never real file data or executable screens. Do not embed them as application backgrounds.

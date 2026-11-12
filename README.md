@@ -1,4 +1,3 @@
-
 <div align="center">
 
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420" />
@@ -9,19 +8,31 @@
 
 **Your files. Your servers. One beautifully focused workspace.**
 
-Move files, manage connections and keep important server work organized with an elegant, privacy-conscious file-transfer client.
+A privacy-conscious file-transfer client for everyday server work, organized transfers, safe remote file operations and supported cloud connections.
 
-**Windows** · **Linux**
+**🪟 Windows x64** · **🐧 Linux x86_64** · **🔐 FTP / FTPS / SFTP** · **📦 Portable & installable**
 
-<sub>Ghost FTP 0.99.49 (development Preview) · Previously published: v0.99.48. Every successfully verified new edition is automatically published on <a href="https://github.com/bren-wp/Ghost-FTP/releases">GitHub Releases</a> with versioned installers, source archives and SHA-256 checksums. Only signed/certified editions may be labeled stable.</sub>
+**Ghost FTP 0.99.50 (development Preview) · Previously published: v0.99.49.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
 
-[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [Windows/Linux transfer security audit](docs/audits/WIN_LINUX_TRANSFER_RESUME_2026_11_07.md) · [Windows/Linux unsigned installation](docs/guides/INSTALLATION.md#unsigned-windowslinux-installation-and-manual-upgrade) · [Explore screenshots](#see-ghost-ftp-in-action) · [Help & documentation](https://ghostftp.com/hr/support) · [Release notes](CHANGELOG.md)
+[**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [App screenshots](#real-screenshots-of-the-app) · [Installation](docs/guides/INSTALLATION.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 </div>
 
 ---
 
-## See Ghost FTP in action
+## Everything in one workspace
+
+| | |
+| :--- | :--- |
+| **📁 File management** — Browse local and remote folders, inspect details, rename and organize. | **⚡ Transfer Center** — Track queues, progress, retries and transfer history. |
+| **🔐 Saved connections** — Organize sites and temporary connections with OS-protected secrets where supported. | **🔄 Sync tools** — Compare folders and run supported synchronization workflows with safeguards. |
+| **☁️ Cloud storage** — Use supported providers through their correct authentication or access mechanisms. | **🎨 Desktop-first UI** — Dark interface, focused dialogs, keyboard support and Windows/Linux packaging. |
+
+## Real screenshots of the app
+
+These are actual screenshots captured from **running Ghost FTP applications**, never generated mockups or fake connected sessions. Each gallery identifies its source build. The images are historical QA evidence, not screenshots claimed to be captured from the newest version; real app images do not by themselves prove reference pixel parity.
+
+### Windows — actual WebView2 interface
 
 <p align="center">
 <a href="docs/assets/screenshots/ghostftp-native-files.png">
@@ -46,83 +57,9 @@ Move files, manage connections and keep important server work organized with an 
 </tr>
 </table>
 
-### Linux — real captures
+**Windows screenshot provenance:** Seven genuine v0.95.53 WebView2 application views captured at 1290×852 by [native GitHub Actions run 39506868388](https://github.com/bren-wp/Ghost-FTP/actions/runs/39506868388), source SHA <code>27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af</code>. Image bytes and SHA-256 are fixed in the [capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json).
 
-Linux visuals are captured from the **actual running Ghost FTP executable**, not the supplied designs. The [native Linux QA artifact (v0.99.19)](https://github.com/bren-wp/Ghost-FTP/actions/runs/40793685872/artifacts/12862768368) contains the original **1290×852 Files and Sync screenshots**, including SHA-256 checksums and launch logs. See the [evidence and measured differences](docs/qa/PHASE3_REAL_WINDOWS_LINUX_SYNC_V0_99_19_2026_10_29.md). Historical artifact availability is subject to GitHub Actions retention.
-
-### ☁️ Safer cloud authorization
-
-OAuth login and token refresh reject blank bearer credentials and handle exceptional provider expiry values without integer overflow. The browser's callback message correctly distinguishes authorization from the final token exchange. These source-level protections do not replace live cloud-provider interoperability testing.
-
-### 🔐 Connections you can trust
-
-Connect to servers with **FTP, explicit FTPS or SFTP** on Windows and Linux. See connection status clearly, manage reusable Sites and use temporary connections without saving credentials. Encrypted protocols validate the server's identity; ordinary FTP remains unencrypted.
-
-### 📁 A better place for files
-
-Navigate local and remote directories, upload and download, create folders, rename, inspect properties and manage files from a focused workspace. Destructive operations use explicit safeguards so important changes are intentional.
-
-### ⚡ Transfers with more control
-
-Follow transfer progress and manage queues, retries, conflicts and interruptions on the Windows/Linux desktop. Sync, backup and productivity tools help keep routine server tasks organized.
-
-### 🛡️ Privacy is part of the design
-
-**No Ghost FTP account required. No mandatory analytics or telemetry.** Passwords and sensitive keys use protected storage where supported, and connection metadata is handled with privacy in mind. Ghost FTP does not use a relay server for ordinary file transfers.
-
-### 🎨 A polished, consistent experience
-
-Dark premium styling, clear navigation, accessible controls and responsive layouts help you focus on the files—not the interface. Each platform uses its own controls and capabilities rather than pretending unsupported functions exist.
-
-## Safer file operations on Windows and Linux
-
-The current source hardens FTP/FTPS and SFTP directory inventories against oversized, malformed or ambiguous server listings. On Windows and Linux, staged downloads preserve existing backups and refuse symlink/special-node replacements; folder uploads fail closed on unsafe entries, and drag/drop rejects stale server sessions. SSH host-key changes require explicit verification, same-batch name collisions are guarded, and sensitive errors are redacted in file and transfer views. Ghost FTP does not claim atomic remote multi-file operations or blanket feature superiority without independently verified tests.
-
-For the current Windows/Linux audit scope, coverage and outstanding gaps, see [Windows & Linux audit v0.95.35](docs/audits/WINDOWS_LINUX_0.95.35.md). The source and CI checks cannot alone prove all 75 reference screens match pixel-for-pixel or that Ghost FTP exceeds FileZilla in every feature.
-
-Current source includes native OS-keyring credential protection (Windows native credential storage and Linux Secret Service), safety-checked continuous folder synchronization, editor upload retry protection, and safe PowerShell/CMD/.NET watcher script generation from additive sync pairs. [Security & sync audit](docs/audits/KEYCHAIN_LIVE_SYNC_0.95.36.md) records exact behavior and remaining work. Advanced built-in syntax highlighting and vendor-authenticated cloud E2E are not yet release-verified.
-
-Ghost FTP v0.95.37 adds a **built-in code editor** (PHP/JS/HTML/CSS highlighting, search, bracket completion and indentation) for small remote UTF-8 text files, plus SQLite-backed, transaction-safe continuous folder-sync configuration. Existing OS-protected secret storage remains separate from the SQLite database. [Migration and editor audit](docs/audits/SQLITE_EDITOR_0.95.37.md).
-
-The v0.95.38 development cycle hardens [SQLite-backed watched sync](docs/audits/SQLITE_SYNC_INTEGRITY_0.95.38.md) with atomic state commits and refuses partial directory scans before any Mirror deletion. SQLite is a **local transactional database, not encryption**; connection passwords stay in the native OS credential service. The project does not require a proprietary hosted backend for local profile and sync storage.
-
-## Choose your platform
-
-| Platform | Package options | Supported connections |
-| --- | --- | --- |
-| **🪟 Windows x64** | Portable EXE, Setup EXE, MSI | FTP, explicit FTPS, SFTP |
-| **🐧 Linux x86-64** | AppImage, DEB (Debian/Ubuntu family), RPM (Fedora/openSUSE/RHEL family), standalone ELF; [distro/package matrix](docs/distribution/LINUX_PACKAGE_MATRIX.md) | FTP, explicit FTPS, SFTP |
-
-**[View all Ghost FTP releases, including the latest Preview →](https://github.com/bren-wp/Ghost-FTP/releases)**
-
-
-## Cloud storage, without confusion
-
-Windows and Linux offer cloud and remote-storage integrations, including S3-compatible and WebDAV services and supported account-based connectors.  **A signed object link is not an account-browser login** to Google Drive, OneDrive, Dropbox or Box on Windows and Linux.
-
-[Cloud storage information](docs/product/CLOUD_STORAGE.md) · [Privacy policy](https://ghostftp.com/hr/privacy)
-
-## Privacy that stays in your hands
-
-Ghost FTP operates without a mandatory Ghost FTP account or background telemetry. Server credentials remain in the platform credential store where supported; plain FTP is not encrypted. Follow the [security documentation](SECURITY.md) and independently verify server identity when using encrypted protocols.
-
-## Questions? We're here to help.
-
-For instructions, troubleshooting, updates and product information, use these official resources:
-
-[Documentation](https://ghostftp.com/hr/how-to-download) · [Release downloads](https://github.com/bren-wp/Ghost-FTP/releases) · [Report an issue](https://ghostftp.com/hr/contact) · [Support](https://ghostftp.com/hr/support) · [Security](https://ghostftp.com/hr/security) · [Privacy](https://ghostftp.com/hr/privacy) · [License](LICENSE.txt) · [Terms](https://ghostftp.com/hr/terms)
-
----
-
-<div align="center">
-
-<img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="" width="150" />
-
-**Ghost FTP — More Than Transfer. Total Control.**
-
-Made by **Brendigo**.
-
-</div>
+**More recent genuine QA captures:** [Windows v0.99.49](https://github.com/bren-wp/Ghost-FTP/actions/runs/43121699792/artifacts/13901707834) · [Linux v0.99.49](https://github.com/bren-wp/Ghost-FTP/actions/runs/43121699792/artifacts/13901488086). These native-run QA archives contain real app captures; availability is subject to Actions artifact retention.
 
 <!-- BEGIN:real-linux-native-captures -->
 
@@ -148,3 +85,55 @@ Made by **Brendigo**.
 <p>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>; source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. Captured at 1290×852 in Xvfb, no fabricated FTP connections, no design mockups. These seven screenshots predate the no-splash update; they remain historical evidence, not screenshots of the new build or pixel-perfect acceptance. The old splash PNG is retained only in historical QA data, not in the active gallery.</p>
 
 <!-- END:real-linux-native-captures -->
+
+## Connect with confidence
+
+| Connection | Capability | Security note |
+| --- | --- | --- |
+| **FTP** | Basic file transfer | Unencrypted; avoid for sensitive data |
+| **Explicit FTPS** | FTP with TLS | Requires validated TLS certificate and hostname |
+| **SFTP** | SSH file transfer | Requires verified SSH host key |
+| **S3-compatible / WebDAV** | Adapter-based cloud and remote storage | Requires correct endpoints, credentials and access rights |
+| **Google Drive / OneDrive / Dropbox / Box** | Supported account-provider adapters | OAuth/PKCE consent and configured client IDs may be required |
+| **GCS / Azure Blob** | Provider-specific adapters | Requires service credentials and real-provider validation |
+
+A signed object URL is **not** a full cloud account login. Provider capabilities depend on authorization and configuration; independent live-provider end-to-end testing remains required. Read the [cloud integration guide](docs/product/CLOUD_STORAGE.md).
+
+## Pick your platform
+
+| System | Verified release packages | Best for |
+| --- | --- | --- |
+| **🪟 Windows x64** | Portable EXE, Setup EXE, MSI, ZIP | Personal workstations, portable workflows and managed installs |
+| **🐧 Linux x86_64** | AppImage, DEB, RPM, native executable, TAR.GZ | Debian/Ubuntu, Fedora/RHEL-family and portable desktop installs |
+| **📄 Other files** | Source, Desktop Source, Updates, Documentation, SHA256SUMS | Auditing, documentation and checksum verification |
+
+**[Browse Ghost FTP releases and installation packages](https://github.com/bren-wp/Ghost-FTP/releases)**
+
+**Verify before installing:** Compare the downloaded file SHA-256 against the SHA256SUMS manifest shipped with its release. Checksums establish byte integrity, **not** OS publisher identity. These are Preview packages; automatic in-app updates require signed manifests, while manual unsigned installs may trigger platform warnings. See [installation instructions](docs/guides/INSTALLATION.md).
+
+## Privacy, trust and reliable transfers
+
+- **No mandatory Ghost FTP account or background telemetry requirement.** Ordinary FTP is unencrypted; prefer identity-validated FTPS or SFTP.
+- **Credentials and tokens** use native OS credential services where supported. Cloud authorization uses PKCE and anti-CSRF state checks.
+- **Safer operations** include staged downloads, link/symlink protections, destructive confirmations and protocol-aware retry/resume validation.
+- **Transparent distribution** uses exact-source CI, native smoke tests and SHA-256 manifests. Published tags and historical packages remain immutable.
+
+Automated security and dead-code audits are important regression barriers but are **not** an independent security certification.
+
+## Precision without fake promises
+
+Ghost FTP targets a coherent 1:1 design across Windows and Linux. The [59-screen acceptance ledger](docs/qa/WINDOWS_LINUX_59_ACCEPTANCE_0.99.50.md) tracks the 30 Windows and 29 Linux design references. An individual screen is not accepted until its real installed-app screenshot is pixel-compared with the matching reference at the same viewport, DPI, locale and state, with human verification. No claim of 0% deviation is made without that evidence.
+
+## Documentation and support
+
+[Feature overview](docs/product/FEATURES.md) · [Install](docs/guides/INSTALLATION.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [QA/visual evidence](docs/qa/README.md) · [Support](https://ghostftp.com/hr/support) · [Contact](https://ghostftp.com/hr/contact) · [License](LICENSE.txt)
+
+---
+
+<div align="center">
+
+**Ghost FTP — More Than Transfer. Total Control.**
+
+Made by **BRENDIGO** · [brendigo.com](https://brendigo.com)
+
+</div>

@@ -59,7 +59,9 @@ else
   git tag "$TAG" "$SOURCE_SHA"
   git push origin "refs/tags/$TAG"
 fi
-test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
+# GitHub may briefly report 404 for a just-created immutable tag.
+# Retry only transient missing-tag propagation, never rewrite a visible tag.
+bash .github/scripts/wait-release-tag-visible.sh "$TAG" "$SOURCE_SHA"
 
 # GitHub drafts may have temporary 'untagged-*' URLs and return HTTP 404
 # for GET /releases/tags/TAG. Pin the ID from the REST creation response.
