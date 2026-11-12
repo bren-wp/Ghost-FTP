@@ -6,6 +6,8 @@
 - Add unit regressions for partial, empty, unexpected ranged responses, oversize chunks and overflows, plus a real loopback HTTP 206 fixture.
 - Generate a new UUID-scoped sibling staging file for each non-resumable download attempt, remove failed attempt files before retry, and create all whole-file staging files exclusively; protects existing files from accidental clobbering and pre-planted symlink targets.
 - Add staging collision, retry isolation, destination preservation and Unix symlink regression tests without changing SFTP verified-byte resume.
+- Preserve Skip/Rename overwrite policy through queueing, manual retry and crash recovery; enforce a final atomic no-replace promotion if another process creates the destination after the initial check. Agent non-overwrite mode bypasses destination-modifying delta sync and removes rejected staging files.
+- Add regression tests for local creation races and legacy retry descriptors that default safely to no-replace.
 - Continue the Windows/Linux production stability audit. Stable publication requires independently validated signing, upgrade/rollback and live-provider acceptance; this remains an unsigned Preview candidate.
 
 ## 0.99.55 Preview — 12 November 2026

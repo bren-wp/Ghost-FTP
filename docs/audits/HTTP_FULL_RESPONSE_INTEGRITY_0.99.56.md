@@ -19,6 +19,14 @@ Non-resumable downloads formerly opened a deterministic sibling `.part` path wit
 
 New Rust regressions prove that existing staging bytes are not truncated, two retries use different staging paths, the real destination survives a partial write and a pre-planted symlink cannot be followed on Unix. This does not certify the absence of all local-directory replacement races or replace installed-machine security tests.
 
+## Download overwrite-policy race audit
+
+An initial `Skip` or `Rename` existence check cannot reserve the destination for the duration of a queued/paused transfer. The old completed-download promotion replaced an existing regular file even if another process created it after policy resolution. This violated the user's non-overwrite selection, and replay from the transfer ledger could lose the original policy.
+
+Current behavior: an explicit `allow_replace` flag propagates from initial policy resolution through in-memory retries and the credential-free persisted retry descriptor. Overwrite retains the prior backup/rollback promotion. Skip/Rename use `move_local_noreplace` at final commit, which fails atomically if a competing destination has appeared. Agent non-overwrite downloads bypass delta's destination-modifying path and use full-file staging followed by the same no-replace operation; failed Agent no-replace promotion cleans its own staging. Legacy descriptors missing the permission default to `false`, prioritizing preservation of existing local files after recovery.
+
+Regression coverage now includes an intervening destination creation and a legacy JSON descriptor without overwrite permission. These checks protect against final-name collisions; they do not substitute for isolation against malicious replacement of intermediate parent directories or independently tested production filesystem ACLs.
+
 ## Residual risks
 
 A dishonest server returning HTTP 200 with absent/false Content-Length can still provide a same-length modified payload; no SHA-256 source-of-truth proof is implied. Authorized live tenant tests, crash/rollback checks and platform signing remain separate Stable gates. This change makes no pixel-accuracy claim.
