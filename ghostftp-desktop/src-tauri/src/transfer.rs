@@ -5760,9 +5760,7 @@ mod tests {
         std::os::unix::fs::symlink(&valuable, &staging).unwrap();
 
         let error = create_new_download_staging(&staging).await.unwrap_err();
-        assert!(error
-            .downcast_ref::<DownloadStagingOpenFailure>()
-            .is_some());
+        assert!(error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
         assert_eq!(
             tokio::fs::read(&valuable).await.unwrap(),
             b"important contents"
