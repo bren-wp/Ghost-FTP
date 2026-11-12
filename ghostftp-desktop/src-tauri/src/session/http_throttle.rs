@@ -216,15 +216,27 @@ mod tests {
         let address = listener.local_addr().expect("fixture address");
         let server = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await.expect("accept request");
-            let mut request = [0u8; 2048];
-            stream
-                .read_exact(&mut request[..1])
-                .await
-                .expect("read request");
+            // Consume the full HTTP request head before responding. Closing
+            // a socket with unread request data causes WSAECONNRESET on Windows,
+            // which tests TCP teardown instead of retry/no-retry semantics.
+            let mut request = Vec::with_capacity(512);
+            let mut byte = [0u8; 1];
+            for _ in 0..2048 {
+                stream
+                    .read_exact(&mut byte)
+                    .await
+                    .expect("read HTTP request header");
+                request.push(byte[0]);
+                if request.ends_with(b"\r\n\r\n") {
+                    break;
+                }
+            }
+            assert!(request.ends_with(b"\r\n\r\n"), "complete HTTP headers");
             stream
                 .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
                 .await
                 .expect("send provider failure");
+            stream.shutdown().await.expect("finish provider response");
         });
         let url = format!("http://{address}/write");
         let client = reqwest::Client::builder()
