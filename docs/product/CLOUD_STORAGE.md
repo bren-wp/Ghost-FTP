@@ -1,6 +1,6 @@
 # Ghost FTP cloud storage security — Windows and Linux
 
-**Active product:** Windows/Linux Rust/Tauri graphical client, Ghost FTP 0.99.50 development Preview. Previous public edition: v0.99.49. Historical platform-specific functionality documented in earlier releases is not part of current distribution.
+**Active product:** Windows/Linux Rust/Tauri graphical client, Ghost FTP 0.99.51 development Preview. Previous public edition: v0.99.50. Historical platform-specific functionality documented in earlier releases is not part of current distribution.
 
 | Platform | Cloud connections | Required validation |
 | --- | --- | --- |

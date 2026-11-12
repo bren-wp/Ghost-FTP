@@ -1,5 +1,5 @@
 use crate::profiles::ConnectionProfile;
-use crate::session::http_throttle::{send_retried, HttpThrottle};
+use crate::session::http_throttle::{send_retried, trusted_bearer_url, HttpThrottle};
 use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, Method, StatusCode};
 use serde_json::Value;
@@ -26,6 +26,10 @@ const ASSETS_TTL: Duration = Duration::from_secs(30);
 
 /// Client-credentials tokens last 24h; re-fetch this far ahead of expiry.
 const TOKEN_MARGIN: Duration = Duration::from_secs(300);
+
+fn bounded_token_lifetime(expires_in: u64) -> Duration {
+    Duration::from_secs(expires_in.min(86_400))
+}
 
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key)
@@ -129,13 +133,15 @@ impl ShopifySession {
             .and_then(|t| t.as_str())
             .ok_or_else(|| anyhow!("shopify token exchange returned no access_token"))?
             .to_string();
+        anyhow::ensure!(!token.trim().is_empty(), "shopify token exchange returned blank credential");
         let expires_in = v
             .get("expires_in")
             .and_then(|e| e.as_u64())
             .unwrap_or(86_399);
         *self.token_cache.lock().unwrap() = Some((
             token.clone(),
-            Instant::now() + Duration::from_secs(expires_in),
+            // Provider expiry is untrusted; never overflow Instant or cache for years.
+            Instant::now() + bounded_token_lifetime(expires_in),
         ));
         Ok(token)
     }
@@ -149,15 +155,13 @@ impl ShopifySession {
         path: &str,
         body: Option<&Value>,
     ) -> Result<reqwest::Response> {
-        let url = if path.starts_with("http") {
-            path.to_string()
-        } else {
-            format!("{}{path}", self.api_base)
-        };
+        // Never send the private Shopify header to a supplied cross-origin URL.
+        let url = trusted_bearer_url(&self.api_base, path)?;
         let body = body.cloned();
         // A caller-supplied path may contain a URL token; never echo it into
         // diagnostics produced by retry/backoff.
-        send_retried(&self.throttle, "Shopify request", move || {
+        let retry_method = method.clone();
+        send_retried(&self.throttle, "Shopify request", retry_method, move || {
             let url = url.clone();
             let method = method.clone();
             let body = body.clone();
@@ -165,7 +169,7 @@ impl ShopifySession {
                 let token = self.token().await?;
                 let mut rb = self
                     .client
-                    .request(method, &url)
+                    .request(method, url)
                     .header("X-Shopify-Access-Token", token);
                 if let Some(b) = &body {
                     rb = rb.json(b);
@@ -332,6 +336,8 @@ pub async fn shopify_connect(profile: &ConnectionProfile) -> Result<ShopifySessi
     let client = Client::builder()
         .connect_timeout(Duration::from_secs(20))
         .timeout(Duration::from_secs(300))
+        // Never forward X-Shopify-Access-Token on HTTP redirects.
+        .redirect(reqwest::redirect::Policy::none())
         .user_agent(concat!("Ghost FTP/", env!("CARGO_PKG_VERSION")))
         .build()
         .context("building Shopify HTTP client")?;
@@ -442,6 +448,31 @@ fn urlenc(s: &str) -> String {
 #[cfg(test)]
 mod privacy_diagnostic_tests {
     use super::*;
+
+    #[test]
+    fn shopify_authorized_urls_are_pinned_to_the_store_api_host() {
+        let base = "https://example.myshopify.com/admin/api/2026-01";
+        assert!(trusted_bearer_url(base, "/themes.json").is_ok());
+        assert!(trusted_bearer_url(
+            base,
+            "https://example.myshopify.com/admin/api/2026-01/themes.json"
+        )
+        .is_ok());
+        for unsafe_url in [
+            "https://attacker.invalid/collect",
+            "https://example.myshopify.com.attacker.invalid/collect",
+            "http://example.myshopify.com/admin/api/2026-01/themes.json",
+            "https://token@example.myshopify.com/admin/api/2026-01/themes.json",
+        ] {
+            assert!(trusted_bearer_url(base, unsafe_url).is_err());
+        }
+    }
+
+    #[test]
+    fn untrusted_token_expiry_is_bounded_to_one_day() {
+        assert_eq!(bounded_token_lifetime(30), Duration::from_secs(30));
+        assert_eq!(bounded_token_lifetime(u64::MAX), Duration::from_secs(86_400));
+    }
 
     #[test]
     fn failed_shopify_request_displays_only_http_status() {

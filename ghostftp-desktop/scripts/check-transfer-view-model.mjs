@@ -80,6 +80,25 @@ test("selectors never mutate the queue; history is bounded and sorted as a copy"
   assert.deepEqual(transfers, original);
 });
 
+test("recent log preserves tie order and bounds allocations on long history", () => {
+  const history = [
+    { ...make("older", "done"), startedAt: 100 },
+    { ...make("first", "done"), startedAt: 500 },
+    { ...make("second", "done"), startedAt: 500 },
+    { ...make("newest", "done"), startedAt: 900 },
+    { ...make("third", "done"), startedAt: 500 },
+    { ...make("ignored", "done"), startedAt: 50 },
+  ];
+  const snapshot = structuredClone(history);
+  const selected = recentTransferLog(history, 80, 4);
+  assert.deepEqual(selected.map(t => t.id), ["newest", "first", "second", "third"]);
+  assert.strictEqual(selected[1], history[1]);
+  assert.deepEqual(recentTransferLog(history, 0, 1).map(t => t.id), ["newest"]);
+  assert.deepEqual(recentTransferLog(history, 0, Number.POSITIVE_INFINITY), []);
+  assert.deepEqual(recentTransferLog(history, 0, Number.NaN), []);
+  assert.deepEqual(history, snapshot, "backend queue must not be reordered");
+});
+
 test("10k-entry synthetic history is stable and memory bounded", () => {
   const history = Array.from({ length: 10_000 }, (_, i) => make(
     String(i), i % 7 === 0 ? "error" : "done", "download", i, "file_" + i, "/remote/file_" + i

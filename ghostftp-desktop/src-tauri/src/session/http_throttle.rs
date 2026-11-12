@@ -5,7 +5,7 @@
 //! behavior here is byte-identical to what Shopify shipped with.
 
 use anyhow::{Context, Result};
-use reqwest::StatusCode;
+use reqwest::{Method, StatusCode};
 use std::sync::Mutex as StdMutex;
 use std::time::{Duration, Instant};
 
@@ -52,6 +52,12 @@ fn retry_after_delay(header: Option<&reqwest::header::HeaderValue>) -> Duration 
     Duration::from_secs_f64(seconds)
 }
 
+/// Fail closed for provider writes: a 429/5xx does not prove a POST/PUT/PATCH/
+/// DELETE was not applied. Retries could create duplicate remote data.
+fn can_retry_method(method: &Method) -> bool {
+    *method == Method::GET || *method == Method::HEAD || *method == Method::OPTIONS
+}
+
 /// Send an HTTP request through `throttle`, honoring `Retry-After` on 429 and
 /// backing off on 5xx (up to 3 retries each). `build` must be re-runnable —
 /// each attempt re-invokes it for a fresh `RequestBuilder` (auth headers,
@@ -60,12 +66,14 @@ fn retry_after_delay(header: Option<&reqwest::header::HeaderValue>) -> Duration 
 pub async fn send_retried<F, Fut>(
     throttle: &HttpThrottle,
     what: &str,
+    method: Method,
     mut build: F,
 ) -> Result<reqwest::Response>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<reqwest::RequestBuilder>>,
 {
+    let replay_safe = can_retry_method(&method);
     let mut backoff = Duration::from_millis(500);
     let mut attempt = 0;
     loop {
@@ -76,13 +84,13 @@ where
             .await
             .with_context(|| what.to_string())?;
         let status = resp.status();
-        if status == StatusCode::TOO_MANY_REQUESTS && attempt < 3 {
+        if replay_safe && status == StatusCode::TOO_MANY_REQUESTS && attempt < 3 {
             let wait = retry_after_delay(resp.headers().get("Retry-After"));
             tokio::time::sleep(wait).await;
             attempt += 1;
             continue;
         }
-        if status.is_server_error() && attempt < 3 {
+        if replay_safe && status.is_server_error() && attempt < 3 {
             tokio::time::sleep(backoff).await;
             backoff *= 2;
             attempt += 1;
@@ -187,6 +195,49 @@ mod tests {
             trusted_bearer_url("http://127.0.0.1:9911/api", "http://127.0.0.1:9912/api").is_err()
         );
         assert!(trusted_bearer_url("http://remote.example/api", "/items").is_err());
+    }
+
+    #[test]
+    fn only_safe_read_methods_are_automatically_retried() {
+        for method in [Method::GET, Method::HEAD, Method::OPTIONS] {
+            assert!(can_retry_method(&method));
+        }
+        for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
+            assert!(!can_retry_method(&method));
+        }
+    }
+
+    #[tokio::test]
+    async fn provider_post_receiving_503_is_never_resent() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind loopback HTTP fixture");
+        let address = listener.local_addr().expect("fixture address");
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept request");
+            let mut request = [0u8; 2048];
+            stream.read(&mut request).await.expect("read request");
+            stream
+                .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .await
+                .expect("send provider failure");
+        });
+        let url = format!("http://{address}/write");
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .unwrap();
+        let throttle = HttpThrottle::new(Duration::ZERO);
+        let response = send_retried(&throttle, "test write", Method::POST, || {
+            let client = client.clone();
+            let url = url.clone();
+            async move { Ok(client.post(url)) }
+        })
+        .await
+        .expect("do not retry post after response");
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        server.await.unwrap();
     }
 
     #[test]

@@ -12,7 +12,7 @@ A privacy-conscious file-transfer client for everyday server work, organized tra
 
 **🪟 Windows x64** · **🐧 Linux x86_64** · **🔐 FTP / FTPS / SFTP** · **📦 Portable & installable**
 
-**Ghost FTP 0.99.50 (development Preview) · Previously published: v0.99.49.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
+**Ghost FTP 0.99.51 (development Preview) · Previously published: v0.99.50.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [App screenshots](#real-screenshots-of-the-app) · [Installation](docs/guides/INSTALLATION.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
@@ -59,7 +59,7 @@ These are actual screenshots captured from **running Ghost FTP applications**, n
 
 **Windows screenshot provenance:** Seven genuine v0.95.53 WebView2 application views captured at 1290×852 by [native GitHub Actions run 39506868388](https://github.com/bren-wp/Ghost-FTP/actions/runs/39506868388), source SHA <code>27a3f8413f168e4cb8cc31cf6d7b7c85c353f5af</code>. Image bytes and SHA-256 are fixed in the [capture manifest](docs/assets/screenshots/README-NATIVE-CAPTURE.json).
 
-**More recent genuine QA captures:** [Windows v0.99.49](https://github.com/bren-wp/Ghost-FTP/actions/runs/43121699792/artifacts/13901707834) · [Linux v0.99.49](https://github.com/bren-wp/Ghost-FTP/actions/runs/43121699792/artifacts/13901488086). These native-run QA archives contain real app captures; availability is subject to Actions artifact retention.
+**More recent genuine QA captures:** [Windows v0.99.50](https://github.com/bren-wp/Ghost-FTP/actions/runs/43126640204/artifacts/13904455674) · [Linux v0.99.50](https://github.com/bren-wp/Ghost-FTP/actions/runs/43126640204/artifacts/13904350300). These native-run QA archives contain real app captures; availability is subject to Actions artifact retention.
 
 <!-- BEGIN:real-linux-native-captures -->
 
@@ -111,6 +111,10 @@ A signed object URL is **not** a full cloud account login. Provider capabilities
 
 **Verify before installing:** Compare the downloaded file SHA-256 against the SHA256SUMS manifest shipped with its release. Checksums establish byte integrity, **not** OS publisher identity. These are Preview packages; automatic in-app updates require signed manifests, while manual unsigned installs may trigger platform warnings. See [installation instructions](docs/guides/INSTALLATION.md).
 
+## Built to protect your cloud data
+
+Ghost FTP 0.99.51 prevents Shopify and HubSpot credentials from being attached to cross-origin API requests or forwarded through HTTP redirects. Automatic retry on provider 429/5xx is reserved for safe read methods, not uploads, folder creation, renaming or deletes that could be applied twice. The recent-transfer history uses bounded top-k selection for smoother display with large queues. Live provider acceptance and comparative performance benchmarks remain separate from these verified source-level improvements.
+
 ## Privacy, trust and reliable transfers
 
 - **No mandatory Ghost FTP account or background telemetry requirement.** Ordinary FTP is unencrypted; prefer identity-validated FTPS or SFTP.
@@ -122,7 +126,7 @@ Automated security and dead-code audits are important regression barriers but ar
 
 ## Precision without fake promises
 
-Ghost FTP targets a coherent 1:1 design across Windows and Linux. The [59-screen acceptance ledger](docs/qa/WINDOWS_LINUX_59_ACCEPTANCE_0.99.50.md) tracks the 30 Windows and 29 Linux design references. An individual screen is not accepted until its real installed-app screenshot is pixel-compared with the matching reference at the same viewport, DPI, locale and state, with human verification. No claim of 0% deviation is made without that evidence.
+Ghost FTP targets a coherent 1:1 design across Windows and Linux. The [59-screen acceptance ledger](docs/qa/WINDOWS_LINUX_59_ACCEPTANCE_0.99.51.md) tracks the 30 Windows and 29 Linux design references. An individual screen is not accepted until its real installed-app screenshot is pixel-compared with the matching reference at the same viewport, DPI, locale and state, with human verification. No claim of 0% deviation is made without that evidence.
 
 ## Documentation and support
 

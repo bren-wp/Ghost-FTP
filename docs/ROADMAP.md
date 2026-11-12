@@ -1,4 +1,4 @@
-> **Ghost FTP 0.99.50 Preview development. Verified published predecessor: v0.99.49. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
+> **Ghost FTP 0.99.51 Preview development. Verified published predecessor: v0.99.50. Destructive Sites, duplicate, disk usage and snippet confirmations await backend operations; manual Preview metadata revalidation is available.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -14,7 +14,7 @@
 
 # Ghost FTP desktop roadmap — 0.99.36 Preview
 
-**Current development line:** 0.99.50. **Previous canonical release:** v0.99.49. The supported product is a graphical file-transfer client for Windows and Linux; historical editions remain immutable.
+**Current development line:** 0.99.51. **Previous canonical release:** v0.99.50. The supported product is a graphical file-transfer client for Windows and Linux; historical editions remain immutable.
 
 ## Current work
 

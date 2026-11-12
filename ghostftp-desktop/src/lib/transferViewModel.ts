@@ -79,8 +79,21 @@ export function recentTransferLog(
   clearedAtSeconds: number,
   limit = 12,
 ): Transfer[] {
-  return transfers
-    .filter((transfer) => transfer.startedAt > clearedAtSeconds)
-    .sort((a, b) => b.startedAt - a.startedAt)
-    .slice(0, Math.max(0, Math.floor(limit)));
+  // Render just the newest k rows, not a full copy and O(n log n) sort
+  // of all persisted transfers on every progress update. Default k is 12.
+  // Strict timestamp comparisons preserve original input order for ties.
+  const capacity = Number.isFinite(limit)
+    ? Math.min(transfers.length, Math.max(0, Math.floor(limit)))
+    : 0;
+  if (capacity === 0) return [];
+  const newest: Transfer[] = [];
+  for (const transfer of transfers) {
+    if (!(transfer.startedAt > clearedAtSeconds)) continue;
+    let at = newest.findIndex((item) => item.startedAt < transfer.startedAt);
+    if (at < 0) at = newest.length;
+    if (at >= capacity) continue;
+    newest.splice(at, 0, transfer);
+    if (newest.length > capacity) newest.pop();
+  }
+  return newest;
 }

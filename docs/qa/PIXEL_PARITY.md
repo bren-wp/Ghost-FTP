@@ -1,4 +1,4 @@
-> **Active desktop scope (v0.99.50): Windows and Linux only.** See the [59-screen current acceptance ledger](WINDOWS_LINUX_59_ACCEPTANCE_0.99.50.md). Historical Android and macOS sections below are retained only as dated design/QA provenance, not as active Ghost FTP desktop support or claimed pixel-parity results.
+> **Active desktop scope (v0.99.51): Windows and Linux only.** See the [59-screen current acceptance ledger](WINDOWS_LINUX_59_ACCEPTANCE_0.99.51.md). Historical Android and macOS sections below are retained only as dated design/QA provenance, not as active Ghost FTP desktop support or claimed pixel-parity results.
 
 # Ghost FTP — installed-build visual acceptance
 

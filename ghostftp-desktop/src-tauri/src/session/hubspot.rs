@@ -1,5 +1,5 @@
 use crate::profiles::ConnectionProfile;
-use crate::session::http_throttle::{send_retried, HttpThrottle};
+use crate::session::http_throttle::{send_retried, trusted_bearer_url, HttpThrottle};
 use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, Method, StatusCode};
 use serde_json::Value;
@@ -186,18 +186,17 @@ impl HubSpotSession {
         path: &str,
         body: Option<&Value>,
     ) -> Result<reqwest::Response> {
-        let url = if path.starts_with("http") {
-            path.to_string()
-        } else {
-            format!("{}{path}", self.api_base)
-        };
+        // Provider-returned status links are untrusted: never export bearer tokens
+        // across origins, downgrade to HTTP or follow a token-bearing redirect.
+        let url = trusted_bearer_url(&self.api_base, path)?;
         let body = body.cloned();
-        send_retried(&self.throttle, &format!("hubspot {path}"), move || {
+        let retry_method = method.clone();
+        send_retried(&self.throttle, "HubSpot API request", retry_method, move || {
             let url = url.clone();
             let method = method.clone();
             let body = body.clone();
             async move {
-                let mut rb = self.client.request(method, &url).bearer_auth(&self.token);
+                let mut rb = self.client.request(method, url).bearer_auth(&self.token);
                 if let Some(b) = &body {
                     rb = rb.json(b);
                 }
@@ -231,10 +230,11 @@ impl HubSpotSession {
         file_name: &str,
         data: &[u8],
     ) -> Result<reqwest::Response> {
-        let url = format!("{}{path}", self.api_base);
+        let url = trusted_bearer_url(&self.api_base, path)?;
         let file_name = file_name.to_string();
         let data = Arc::new(data.to_vec());
-        send_retried(&self.throttle, &format!("hubspot {path}"), move || {
+        let retry_method = method.clone();
+        send_retried(&self.throttle, "HubSpot multipart upload", retry_method, move || {
             let url = url.clone();
             let method = method.clone();
             let fields = fields.clone();
@@ -249,7 +249,7 @@ impl HubSpotSession {
                 }
                 Ok(self
                     .client
-                    .request(method, &url)
+                    .request(method, url)
                     .bearer_auth(&self.token)
                     .multipart(form))
             }
@@ -927,6 +927,8 @@ pub async fn hubspot_connect(profile: &ConnectionProfile) -> Result<HubSpotSessi
     let client = Client::builder()
         .connect_timeout(Duration::from_secs(20))
         .timeout(Duration::from_secs(300))
+        // Never forward a bearer token through provider redirects.
+        .redirect(reqwest::redirect::Policy::none())
         .user_agent(concat!("Ghost FTP/", env!("CARGO_PKG_VERSION")))
         .build()
         .context("building HubSpot HTTP client")?;
