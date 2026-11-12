@@ -133,7 +133,10 @@ impl ShopifySession {
             .and_then(|t| t.as_str())
             .ok_or_else(|| anyhow!("shopify token exchange returned no access_token"))?
             .to_string();
-        anyhow::ensure!(!token.trim().is_empty(), "shopify token exchange returned blank credential");
+        anyhow::ensure!(
+            !token.trim().is_empty(),
+            "shopify token exchange returned blank credential"
+        );
         let expires_in = v
             .get("expires_in")
             .and_then(|e| e.as_u64())
@@ -471,7 +474,10 @@ mod privacy_diagnostic_tests {
     #[test]
     fn untrusted_token_expiry_is_bounded_to_one_day() {
         assert_eq!(bounded_token_lifetime(30), Duration::from_secs(30));
-        assert_eq!(bounded_token_lifetime(u64::MAX), Duration::from_secs(86_400));
+        assert_eq!(
+            bounded_token_lifetime(u64::MAX),
+            Duration::from_secs(86_400)
+        );
     }
 
     #[test]

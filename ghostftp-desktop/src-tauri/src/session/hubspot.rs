@@ -191,18 +191,23 @@ impl HubSpotSession {
         let url = trusted_bearer_url(&self.api_base, path)?;
         let body = body.cloned();
         let retry_method = method.clone();
-        send_retried(&self.throttle, "HubSpot API request", retry_method, move || {
-            let url = url.clone();
-            let method = method.clone();
-            let body = body.clone();
-            async move {
-                let mut rb = self.client.request(method, url).bearer_auth(&self.token);
-                if let Some(b) = &body {
-                    rb = rb.json(b);
+        send_retried(
+            &self.throttle,
+            "HubSpot API request",
+            retry_method,
+            move || {
+                let url = url.clone();
+                let method = method.clone();
+                let body = body.clone();
+                async move {
+                    let mut rb = self.client.request(method, url).bearer_auth(&self.token);
+                    if let Some(b) = &body {
+                        rb = rb.json(b);
+                    }
+                    Ok(rb)
                 }
-                Ok(rb)
-            }
-        })
+            },
+        )
         .await
     }
 
@@ -234,26 +239,31 @@ impl HubSpotSession {
         let file_name = file_name.to_string();
         let data = Arc::new(data.to_vec());
         let retry_method = method.clone();
-        send_retried(&self.throttle, "HubSpot multipart upload", retry_method, move || {
-            let url = url.clone();
-            let method = method.clone();
-            let fields = fields.clone();
-            let file_name = file_name.clone();
-            let data = data.clone();
-            async move {
-                let part =
-                    reqwest::multipart::Part::bytes(data.as_ref().clone()).file_name(file_name);
-                let mut form = reqwest::multipart::Form::new().part("file", part);
-                for (k, v) in fields {
-                    form = form.text(k, v);
+        send_retried(
+            &self.throttle,
+            "HubSpot multipart upload",
+            retry_method,
+            move || {
+                let url = url.clone();
+                let method = method.clone();
+                let fields = fields.clone();
+                let file_name = file_name.clone();
+                let data = data.clone();
+                async move {
+                    let part =
+                        reqwest::multipart::Part::bytes(data.as_ref().clone()).file_name(file_name);
+                    let mut form = reqwest::multipart::Form::new().part("file", part);
+                    for (k, v) in fields {
+                        form = form.text(k, v);
+                    }
+                    Ok(self
+                        .client
+                        .request(method, url)
+                        .bearer_auth(&self.token)
+                        .multipart(form))
                 }
-                Ok(self
-                    .client
-                    .request(method, url)
-                    .bearer_auth(&self.token)
-                    .multipart(form))
-            }
-        })
+            },
+        )
         .await
     }
 
