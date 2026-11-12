@@ -1,9 +1,14 @@
-# v8 reference pixel-count precision audit (26 October 2026)
+# Archived visual comparison record — V8 RGB PIXEL PRECISION 2026 10 26
 
-The v8 installed-application screenshot comparison tool used `diff.convert("L").histogram()[0]` to count changed pixels. This wrongly reports a pixel with an RGB delta of only 1 in a single channel as unchanged after grayscale integer rounding. Example: reference (0,0,0), actual (1,0,0) yields **zero** changed pixels by the old logic, despite `exact=False`.
+This historical checklist is **retired as a release acceptance requirement** by the product-owner decision for Ghost FTP v0.99.55. Earlier evidence and measurement methods remain available in Git history at the revision where they were recorded.
 
-The corrected implementation forms a per-pixel maximum of each RGB difference channel and counts only pixels with all three difference channels equal to zero as unchanged. Mean RGB absolute difference, exact-equality classification, image-size mismatch rejection, checksum provenance and the v8 reference archive SHA gate are unchanged.
+A fixed design-reference screen count, identical pixels, or illustrative concept artwork must not determine future release qualification. Historical concepts are not evidence of real files, servers, transfers or authenticated sessions.
 
-The new `tools/qa/test_compare_reference_v8.py` regression covers red/green/blue one-unit deltas, exact identical screenshots and size mismatches. Locally, the per-channel correction passed a synthetic PNG arithmetic smoke test. The full repository integration suite has **not** been run for this separate source branch.
+Current Windows/Linux quality standards instead require:
 
-No macOS concept images are supplied and no Windows/Linux/Android screen is automatically labeled 1:1 by this correction. The tool still requires real installed-app captures at precisely the reference dimensions.
+- Real application launch, functional file/connection/transfer actions and safe cancellation or overwrite behavior.
+- Responsive window layouts, keyboard access, readable text and screen-reader behavior.
+- Genuine capture provenance for any screenshot published as an application screenshot.
+- Exact-source security, protocol and installer testing.
+
+Refer to [current desktop QA](README.md), [production readiness](../status/PRODUCTION_READINESS.md) and [Stable release policy](../release/STABLE_RELEASE_POLICY.md). Stable cannot be claimed without signing, installed-upgrade and independently verified functional/security acceptance.

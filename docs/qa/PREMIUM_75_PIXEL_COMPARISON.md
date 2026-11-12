@@ -1,11 +1,14 @@
-# Ghost FTP — desktop visual comparison
+# Archived visual comparison record — PREMIUM 75 PIXEL COMPARISON
 
-The active QA scope contains **59 Windows/Linux screens**, not a complete installed-app parity certification. Historical archive and legacy file names may retain the original numeric suffix solely for provenance.
+This historical checklist is **retired as a release acceptance requirement** by the product-owner decision for Ghost FTP v0.99.55. Earlier evidence and measurement methods remain available in Git history at the revision where they were recorded.
 
-- Windows: 30 reference PNG concepts at 1290 × 852.
-- Linux: 29 reference PNG concepts at 1290 × 852.
-- macOS: no user-approved reference set for pixel-exact approval.
+A fixed design-reference screen count, identical pixels, or illustrative concept artwork must not determine future release qualification. Historical concepts are not evidence of real files, servers, transfers or authenticated sessions.
 
-Capture authentic builds at the exact source SHA, window geometry, DPI, locale and theme. The `tools/qa/compare_reference_v8.py` and `tools/qa/compare-screen-references.py` utilities compare genuine PNG captures; they do not substitute design concepts for runtime screenshots. Report exact changed RGBA pixels, screenshot hashes, missing captures, overlays, keyboard navigation and functional test outcomes. All 59 statuses remain unverified until evidence exists.
+Current Windows/Linux quality standards instead require:
 
-Do not expose private hostnames, access tokens, remote file contents, passwords or signed URLs in public reports.
+- Real application launch, functional file/connection/transfer actions and safe cancellation or overwrite behavior.
+- Responsive window layouts, keyboard access, readable text and screen-reader behavior.
+- Genuine capture provenance for any screenshot published as an application screenshot.
+- Exact-source security, protocol and installer testing.
+
+Refer to [current desktop QA](README.md), [production readiness](../status/PRODUCTION_READINESS.md) and [Stable release policy](../release/STABLE_RELEASE_POLICY.md). Stable cannot be claimed without signing, installed-upgrade and independently verified functional/security acceptance.
