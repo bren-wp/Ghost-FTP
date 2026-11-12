@@ -217,7 +217,10 @@ mod tests {
         let server = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await.expect("accept request");
             let mut request = [0u8; 2048];
-            stream.read_exact(&mut request[..1]).await.expect("read request");
+            stream
+                .read_exact(&mut request[..1])
+                .await
+                .expect("read request");
             stream
                 .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
                 .await
