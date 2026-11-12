@@ -1,3 +1,10 @@
+## 0.99.55 Preview — 12 November 2026
+
+- Retire mandatory design-reference pixel comparisons from active product documentation and release acceptance. Keep real native UI, interaction, responsive layout and accessibility verification.
+- Create a concrete future Stable release policy: Windows/Linux signing, reproducible exact-commit gates, installed upgrades and rollback, credential/keyring behavior, trusted protocol/server validation, and release integrity. Stable cannot be declared until evidence exists.
+- Remove obsolete mandatory visual-reference contract from documentation checks while preserving historical release provenance and genuine screenshot origin.
+- No Stable classification has been granted; the source stays Preview until the independent release-security gates are implemented and passed.
+
 ## 0.99.54 Preview — 12 November 2026
 
 - Validate S3/object-store streamed downloads against the exact GET response metadata rather than relying on a potentially stale or unavailable directory-listing estimate.
