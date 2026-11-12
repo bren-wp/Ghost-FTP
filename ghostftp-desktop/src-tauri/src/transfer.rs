@@ -3470,7 +3470,12 @@ impl TransferManager {
             .await
             .context("stat completed object download staging")?
             .len();
-        verify_committed_length("object storage download", expected_size, transferred, on_disk)?;
+        verify_committed_length(
+            "object storage download",
+            expected_size,
+            transferred,
+            on_disk,
+        )?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
