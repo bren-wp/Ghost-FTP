@@ -14,6 +14,6 @@
 - **Pixel-exact = false.** This is expected to be influenced by live user-independent Linux filesystem content, disconnected remote state, OS frame/font differences and any unaligned layout. It does not prove a 96% functional defect rate or authorize replacing actual app data with reference fiction.
 
 ## Coverage and required review
-Together with [seven real Windows QA comparisons](PHASE3_REAL_WINDOWS_V0_99_17_2026_10_28.md), this is **8/75 reference screens with a comparable real app capture**: 7 Windows + 1 Linux + 0 Android. **0/75 screens are human approved** and the real-evidence registry remains `unverified` until individual interactive/visual reviews can be recorded. Android CI debug-only view renders are separate evidence to be reviewed and cannot silently count as 1:1 acceptance.
+Historical real Windows/Linux captures from this phase are retained for provenance. Their former screen-count acceptance ledger is no longer used to qualify current releases.
 
 For the remaining Linux and Windows views, reproduce the actual UI state, viewport, DPI, theme, language, font and frame before pixel comparison; preserve legitimate real states, privacy, keyboard and screen-reader behavior.

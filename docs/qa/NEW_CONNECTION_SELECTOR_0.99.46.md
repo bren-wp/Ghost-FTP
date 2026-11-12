@@ -27,4 +27,4 @@ A concrete defect is visible in the Protocol control at screenshot coordinate (5
 
 ## Acceptance still required
 
-The source fix alone does NOT prove the visual mismatch is zero. Re-capture **both installed v0.99.46 native packages** from their exact release commit, re-measure same-state New Connection screens, test SFTP/FTP/FTPS switching with keyboard and pointer at 1290×852 and smaller viewport sizes, check Linux theme/GTK variants, Windows high-contrast, and record source SHA/PNG SHA-256 in the evidence registry. The 59-source concept comparison requires separate approved reference ZIP, identical app state and human acceptance. Do not mark any `PREMIUM_REFERENCE_EVIDENCE.json` item verified until those conditions hold.
+The source fix requires actual installed Windows/Linux functional verification: SFTP/FTP/FTPS switching with keyboard and pointer, smaller viewports, Linux GTK variants, Windows high-contrast and accurate source-SHA capture provenance. Pixel matching to historical design files is not required.

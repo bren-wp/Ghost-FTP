@@ -61,7 +61,7 @@ A full cloud feature is not complete merely when a provider appears in the conne
 4. Add queue, retry/cancel and verified resume with per-transfer progress, bounded memory and connection cleanup.
 5. Add real folder sync/diff and transparent preview of mirror deletes. Keep "connection settings backup" distinct.
 6. Real macOS installer/dmg/signing/notarization and launch smoke; preserve privacy under Sandbox and file-panel scoped permissions.
-7. Validate accessibility, localization and UI matching under multiple window sizes; never call app 1:1 until real captures demonstrate it.
+7. Validate accessibility, localization, layout and functional interactions under multiple window sizes on actual installed applications.
 
 ## 7. Iteration E — Android transfer and UX parity (P0/P1)
 
