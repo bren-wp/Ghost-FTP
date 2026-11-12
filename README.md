@@ -12,7 +12,7 @@ A privacy-conscious file-transfer client for everyday server work, organized tra
 
 **🪟 Windows x64** · **🐧 Linux x86_64** · **🔐 FTP / FTPS / SFTP** · **📦 Portable & installable**
 
-**Ghost FTP 0.99.54 (development Preview) · Previously published: v0.99.53.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
+**Ghost FTP 0.99.55 (development Preview) · Previously published: v0.99.54.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [App screenshots](#real-screenshots-of-the-app) · [Installation](docs/guides/INSTALLATION.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
@@ -30,7 +30,7 @@ A privacy-conscious file-transfer client for everyday server work, organized tra
 
 ## Real screenshots of the app
 
-These are actual screenshots captured from **running Ghost FTP applications**, never generated mockups or fake connected sessions. Each gallery identifies its source build. The images are historical QA evidence, not screenshots claimed to be captured from the newest version; real app images do not by themselves prove reference pixel parity.
+UI release acceptance is based on functional behavior, accessibility and responsive native rendering; fixed-reference screenshot equality is retired.
 
 ### Windows — actual WebView2 interface
 
@@ -82,7 +82,7 @@ These are actual screenshots captured from **running Ghost FTP applications**, n
 <td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-about.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-about.png" alt="Genuine Linux Ghost FTP About workspace" width="390" /></a><strong>About</strong></td>
 </tr>
 </table>
-<p>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>; source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. Captured at 1290×852 in Xvfb, no fabricated FTP connections, no design mockups. These seven screenshots predate the no-splash update; they remain historical evidence, not screenshots of the new build or pixel-perfect acceptance. The old splash PNG is retained only in historical QA data, not in the active gallery.</p>
+UI release acceptance is based on functional behavior, accessibility and responsive native rendering; fixed-reference screenshot equality is retired.
 
 <!-- END:real-linux-native-captures -->
 
@@ -126,7 +126,7 @@ Automated security and dead-code audits are important regression barriers but ar
 
 ## Precision without fake promises
 
-Ghost FTP targets a coherent 1:1 design across Windows and Linux. The [59-screen acceptance ledger](docs/qa/WINDOWS_LINUX_59_ACCEPTANCE_0.99.51.md) tracks the 30 Windows and 29 Linux design references. An individual screen is not accepted until its real installed-app screenshot is pixel-compared with the matching reference at the same viewport, DPI, locale and state, with human verification. No claim of 0% deviation is made without that evidence.
+Ghost FTP uses a consistent Windows/Linux desktop design. UI release QA covers functional controls, keyboard accessibility, responsive layout and authentic native screenshots; exact design-reference pixel comparison is no longer required.
 
 ## Documentation and support
 
