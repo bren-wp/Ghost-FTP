@@ -12,7 +12,7 @@ A privacy-conscious file-transfer client for everyday server work, organized tra
 
 **🪟 Windows x64** · **🐧 Linux x86_64** · **🔐 FTP / FTPS / SFTP** · **📦 Portable & installable**
 
-**Ghost FTP 0.99.53 (development Preview) · Previously published: v0.99.52.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
+**Ghost FTP 0.99.54 (development Preview) · Previously published: v0.99.53.** Every new version is published only after verified Windows/Linux builds, protocol tests and release-integrity checks.
 
 [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [App screenshots](#real-screenshots-of-the-app) · [Installation](docs/guides/INSTALLATION.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 

@@ -1,4 +1,4 @@
-> **Ghost FTP 0.99.53 Preview development. Verified published predecessor: v0.99.52. Linux Secret Service subprocess pipe/timeouts hardened; real keyring, cloud and 59-screen acceptance remain pending.**
+> **Ghost FTP 0.99.54 Preview development. Verified published predecessor: v0.99.53. Object-store download response-length validation and staging durability; signed-native, live cloud and all 59 reference-screen acceptance remain pending.**
 
 > **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
 
@@ -34,7 +34,7 @@
 
 > Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.99.4** and latest public release **0.99.3**.
 
-This prioritized improvement backlog covers Ghost FTP **0.99.30**. Previous canonical release: **0.99.52**. Items here are recommendations, not claims of completed functionality.
+This prioritized improvement backlog covers Ghost FTP **0.99.30**. Previous canonical release: **0.99.53**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
@@ -160,4 +160,4 @@ User-facing and release-facing names should use:
 Framework-specific words such as Tauri should be kept only where technically required by the build ecosystem. Renaming `src-tauri` purely for appearance is not recommended because it increases maintenance/build risk without improving the user experience.
 
 
-Current development line: 0.99.53. Previous canonical release: 0.99.52. The last published Preview is v0.99.52; see GitHub Releases and `docs/releases/0.99.52.md` for its acceptance limits.
+Current development line: 0.99.54. Previous canonical release: 0.99.53. The last published Preview is v0.99.52; see GitHub Releases and `docs/releases/0.99.52.md` for its acceptance limits.
