@@ -795,16 +795,15 @@ fn safe_local_download_leaf(name: &str) -> bool {
     let mut chars = upper.chars();
     let prefix = chars.by_ref().take(3).collect::<String>();
     let suffix = chars.collect::<String>();
-    if matches!(prefix.as_str(), "COM" | "LPT")
+    // Windows reserves COM1–COM9 and LPT1–LPT9, including superscript
+    // ¹/²/³ variants. Return the inverse directly; keep the same validation.
+    let reserved_serial_device = matches!(prefix.as_str(), "COM" | "LPT")
         && suffix.chars().count() == 1
         && suffix
             .chars()
             .next()
-            .is_some_and(|digit| matches!(digit, '1'..='9' | '¹' | '²' | '³'))
-    {
-        return false;
-    }
-    true
+            .is_some_and(|digit| matches!(digit, '1'..='9' | '¹' | '²' | '³'));
+    !reserved_serial_device
 }
 
 // Treat every server listing as untrusted. A sibling name, parent segment
