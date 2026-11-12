@@ -57,7 +57,6 @@ const operationalDocs = [
   "docs/qa/README.md",
   "docs/qa/CLICK.md",
   "docs/qa/INSTALLER.md",
-  "docs/qa/PIXEL_PARITY.md",
   "docs/qa/PROTOCOL_E2E.md",
   "docs/qa/RESPONSIVE.md",
   "docs/qa/TITLEBAR.md",
@@ -170,49 +169,8 @@ requireIncludes(
 requireIncludes(".github/workflows/ghostftp-release.yml", "github.event.workflow_run.head_branch == 'main'", "release main branch restriction");
 
 
-/*
- * Exact desktop premium reference inventory imported from the user's Windows/Linux
- * visual concept archive. This is an audit of the reference registry, NOT
- * a pixel-parity assertion or evidence of functioning UI controls.
- */
-{
-  const rel = "docs/qa/PREMIUM_REFERENCE_75.json";
-  requireFile(rel);
-  if (exists(rel)) {
-    const reference = JSON.parse(read(rel));
-    const expected = { windows: 30, linux: 29 };
-    let total = 0;
-    for (const [platform, count] of Object.entries(expected)) {
-      const screens = reference.screens?.[platform];
-      if (!Array.isArray(screens) || screens.length !== count ||
-          new Set(screens).size !== count ||
-          screens.some(name => !/^[a-z]+(?:-[a-z]+)*$/.test(name))) {
-        failures.push(`${rel}: invalid ${platform} screen inventory, expected ${count} unique names`);
-      }
-      total += Array.isArray(screens) ? screens.length : 0;
-    }
-    if (reference.type !== "concept-reference-only" ||
-        reference.qa_state !== "unverified" ||
-        reference.total !== 59 || total !== 59) {
-      failures.push(`${rel}: concepts must remain explicitly unverified, total=59`);
-    }
-    if (!Array.isArray(reference.screens?.windows) ||
-        !Array.isArray(reference.screens?.linux) ||
-        reference.screens.windows.filter(name => name !== "brand").join() !==
-          reference.screens.linux.join()) {
-      failures.push(`${rel}: Linux and Windows reference screen names drifted`);
-    }
-    const size = reference.screen_size || {};
-    for (const [platform, width, height] of [
-      ["windows", 1290, 852],
-      ["linux", 1290, 852],
-    ]) {
-      if (JSON.stringify(size[platform]) !== JSON.stringify([width, height])) {
-        failures.push(`${rel}: incorrect ${platform} reference viewport`);
-      }
-    }
-  }
-}
+// Historical design archives are not mandatory release acceptance fixtures.
+// Source security, native behavior and documentation alignment remain checked.
 
 if (failures.length) {
   console.error("Documentation/release alignment failed:");

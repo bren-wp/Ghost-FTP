@@ -1,15 +1,16 @@
-# Ghost FTP 0.99.54 Preview — Windows/Linux production readiness
+# Ghost FTP 0.99.55 — Windows/Linux production readiness
 
-**Decision: NOT CERTIFIED FOR STABLE PRODUCTION.** v0.99.53 is the verified public predecessor; v0.99.54 requires successful exact-commit CI, actual installed-native QA and remaining independent acceptance.
+**Current classification: Preview candidate, NOT YET CERTIFIED STABLE.** Last public release: v0.99.54 Preview. The mandatory historical 1:1 visual comparison requirement has been retired by product decision; this does not certify untested security or installation behavior.
 
-| Surface | Verified from source | Remaining evidence |
+| Surface | Automated coverage | Stable acceptance still required |
 | --- | --- | --- |
-| Windows/Linux Rust/Tauri | Transfer engine, staged downloads, SFTP/Agent verified-prefix resume, SSH/TLS guards and bounded PTY lifecycle implemented | Exact-head build/test/Clippy, native installer upgrade, credential vault, real servers, remote hashes and crash-recovery tests |
-| Windows native | WebView2 UI/installer and Win32 tests integrated in CI | Signed Authenticode upgrade, target Windows variants, local vault and interaction capture |
-| Linux native | Shared Rust engine and package formats integrated | Target distro/GTK/WebKit/Wayland compatibility, Secret Service, install/rollback |
-| Cloud providers | Adapter-specific API implementations and static security checks | Consent-based live tenant/OAuth/account/partial upload E2E, quota, refresh and revocation |
-| Visual QA | 30 Windows/29 Linux references, original concepts SHA-256 pinned | [59-screen acceptance ledger](../qa/WINDOWS_LINUX_59_ACCEPTANCE_0.99.51.md), real same-state screenshot pixel diffs and keyboard/a11y verification |
+| Windows/Linux Rust/Tauri | Build, workspace tests, Clippy, protocol and security regression gates | Installed app, crash recovery, stored credentials, data-preserving upgrades/rollback |
+| Windows native | Packaging, Win32 filesystem tests and native capture checks | Authenticode verification, installer/portable smoke, Windows compatibility |
+| Linux native | AppImage/DEB/RPM builds and Linux tests | Package-signature decision, target distro and GTK/WebKit/Wayland keyring/upgrade acceptance |
+| Cloud and remote transfers | Static guards, bounded streaming and protocol fixtures | Authorized live provider/OAuth, interrupted uploads, end-to-end file integrity |
+| UI functionality | Frontend tests and genuine native-app capture | Keyboard/screen-reader access, resizing/scaling, working controls, dialogs and error states |
+| Release integrity | Exact-source CI, immutable tags, artifact inventory and checksums | Independent signing evidence, upgrade verification and owner-approved stable promotion |
 
-**Release criteria:** pass all exact-source quality/dead-code/security tests; Rust workspace, frontend, Go and Windows/Linux native CI; localhost FTP/FTPS/SFTP E2E; repeatable packages with SHA-256; genuine installed launch and transfer QA. Treat code scans as regression guards, not comprehensive independent penetration testing.
+**Release gate:** all exact-commit quality, dead-code, security, Rust/frontend/Go, Windows/Linux native build, FTP/FTPS/SFTP E2E and artifact integrity jobs must succeed. Security scans alone are not a penetration test. A stable release additionally requires the independently verified proofs listed in [Stable release policy](../release/STABLE_RELEASE_POLICY.md).
 
-Do not label any desktop build stable or pixel-perfect until the above evidence is gathered.
+Do not change `version.json.channel` to `stable` or publish a non-prerelease tag before the mandatory stable checks have been implemented and passed.

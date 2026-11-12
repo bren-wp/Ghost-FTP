@@ -1,29 +1,16 @@
-> **Ghost FTP 0.99.52 Preview development. Published predecessor: v0.99.51. SSH terminal lifecycle improvements; production signing, live-provider E2E, dead-code/security verification and all 59 visual comparisons remain pending.**
+# Ghost FTP — Windows/Linux quality assurance
 
-> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
+**Supported product:** Ghost FTP desktop for Windows and Linux. Native screenshots must always be genuine captures, not mockups presented as running applications.
 
-# Direct Files startup and native QA
+The previous mandatory pixel-comparison checklist has been retired. Current UI quality is verified through functional interaction, accessible keyboard and screen-reader behavior, correct text/layout scaling, responsive windows and regression testing. There is **no required exact screenshot-match threshold or fixed screen count** for release qualification.
 
-Ghost FTP Windows/Linux startup opens the real Files workspace immediately. The retired splash is not an active view or a capture target; historical QA pixels are preserved solely for provenance. Seven current screenshot targets are Files, Sites, New Connection, Transfers, Settings, Sync and About. Capture artifacts remain evidence, not 1:1 visual acceptance. Native application launch, backend initialization and real network operations must still be validated independently.
+## Required validation
 
-- [Destructive confirmation QA (v0.99.47)](DESTRUCTIVE_CONFIRMATIONS_0.99.47.md): awaited Sites, duplicate, disk and snippet delete actions; parent Escape suppression during active deletes
-- For later release classification drift, manually run **Enforce immutable Ghost FTP Preview release metadata** on `main`. This only verifies/pins published release metadata and checksums, not package contents.
+- [Protocol E2E](PROTOCOL_E2E.md): authorized FTP, explicit FTPS and SFTP roundtrips, host identity, failure/retry/cancellation and file integrity.
+- [Transfer reliability](TRANSFERS.md): queue, recovery, incomplete downloads and overwrite safeguards.
+- [Interactive actions](CLICK.md): actual file operations, destructive confirmation, error handling and focus.
+- [Responsive layouts](RESPONSIVE.md): multi-size and display scaling without clipped controls.
+- [Window and keyboard behavior](TITLEBAR.md) and [installed package acceptance](INSTALLER.md).
+- [Desktop production readiness](../status/PRODUCTION_READINESS.md) and [stable release policy](../release/STABLE_RELEASE_POLICY.md).
 
-# Ghost FTP desktop QA index
-
-The supported desktop platforms are Windows and Linux. Run source-level, protocol-level and installed native-app tests on the same exact commit SHA.
-
-## Source and security QA
-
-- [Transfer protocols](PROTOCOL_E2E.md): FTP, explicit FTPS and SFTP actual localhost roundtrips, trust validation, resume/cancel/failure handling
-- [Files, transfers and interactions](CLICK.md), [responsive layouts](RESPONSIVE.md), [keyboard/window integration](TITLEBAR.md)
-- [Windows/Linux 59-screen visual acceptance ledger](WINDOWS_LINUX_59_ACCEPTANCE_0.99.51.md): each reference tracked, currently awaiting independent real-app pixel measurement and manual acceptance
-- [Reference collection](PREMIUM_REFERENCE_75.md): active 59 Windows/Linux concepts (30 + 29), none accepted as genuine installed-app screenshots until evidence exists
-- [Runtime evidence registry](PREMIUM_REFERENCE_EVIDENCE.json): screenshot SHA, source SHA, viewport and human acceptance
-- [Cross-platform coverage](PLATFORM_PARITY.md) and [native pixel diff](V8_RGB_PIXEL_PRECISION_2026_10_26.md)
-
-## Native acceptance gates
-
-Windows: portable/NSIS/MSI installation, application launch, WebView2, key vault, upload/download, transfer queue and updates. Linux: AppImage/DEB/RPM, GTK/WebKit, keyring, Wayland/X11, file selection and transfers.
-
-Code checks and mockup comparisons are not certification for all actual systems, permissions, server types or 1:1 pixel parity.
+Retain historical visual records only as provenance; they are **not** required release gates or proof of stable readiness. Actual OS installation, upgrades, keyring behavior and network workflows require independent verification.
