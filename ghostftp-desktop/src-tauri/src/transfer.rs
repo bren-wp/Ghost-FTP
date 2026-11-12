@@ -606,6 +606,22 @@ fn completed_transfer_size(expected: u64, actual: u64) -> Result<u64> {
     Ok(actual)
 }
 
+/// Object-store GET metadata comes from the response being streamed, not an
+/// earlier directory listing. Guard each part before writing: a broken or
+/// malicious backend must not consume unlimited disk after exceeding its own
+/// declared object length. Zero-length objects are verified normally.
+fn checked_object_download_progress(expected: u64, written: u64, next_bytes: usize) -> Result<u64> {
+    let next_bytes = u64::try_from(next_bytes).context("object chunk length overflow")?;
+    let next = written
+        .checked_add(next_bytes)
+        .context("object download byte counter overflow")?;
+    anyhow::ensure!(
+        next <= expected,
+        "object download exceeded the declared object size"
+    );
+    Ok(next)
+}
+
 /// The declared wire size is meaningful only for identity-encoded HTTP.
 fn declared_plain_http_length(headers: &reqwest::header::HeaderMap) -> Result<Option<u64>> {
     use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH};
@@ -3421,6 +3437,10 @@ impl TransferManager {
             .await
             .with_context(|| format!("s3 get {key}"))?;
 
+        // The object response's own metadata is authoritative for this GET;
+        // the earlier queue estimate may be stale or unavailable.
+        let expected_size = u64::try_from(get.meta.size)
+            .context("object storage reported an invalid download length")?;
         let mut file = tokio::fs::File::create(local_path)
             .await
             .with_context(|| format!("create {}", local_path.display()))?;
@@ -3429,9 +3449,10 @@ impl TransferManager {
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("s3 chunk for {key}"))?;
+            let next = checked_object_download_progress(expected_size, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -3441,6 +3462,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync object download staging file")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed object download staging")?
+            .len();
+        verify_committed_length("object storage download", expected_size, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -5327,6 +5357,32 @@ mod http_length_integrity_tests {
         assert!(verify_committed_length("FTPS download", 4096, 4096, 4095).is_err());
         assert!(verify_committed_length("SFTP download", 0, 0, 0).is_ok());
         assert!(verify_committed_length("FTPS download", 65537, 65537, 65537).is_ok());
+    }
+
+    #[test]
+    fn object_store_response_metadata_rejects_partial_and_extra_chunks() {
+        // A missing or stale listing estimate must not let a truncated object
+        // pass as complete: the GET's own size is the invariant.
+        let expected = 4 * 1024 * 1024 + 3_u64;
+        let first = checked_object_download_progress(expected, 0, 4 * 1024 * 1024)
+            .expect("first object part fits");
+        assert_eq!(first, 4 * 1024 * 1024);
+        assert_eq!(
+            checked_object_download_progress(expected, first, 3).unwrap(),
+            expected
+        );
+        assert!(checked_object_download_progress(expected, first, 4).is_err());
+        assert!(verify_committed_length("object", expected, first, first).is_err());
+        assert!(verify_committed_length("object", expected, expected, first).is_err());
+        assert!(verify_committed_length("object", expected, expected, expected).is_ok());
+    }
+
+    #[test]
+    fn zero_byte_objects_and_invalid_large_counters_fail_closed() {
+        assert_eq!(checked_object_download_progress(0, 0, 0).unwrap(), 0);
+        assert!(checked_object_download_progress(0, 0, 1).is_err());
+        assert!(checked_object_download_progress(u64::MAX, u64::MAX, 1).is_err());
+        assert!(verify_committed_length("object", 0, 0, 0).is_ok());
     }
 
     #[test]
