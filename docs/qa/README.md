@@ -8,6 +8,7 @@ The previous mandatory pixel-comparison checklist has been retired. Current UI q
 
 - [Protocol E2E](PROTOCOL_E2E.md): authorized FTP, explicit FTPS and SFTP roundtrips, host identity, failure/retry/cancellation and file integrity.
 - [Transfer reliability](TRANSFERS.md): queue, recovery, incomplete downloads and overwrite safeguards.
+- [Full HTTP/cloud response integrity audit](../audits/HTTP_FULL_RESPONSE_INTEGRITY_0.99.56.md): reject unsolicited partial status and early excess bytes; check durable staging.
 - [Interactive actions](CLICK.md): actual file operations, destructive confirmation, error handling and focus.
 - [Responsive layouts](RESPONSIVE.md): multi-size and display scaling without clipped controls.
 - [Window and keyboard behavior](TITLEBAR.md) and [installed package acceptance](INSTALLER.md).

@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.55 Preview candidate. Previous public release: v0.99.54. Stable releases will require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.56 Preview candidate. Previous public release: v0.99.55. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP documentation
 
