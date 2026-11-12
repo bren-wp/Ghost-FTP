@@ -30,7 +30,7 @@ A privacy-conscious file-transfer client for everyday server work, organized tra
 
 ## Real screenshots of the app
 
-UI release acceptance is based on functional behavior, accessibility and responsive native rendering; fixed-reference screenshot equality is retired.
+These are genuine screenshots captured from running Ghost FTP applications, not generated mockups. Each gallery identifies its source build; historical images are labeled and not presented as current-version captures.
 
 ### Windows — actual WebView2 interface
 
@@ -82,7 +82,7 @@ UI release acceptance is based on functional behavior, accessibility and respons
 <td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-about.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-about.png" alt="Genuine Linux Ghost FTP About workspace" width="390" /></a><strong>About</strong></td>
 </tr>
 </table>
-UI release acceptance is based on functional behavior, accessibility and responsive native rendering; fixed-reference screenshot equality is retired.
+<p>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>; source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. Captured at 1290×852 in Xvfb, with no fabricated FTP connections or design mockups. These seven genuine screenshots predate the no-splash update and are historical build provenance, not images of the current candidate. The old splash PNG is retained only in historical QA data, not in the active gallery.</p>
 
 <!-- END:real-linux-native-captures -->
 
