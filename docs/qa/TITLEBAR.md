@@ -29,6 +29,6 @@ For both the portable and installed Windows builds:
 
 ## Remaining FINAL evidence
 
-Native Windows 10/11 screenshots of the exact release executable remain required before a pixel-perfect/FINAL claim is made.
+Native Windows 10/11 installed-app checks must verify titlebar operation, window controls, keyboard accessibility and snapping. Fixed-reference screenshot equality is not a release requirement.
 
 Status: **source/build architecture is correct; Windows screenshot acceptance remains open.**

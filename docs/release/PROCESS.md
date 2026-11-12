@@ -1,6 +1,6 @@
 # Ghost FTP release process — Windows/Linux desktop
 
-**Active source:** 0.99.54 Preview. **Previous canonical public release:** v0.99.53. Check GitHub Releases for the actual newest published edition; development version numbers do not prove publication.
+**Active source:** 0.99.55 Preview candidate. **Previous canonical public release:** v0.99.54. Check GitHub Releases for the actual newest published edition; development version numbers do not prove publication.
 
 The single source of truth is `version.json`. A new version requires synchronized desktop metadata, a matching `docs/releases/<version>.md` file and exact-source CI evidence. If the source version has merged but is **not** yet published, the release-repair path may reuse that unpublished version only under the repository's immutable-lineage checks.
 
@@ -23,6 +23,10 @@ Use the official [Releases index](https://github.com/bren-wp/Ghost-FTP/releases)
 
 ## Security and acceptance
 
-Windows Authenticode, target-Linux package signing/compatibility, data-preserving upgrade/rollback, cloud-provider consent/refresh, stress/crash recovery, accessibility and **59 real Windows/Linux reference comparisons** are independent outstanding production gates. A passing static scan is not a penetration test. Production signing and independently verified real-device visual acceptance are required before the stable channel can be enabled.
+Windows Authenticode, Linux package signing/compatibility, data-preserving upgrade/rollback, cloud-provider consent/refresh, stress/crash recovery and accessibility are independent stable-production gates. The old exact visual-reference comparison requirement is retired. A passing static scan is not a penetration test. Production signing and independently verified real-device visual acceptance are required before the stable channel can be enabled.
 
 Every successfully verified merged change must have a new edition, but an unverified release must remain unpublished rather than bypass security and integrity gates. GitHub Actions failures must be diagnosed from actual failed steps before merging.
+
+## Future Stable channel
+
+The next production-stable transition targets v1.0.0 only after [Stable release policy](STABLE_RELEASE_POLICY.md) is satisfied. A green Preview CI run alone does not authorize relabeling to Stable. Historical published Preview releases/tags remain immutable. New Stable builds must be produced and checked from their exact source revision.

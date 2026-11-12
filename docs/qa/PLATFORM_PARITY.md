@@ -14,4 +14,4 @@
 | Visual references | 30 concepts at 1290×852 | 29 concepts at 1290×852 |
 | Publisher signing | Windows Authenticode acceptance pending | Distribution/package-signing acceptance pending |
 
-All source audits and installed runtime tests must operate on the exact release source SHA. Windows/Linux reference comparisons require real captures at matching DPI, language and state. Source-token checks do **not** prove 1:1 pixel fidelity.
+All source audits and installed runtime tests must operate on the exact release source SHA. Real Windows/Linux interactions, accessibility, and responsive layouts remain supported QA, without a legacy fixed-pixel requirement.

@@ -1,6 +1,8 @@
+> **Ghost FTP v0.99.55 Preview candidate. Previous public release: v0.99.54.**
+
 # Ghost FTP — UI / UX Contract
 
-The Ghost FTP UI is a real component-based desktop interface. The approved reference images are acceptance targets only; they must never be used as a full-screen application background or hotspot map.
+The Ghost FTP UI is a real component-based desktop interface. Historical design references are not release acceptance targets; they must never be used as a full-screen application background or hotspot map.
 
 ## Canonical desktop frame
 
@@ -116,12 +118,12 @@ Minimum supported native window target remains 480×600, with 480×800 used in t
 
 ## Acceptance rule
 
-A release is not described as pixel-perfect/FINAL until the real native Windows/Linux render is compared against the approved references at the documented sizes and the measured differences are accepted.
+Stable release classification is based on functional and security evidence from installed native applications, not fixed-reference screenshot comparison.
 
 
 ## Current production-fidelity acceptance
 
-- The supplied Ghost FTP reference screenshots are treated as visual acceptance specifications, never as runtime backgrounds.
+- Historical Ghost FTP reference art is neither a release acceptance specification nor a runtime application background.
 - File Manager chrome is isolated from standalone Site Manager, Preferences, Transfer Center and About surfaces.
 - Menu dropdowns are overlay layers and must never push Quick Connect or toolbars out of position.
 - New Connection sizes to real content with a 752 px reference width and viewport-safe maximum height; dead vertical filler regions are rejected.

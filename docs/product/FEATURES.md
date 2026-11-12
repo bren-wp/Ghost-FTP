@@ -1,28 +1,4 @@
-> **Ghost FTP 0.99.54 Preview development. Verified published predecessor: v0.99.53. Object-store download response-length validation and staging durability; signed-native, live cloud and all 59 reference-screen acceptance remain pending.**
-
-> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Repair late GitHub prerelease metadata drift with verified checksums and post-publication regression gates. Public predecessor: v0.99.39. Live-provider, production signing and full pixel-parity acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** Source release inventory and post-publication verifier updated. Public predecessor: v0.99.38. Live integrations and 1:1 visual parity remain unverified.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
-
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Windows/Linux/macOS desktop-only product and release train. Security and dead-code regression audits remain mandatory; production and pixel-perfect acceptance require native test evidence. Previously published v0.99.35 remains immutable.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Windows and Linux are the current installation and data-preservation priority; published v0.99.32 is the previous immutable version. Unsigned native packages are installable manually; publisher-signed automatic updates retain mandatory signature verification. CI and real-device stability are separate acceptance gates.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
-
-> Active source/release cycle: **0.99.54 Preview**. Previous canonical release: **0.99.53**.
-
-> Active source/release cycle: **0.99.54 Preview**. Previous canonical release: **0.99.53**.
-
-> **Authoritative current state (26 October 2026):** Ghost FTP **0.99.16 Preview**; latest published version **v0.99.15**. Versioned details below may describe older releases.
-
-> **Active source:** Ghost FTP **0.99.15 Preview**; last published v0.99.14. Historical feature descriptions below retain their original version context.
-
-> Active source: **Ghost FTP 0.99.14 Preview**. Previous published release: **v0.99.13**. Historical sections below describe earlier development work, not current production certification. Actual distribution and signing status must be verified against GitHub Releases and exact-source CI.
+> **Ghost FTP v0.99.55 Preview candidate. Previous public release: v0.99.54. Stable releases will require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP — Implemented Features
 
@@ -78,7 +54,7 @@
 - SQLite sync index reads fail closed; source snapshots replace all rows for one pair in a single transaction, preserving other pairs on write failures.
 - Mirror deletion safety warnings cannot advance the last fully synchronized timestamp or replace the saved source history.
 - Rust regressions cover transaction rollback, size validation, cross-pair isolation and unreadable directory scans. Existing OS-backed password storage, live watcher, safe CMD/.NET scripts and PHP/JS/HTML/CSS editor remain unchanged.
-- Bulk-transfer benchmarks, 59-screen pixel parity and independent cloud provider production verification remain outstanding.
+- Bulk-transfer benchmarks and independent cloud provider production verification remain outstanding.
 
 
 ## v0.95.37 SQLite folder-sync migration and built-in source editor — preview
@@ -104,7 +80,7 @@
 - Preserve existing local backup files; use no-replace file moves, refuse symlinks and special filesystem nodes when promoting downloads.
 - Inventory folder uploads first; reject unsupported entries, unsafe/non-UTF-8 names and oversized trees rather than silently omitting files.
 - Bind cross-pane drag/drop to the originating FTP/FTPS/SFTP session; reject stale or malformed drag payloads.
-- Add regression tests and audit traceability. Pixel-perfect 75-screen fidelity and comprehensive FileZilla superiority remain unverified.
+- Add regression tests and audit traceability. Comprehensive FileZilla superiority remains unverified.
 
 
 ## v0.95.35 FTP LIST and SSH host verification safety — development candidate
@@ -112,7 +88,7 @@
 - Bound FTP/FTPS directory inventories and reject server responses that exceed entry, raw-byte or filename-byte limits.
 - Inspect entire FTP LIST inventories before overwrite/existence decisions so malformed or duplicate rows fail closed.
 - Serialize SSH host-key decisions and require deliberate acknowledgement before trusting changed fingerprints.
-- Native 1:1 screenshot comparison and full FileZilla feature parity are not yet proven.
+- Full FileZilla feature parity remains unverified.
 
 
 ## v0.95.33 Windows/Linux SFTP safety, privacy and transfer usability — development candidate
@@ -120,7 +96,7 @@
 - Fail closed on invalid, duplicate or excessively large SFTP directory listings.
 - Reject ambiguous symbolic-link and special-file transfers rather than converting them into ordinary files.
 - Protect same-batch duplicate basenames; redact backend diagnostics in file-manager and transfer displays.
-- Improve semantic transfer progress and consistent time filtering. Actual native UI pixel parity remains unverified.
+- Improve semantic transfer progress and consistent time filtering.
 
 ## v0.95.32 Windows/Linux SFTP recursive-delete hardening — development candidate
 
@@ -160,7 +136,7 @@ Windows/Linux FTP and explicit FTPS now reject empty or ASCII-control-bearing pa
 
 macOS native FTP now negotiates an authenticated passive directory listing and supports fail-closed Unix LIST fallback for servers that explicitly reject MLSD. The Files editor supports navigable folders, creating directories (MKD), confirmed deletion of files (DELE), and confirmed removal of **empty** folders (RMD). Untrusted remote file sizes are formatted without converting UInt64 values beyond Int64 capacity. These macOS additions are for unencrypted FTP only: macOS FTPS, SFTP, signed/notarized distribution and full FileZilla parity are **not implemented** by this patch.
 
-Windows/Linux FTP and explicit FTPS now bound the sum of TCP attempts across DNS addresses. Android uses existing premium tokens but limits contextual FTP buttons and status to relevant workspaces. The 16 Android 1:1 screen acceptance tests have not passed; do not claim pixel-perfect or full visual parity.
+Windows/Linux FTP and explicit FTPS now bound the sum of TCP attempts across DNS addresses. Android uses existing premium tokens but limits contextual FTP buttons and status to relevant workspaces. Historical Android design comparison is outside the maintained Windows/Linux release scope.
 
 
 
@@ -172,7 +148,7 @@ The existing FileZilla XML importer now brings saved folder breadcrumbs into Gho
 
 > Current development cycle: **0.95.30**; latest verified public release: **0.95.29**. Historical sections remain version-specific.
 
-This document describes implemented functionality across the Ghost FTP 0.99.42 Preview development source. Previous canonical release: **0.99.53**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
+This document describes implemented functionality across the Ghost FTP 0.99.42 Preview development source. Previous canonical release: **0.99.54**. It is intentionally separated from future ideas so the repository does not present planned work as finished functionality.
 
 ## Cloud storage — 0.93.0 candidate
 

@@ -1,32 +1,8 @@
-> **Ghost FTP 0.99.54 Preview development. Verified published predecessor: v0.99.53. Object-store download response-length validation and staging durability; signed-native, live cloud and all 59 reference-screen acceptance remain pending.**
-
-> **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.42 Preview.** Preserve splash-free Windows/Linux startup and repair the authenticated v0.99.41 release filename/Preview metadata drift without replacing historical bytes. Previous published edition: v0.99.41. Production signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.41 Preview.** Windows/Linux open directly in Files without an artificial splash; native QA validates seven real workspaces. Scheduled transfer checks also respond to window wake and connectivity restoration. Previous published edition: v0.99.40 (release verification required). Signing, live providers and 1:1 reference acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.40 Preview.** Repair late GitHub prerelease metadata drift with verified checksums and post-publication regression gates. Public predecessor: v0.99.39. Live-provider, production signing and full pixel-parity acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.39 Preview.** One canonical release asset inventory, exact SHA-256 verification and reliable Preview post-release checks. Public predecessor: v0.99.38. Production signing and 1:1 visual acceptance remain separate.
-
-> **Current development (10 November 2026): Ghost FTP 0.99.38 Preview.** Windows/Linux transfer-history reliability and release safety improvements. Public predecessor: v0.99.37. Production signing and 1:1 visual acceptance remain separate.
-
-> **Current development (9 November 2026): Ghost FTP 0.99.37 Preview.** Windows/Linux DST-safe scheduled transfers, resumable SHA-256-verified release uploads and stricter release gates. Previous published release: v0.99.36. Signed-production status and 1:1 visual parity are not claimed.
-
-> **Current development (9 November 2026): Ghost FTP 0.99.36 Preview.** Maintained Windows, Linux and macOS desktop clients only. Native signing, cloud provider tests and pixel-accurate screenshot QA remain acceptance gates. Published v0.99.35 is immutable.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.33 Preview.** Last public edition v0.99.32; Windows/Linux native installers are directly usable without a paid code-signing certificate but need authentic checksums, verified connections and target-device acceptance. Automatic updater remains signed-only; global stable labeling remains gated separately.
-
-> **Current development (6 November 2026): Ghost FTP 0.99.32 Preview.** The preceding published release is v0.99.31. Windows/Linux native file workspace, real connection health, bounded grant imports and resource usage are the focus. Security fixes are source/test changes, not independent penetration-test or full installed-device certification. Historical editions and published assets remain immutable.
-
-> Active source/release cycle: **0.99.54 Preview**. Previous canonical release: **0.99.53**. Client-only packages required.
-
-> Active source/release cycle: **0.99.54 Preview**. Previous canonical release: **0.99.53**. Client-only packages required.
+> **Ghost FTP v0.99.55 Preview candidate. Previous public release: v0.99.54. Stable releases will require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP Versioning
 
-Current development edition: **0.99.54 Preview**. Previous published canonical release: **v0.99.53**.
+Current development edition: **0.99.55 Preview**. Previous published canonical release: **v0.99.54**.
 
 Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
@@ -53,8 +29,8 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.54**
-- Previous canonical release: **0.99.53**
+- Active source/release cycle: **0.99.55**
+- Previous canonical release: **0.99.54**
 - Previous source version: **0.99.8** (verified prior published release).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.

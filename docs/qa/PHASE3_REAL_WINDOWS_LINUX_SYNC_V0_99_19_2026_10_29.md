@@ -24,4 +24,4 @@ The concept references depict Croatian text, four metric cards, three populated 
 
 - Prior QA: **7 Windows** reference screens + **1 Linux** + **7 Android** = 15 reference-screen comparisons across previously released v0.99.17 and v0.99.18 builds.
 - New real native Sync captures: **+1 Windows +1 Linux** = **17/75 reference comparisons** from mixed but traceable source builds.
-- **0/75 accepted as pixel-perfect.** Completeness requires matching authentic app state, design geometry, keyboard/screen reader checks, interaction tests, an independent review and successful exact-head release QA. Do not mark the evidence manifest as accepted or infer 100% functional coverage from screenshot capture.
+- This historical pixel-comparison exercise has been retired. Current completion checks focus on working controls, accessibility, real protocol behavior and exact-source release QA.

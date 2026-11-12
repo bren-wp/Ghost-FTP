@@ -1,13 +1,14 @@
-# Ghost FTP visual QA — 59 active desktop references
+# Archived visual comparison record — PREMIUM REFERENCE 75
 
-The original user-supplied design archive contains historical concepts, not screenshots of a running product. **Only its 30 Windows and 29 Linux references remain in the active desktop registry.** Filenames containing `75` are retained solely for backward-compatible audit tooling paths; the active contents and required acceptance count are 59.
+This historical checklist is **retired as a release acceptance requirement** by the product-owner decision for Ghost FTP v0.99.55. Earlier evidence and measurement methods remain available in Git history at the revision where they were recorded.
 
-| Platform | Reference count | Size |
-| --- | ---: | --- |
-| Windows | 30 | 1290×852 |
-| Linux | 29 | 1290×852 |
-| macOS | 0 | No approved reference |
+A fixed design-reference screen count, identical pixels, or illustrative concept artwork must not determine future release qualification. Historical concepts are not evidence of real files, servers, transfers or authenticated sessions.
 
-The active source registry is [PREMIUM_REFERENCE_75.json](PREMIUM_REFERENCE_75.json) and per-screen evidence is [PREMIUM_REFERENCE_EVIDENCE.json](PREMIUM_REFERENCE_EVIDENCE.json). Each screen must be `unverified` until a real installed-app screenshot, SHA-256, source commit SHA, matching viewport/DPI, keyboard/accessibility/interaction checks and human acceptance are captured.
+Current Windows/Linux quality standards instead require:
 
-The original ZIP illustrates paths, transfer statistics, account labels and credentials; **never reproduce invented content as live app state** to force a visual match. The full 59-screen comparison is not yet approved. Compare button geometry, typography, contrast, navigation, dialogs, keyboard focus, responsive resizing and genuine server operations separately. macOS has no supplied reference for exact RGB parity.
+- Real application launch, functional file/connection/transfer actions and safe cancellation or overwrite behavior.
+- Responsive window layouts, keyboard access, readable text and screen-reader behavior.
+- Genuine capture provenance for any screenshot published as an application screenshot.
+- Exact-source security, protocol and installer testing.
+
+Refer to [current desktop QA](README.md), [production readiness](../status/PRODUCTION_READINESS.md) and [Stable release policy](../release/STABLE_RELEASE_POLICY.md). Stable cannot be claimed without signing, installed-upgrade and independently verified functional/security acceptance.
