@@ -4,6 +4,8 @@
 - Apply the complete-response guard to HTTP, WebDAV, Dropbox, OneDrive, Google Drive and Box before creating local staging files.
 - Check declared Content-Length and u64 transfer counters before writing each chunk; sync downloaded staging bytes to disk and verify expected/received/on-disk lengths before promotion.
 - Add unit regressions for partial, empty, unexpected ranged responses, oversize chunks and overflows, plus a real loopback HTTP 206 fixture.
+- Generate a new UUID-scoped sibling staging file for each non-resumable download attempt, remove failed attempt files before retry, and create all whole-file staging files exclusively; protects existing files from accidental clobbering and pre-planted symlink targets.
+- Add staging collision, retry isolation, destination preservation and Unix symlink regression tests without changing SFTP verified-byte resume.
 - Continue the Windows/Linux production stability audit. Stable publication requires independently validated signing, upgrade/rollback and live-provider acceptance; this remains an unsigned Preview candidate.
 
 ## 0.99.55 Preview — 12 November 2026
