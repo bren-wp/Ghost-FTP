@@ -1,3 +1,11 @@
+## 0.99.59 Preview — 13 November 2026
+
+- Consolidate active Windows/Linux cloud and installer guidance; retire misleading current support claims for historical platforms without deleting archived QA evidence.
+- Add exact-version desktop documentation regression checks in GitHub Actions.
+- Refresh the production-readiness matrix with explicitly outstanding Authenticode, Linux package trust, vault, provider and installed-machine acceptance.
+- Record a prioritized repository-wide inventory and security/dead-code/maintainability improvement plan with explicit evidence limitations.
+- Preserve source and release security checks, immutable tags, real protocol E2E and native distribution gates.
+
 ## 0.99.58 Preview — 13 November 2026
 
 - Harden Windows PE executable preflight using architecture-consistent optional headers and complete section-table bounds.
