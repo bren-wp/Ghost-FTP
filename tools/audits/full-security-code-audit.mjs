@@ -100,6 +100,14 @@ const REQUIRED = [
     "Agent did not acknowledge an empty upload",
     "Session::Ssh(_) | Session::Agent(_)",
   ]],
+  // The transfer path-safety domain was extracted from transfer.rs. Treat
+  // removal of its fail-closed checks as a security regression, not dead code.
+  ["ghostftp-desktop/src-tauri/src/transfer/path_safety.rs", [
+    "fn checked_remote_download_relative(", "fn safe_local_download_leaf(",
+    "fn ensure_download_subdirectory(", "symlink_metadata(&current)",
+    "std::io::ErrorKind::AlreadyExists", "raced.file_type().is_dir()",
+    "fn validate_directory_download_budget(", "fn validate_directory_upload_budget(",
+  ]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
   ["ghostftp-desktop/src-tauri/src/virtualfs/mod.rs", [
     "fn read_settings(", "std::io::ErrorKind::NotFound", "next_registration_journal(",
