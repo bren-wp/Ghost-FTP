@@ -75,7 +75,9 @@ const REQUIRED = [
   // marking Done; uploaded SFTP bytes must match both local and server size.
   ["ghostftp-desktop/src-tauri/src/transfer.rs", [
     "fn verify_committed_length(", "fn completed_transfer_size(",
-    "async fn verify_staged_download_bytes(", "verify_staged_download_bytes(&working_path, record.transferred)",
+    "verify_staged_download_bytes(&working_path, record.transferred)",
+    "commit_verified_delta_output(&out_path, local_path, id, size)",
+    "checked_agent_delta_chunk_length(range_len - got, bytes.len())",
     "fn safe_transfer_failure(", "t.error = Some(safe_transfer_failure(&e).to_string())",
     "old_diagnostic_rewritten", "INTERRUPTED_TRANSFER_MESSAGE",
     "verify_committed_length(\"SFTP download\"",
@@ -99,6 +101,20 @@ const REQUIRED = [
     "Agent download returned an empty non-final chunk",
     "Agent did not acknowledge an empty upload",
     "Session::Ssh(_) | Session::Agent(_)",
+  ]],
+  // Staging and delta commits must be byte-verified, durable and never
+  // clobber symlinks, directories, or preexisting unowned temporary files.
+  ["ghostftp-desktop/src-tauri/src/transfer/download_staging.rs", [
+    "fn create_new_download_staging(", "create_new(true)",
+    "fn verify_staged_download_bytes(", "file.sync_all()",
+    "fn promote_staged_download(", "fn commit_verified_delta_output(",
+    "move_local_noreplace(", "symlink_metadata(",
+    "fn promote_staged_download_noreplace(",
+  ]],
+  ["ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/delta.rs", [
+    "let mut output_created = false", "result.is_err() && output_created",
+    "create_new(true)", "*output_created = true",
+    "fn apply_delta_inner(",
   ]],
   // The transfer path-safety domain was extracted from transfer.rs. Treat
   // removal of its fail-closed checks as a security regression, not dead code.
