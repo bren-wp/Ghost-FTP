@@ -1,4 +1,6 @@
-> Historical snapshot of discontinued-platform cloud QA. Not a current maintained desktop support claim.\n\n# Cloud Storage end-to-end quality plan
+> Historical snapshot of discontinued-platform cloud QA. Not a current maintained desktop support claim.
+
+# Cloud Storage end-to-end quality plan
 
 **Candidate:** Ghost FTP 0.93.0. This is an acceptance specification, **not a report of completed provider testing**. An automated unit-test result or mock HTTP endpoint must never be reported as a real third-party E2E result.
 
