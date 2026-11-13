@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.55 Preview candidate. Previous public release: v0.99.54. Stable releases will require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.56 Preview candidate. Previous public release: v0.99.55. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 <p align="center">
 
@@ -23,7 +23,7 @@ This directory contains the authoritative **Ghost FTP desktop application**.
 
 The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
 
-Current development line: **0.99.55**. Previous canonical release: **0.99.54**.
+Current development line: **0.99.56**. Previous canonical release: **0.99.55**.
 
 ## Platform deliverables
 

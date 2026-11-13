@@ -325,6 +325,8 @@ enum RetryInfo {
         session: Arc<Session>,
         remote_path: String,
         final_path: PathBuf,
+        /// An explicit Overwrite policy, never inferred from a stale preflight.
+        allow_replace: bool,
     },
     Upload {
         session: Arc<Session>,
@@ -343,6 +345,10 @@ enum PersistedRetryInfo {
         profile_id: String,
         remote_path: String,
         final_path: PathBuf,
+        /// Legacy saved rows lack a policy: default to non-overwrite to
+        /// preserve local files rather than silently authorizing replacement.
+        #[serde(default)]
+        allow_replace: bool,
     },
     Upload {
         profile_id: String,
@@ -363,11 +369,13 @@ impl PersistedRetryInfo {
             Self::Download {
                 remote_path,
                 final_path,
+                allow_replace,
                 ..
             } => RetryInfo::Download {
                 session,
                 remote_path: remote_path.clone(),
                 final_path: final_path.clone(),
+                allow_replace: *allow_replace,
             },
             Self::Upload {
                 local,
@@ -506,6 +514,44 @@ fn download_staging_path(final_path: &Path, id: &str) -> PathBuf {
     parent.join(format!(".ghostftp-download-{id}.part"))
 }
 
+/// Whole-file backends cannot verify a resumed prefix. Allocate a fresh,
+/// unpredictable sibling file per attempt so retries and canceled transfers
+/// never reuse stale or partially written bytes.
+fn fresh_download_staging_path(final_path: &Path, id: &str) -> PathBuf {
+    download_staging_path(final_path, &format!("{id}-{}", Uuid::new_v4().simple()))
+}
+
+/// An exclusive-open failure does *not* confer ownership of a staging
+/// pathname. Preserve the cause through protocol/reconnect error contexts so
+/// the runner never deletes a pre-existing user file/symlink on failure.
+#[derive(Debug)]
+struct DownloadStagingOpenFailure(std::io::Error);
+
+impl std::fmt::Display for DownloadStagingOpenFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "exclusive download staging open failed: {}", self.0)
+    }
+}
+
+impl std::error::Error for DownloadStagingOpenFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
+/// Exclusively create the staging file at the point of the actual write.
+/// File::create follows a pre-planted symlink and truncates an existing file
+/// before promotion can check its type. O_EXCL/CREATE_NEW rejects both.
+async fn create_new_download_staging(path: &Path) -> Result<tokio::fs::File> {
+    tokio::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .await
+        .map_err(DownloadStagingOpenFailure)
+        .with_context(|| format!("exclusively create download staging {}", path.display()))
+}
+
 fn download_backup_path(final_path: &Path, id: &str) -> PathBuf {
     let parent = final_path.parent().unwrap_or(Path::new("."));
     parent.join(format!(".ghostftp-download-{id}.backup"))
@@ -619,6 +665,45 @@ fn checked_object_download_progress(expected: u64, written: u64, next_bytes: usi
         next <= expected,
         "object download exceeded the declared object size"
     );
+    Ok(next)
+}
+
+/// Full-file HTTP and cloud downloads do not send a Range header. An
+/// unsolicited 206 has a valid *partial* Content-Length, which must not be
+/// treated as the entire file. Other 2xx statuses (for example 204) do not
+/// provide a complete representation either. Check before creating staging.
+fn declared_full_http_download_length(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+) -> Result<Option<u64>> {
+    anyhow::ensure!(
+        status == reqwest::StatusCode::OK,
+        "download requires HTTP 200 complete representation, received HTTP {}",
+        status.as_u16()
+    );
+    anyhow::ensure!(
+        !headers.contains_key(reqwest::header::CONTENT_RANGE),
+        "download returned unexpected Content-Range without a Range request"
+    );
+    declared_plain_http_length(headers)
+}
+
+/// Reject oversized HTTP/cloud payloads *before* writing them to the staging
+/// file, rather than merely noticing at EOF after consuming disk space.
+fn checked_http_download_progress(
+    expected: Option<u64>,
+    written: u64,
+    next_bytes: usize,
+) -> Result<u64> {
+    let next = written
+        .checked_add(u64::try_from(next_bytes).context("HTTP chunk length overflow")?)
+        .context("HTTP download byte counter overflow")?;
+    if let Some(expected) = expected {
+        anyhow::ensure!(
+            next <= expected,
+            "HTTP download exceeds its declared Content-Length"
+        );
+    }
     Ok(next)
 }
 
@@ -757,6 +842,27 @@ async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) ->
         let _ = tokio::fs::remove_file(&backup).await;
     }
     Ok(())
+}
+
+/// Finish a Skip/Rename download without racing another process or queued
+/// transfer which created the destination after the initial existence check.
+/// This is an atomic move-if-absent, not a check-then-rename sequence.
+async fn promote_staged_download_noreplace(staging: &Path, final_path: &Path) -> Result<()> {
+    let metadata = tokio::fs::symlink_metadata(staging)
+        .await
+        .context("inspect non-overwrite staging file")?;
+    anyhow::ensure!(
+        metadata.file_type().is_file(),
+        "non-overwrite promotion requires a regular staging file"
+    );
+    move_local_noreplace(staging, final_path)
+        .await
+        .with_context(|| {
+            format!(
+                "download target already occupied or cannot be created without replacing {}",
+                final_path.display()
+            )
+        })
 }
 
 const MAX_DIRECTORY_UPLOAD_ENTRIES: usize = 100_000;
@@ -1579,6 +1685,7 @@ impl TransferManager {
                 session,
                 remote_path,
                 final_path,
+                allow_replace,
             } => {
                 self.spawn_registered(
                     id.to_string(),
@@ -1588,6 +1695,7 @@ impl TransferManager {
                         session,
                         remote_path,
                         final_path,
+                        allow_replace,
                         app_for_task,
                     ),
                 )
@@ -1742,6 +1850,7 @@ impl TransferManager {
                 profile_id: session.profile().id.clone(),
                 remote_path: remote_path.clone(),
                 final_path: final_path.clone(),
+                allow_replace: policy == OverwritePolicy::Overwrite,
             },
         );
         self.insert(transfer.clone()).await;
@@ -1758,6 +1867,7 @@ impl TransferManager {
                 session: Arc::clone(&session),
                 remote_path: remote_path.clone(),
                 final_path: final_path.clone(),
+                allow_replace: policy == OverwritePolicy::Overwrite,
             },
         );
         self.waiting.lock().await.push_back(id.clone());
@@ -1775,7 +1885,15 @@ impl TransferManager {
         let id_for_task = id.clone();
         self.spawn_registered(
             id.clone(),
-            run_download_task(mgr, id_for_task, session, remote_path, final_path, app),
+            run_download_task(
+                mgr,
+                id_for_task,
+                session,
+                remote_path,
+                final_path,
+                policy == OverwritePolicy::Overwrite,
+                app,
+            ),
         )
         .await;
         Ok(id)
@@ -2492,13 +2610,26 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: Option<&AppHandle>,
+        allow_replace: bool,
     ) -> Result<()> {
         let staging = download_staging_path(local_path, id);
         let result = self
             .agent_download_core(id, session, remote_path, &staging, app)
             .await;
         match result {
-            Ok(()) => promote_staged_download(&staging, local_path, id).await,
+            Ok(()) => {
+                let result = if allow_replace {
+                    promote_staged_download(&staging, local_path, id).await
+                } else {
+                    promote_staged_download_noreplace(&staging, local_path).await
+                };
+                // A Skip/Rename collision must never strand an Agent staging
+                // file, nor touch the destination owned by another process.
+                if !allow_replace && result.is_err() {
+                    let _ = tokio::fs::remove_file(&staging).await;
+                }
+                result
+            }
             Err(error) => {
                 if error.downcast_ref::<RestartFromPause>().is_none() {
                     let _ = tokio::fs::remove_file(&staging).await;
@@ -2536,7 +2667,7 @@ impl TransferManager {
         // prefix. Delta mode is reserved for complete prior-file bases.
         if self.get(id).await.is_some_and(|t| t.transferred > 0) {
             return self
-                .run_agent_full_download_staged(id, session, remote_path, local_path, app)
+                .run_agent_full_download_staged(id, session, remote_path, local_path, app, true)
                 .await;
         }
 
@@ -2557,7 +2688,7 @@ impl TransferManager {
                 }
             }
         }
-        self.run_agent_full_download_staged(id, session, remote_path, local_path, app)
+        self.run_agent_full_download_staged(id, session, remote_path, local_path, app, true)
             .await
     }
 
@@ -3124,11 +3255,19 @@ impl TransferManager {
                     0
                 };
 
-                let mut file = std::fs::OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(offset == 0)
+                let mut open = std::fs::OpenOptions::new();
+                open.write(true);
+                if offset == 0 {
+                    // FTP/FTPS restarts at zero without a verified prefix.
+                    // O_EXCL prevents symlink following and stale-file clobber.
+                    open.create_new(true);
+                } else {
+                    // Retained for a future fully verified FTP ranged-resume.
+                    open.create(true);
+                }
+                let mut file = open
                     .open(&final_path)
+                    .map_err(DownloadStagingOpenFailure)
                     .with_context(|| format!("open {}", final_path.display()))?;
                 if offset > 0 {
                     file.set_len(offset)?;
@@ -3188,9 +3327,9 @@ impl TransferManager {
             Err(error) => {
                 return Err(match session.reconnect().await {
                     Ok(()) => error,
-                    Err(reconnect_error) => anyhow::anyhow!(
-                        "{error:#}; additionally failed to reconnect FTP session after download failure: {reconnect_error:#}"
-                    ),
+                    Err(reconnect_error) => error.context(format!(
+                        "additionally failed to reconnect FTP session after download failure: {reconnect_error:#}"
+                    )),
                 });
             }
         };
@@ -3441,9 +3580,7 @@ impl TransferManager {
         // the earlier queue estimate may be stale or unavailable.
         let expected_size = u64::try_from(get.meta.size)
             .context("object storage reported an invalid download length")?;
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let mut file = create_new_download_staging(local_path).await?;
         let mut stream = get.into_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -3606,26 +3743,18 @@ impl TransferManager {
             .send()
             .await
             .with_context(|| format!("GET {remote_path}"))?;
-        if !resp.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "download {remote_path} failed: HTTP {}",
-                resp.status().as_u16()
-            ));
-        }
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let expected_length = declared_plain_http_length(resp.headers())?;
-
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let mut file = create_new_download_staging(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("webdav chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -3713,26 +3842,18 @@ impl TransferManager {
             .send()
             .await
             .with_context(|| format!("GET {remote_path}"))?;
-        if !resp.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "download {remote_path} failed: HTTP {}",
-                resp.status().as_u16()
-            ));
-        }
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let expected_length = declared_plain_http_length(resp.headers())?;
-
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let mut file = create_new_download_staging(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("http chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -3774,17 +3895,18 @@ impl TransferManager {
         let arg = serde_json::json!({ "path": dbx }).to_string();
         let resp = session.content_get("/2/files/download", &arg).await?;
 
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
+        let mut file = create_new_download_staging(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("dropbox chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -3794,6 +3916,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -3890,9 +4021,7 @@ impl TransferManager {
 
         self.checkpoint(id, 0).await?;
         let data = crate::remotefs::shopify::read_asset(&session, remote_path).await?;
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let mut file = create_new_download_staging(local_path).await?;
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
@@ -3941,9 +4070,7 @@ impl TransferManager {
 
         self.checkpoint(id, 0).await?;
         let data = crate::remotefs::hubspot::read_file(&session, remote_path).await?;
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let mut file = create_new_download_staging(local_path).await?;
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
@@ -3993,9 +4120,7 @@ impl TransferManager {
 
         self.checkpoint(id, 0).await?;
         let data = crate::remotefs::dynamics::read_file(&session, remote_path).await?;
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let mut file = create_new_download_staging(local_path).await?;
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
@@ -4045,17 +4170,18 @@ impl TransferManager {
         let content = crate::remotefs::onedrive::content_ref(remote_path);
         let resp = session.get_stream(&content).await?;
 
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
+        let mut file = create_new_download_staging(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("onedrive chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -4065,6 +4191,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -4247,17 +4382,18 @@ impl TransferManager {
             .get_stream(&format!("/files/{file_id}?alt=media"))
             .await?;
 
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
+        let mut file = create_new_download_staging(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("drive chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -4267,6 +4403,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -4375,17 +4520,18 @@ impl TransferManager {
             .get_stream(&format!("/files/{file_id}/content"))
             .await?;
 
-        let mut file = tokio::fs::File::create(local_path)
-            .await
-            .with_context(|| format!("create {}", local_path.display()))?;
+        let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
+
+        let mut file = create_new_download_staging(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.with_context(|| format!("box chunk for {remote_path}"))?;
+            let next = checked_http_download_progress(expected_length, transferred, chunk.len())?;
             self.checkpoint(id, chunk.len() as u64).await?;
             file.write_all(&chunk).await?;
-            transferred += chunk.len() as u64;
+            transferred = next;
             if last_emit.elapsed() > Duration::from_millis(100) {
                 self.update(id, |t| t.transferred = transferred).await;
                 if let Some(t) = self.get(id).await {
@@ -4395,6 +4541,15 @@ impl TransferManager {
             }
         }
         file.flush().await?;
+        file.sync_all()
+            .await
+            .context("sync cloud download staging to disk")?;
+        let on_disk = file
+            .metadata()
+            .await
+            .context("stat completed cloud download staging")?
+            .len();
+        verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
         Ok(())
     }
@@ -5010,6 +5165,7 @@ async fn run_download_task(
     session: Arc<Session>,
     remote_path: String,
     final_path: PathBuf,
+    allow_replace: bool,
     app: AppHandle,
 ) {
     let Some(initial_permit) = mgr.admit(&id).await else {
@@ -5023,14 +5179,40 @@ async fn run_download_task(
     // other backend writes a whole-file stream, so route it through a sibling
     // staging file and promote only after the complete backend operation succeeds.
     let staged_download = !matches!(&*session, Session::Agent(_));
-    let working_path = if staged_download {
+    let byte_resume = supports_byte_resume(&session);
+    // Only verified-prefix resumable SFTP needs to retain a staging name
+    // across pauses. Whole-file adapters use a new exclusive file each retry.
+    let mut working_path = if staged_download {
         download_staging_path(&final_path, &id)
     } else {
         final_path.clone()
     };
     let res = loop {
-        let attempt =
-            dispatch_download(&mgr, &id, &session, &remote_path, &working_path, &app).await;
+        if staged_download && !byte_resume {
+            working_path = fresh_download_staging_path(&final_path, &id);
+        }
+        let attempt = dispatch_download(
+            &mgr,
+            &id,
+            &session,
+            &remote_path,
+            &working_path,
+            allow_replace,
+            &app,
+        )
+        .await;
+        if staged_download && !byte_resume && attempt.is_err() {
+            // A failed whole-file attempt has no verified resumable prefix.
+            // If exclusive creation itself failed we never owned this path:
+            // do not unlink a preexisting user file or planted symlink.
+            let not_owned = attempt
+                .as_ref()
+                .err()
+                .is_some_and(|error| error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
+            if !not_owned {
+                let _ = tokio::fs::remove_file(&working_path).await;
+            }
+        }
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
                 if !supports_byte_resume(&session) {
@@ -5086,7 +5268,13 @@ async fn run_download_task(
                     None => Err(anyhow::anyhow!("completed download record disappeared")),
                 };
                 match checked {
-                    Ok(()) => promote_staged_download(&working_path, &final_path, &id).await,
+                    Ok(()) => {
+                        if allow_replace {
+                            promote_staged_download(&working_path, &final_path, &id).await
+                        } else {
+                            promote_staged_download_noreplace(&working_path, &final_path).await
+                        }
+                    }
                     Err(error) => {
                         let _ = tokio::fs::remove_file(&working_path).await;
                         Err(error)
@@ -5179,6 +5367,7 @@ async fn dispatch_download(
     session: &Arc<Session>,
     remote_path: &str,
     final_path: &Path,
+    allow_replace: bool,
     app: &AppHandle,
 ) -> Result<()> {
     match &**session {
@@ -5232,8 +5421,22 @@ async fn dispatch_download(
         }
         Session::Agent(agent) => {
             debug_assert!(supports_delta(session));
-            mgr.run_agent_download_with_delta(id, agent.clone(), remote_path, final_path, app)
+            if allow_replace {
+                mgr.run_agent_download_with_delta(id, agent.clone(), remote_path, final_path, app)
+                    .await
+            } else {
+                // Agent delta mode reconstructs/updates an existing destination.
+                // For Skip/Rename use a staged full copy + atomic no-replace.
+                mgr.run_agent_full_download_staged(
+                    id,
+                    agent,
+                    remote_path,
+                    final_path,
+                    Some(app),
+                    false,
+                )
                 .await
+            }
         }
     }
 }
@@ -5429,6 +5632,67 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
     }
 
     #[test]
+    fn unexpected_partial_or_no_content_responses_never_commit_full_download() {
+        use reqwest::header::CONTENT_RANGE;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("4"));
+        assert_eq!(
+            declared_full_http_download_length(reqwest::StatusCode::OK, &headers).unwrap(),
+            Some(4)
+        );
+        for status in [
+            reqwest::StatusCode::PARTIAL_CONTENT,
+            reqwest::StatusCode::NO_CONTENT,
+            reqwest::StatusCode::RESET_CONTENT,
+            reqwest::StatusCode::NOT_MODIFIED,
+            reqwest::StatusCode::RANGE_NOT_SATISFIABLE,
+        ] {
+            assert!(declared_full_http_download_length(status, &headers).is_err());
+        }
+        headers.insert(CONTENT_RANGE, HeaderValue::from_static("bytes 0-3/100"));
+        assert!(declared_full_http_download_length(reqwest::StatusCode::OK, &headers).is_err());
+    }
+
+    #[test]
+    fn http_cloud_download_rejects_excess_before_disk_write_and_overflow() {
+        assert_eq!(checked_http_download_progress(Some(6), 0, 4).unwrap(), 4);
+        assert_eq!(checked_http_download_progress(Some(6), 4, 2).unwrap(), 6);
+        assert!(checked_http_download_progress(Some(6), 4, 3).is_err());
+        assert_eq!(checked_http_download_progress(None, 4, 3).unwrap(), 7);
+        assert!(checked_http_download_progress(None, u64::MAX, 1).is_err());
+        assert!(verify_plain_http_download_length(Some(6), 4, 4).is_err());
+        assert!(verify_plain_http_download_length(Some(6), 6, 5).is_err());
+    }
+
+    #[tokio::test]
+    async fn unsolicited_http_range_response_is_rejected_before_body_download() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let server = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind loopback HTTP fixture");
+        let url = format!("http://{}/download", server.local_addr().unwrap());
+        let accept = tokio::spawn(async move {
+            let (mut peer, _) = server.accept().await.expect("accept HTTP GET");
+            let mut request = [0u8; 2048];
+            let _ = peer.read(&mut request).await.expect("read HTTP GET");
+            peer.write_all(
+                b"HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-3/100\r\nContent-Length: 4\r\nConnection: close\r\n\r\ndata",
+            )
+            .await
+            .expect("return well-formed partial response");
+        });
+        let response = reqwest::Client::new()
+            .get(&url)
+            .send()
+            .await
+            .expect("make real loopback HTTP request");
+        assert!(declared_full_http_download_length(response.status(), response.headers()).is_err());
+        accept.await.expect("join HTTP fixture");
+    }
+
+    #[test]
     fn encoded_or_invalid_length_headers_are_not_trusted() {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
@@ -5517,6 +5781,82 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn whole_file_download_attempts_use_exclusive_non_clobbering_staging() {
+        use tokio::io::AsyncWriteExt;
+
+        let root = std::env::temp_dir().join(format!("ghostftp-exclusive-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let final_path = root.join("original.bin");
+        tokio::fs::write(&final_path, b"preserve destination")
+            .await
+            .unwrap();
+
+        let attempt_one = fresh_download_staging_path(&final_path, "transfer-1");
+        let attempt_two = fresh_download_staging_path(&final_path, "transfer-1");
+        assert_ne!(attempt_one, attempt_two);
+        assert_eq!(attempt_one.parent(), final_path.parent());
+        assert_eq!(attempt_two.parent(), final_path.parent());
+
+        let mut file = create_new_download_staging(&attempt_one).await.unwrap();
+        file.write_all(b"partial data").await.unwrap();
+        file.sync_all().await.unwrap();
+        drop(file);
+
+        let collision = create_new_download_staging(&attempt_one).await.unwrap_err();
+        assert!(
+            collision
+                .downcast_ref::<DownloadStagingOpenFailure>()
+                .is_some(),
+            "failed exclusive creation must be distinguishable from an owned partial transfer"
+        );
+        assert_eq!(
+            tokio::fs::read(&attempt_one).await.unwrap(),
+            b"partial data"
+        );
+
+        let mut replacement = create_new_download_staging(&attempt_two).await.unwrap();
+        replacement.write_all(b"complete data").await.unwrap();
+        replacement.sync_all().await.unwrap();
+        drop(replacement);
+        assert_eq!(
+            tokio::fs::read(&final_path).await.unwrap(),
+            b"preserve destination"
+        );
+        assert_eq!(
+            tokio::fs::read(&attempt_two).await.unwrap(),
+            b"complete data"
+        );
+
+        tokio::fs::remove_dir_all(&root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn download_staging_create_new_refuses_preplanted_symlink() {
+        let root = std::env::temp_dir().join(format!("ghostftp-stage-symlink-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let valuable = root.join("private.txt");
+        let staging = root.join("untrusted.part");
+        tokio::fs::write(&valuable, b"important contents")
+            .await
+            .unwrap();
+        std::os::unix::fs::symlink(&valuable, &staging).unwrap();
+
+        let error = create_new_download_staging(&staging).await.unwrap_err();
+        assert!(error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
+        assert_eq!(
+            tokio::fs::read(&valuable).await.unwrap(),
+            b"important contents"
+        );
+        assert!(tokio::fs::symlink_metadata(&staging)
+            .await
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        tokio::fs::remove_dir_all(&root).await.unwrap();
+    }
+
+    #[tokio::test]
     async fn every_protocol_download_staging_requires_exact_bytes_and_durable_file() {
         let dir = std::env::temp_dir().join(format!("ghostftp-verify-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&dir).await.unwrap();
@@ -5529,6 +5869,52 @@ mod tests {
         assert!(verify_staged_download_bytes(&file, 0).await.is_ok());
         tokio::fs::remove_file(&file).await.unwrap();
         tokio::fs::remove_dir_all(&dir).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn rename_or_skip_download_never_replaces_racing_destination() {
+        let root = std::env::temp_dir().join(format!("ghostftp-noreplace-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let destination = root.join("download.bin");
+        let staged = download_staging_path(&destination, "skip");
+        tokio::fs::write(&staged, b"downloaded").await.unwrap();
+
+        // Another transfer or local process creates the destination *after*
+        // Skip/Rename policy resolution but before this download commits.
+        tokio::fs::write(&destination, b"other process")
+            .await
+            .unwrap();
+        assert!(promote_staged_download_noreplace(&staged, &destination)
+            .await
+            .is_err());
+        assert_eq!(
+            tokio::fs::read(&destination).await.unwrap(),
+            b"other process"
+        );
+        assert_eq!(tokio::fs::read(&staged).await.unwrap(), b"downloaded");
+
+        tokio::fs::remove_file(&destination).await.unwrap();
+        promote_staged_download_noreplace(&staged, &destination)
+            .await
+            .unwrap();
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"downloaded");
+        assert!(tokio::fs::symlink_metadata(&staged).await.is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[test]
+    fn persisted_download_policy_defaults_to_no_replace_for_legacy_rows() {
+        let legacy = serde_json::json!({
+            "kind": "download",
+            "profile_id": "p",
+            "remote_path": "/remote/file",
+            "final_path": "/tmp/file"
+        });
+        let decoded: PersistedRetryInfo = serde_json::from_value(legacy).unwrap();
+        match decoded {
+            PersistedRetryInfo::Download { allow_replace, .. } => assert!(!allow_replace),
+            PersistedRetryInfo::Upload { .. } => panic!("wrong persisted retry variant"),
+        }
     }
 
     #[tokio::test]
@@ -5978,6 +6364,7 @@ mod tests {
                     profile_id: "profile-1".to_string(),
                     remote_path: "/srv/archive.bin".to_string(),
                     final_path: PathBuf::from("/tmp/archive.bin"),
+                    allow_replace: false,
                 },
             );
             mgr.insert(Transfer {
@@ -6062,6 +6449,7 @@ mod tests {
                     profile_id: "p".to_string(),
                     remote_path: format!("/remote/{index}"),
                     final_path: PathBuf::from(format!("/tmp/{index}")),
+                    allow_replace: false,
                 },
             );
             mgr.insert(Transfer {

@@ -1,8 +1,8 @@
 {
-  "version": "0.99.55",
-  "previousVersion": "0.99.54",
-  "build": "2026.11.12.08",
-  "releaseDate": "12 November 2026",
+  "version": "0.99.56",
+  "previousVersion": "0.99.55",
+  "build": "2026.11.13.01",
+  "releaseDate": "13 November 2026",
   "channel": "preview",
-  "previousPublishedVersion": "0.99.54"
+  "previousPublishedVersion": "0.99.55"
 }
