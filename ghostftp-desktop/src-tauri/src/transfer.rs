@@ -938,7 +938,13 @@ fn checked_remote_download_relative(root: &str, child: &str) -> Result<PathBuf> 
     let normalized_root = root.replace('\\', "/");
     let normalized_child = child.replace('\\', "/");
     let prefix = normalized_root.trim_end_matches('/');
-    anyhow::ensure!(!prefix.is_empty(), "download root is invalid");
+    // "/" is a valid remote directory root: the empty prefix still requires
+    // an absolute child path and every component is checked below. Reject
+    // empty and repeated-slash roots instead of disabling boundary checks.
+    anyhow::ensure!(
+        !prefix.is_empty() || normalized_root == "/",
+        "download root is invalid"
+    );
     let remainder = normalized_child
         .strip_prefix(prefix)
         .filter(|suffix| suffix.starts_with('/'))
@@ -6126,6 +6132,43 @@ mod tests {
             assert!(
                 checked_remote_download_relative(root, bad).is_err(),
                 "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn remote_root_directory_download_keeps_path_validation() {
+        assert_eq!(
+            checked_remote_download_relative("/", "/docs/report.txt").unwrap(),
+            PathBuf::from("docs").join("report.txt")
+        );
+        assert_eq!(
+            checked_remote_download_relative("/", "/file.txt").unwrap(),
+            PathBuf::from("file.txt")
+        );
+
+        // Root traversal, ambiguous separators and unsafe local names must
+        // still fail closed when the selected remote directory is "/".
+        for child in [
+            "/",
+            "file.txt",
+            "//etc/passwd",
+            "/../secret",
+            "/dir/../secret",
+            "/dir/./nested.txt",
+            "/dir//nested.txt",
+            "/dir\\secret.txt",
+            "/CON.txt",
+        ] {
+            assert!(
+                checked_remote_download_relative("/", child).is_err(),
+                "unsafe remote-root child accepted: {child:?}"
+            );
+        }
+        for root in ["", "//", "///"] {
+            assert!(
+                checked_remote_download_relative(root, "/file.txt").is_err(),
+                "invalid remote root accepted: {root:?}"
             );
         }
     }
