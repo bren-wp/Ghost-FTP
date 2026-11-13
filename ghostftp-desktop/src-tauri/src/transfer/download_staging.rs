@@ -235,13 +235,21 @@ pub(super) async fn commit_verified_delta_output(
             );
             tokio::fs::rename(staging, final_path)
                 .await
-                .with_context(|| format!("atomically replace verified delta target {}", final_path.display()))
+                .with_context(|| {
+                    format!(
+                        "atomically replace verified delta target {}",
+                        final_path.display()
+                    )
+                })
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             promote_staged_download_noreplace(staging, final_path).await
         }
         Err(error) => Err(error).with_context(|| {
-            format!("inspect delta download destination {}", final_path.display())
+            format!(
+                "inspect delta download destination {}",
+                final_path.display()
+            )
         }),
     }
 }
@@ -260,11 +268,9 @@ mod tests {
             .await
             .unwrap();
         tokio::fs::write(&staging, b"new").await.unwrap();
-        assert!(
-            commit_verified_delta_output(&staging, &final_path, 4)
-                .await
-                .is_err()
-        );
+        assert!(commit_verified_delta_output(&staging, &final_path, 4)
+            .await
+            .is_err());
         assert_eq!(
             tokio::fs::read(&final_path).await.unwrap(),
             b"original data"
