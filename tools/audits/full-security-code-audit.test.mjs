@@ -14,6 +14,19 @@ test("detects explicit TLS and SSH trust verification bypasses in shipping paths
   ];
   for(const [path,source,id] of cases)assert.equal(scanDangerous(path,source)[0]?.id,id);
 });
+test("scans shipped Agent daemon and shared wire protocol source", () => {
+  for (const path of [
+    "ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/delta.rs",
+    "ghostftp-desktop/src-tauri/ghostftp-agentd/src/ops.rs",
+  ]) {
+    assert.equal(
+      scanDangerous(path, "danger_accept_invalid_certs(true)")[0]?.id,
+      "tls-certificate-bypass",
+      path
+    );
+  }
+});
+
 test("never treats human documentation or test fixtures as shipped runtime",()=>{
   assert.deepEqual(scanDangerous("docs/audits/SECURITY.md","curl -k"),[]);
   assert.deepEqual(scanDangerous("ghostftp-desktop/src-tauri/tests/Mock.rs","StrictHostKeyChecking=no"),[]);
