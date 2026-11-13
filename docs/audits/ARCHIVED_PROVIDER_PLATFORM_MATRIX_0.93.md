@@ -1,4 +1,6 @@
-> Historical multi-platform provider matrix, preserved for provenance. Not current desktop coverage.\n\n# Cloud provider compatibility — 0.93.0 source candidate
+> Historical multi-platform provider matrix, preserved for provenance. Not current desktop coverage.
+
+# Cloud provider compatibility — 0.93.0 source candidate
 
 This inventory describes **interfaces present in source**, not successful live authentication against every vendor. **IMPLEMENTED** means adapter/workflow source exists; **PARTIAL** means a narrowly defined operation; **BLOCKED** means the integration is not available. **VERIFIED** must be supported by a named provider test and exact-commit evidence. No provider is designated VERIFIED solely from compilation.
 
