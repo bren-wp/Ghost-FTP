@@ -20,7 +20,7 @@ pub(super) fn fresh_download_staging_path(final_path: &Path, id: &str) -> PathBu
 /// pathname. Preserve the cause through protocol/reconnect error contexts so
 /// the runner never deletes a pre-existing user file/symlink on failure.
 #[derive(Debug)]
-pub(super) struct DownloadStagingOpenFailure(std::io::Error);
+pub(super) struct DownloadStagingOpenFailure(pub(super) std::io::Error);
 
 impl std::fmt::Display for DownloadStagingOpenFailure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
