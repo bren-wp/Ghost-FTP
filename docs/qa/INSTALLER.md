@@ -1,7 +1,8 @@
-# Ghost FTP Installer QA
+# Ghost FTP Installer QA — Windows/Linux
 
-The separate [four-product package matrix](../distribution/PLATFORM_PACKAGES.md) is authoritative for Ghost FTP Client, Ghost FTP Server, Ghost CLI and Ghost FTP Demo on Windows/Linux. All require actual build/install/uninstall and SHA-256 verification; Windows Server Setup does not automatically configure/start a daemon, and the Demo never performs real transfers.
+> **Active source:** Ghost FTP 0.99.59 Preview. **Previous canonical release:** v0.99.58. Supported platforms: Windows and Linux.
 
+The current distribution is the Windows/Linux **Ghost FTP desktop client** only. Historical standalone Server, CLI and Demo packages are retired; see the [current package matrix](../distribution/PLATFORM_PACKAGES.md). A build artifact is not considered a signed or independently verified production installer.
 ## Production packaging
 
 Windows production packaging is generated from the authoritative Ghost FTP desktop build and publishes:
