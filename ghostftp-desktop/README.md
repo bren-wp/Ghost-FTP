@@ -1,215 +1,38 @@
-> **Ghost FTP v0.99.56 Preview candidate. Previous public release: v0.99.55. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+# Ghost FTP for Windows & Linux
 
-<p align="center">
+**More Than Transfer. Total Control.** All your local and remote files in one focused desktop app.
 
-> Current development source: **0.99.30**; latest publicly published release: **0.99.29**. The desktop application remains on the shared Windows/Linux codebase.
-  <img src="branding/ghostftp-logo.svg" alt="Ghost FTP" width="520">
-</p>
+[**Download**](https://github.com/bren-wp/Ghost-FTP/releases) · [Features and real screenshots](../README.md) · [Installation help](../docs/guides/INSTALLATION.md)
 
-<h1 align="center">Ghost FTP Desktop</h1>
-<p align="center"><strong>More Than Transfer. Total Control.</strong></p>
+![Actual Ghost FTP Windows file manager](../docs/assets/screenshots/ghostftp-native-files.png)
 
-<p align="center">
-  <a href="../README.md">Product README</a> ·
-  <a href="https://ghostftp.com/hr/how-to-download">Documentation</a> ·
-  <a href="https://github.com/bren-wp/Ghost-FTP/releases">Releases</a>
-</p>
+<sub>Genuine earlier-version Windows application capture. [Original provenance](../docs/assets/screenshots/README-NATIVE-CAPTURE.json).</sub>
 
----
+## Choose your edition
 
-## Production application
-
-This directory contains the authoritative **Ghost FTP desktop application**.
-
-The release line opens as a real desktop window. It does not launch the production GUI through a localhost browser wrapper, and it must not expose a visible `127.0.0.1` address/origin bar.
-
-Current development line: **0.99.56**. Previous canonical release: **0.99.55**.
-
-## Platform deliverables
-
-| Platform | Deliverables |
+| Windows x64 | Linux x86_64 |
 | --- | --- |
-| Windows 10/11 x64 | portable `ghostftp.exe`, NSIS Setup EXE, MSI |
-| Linux x86-64 | native executable, AppImage, DEB, RPM |
+| Portable EXE · Setup EXE · MSI | AppImage · DEB · RPM · Native executable · TAR.GZ |
 
-MSI is part of the canonical Windows package set and is covered by install/uninstall smoke validation in the native build workflow.
+Connect using FTP, explicit FTPS or SFTP. Browse local and remote folders, organize Sites, manage transfer queues, synchronize and compare supported directories, and configure the workspace to suit your workflow. Cloud providers require compatible configuration and appropriate authorization.
 
-## Core capabilities
+**Ghost FTP 0.99.57 Preview** · previous published edition **v0.99.56**. The first Stable release follows verified package signatures and upgrade/install acceptance rather than a label change.
 
-- FTP, FTPS and SFTP workflows
-- dual-pane local/remote file management
-- Quick Connect and saved Site Manager profiles
-- transfer queues with progress, retry, pause/resume and cancellation
-- file operations, checksums and permissions where supported
-- SSH key and host-key verification paths
-- OS-protected credentials where supported
-- remote editing, synchronization, comparison and terminal tooling
-- signed desktop updater path
-- 14 advertised interface languages
-- no required analytics or telemetry
-- terminal suggestion history remains process-memory only and credential-looking commands are excluded
+## Build from source
 
-## Visual contract
-
-The repository keeps **actual native screenshots** under **[`../docs/assets/screenshots/`](../docs/assets/screenshots/)**. The Windows QA workflow refreshes them from the real executable; they are documentation evidence only and are never used as runtime screenshot backgrounds or click maps.
-
-<p align="center">
-  <a href="../docs/assets/screenshots/ghostftp-native-files.png"><img src="../docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP native Files workspace — release-proven build" width="100%"></a>
-</p>
-
-<p align="center">
-  <a href="../docs/assets/screenshots/ghostftp-native-sites.png"><img src="../docs/assets/screenshots/ghostftp-native-sites.png" alt="Ghost FTP native Sites workspace" width="49%"></a>
-  <a href="../docs/assets/screenshots/ghostftp-native-new-connection.png"><img src="../docs/assets/screenshots/ghostftp-native-new-connection.png" alt="Ghost FTP native New Connection" width="49%"></a>
-</p>
-
-<p align="center">
-  <a href="../docs/assets/screenshots/ghostftp-native-settings.png"><img src="../docs/assets/screenshots/ghostftp-native-settings.png" alt="Ghost FTP native Settings workspace" width="49%"></a>
-  <a href="../docs/assets/screenshots/ghostftp-native-transfers.png"><img src="../docs/assets/screenshots/ghostftp-native-transfers.png" alt="Ghost FTP native Transfers workspace" width="49%"></a>
-</p>
-
-<p align="center">
-  <a href="../docs/assets/screenshots/ghostftp-native-file-properties.png"><img src="../docs/assets/screenshots/ghostftp-native-file-properties.png" alt="Ghost FTP native File Properties" width="49%"></a>
-  <a href="../docs/assets/screenshots/ghostftp-native-about.png"><img src="../docs/assets/screenshots/ghostftp-native-about.png" alt="Ghost FTP native Help and About workspace" width="49%"></a>
-</p>
-
-<p align="center"><sub>All seven images are direct 1290×852 captures from the release-proven Windows QA build. Click any image for the original full-resolution PNG.</sub></p>
-
-The canonical desktop reference is **1290×852** and the production window minimum is **480×600**. Ghost FTP keeps one persistent native application window: Files, Sites, Transfers, Sync & Backup, Settings and Help & About switch inside the main workspace; New Connection and File Properties remain transient overlays inside that same window.
-
-Native Windows QA captures all seven critical surfaces at three viewport classes:
-
-| QA class | Viewport |
-| --- | ---: |
-| Canonical | 1290×852 |
-| Compact | up to 720×640 |
-| Near minimum | 500×620 |
-
-The QA workflow rejects blank/structureless frames, duplicate captures, unexpected window titles, invalid launch geometry and missing evidence. Smaller layouts use contained scrolling and icon compaction rather than removing primary actions.
-
-
-The canonical screenshots shown in the repository are generated from that native QA run and tracked as:
-
-- `ghostftp-native-files.png`
-- `ghostftp-native-sites.png`
-- `ghostftp-native-new-connection.png`
-- `ghostftp-native-settings.png`
-- `ghostftp-native-transfers.png`
-- `ghostftp-native-file-properties.png`
-- `ghostftp-native-about.png`
-
-They are direct captures of the running native application, not design mockups.
-
-### Ghost FTP palette
-
-```text
-Electric Blue  #38ABFF
-Deep Navy      #0B1E36
-Slate Blue     #132D52
-Ice White      #EAF6FF
-Success        #26DC8F
-Danger         #FF5A65
-```
-
-## Source layout
-
-```text
-ghostftp-desktop/
-├── branding/                 Ghost FTP SVG logo and symbol
-├── packages/file-ui/         shared file-browser UI package
-├── scripts/                  icon/build/verification utilities
-├── src/                      React application
-│   ├── components/           application surfaces and controls
-│   ├── lib/                  IPC, i18n, commands and helpers
-│   ├── stores/               application state
-│   └── styles.css            visual and responsive rules
-├── src-tauri/                internal native Rust/framework build area
-│   ├── ghostftp-agent-proto/
-│   └── ghostftp-agentd/
-└── web/                      static companion/loading surface
-```
-
-Native identifier: `com.ghostftp.desktop`  
-Deep-link scheme: `ghostftp://`  
-Local database namespace: `ghostftp.db`
-
-The `src-tauri/` and `tauri.conf.json` names remain because the framework/toolchain consumes them directly. They are implementation details rather than public Ghost FTP branding.
-
-## Development
-
-Requirements:
-
-- Node.js 22+
-- npm
-- stable Rust + Cargo
-- desktop framework platform prerequisites
-- Windows: WebView2 + Visual Studio native build tools
-- Linux: WebKitGTK 4.1 and packaging dependencies
-
-Install exact dependencies and validate the frontend:
+Dependencies: Node.js 22+, npm, Rust/Cargo and the Tauri platform prerequisites (Windows MSVC/WebView2 or Linux WebKitGTK 4.1).
 
 ```bash
 npm ci
 npm run check
 npm run build
-```
-
-Run development mode:
-
-```bash
-npm run tauri dev
-```
-
-Build the current platform:
-
-```bash
 npm run tauri build
 ```
 
-Windows packages:
+Build Windows packages: `npm run build:windows` · Linux packages: `npm run build:linux`.
 
-```powershell
-npm run build:windows
-```
+The canonical published packages are produced by GitHub Actions with platform smoke checks, security and source-quality regression tests, protocol testing and release checksum verification.
 
-Linux packages:
+[Security policy](../SECURITY.md) · [Development build guide](../docs/development/BUILDING.md) · [Stable acceptance](../docs/release/STABLE_RELEASE_POLICY.md)
 
-```bash
-npm run build:linux
-```
-
-GitHub Actions is the authoritative production build environment.
-
-## Quality gates
-
-The repository quality workflow verifies:
-
-- TypeScript typecheck and production frontend build
-- Rust formatting, workspace compilation and tests
-- Clippy with warnings denied
-- Go tests/vet for compatibility tooling
-- JavaScript syntax for companion surfaces
-- legacy/demo-branding rejection
-
-The native build workflow separately produces the Windows and Linux release artifacts. GitHub release publication is gated on successful build output and quality evidence.
-
-See:
-
-- [Build status](../docs/build/STATUS.md)
-- [Code audit](../docs/audits/CODE.md)
-- [Stable release acceptance](../docs/release/STABLE_RELEASE_POLICY.md)
-- [Responsive QA](../docs/qa/RESPONSIVE.md)
-- [Titlebar QA](../docs/qa/TITLEBAR.md)
-- [Transfer QA](../docs/qa/TRANSFERS.md)
-
-## Security and privacy
-
-Credentials and connection details remain under user control. Profiles use OS-protected credential facilities where supported, SSH host-key verification is explicit, and update packages follow the signed updater path. Sensitive secrets must never be written to logs.
-
-Read [SECURITY.md](../SECURITY.md), [Privacy](../docs/legal/PRIVACY.md) and [Update Policy](../docs/guides/UPDATES.md).
-
----
-
-<p align="center">
-  <img src="branding/ghostftp-symbol.svg" alt="Ghost FTP symbol" width="64"><br>
-  <strong>Ghost FTP — Files Move Forward.</strong>
-</p>
+**Ghost FTP by BRENDIGO** · https://brendigo.com
