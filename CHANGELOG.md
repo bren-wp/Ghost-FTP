@@ -1,5 +1,6 @@
 ## 0.99.62 Preview — 14 November 2026
 
+- Harden native Agent daemon delta accounting against integer overflow, reject symlink/non-file destinations and preserve unowned staging paths on failure.
 - Secure Agent delta reconstruction on both desktop and daemon: exclusively create output and preserve all pre-existing user files and symlinks, including on failed validation.
 - Verify the delta download's staged length and durability, then use the common rollback-safe and symlink-aware promotion mechanism instead of direct rename.
 - Refuse empty or oversized Agent delta chunks before writing beyond the requested byte range.
