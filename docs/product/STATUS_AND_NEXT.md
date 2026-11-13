@@ -159,4 +159,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.56. Previous canonical release: 0.99.55. The last published Preview is v0.99.52; see GitHub Releases and `docs/releases/0.99.52.md` for its acceptance limits.
+Current development line: 0.99.57. Previous canonical release: 0.99.56. The last published Preview is v0.99.52; see GitHub Releases and `docs/releases/0.99.52.md` for its acceptance limits.
