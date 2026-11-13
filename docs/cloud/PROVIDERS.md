@@ -1,6 +1,6 @@
 # Ghost FTP — Windows/Linux cloud provider inventory
 
-> **Active source:** Ghost FTP 0.99.60 Preview. **Previous canonical release:** v0.99.59. Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP 0.99.61 Preview. **Previous canonical release:** v0.99.60. Supported platforms: Windows and Linux.
 
 **SOURCE PRESENT** means implementation files exist; it is not live vendor certification. Features depend on account scopes and adapter capabilities. No provider receives a LIVE VERIFIED label without genuine authenticated end-to-end evidence.
 

@@ -1,3 +1,13 @@
+## 0.99.61 Preview — 13 November 2026
+
+- Extract remote-path validation, safe filename checks and recursive directory safety into `transfer/path_safety.rs` without changing public transfer APIs.
+- Fix a concurrent recursive-download directory creation race: accept an already-created directory only after checking it is a real directory, never a symlink.
+- Move Agent Bridge localhost HTTP request framing into `bridge/http_request.rs`; reject lossy UTF-8 decoding, malformed request lines, folded/invalid headers, and non-numeric Content-Length.
+- Limit concurrent Agent Bridge HTTP request handlers to 32 to bound slow-client resource consumption.
+- Add regression tests for concurrent directory creation, symlink rejection, HTTP framing and connection-capacity behavior.
+- Expand fail-closed static security contracts for the new modules and publish a scoped security/dead-code audit with unverified acceptance clearly marked.
+- Retain Preview-only release semantics, immutable published tags and all Windows/Linux protocol and native build gates.
+
 ## 0.99.60 Preview — 13 November 2026
 
 - Fix recursive folder downloads from remote filesystem root `/`: valid absolute descendants were previously rejected by normalized-prefix validation.
