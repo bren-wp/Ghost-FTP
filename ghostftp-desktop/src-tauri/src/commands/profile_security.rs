@@ -57,7 +57,9 @@ pub(super) fn protect_profile_secrets(
     Ok(changed)
 }
 
-pub(super) fn hydrate_profile_secrets(profile: &mut ConnectionProfile) -> Result<(), GhostFTPError> {
+pub(super) fn hydrate_profile_secrets(
+    profile: &mut ConnectionProfile,
+) -> Result<(), GhostFTPError> {
     let profile_id = profile.id.clone();
     match &mut profile.auth {
         AuthMethod::Password { password } if password.is_empty() => {
