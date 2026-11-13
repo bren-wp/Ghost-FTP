@@ -116,6 +116,11 @@ const REQUIRED = [
     "create_new(true)", "*output_created = true",
     "fn apply_delta_inner(",
   ]],
+  ["ghostftp-desktop/src-tauri/ghostftp-agentd/src/ops.rs", [
+    "fn promote_verified_agent_delta_output(", "symlink_metadata(temp)",
+    "existing.file_type().is_file()", "total.checked_add(bytes)",
+    "apply_delta cleans up only its own output",
+  ]],
   // The transfer path-safety domain was extracted from transfer.rs. Treat
   // removal of its fail-closed checks as a security regression, not dead code.
   ["ghostftp-desktop/src-tauri/src/transfer/path_safety.rs", [
