@@ -5544,6 +5544,12 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Inventory thresholds are only referenced by test cases. Keep their
+    // imports local so the production target passes -D unused-imports.
+    use super::path_safety::{
+        MAX_DIRECTORY_DOWNLOAD_DEPTH, MAX_DIRECTORY_DOWNLOAD_ENTRIES,
+        MAX_DIRECTORY_DOWNLOAD_PATH_BYTES,
+    };
 
     #[tokio::test]
     async fn spawn_registered_makes_handle_visible_before_worker_cleanup() {
