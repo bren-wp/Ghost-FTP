@@ -41,7 +41,10 @@ export const dangerousPatterns = [
 ];
 export function isRuntimeCode(file) {
   const production = [
-    "ghostftp-desktop/src-tauri/src/", "ghostftp-desktop/src/lib/",
+    "ghostftp-desktop/src-tauri/src/",
+    "ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/",
+    "ghostftp-desktop/src-tauri/ghostftp-agentd/src/",
+    "ghostftp-desktop/src/lib/",
     "ghostftp-desktop/src/components/", "ghostftp-desktop/src/stores/",
     "ghostftp-desktop/src/hooks/",
     "tools/ghostftp-runtime/", "tools/ghostftp-installer/"
