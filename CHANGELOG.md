@@ -2,7 +2,7 @@
 
 - Harden native Agent daemon delta accounting against integer overflow, reject symlink/non-file destinations and preserve unowned staging paths on failure.
 - Secure Agent delta reconstruction on both desktop and daemon: exclusively create output and preserve all pre-existing user files and symlinks, including on failed validation.
-- Verify the delta download's staged length and durability, then use the common rollback-safe and symlink-aware promotion mechanism instead of direct rename.
+- Verify reconstructed delta bytes and durability, then atomically replace an existing real-file destination or use atomic no-replace promotion for a missing destination. This avoids a missing-file window during updates while refusing existing symlinks.
 - Refuse empty or oversized Agent delta chunks before writing beyond the requested byte range.
 - Use exclusively created Agent patch files and remove only temporary files owned by the current operation after errors.
 - Extract download staging, local no-replace promotion, durability verification and backup handling to `transfer/download_staging.rs` for maintainability.
