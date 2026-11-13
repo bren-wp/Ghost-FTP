@@ -1,14 +1,14 @@
-> **Ghost FTP v0.99.57 Preview candidate. Previous public release: v0.99.56. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.58 Preview candidate. Previous public release: v0.99.57. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP — Project Status & Recommended Next Work
 
-Current development source: **0.99.4** (SQLite transactional synchronization safety); previous published release: **0.99.3**. Historical versioned notes below remain unchanged.
+Historical 0.99.4 development notes (following 0.99.3) are retained below for reference. Historical versioned notes below remain unchanged.
 
 > Older 0.94.0/0.93.0 status notes remain historical. Current source is **0.99.4**, latest public release **0.99.3**.
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.56**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.57**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -159,4 +159,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.57. Previous canonical release: 0.99.56. The last published Preview is v0.99.56; see GitHub Releases and `docs/releases/0.99.56.md` for its acceptance limits.
+Current development line: 0.99.58. Previous canonical release: 0.99.57. The last published Preview is v0.99.57; see GitHub Releases and `docs/releases/0.99.57.md` for its acceptance limits.
