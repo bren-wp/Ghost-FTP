@@ -751,6 +751,17 @@ async fn resolve_remote_rename(
     resolve_remote_rename_with_probe(path, |candidate| sftp.try_exists(candidate)).await
 }
 
+/// A malicious or faulty Agent must never send more delta patch bytes than
+/// the requested range, or silently end a nonempty range with zero bytes.
+fn checked_agent_delta_chunk_length(remaining: u64, next_bytes: usize) -> Result<u64> {
+    let count = u64::try_from(next_bytes).context("Agent delta chunk length overflow")?;
+    anyhow::ensure!(
+        count > 0 && count <= remaining,
+        "Agent delta chunk is empty or exceeds the requested range"
+    );
+    Ok(count)
+}
+
 impl TransferManager {
     pub fn new() -> Self {
         Self::from_db(None)
@@ -2429,10 +2440,13 @@ impl TransferManager {
         let local_dir = local_path.parent().unwrap_or(Path::new("."));
         let patch_path = local_dir.join(format!(".ghostftp-patch-{}", Uuid::new_v4()));
         let out_path = local_dir.join(format!(".ghostftp-delta-{}.tmp", Uuid::new_v4()));
+        // A path is ours only AFTER exclusive creation succeeded. Never clean
+        // up an unexpected pre-existing pathname, including a symlink.
+        let mut owns_patch = false;
+        let mut owns_delta_output = false;
         let result: Result<()> = async {
-            let mut patch_file = tokio::fs::File::create(&patch_path)
-                .await
-                .with_context(|| format!("create {}", patch_path.display()))?;
+            let mut patch_file = create_new_download_staging(&patch_path).await?;
+            owns_patch = true;
             let mut fetched: u64 = 0;
             let mut last_emit = Instant::now();
             for &(range_off, range_len) in &needed {
@@ -2457,13 +2471,13 @@ impl TransferManager {
                     let bytes = base64::engine::general_purpose::STANDARD
                         .decode(&data_b64)
                         .context("decode chunk")?;
-                    if bytes.is_empty() {
-                        anyhow::bail!("download {remote_path}: short read (file changed?)");
-                    }
-                    self.checkpoint(id, bytes.len() as u64).await?;
+                    let next_len = checked_agent_delta_chunk_length(range_len - got, bytes.len())?;
+                    self.checkpoint(id, next_len).await?;
                     patch_file.write_all(&bytes).await?;
-                    got += bytes.len() as u64;
-                    fetched += bytes.len() as u64;
+                    got += next_len;
+                    fetched = fetched
+                        .checked_add(next_len)
+                        .context("delta download fetched-byte counter overflow")?;
                     if last_emit.elapsed() > Duration::from_millis(100) {
                         self.update(id, |t| t.transferred = fetched).await;
                         if let Some(app) = app {
@@ -2501,6 +2515,7 @@ impl TransferManager {
             .await
             .map_err(|e| anyhow::anyhow!("apply delta task: {e}"))?
             .context("apply delta")?;
+            owns_delta_output = true;
             commit_verified_delta_output(&out_path, local_path, id, size)
                 .await
                 .with_context(|| {
@@ -2509,8 +2524,10 @@ impl TransferManager {
             Ok(())
         }
         .await;
-        let _ = tokio::fs::remove_file(&patch_path).await;
-        if result.is_err() {
+        if owns_patch {
+            let _ = tokio::fs::remove_file(&patch_path).await;
+        }
+        if result.is_err() && owns_delta_output {
             let _ = tokio::fs::remove_file(&out_path).await;
         }
         result?;
@@ -5353,6 +5370,16 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delta_patch_length_never_exceeds_requested_range() {
+        assert_eq!(checked_agent_delta_chunk_length(8, 8).unwrap(), 8);
+        assert_eq!(checked_agent_delta_chunk_length(8, 3).unwrap(), 3);
+        assert!(checked_agent_delta_chunk_length(8, 0).is_err());
+        assert!(checked_agent_delta_chunk_length(8, 9).is_err());
+        assert!(checked_agent_delta_chunk_length(0, 1).is_err());
+    }
+
     // Inventory thresholds are only referenced by test cases. Keep their
     // imports local so the production target passes -D unused-imports.
     use super::path_safety::{
