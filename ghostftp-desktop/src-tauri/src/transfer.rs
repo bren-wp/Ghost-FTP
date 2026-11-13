@@ -870,9 +870,6 @@ pub(crate) use path_safety::require_directory_upload_metadata;
 use path_safety::{
     checked_remote_download_relative, ensure_download_subdirectory, safe_local_download_leaf,
     safe_upload_name, validate_directory_download_budget, validate_directory_upload_budget,
-    MAX_DIRECTORY_DOWNLOAD_DEPTH, MAX_DIRECTORY_DOWNLOAD_ENTRIES,
-    MAX_DIRECTORY_DOWNLOAD_PATH_BYTES, MAX_DIRECTORY_UPLOAD_DEPTH, MAX_DIRECTORY_UPLOAD_ENTRIES,
-    MAX_DIRECTORY_UPLOAD_PATH_BYTES,
 };
 
 const MAX_RENAME_CANDIDATES: usize = 999;
