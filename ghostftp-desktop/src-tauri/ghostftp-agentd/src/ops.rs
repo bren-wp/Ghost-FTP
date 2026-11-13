@@ -400,7 +400,10 @@ async fn signature(path: &str) -> Response {
 /// directory. This also rejects a staged path replaced by a symlink.
 async fn promote_verified_agent_delta_output(temp: &Path, dest: &Path) -> anyhow::Result<u64> {
     let staged = tokio::fs::symlink_metadata(temp).await?;
-    anyhow::ensure!(staged.file_type().is_file(), "delta output is not a regular file");
+    anyhow::ensure!(
+        staged.file_type().is_file(),
+        "delta output is not a regular file"
+    );
     match tokio::fs::symlink_metadata(dest).await {
         Ok(existing) => anyhow::ensure!(
             existing.file_type().is_file(),
@@ -476,20 +479,16 @@ async fn delta_assemble(
             return Response::error(format!("delta assemble task: {e}"));
         }
     }
-    let bytes_written = match promote_verified_agent_delta_output(
-        Path::new(&temp),
-        Path::new(&dest),
-    )
-    .await
-    {
-        Ok(bytes) => bytes,
-        Err(error) => {
-            // apply_delta returned success, therefore this process created the
-            // staging file exclusively and may safely clean up its own output.
-            let _ = tokio::fs::remove_file(&temp).await;
-            return Response::error(format!("promote assembled delta {dest}: {error:#}"));
-        }
-    };
+    let bytes_written =
+        match promote_verified_agent_delta_output(Path::new(&temp), Path::new(&dest)).await {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                // apply_delta returned success, therefore this process created the
+                // staging file exclusively and may safely clean up its own output.
+                let _ = tokio::fs::remove_file(&temp).await;
+                return Response::error(format!("promote assembled delta {dest}: {error:#}"));
+            }
+        };
     let _ = tokio::fs::remove_file(&patch).await;
     Response::DeltaDone {
         bytes_reused,
@@ -627,8 +626,14 @@ mod tests {
             None,
             dir.path().join("patch.bin").to_string_lossy().into_owned(),
             vec![
-                RecipeOp::Copy { basis_offset: 0, len: u64::MAX },
-                RecipeOp::Copy { basis_offset: 0, len: 2 },
+                RecipeOp::Copy {
+                    basis_offset: 0,
+                    len: u64::MAX,
+                },
+                RecipeOp::Copy {
+                    basis_offset: 0,
+                    len: 2,
+                },
             ],
             dest.to_string_lossy().into_owned(),
             String::new(),

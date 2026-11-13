@@ -122,7 +122,11 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
     Ok(())
 }
 
-pub(super) async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) -> Result<()> {
+pub(super) async fn promote_staged_download(
+    staging: &Path,
+    final_path: &Path,
+    id: &str,
+) -> Result<()> {
     let backup = download_backup_path(final_path, id);
     let mut backup_created = false;
 
@@ -190,7 +194,10 @@ pub(super) async fn promote_staged_download(staging: &Path, final_path: &Path, i
 /// Finish a Skip/Rename download without racing another process or queued
 /// transfer which created the destination after the initial existence check.
 /// This is an atomic move-if-absent, not a check-then-rename sequence.
-pub(super) async fn promote_staged_download_noreplace(staging: &Path, final_path: &Path) -> Result<()> {
+pub(super) async fn promote_staged_download_noreplace(
+    staging: &Path,
+    final_path: &Path,
+) -> Result<()> {
     let metadata = tokio::fs::symlink_metadata(staging)
         .await
         .context("inspect non-overwrite staging file")?;
@@ -207,7 +214,6 @@ pub(super) async fn promote_staged_download_noreplace(staging: &Path, final_path
             )
         })
 }
-
 
 /// Delta downloads are hash-verified by the shared delta engine before this
 /// call. Also enforce the actual on-disk length and the same rollback-safe
@@ -228,19 +234,23 @@ mod tests {
 
     #[tokio::test]
     async fn delta_output_commit_requires_exact_staged_bytes() {
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-delta-safe-{}",
-            Uuid::new_v4()
-        ));
+        let root = std::env::temp_dir().join(format!("ghostftp-delta-safe-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let final_path = root.join("existing.bin");
         let staging = root.join("delta.part");
-        tokio::fs::write(&final_path, b"original data").await.unwrap();
-        tokio::fs::write(&staging, b"new").await.unwrap();
-        assert!(commit_verified_delta_output(&staging, &final_path, "delta", 4)
+        tokio::fs::write(&final_path, b"original data")
             .await
-            .is_err());
-        assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"original data");
+            .unwrap();
+        tokio::fs::write(&staging, b"new").await.unwrap();
+        assert!(
+            commit_verified_delta_output(&staging, &final_path, "delta", 4)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            tokio::fs::read(&final_path).await.unwrap(),
+            b"original data"
+        );
         commit_verified_delta_output(&staging, &final_path, "delta", 3)
             .await
             .unwrap();
@@ -253,21 +263,23 @@ mod tests {
     #[tokio::test]
     async fn delta_output_commit_rejects_symlink_destination() {
         use std::os::unix::fs::symlink;
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-delta-link-{}",
-            Uuid::new_v4()
-        ));
+        let root = std::env::temp_dir().join(format!("ghostftp-delta-link-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let protected = root.join("protected.bin");
         let target = root.join("target.bin");
         let staging = root.join("delta.part");
-        tokio::fs::write(&protected, b"not overwritten").await.unwrap();
+        tokio::fs::write(&protected, b"not overwritten")
+            .await
+            .unwrap();
         tokio::fs::write(&staging, b"new").await.unwrap();
         symlink(&protected, &target).unwrap();
         assert!(commit_verified_delta_output(&staging, &target, "delta", 3)
             .await
             .is_err());
-        assert_eq!(tokio::fs::read(&protected).await.unwrap(), b"not overwritten");
+        assert_eq!(
+            tokio::fs::read(&protected).await.unwrap(),
+            b"not overwritten"
+        );
         assert!(tokio::fs::symlink_metadata(&target)
             .await
             .unwrap()

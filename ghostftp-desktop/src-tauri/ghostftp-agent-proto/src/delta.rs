@@ -224,7 +224,14 @@ pub fn apply_delta(
     expected_hash: &str,
 ) -> Result<()> {
     let mut output_created = false;
-    let result = apply_delta_inner(basis, patch, recipe, out, expected_hash, &mut output_created);
+    let result = apply_delta_inner(
+        basis,
+        patch,
+        recipe,
+        out,
+        expected_hash,
+        &mut output_created,
+    );
     if result.is_err() && output_created {
         let _ = std::fs::remove_file(out);
     }
@@ -803,10 +810,7 @@ mod tests {
             &hash,
         );
         assert!(result.is_err());
-        assert_eq!(
-            std::fs::read(&output).unwrap(),
-            b"user's original contents"
-        );
+        assert_eq!(std::fs::read(&output).unwrap(), b"user's original contents");
         std::fs::remove_dir_all(dir).unwrap();
     }
 
@@ -834,7 +838,10 @@ mod tests {
             &encode_hash(&blake3::hash(b"new contents")),
         );
         assert!(result.is_err());
-        assert!(std::fs::symlink_metadata(&output).unwrap().file_type().is_symlink());
+        assert!(std::fs::symlink_metadata(&output)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         assert_eq!(std::fs::read(&valuable).unwrap(), b"keep me safe");
         std::fs::remove_dir_all(dir).unwrap();
     }

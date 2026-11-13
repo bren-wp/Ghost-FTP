@@ -662,15 +662,14 @@ fn verify_plain_http_download_length(
 }
 
 mod download_staging;
-use download_staging::{
-    commit_verified_delta_output, create_new_download_staging, download_staging_path,
-    fresh_download_staging_path, local_path_exists_fail_closed,
-    local_path_exists_sync_fail_closed, promote_staged_download,
-    promote_staged_download_noreplace, verify_staged_download_bytes,
-    DownloadStagingOpenFailure,
-};
 #[cfg(test)]
 use download_staging::download_backup_path;
+use download_staging::{
+    commit_verified_delta_output, create_new_download_staging, download_staging_path,
+    fresh_download_staging_path, local_path_exists_fail_closed, local_path_exists_sync_fail_closed,
+    promote_staged_download, promote_staged_download_noreplace, verify_staged_download_bytes,
+    DownloadStagingOpenFailure,
+};
 
 mod path_safety;
 pub(crate) use path_safety::require_directory_upload_metadata;
