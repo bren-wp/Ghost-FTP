@@ -1,3 +1,10 @@
+## 0.99.57 Preview — 13 November 2026
+
+- Rebuild the public README around clear product benefits, genuine Windows/Linux screenshots and all portable/installer formats.
+- Refresh desktop and installation documentation with SHA-256 checks, Linux runtime caveats and a straightforward package selector.
+- Reject mislabeled or truncated Windows PE executables, MSI, Linux x86_64 ELF/AppImage binaries, DEB, RPM, ZIP and gzip packages before publishing.
+- Add automated binary-format regression tests while preserving strict Preview/Stable signing and immutable release safeguards.
+
 ## 0.99.56 Preview — 13 November 2026
 
 - Fail closed when full-file HTTP/WebDAV/cloud GET downloads return unsolicited 206 Partial Content, 204 No Content or any status other than 200 OK; also reject unexpected Content-Range on 200.

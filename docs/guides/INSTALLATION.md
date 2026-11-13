@@ -1,68 +1,40 @@
-# Ghost FTP Installation
+# Install Ghost FTP
 
-GitHub Releases is the canonical source for published Ghost FTP binaries and checksums.
+Download from the [official Ghost FTP Releases index](https://github.com/bren-wp/Ghost-FTP/releases), choose an actually published version and download its matching `GhostFTP-v<VERSION>-SHA256SUMS.txt` manifest. **Current source: 0.99.57 Preview; previous published: v0.99.56.** A source version is not automatically available as a release.
 
-Use the [complete official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), not the GitHub `/releases/latest` shortcut (which may omit prereleases). Development source is **0.99.47 Preview**; [v0.99.46](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.46) is the last published predecessor. A development source version does not imply a downloadable artifact already exists.
+## Windows 10/11 — x64
 
-## Verify downloads
+| Download filename | Purpose |
+| --- | --- |
+| `GhostFTP-Windows-x64-Portable-v<VERSION>.exe` | Portable application without a guided installer |
+| `GhostFTP-Windows-x64-Setup-v<VERSION>.exe` | Normal installation with the branded Setup wizard |
+| `GhostFTP-Windows-x64-Setup-v<VERSION>.msi` | MSI installer for Windows deployment |
+| `GhostFTP-Windows-x64-v<VERSION>.zip` | Bundle containing the Windows distribution files |
 
-For a published version `<version>`, download `GhostFTP-v<version>-SHA256SUMS.txt` together with the required artifact and verify the checksum before installation.
+Choose either Setup EXE or MSI for a normal installation. On Windows, compare the downloaded file's SHA-256 against the matching line in the release manifest:
 
-Linux example:
-
-```bash
-sha256sum -c GhostFTP-v<version>-SHA256SUMS.txt
+```powershell
+Get-FileHash -Algorithm SHA256 -LiteralPath '.\GhostFTP-Windows-x64-Setup-v<VERSION>.exe'
 ```
 
-On Windows, use a SHA-256-capable verification tool and compare against the canonical checksum file.
+## Linux — x86_64 / amd64
 
-## Windows x64
+| Download filename | Intended use |
+| --- | --- |
+| `GhostFTP-Linux-x86_64-v<VERSION>.AppImage` | Portable desktop package on compatible Linux systems |
+| `GhostFTP-Linux-amd64-v<VERSION>.deb` | Debian/Ubuntu-based packages |
+| `GhostFTP-Linux-x86_64-v<VERSION>.rpm` | Compatible Fedora/openSUSE/RHEL-based packages |
+| `GhostFTP-Linux-x86_64-v<VERSION>` | Standalone native Linux executable |
+| `GhostFTP-Linux-x86_64-v<VERSION>.tar.gz` | Portable archive for manual extraction |
 
-Published Windows assets follow these names:
+Run `sha256sum DOWNLOADED_FILENAME` and compare with the checksum manifest for that version. If all manifest-listed files are in the same directory, you can also use `sha256sum -c GhostFTP-v<VERSION>-SHA256SUMS.txt`.
 
-- `GhostFTP-Windows-x64-Portable-v<version>.exe`
-- `GhostFTP-Windows-x64-Setup-v<version>.exe`
-- `GhostFTP-Windows-x64-v<version>.zip`
+Linux AppImage and native packages require compatible GTK/WebKitGTK 4.1, glibc and other system runtime components; AppImage compatibility is not universal. An unlocked Secret Service provider and `secret-tool` are required for protected Linux secret storage; there is no silent plaintext fallback. See the [Linux package matrix](../distribution/LINUX_PACKAGE_MATRIX.md).
 
-The Setup executable is the production **native Tauri NSIS package**. It is not the Go compatibility installer.
+## Updates and safety
 
-The portable executable runs without an installation workflow. The Setup executable installs the application using the native package configuration and should be used when normal installed-app integration is preferred.
+Finish transfers and make an encrypted backup of important profiles before upgrading. Close the application, install the new version under the same OS user and verify saved connections and files. Do not delete app-data directories when uninstalling.
 
-The interactive Setup is branded with Ghost FTP artwork and follows a guided Windows installer flow. Before installation it presents the Ghost FTP EULA from the repository root; installation must not continue interactively unless the user accepts the licence terms. The installer uses the Ghost FTP application icon, branded header/sidebar artwork, a Ghost FTP Start Menu folder, and automatically follows the supported Windows locale (English/Croatian installer resources are enabled).
+SHA-256 proves downloaded bytes match the release manifest, **not** that the publisher has digitally signed those bytes. Unsigned packages can trigger OS security prompts; do not disable operating-system protection globally. In-app automatic updates require separately authenticated updater signatures, while manual releases remain available in GitHub Releases.
 
-
-## Linux x86-64
-
-Published Linux assets follow these names:
-
-- `GhostFTP-Linux-x86_64-v<version>`
-- `GhostFTP-Linux-x86_64-v<version>.AppImage`
-- `GhostFTP-Linux-amd64-v<version>.deb`
-- `GhostFTP-Linux-x86_64-v<version>.rpm`
-- `GhostFTP-Linux-x86_64-v<version>.tar.gz`
-
-Use the package format appropriate to the target distribution/environment and verify its checksum before installation.
-
-## Building instead of installing
-
-Source-build instructions are maintained in [../development/BUILDING.md](../development/BUILDING.md).
-
-The authoritative source directories are:
-
-- desktop: `ghostftp-desktop/`
-
-Support/compatibility tooling under `tools/` must not be confused with the production desktop packages described above.
-
-
-## Unsigned Windows/Linux installation and manual upgrade
-
-The **Windows x64 Portable EXE, native NSIS Setup EXE and MSI**, plus **Linux x86_64 DEB, RPM, AppImage and standalone binary**, are genuine installable packages. A paid code-signing certificate is **not a technical prerequisite** to install them. They are not publisher-authenticated by Authenticode/GPG, so Windows SmartScreen or Linux package-manager reputation/source warnings may appear. **Do not disable your OS security protections globally.**
-
-1. Open the [official Releases index](https://github.com/bren-wp/Ghost-FTP/releases), choose the exact version, and download both your OS installer and `GhostFTP-v<VERSION>-SHA256SUMS.txt` from the **same release**. Never rely on search-engine mirrors or a generic "latest" shortcut.
-2. **Windows:** In PowerShell, run `Get-FileHash -Algorithm SHA256 -LiteralPath 'GhostFTP-Windows-x64-Setup-v<VERSION>.exe'`, then compare the hash against the matching filename's value in the downloaded checksum manifest. Select **one** installation format (Setup EXE or MSI); Portable EXE runs without installation.
-3. **Linux:** For Debian/Ubuntu-family x86_64 choose `.deb`, for compatible Fedora/openSUSE/RHEL-family systems `.rpm`, and for supported glibc desktop systems AppImage where its runtime requirements are available. Check the matching SHA-256 line before executing. The packaging format alone never proves compatibility with every distribution or Wayland/GTK version.
-4. **Before an upgrade:** finish or stop active transfers, create an encrypted Ghost FTP backup and store its recovery password separately, close the app, then install the newer package under the same OS user. Inspect saved profiles, OS keychain entries and your source/destination files after reopening. Do not uninstall by deleting application-data directories.
-5. **Linux credentials:** An unlocked Secret Service provider (GNOME Keyring, KWallet or compatible) and `secret-tool` must be available. Check the executable with `command -v secret-tool`. Ghost FTP deliberately does **not** fall back to plaintext password files if the vault cannot be used.
-6. **Updates in the app:** Help & About → Updates checks only **signed automatic updater packages**. If none are offered, click **Open official Windows / Linux downloads** to review manual packages. Lack of a signed offer is not proof that your current version is newest. Every manual update needs fresh checksum verification.
-
-**Scope of automated verification:** Windows NSIS/MSI installation/launch/removal and Linux DEB/AppImage GUI smoke plus RPM package verification, protocol E2E, frontend/Rust/security tests and real native screenshot QA. **Not yet certified:** all combinations of Windows builds, GNOME/KDE/Wayland sessions, Linux distributions, locked keyrings, long-running transfer interruption, and live upgrade/rollback on user hardware.
+[Release downloads](https://github.com/bren-wp/Ghost-FTP/releases) · [Uninstall](UNINSTALL.md) · [Updates](UPDATES.md) · [Support](SUPPORT.md)
