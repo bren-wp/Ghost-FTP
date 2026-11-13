@@ -277,6 +277,21 @@ mod tests {
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
+    #[tokio::test]
+    async fn delta_output_commit_creates_missing_destination_without_replace() {
+        let root = std::env::temp_dir().join(format!("ghostftp-delta-new-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let destination = root.join("new.bin");
+        let staged = root.join("staged.part");
+        tokio::fs::write(&staged, b"verified").await.unwrap();
+        commit_verified_delta_output(&staged, &destination, 8)
+            .await
+            .unwrap();
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"verified");
+        assert!(tokio::fs::symlink_metadata(&staged).await.is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn delta_output_commit_rejects_symlink_destination() {
