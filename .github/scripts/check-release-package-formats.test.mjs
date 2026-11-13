@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { formatForReleaseAsset, validatePackageHeader, validateZipFooter, verifyReleasePackageFormats } from "./check-release-package-formats.mjs";
+import { expectedReleaseAssets } from "./validate-release-assets.mjs";
 
 const version = "0.99.58";
 const pe = Buffer.alloc(512);
@@ -111,29 +112,39 @@ test("ZIP central-directory trailer rejects truncation, wrong offsets and traili
   assert.throws(() => validateZipFooter(misplaced, misplaced.length, "bad-directory.zip"));
 });
 
-test("release format preflight rejects swapped-in symlinks and corrupted ZIP directories", () => {
+test("on-disk preflight verifies the full required package inventory and refuses symlinks", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ghostftp-release-formats-"));
+  const { required, checksum } = expectedReleaseAssets(version);
+  const fixtures = {
+    "windows-pe64": pe,
+    "windows-pe": pe,
+    msi,
+    "linux-elf64": elf,
+    deb,
+    rpm,
+    zip: sampleZip(),
+    gzip: gz,
+  };
   try {
-    const formats = [
-      ["GhostFTP-Windows-x64-Portable-v0.99.58.exe", pe],
-      ["GhostFTP-Windows-x64-Setup-v0.99.58.exe", pe],
-      ["GhostFTP-Windows-x64-Setup-v0.99.58.msi", msi],
-      ["GhostFTP-Linux-x86_64-v0.99.58", elf],
-      ["GhostFTP-Linux-x86_64-v0.99.58.AppImage", elf],
-      ["GhostFTP-Linux-amd64-v0.99.58.deb", deb],
-      ["GhostFTP-Linux-x86_64-v0.99.58.rpm", rpm],
-    ];
-    // Test the real inventory in the integration job, and exercise the ZIP
-    // footer's on-disk cross-check here without mocking Node's filesystem.
-    const zip = sampleZip();
-    const target = path.join(tmp, "valid.zip");
-    fs.writeFileSync(target, zip);
-    assert.equal(validateZipFooter(fs.readFileSync(target), zip.length, "disk.zip").centralOffset, 34);
-    const link = path.join(tmp, "symlink.zip");
-    fs.symlinkSync(target, link);
-    assert.equal(fs.lstatSync(link).isSymbolicLink(), true);
-    assert.equal(formats.length, 7);
-    assert.equal(typeof verifyReleasePackageFormats, "function");
+    for (const name of required) {
+      if (name === checksum) continue;
+      const fmt = formatForReleaseAsset(name, version);
+      assert.ok(fixtures[fmt], "missing sample for " + fmt);
+      fs.writeFileSync(path.join(tmp, name), fixtures[fmt]);
+    }
+    assert.equal(verifyReleasePackageFormats(version, tmp), required.length - 1);
+    const zipName = required.find(name => name.endsWith(".zip"));
+    assert.ok(zipName);
+    const zipPath = path.join(tmp, zipName);
+    const validZip = fs.readFileSync(zipPath);
+    fs.writeFileSync(zipPath, validZip.subarray(0, -3));
+    assert.throws(() => verifyReleasePackageFormats(version, tmp), /ZIP/);
+    fs.writeFileSync(zipPath, validZip);
+    if (process.platform !== "win32") {
+      fs.rmSync(zipPath);
+      fs.symlinkSync(path.join(tmp, required.find(name => name.endsWith(".rpm"))), zipPath);
+      assert.throws(() => verifyReleasePackageFormats(version, tmp), /symlinked/);
+    }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
