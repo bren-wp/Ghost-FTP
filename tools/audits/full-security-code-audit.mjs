@@ -79,7 +79,7 @@ const REQUIRED = [
   ["ghostftp-desktop/src-tauri/src/transfer.rs", [
     "fn verify_committed_length(", "fn completed_transfer_size(",
     "verify_staged_download_bytes(&working_path, record.transferred)",
-    "commit_verified_delta_output(&out_path, local_path, id, size)",
+    "commit_verified_delta_output(&out_path, local_path, size)",
     "checked_agent_delta_chunk_length(range_len - got, bytes.len())",
     "fn safe_transfer_failure(", "t.error = Some(safe_transfer_failure(&e).to_string())",
     "old_diagnostic_rewritten", "INTERRUPTED_TRANSFER_MESSAGE",
@@ -111,6 +111,8 @@ const REQUIRED = [
     "fn create_new_download_staging(", "create_new(true)",
     "fn verify_staged_download_bytes(", "file.sync_all()",
     "fn promote_staged_download(", "fn commit_verified_delta_output(",
+    "tokio::fs::rename(staging, final_path)",
+    "promote_staged_download_noreplace(staging, final_path)",
     "move_local_noreplace(", "symlink_metadata(",
     "fn promote_staged_download_noreplace(",
   ]],

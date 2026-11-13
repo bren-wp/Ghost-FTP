@@ -2515,7 +2515,7 @@ impl TransferManager {
             .map_err(|e| anyhow::anyhow!("apply delta task: {e}"))?
             .context("apply delta")?;
             owns_delta_output = true;
-            commit_verified_delta_output(&out_path, local_path, id, size)
+            commit_verified_delta_output(&out_path, local_path, size)
                 .await
                 .with_context(|| {
                     format!("safely promote delta result to {}", local_path.display())

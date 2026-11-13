@@ -215,17 +215,35 @@ pub(super) async fn promote_staged_download_noreplace(
         })
 }
 
-/// Delta downloads are hash-verified by the shared delta engine before this
-/// call. Also enforce the actual on-disk length and the same rollback-safe
-/// non-symlink promotion used for full-file downloads.
+/// Delta downloads have already passed a whole-file BLAKE3 check.
+/// Verify actual staged bytes and durability before making the new version
+/// visible. Existing *regular* destinations are replaced by one filesystem
+/// rename, so a crash/concurrent reader never observes the missing-file gap
+/// inherent in move-to-backup followed by move-from-staging.
+/// For absent destinations use an atomic no-replace move to prevent races.
 pub(super) async fn commit_verified_delta_output(
     staging: &Path,
     final_path: &Path,
-    id: &str,
     expected_bytes: u64,
 ) -> Result<()> {
     verify_staged_download_bytes(staging, expected_bytes).await?;
-    promote_staged_download(staging, final_path, id).await
+    match tokio::fs::symlink_metadata(final_path).await {
+        Ok(metadata) => {
+            anyhow::ensure!(
+                metadata.file_type().is_file(),
+                "delta download destination must be a real file"
+            );
+            tokio::fs::rename(staging, final_path)
+                .await
+                .with_context(|| format!("atomically replace verified delta target {}", final_path.display()))
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            promote_staged_download_noreplace(staging, final_path).await
+        }
+        Err(error) => Err(error).with_context(|| {
+            format!("inspect delta download destination {}", final_path.display())
+        }),
+    }
 }
 
 #[cfg(test)]
@@ -243,7 +261,7 @@ mod tests {
             .unwrap();
         tokio::fs::write(&staging, b"new").await.unwrap();
         assert!(
-            commit_verified_delta_output(&staging, &final_path, "delta", 4)
+            commit_verified_delta_output(&staging, &final_path, 4)
                 .await
                 .is_err()
         );
@@ -251,7 +269,7 @@ mod tests {
             tokio::fs::read(&final_path).await.unwrap(),
             b"original data"
         );
-        commit_verified_delta_output(&staging, &final_path, "delta", 3)
+        commit_verified_delta_output(&staging, &final_path, 3)
             .await
             .unwrap();
         assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"new");
@@ -273,7 +291,7 @@ mod tests {
             .unwrap();
         tokio::fs::write(&staging, b"new").await.unwrap();
         symlink(&protected, &target).unwrap();
-        assert!(commit_verified_delta_output(&staging, &target, "delta", 3)
+        assert!(commit_verified_delta_output(&staging, &target, 3)
             .await
             .is_err());
         assert_eq!(
