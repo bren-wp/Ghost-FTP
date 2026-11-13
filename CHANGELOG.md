@@ -2,6 +2,7 @@
 
 - Extract remote-path validation, safe filename checks and recursive directory safety into `transfer/path_safety.rs` without changing public transfer APIs.
 - Fix a concurrent recursive-download directory creation race: accept an already-created directory only after checking it is a real directory, never a symlink.
+- Extract profile credential-vault access and durable metadata export from `commands.rs` into `commands/profile_security.rs`, retaining legacy vault key identity and existing IPC commands.
 - Move Agent Bridge localhost HTTP request framing into `bridge/http_request.rs`; reject lossy UTF-8 decoding, malformed request lines, folded/invalid headers, and non-numeric Content-Length.
 - Limit concurrent Agent Bridge HTTP request handlers to 32 to bound slow-client resource consumption.
 - Add regression tests for concurrent directory creation, symlink rejection, HTTP framing and connection-capacity behavior.

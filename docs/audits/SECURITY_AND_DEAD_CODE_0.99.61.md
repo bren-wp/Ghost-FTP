@@ -25,6 +25,8 @@
 
 The existing CI scripts `tools/audits/full-security-code-audit.mjs` and `tools/audits/full-dead-code-audit.mjs` inspect source trees and emit reports. They are **static heuristics**, not proof of exploit absence or safe deletion. This PR updates source-level security contracts and retains the tests; use exact-HEAD CI output as the authoritative scan result. **No functions or files have been deleted solely due to a static unused-code indication.**
 
+Prior `v0.99.60` successful full-dead-code CI reported **685 working-tree files** (117 TypeScript, 84 Rust, 13 Go, 74 operational scripts) with **zero unreferenced non-public function candidates** in its limited detector categories. This is historical baseline evidence, not a result for the current 0.99.61 head; unreferenced dynamically invoked APIs and platform-specific code may escape this heuristic. Credential-vault/export helpers have also been extracted into `commands/profile_security.rs`, with legacy key-identity tests. 
+
 Maintained large-file hotspots remain `transfer.rs`, `bridge.rs`, `commands.rs`, `i18n.ts`, `styles.css`. The first two have now begun conservative extraction by domain while preserving existing caller contracts. Next candidate boundaries: local staging/promotion, transfer retry scheduling, bridge route handlers, OAuth commands, locale catalogs and CSS component scopes — each should have characterization tests *before* extraction.
 
 ## Acceptance checklist (not yet evidence of passed tests)
