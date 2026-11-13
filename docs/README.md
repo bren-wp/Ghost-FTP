@@ -1,8 +1,8 @@
-> **Ghost FTP v0.99.57 Preview candidate. Previous public release: v0.99.56. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.58 Preview candidate. Previous public release: v0.99.57. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP documentation
 
-> Current development: **0.99.30 Preview** · latest verified public release: **v0.99.29**. The standalone Server, CLI and Demo have been retired from current builds. Documentation is deliberately restricted to supported client operations and essential verification records.
+> Historical 0.99.30 documentation snapshot (then following v0.99.29). The standalone Server, CLI and Demo have been retired from current builds. Documentation is deliberately restricted to supported client operations and essential verification records.
 
 ## Start here
 

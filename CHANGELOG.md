@@ -1,3 +1,11 @@
+## 0.99.58 Preview — 13 November 2026
+
+- Harden Windows PE executable preflight using architecture-consistent optional headers and complete section-table bounds.
+- Reject malformed Linux ELF executable metadata and incomplete program-header tables before publishing.
+- Verify ZIP end-of-central-directory records and real directory-entry signatures, rejecting truncated or misleading archives.
+- Open release artifacts with no-follow semantics on supported systems; compare the opened file identity and reject size/timestamp mutations during validation.
+- Expand on-disk package-format regression tests while preserving immutable Preview releases, full SHA-256 verification, real platform builds and existing Stable signing requirements.
+
 ## 0.99.57 Preview — 13 November 2026
 
 - Rebuild the public README around clear product benefits, genuine Windows/Linux screenshots and all portable/installer formats.
