@@ -25,11 +25,26 @@ const CHILD_POLL_INTERVAL: Duration = Duration::from_millis(20);
 // Refuse an unbounded amount of subprocess output.
 const MAX_HELPER_STDERR_BYTES: usize = 4096;
 
-fn read_bounded(pipe: impl Read, max_bytes: usize) -> Result<Vec<u8>> {
-    let mut output = Vec::new();
-    pipe.take((max_bytes + 1) as u64)
-        .read_to_end(&mut output)
-        .map_err(|_| anyhow!("Linux Secret Service output could not be read"))?;
+fn read_bounded(mut pipe: impl Read, max_bytes: usize) -> Result<Vec<u8>> {
+    // Cap retained bytes, NOT bytes consumed from the pipe. Stopping reads at
+    // max_bytes + 1 can close stdout while the helper is still writing, causing
+    // an otherwise successful helper to exit with SIGPIPE (intermittent CI
+    // failures). Continue draining into a fixed buffer until EOF, while saving
+    // only the first max_bytes + 1 bytes for the caller's overflow check.
+    let limit = max_bytes.saturating_add(1);
+    let mut output = Vec::with_capacity(limit.min(8192));
+    let mut buffer = [0u8; 8192];
+    loop {
+        match pipe.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(count) => {
+                let retain = (limit - output.len()).min(count);
+                output.extend_from_slice(&buffer[..retain]);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => return Err(anyhow!("Linux Secret Service output could not be read")),
+        }
+    }
     Ok(output)
 }
 
@@ -272,6 +287,24 @@ mod tests {
             wait_bounded(child, Duration::from_secs(2)).expect("drain a large credential response");
         assert!(output.status.success());
         assert_eq!(output.stdout.len(), MAX_SECRET_BYTES + 1);
+    }
+
+    #[test]
+    fn large_helper_output_is_fully_drained_while_memory_stays_bounded() {
+        // A producer must not see a prematurely closed stdout/stderr pipe,
+        // even after both credential-sized capture limits have been reached.
+        // This also confirms the discarded data never accumulates in memory.
+        let mut helper = Command::new("sh");
+        helper
+            .args(["-c", "head -c 1048576 /dev/zero; head -c 1048576 /dev/zero >&2"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child = helper.spawn().expect("launch large output fixture");
+        let output =
+            wait_bounded(child, Duration::from_secs(10)).expect("drain both output pipes");
+        assert!(output.status.success());
+        assert_eq!(output.stdout.len(), MAX_SECRET_BYTES + 1);
+        assert_eq!(output.stderr.len(), MAX_HELPER_STDERR_BYTES + 1);
     }
 
     #[test]
