@@ -6150,9 +6150,15 @@ mod tests {
         // Root traversal, ambiguous separators and unsafe local names must
         // still fail closed when the selected remote directory is "/".
         for child in [
-            "/", "file.txt", "//etc/passwd", "/../secret",
-            "/dir/../secret", "/dir/./nested.txt",
-            "/dir//nested.txt", "/dir\\secret.txt", "/CON.txt",
+            "/",
+            "file.txt",
+            "//etc/passwd",
+            "/../secret",
+            "/dir/../secret",
+            "/dir/./nested.txt",
+            "/dir//nested.txt",
+            "/dir\\secret.txt",
+            "/CON.txt",
         ] {
             assert!(
                 checked_remote_download_relative("/", child).is_err(),
