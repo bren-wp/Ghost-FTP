@@ -87,6 +87,12 @@ jobs:
             fi
           fi
 
+      - name: Enforce current Windows/Linux documentation
+        shell: bash
+        run: |
+          node --test .github/scripts/check-active-docs.test.mjs
+          node .github/scripts/check-active-docs.mjs
+
       - name: Documentation and release alignment
         shell: bash
         run: node .github/scripts/check-docs-alignment.mjs
