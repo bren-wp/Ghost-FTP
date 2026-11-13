@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.56 Preview development. Previous public release: v0.99.55. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
+> **Ghost FTP v0.99.57 Preview development. Previous public release: v0.99.56. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 **Current 0.99.31 audit:** [Cross-platform security and source-reachability assessment](REPOSITORY_AUDIT_0.99.31.md). This documents baseline counts, confirmed source changes, audit blind spots and device-level residual risks; it is not a penetration-test certification.
 
