@@ -1,3 +1,13 @@
+## 0.99.62 Preview — 14 November 2026
+
+- Secure Agent delta reconstruction on both desktop and daemon: exclusively create output and preserve all pre-existing user files and symlinks, including on failed validation.
+- Verify the delta download's staged length and durability, then use the common rollback-safe and symlink-aware promotion mechanism instead of direct rename.
+- Refuse empty or oversized Agent delta chunks before writing beyond the requested byte range.
+- Use exclusively created Agent patch files and remove only temporary files owned by the current operation after errors.
+- Extract download staging, local no-replace promotion, durability verification and backup handling to `transfer/download_staging.rs` for maintainability.
+- Add regression cases for colliding outputs, symlinks, incomplete staged delta data and invalid remote chunk lengths.
+- Strengthen cross-platform security scanning rules and retain all existing quality, protocol E2E and native build release gates.
+
 ## 0.99.61 Preview — 13 November 2026
 
 - Extract remote-path validation, safe filename checks and recursive directory safety into `transfer/path_safety.rs` without changing public transfer APIs.
