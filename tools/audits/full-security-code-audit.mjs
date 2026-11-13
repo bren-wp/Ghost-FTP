@@ -108,6 +108,13 @@ const REQUIRED = [
     "std::io::ErrorKind::AlreadyExists", "raced.file_type().is_dir()",
     "fn validate_directory_download_budget(", "fn validate_directory_upload_budget(",
   ]],
+  // Profile credentials may only be saved via the OS vault, never in the
+  // exported profiles.json metadata or a replaced/linked export target.
+  ["ghostftp-desktop/src-tauri/src/commands/profile_security.rs", [
+    "record_keychain(", "credentials::set_secret(", "password.clear()",
+    "credentials::get_secret(", "delete_secret_recorded(",
+    "create_new(true)", "symlink_metadata(destination)", "file.sync_all()",
+  ]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
   ["ghostftp-desktop/src-tauri/src/virtualfs/mod.rs", [
     "fn read_settings(", "std::io::ErrorKind::NotFound", "next_registration_journal(",
