@@ -296,12 +296,14 @@ mod tests {
         // This also confirms the discarded data never accumulates in memory.
         let mut helper = Command::new("sh");
         helper
-            .args(["-c", "head -c 1048576 /dev/zero; head -c 1048576 /dev/zero >&2"])
+            .args([
+                "-c",
+                "head -c 1048576 /dev/zero; head -c 1048576 /dev/zero >&2",
+            ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         let child = helper.spawn().expect("launch large output fixture");
-        let output =
-            wait_bounded(child, Duration::from_secs(10)).expect("drain both output pipes");
+        let output = wait_bounded(child, Duration::from_secs(10)).expect("drain both output pipes");
         assert!(output.status.success());
         assert_eq!(output.stdout.len(), MAX_SECRET_BYTES + 1);
         assert_eq!(output.stderr.len(), MAX_HELPER_STDERR_BYTES + 1);
