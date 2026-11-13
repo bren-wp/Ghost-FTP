@@ -100,6 +100,21 @@ const REQUIRED = [
     "Agent did not acknowledge an empty upload",
     "Session::Ssh(_) | Session::Agent(_)",
   ]],
+  // The transfer path-safety domain was extracted from transfer.rs. Treat
+  // removal of its fail-closed checks as a security regression, not dead code.
+  ["ghostftp-desktop/src-tauri/src/transfer/path_safety.rs", [
+    "fn checked_remote_download_relative(", "fn safe_local_download_leaf(",
+    "fn ensure_download_subdirectory(", "symlink_metadata(&current)",
+    "std::io::ErrorKind::AlreadyExists", "raced.file_type().is_dir()",
+    "fn validate_directory_download_budget(", "fn validate_directory_upload_budget(",
+  ]],
+  // Profile credentials may only be saved via the OS vault, never in the
+  // exported profiles.json metadata or a replaced/linked export target.
+  ["ghostftp-desktop/src-tauri/src/commands/profile_security.rs", [
+    "record_keychain(", "credentials::set_secret(", "password.clear()",
+    "credentials::get_secret(", "delete_secret_recorded(",
+    "create_new(true)", "symlink_metadata(destination)", "file.sync_all()",
+  ]],
   ["ghostftp-desktop/src-tauri/src/known_hosts.rs", ["inspect_known_hosts_for_replace", "ensure_unchanged_known_hosts", "O_NOFOLLOW"]],
   ["ghostftp-desktop/src-tauri/src/virtualfs/mod.rs", [
     "fn read_settings(", "std::io::ErrorKind::NotFound", "next_registration_journal(",
@@ -112,9 +127,14 @@ const REQUIRED = [
   [".github/workflows/ghostftp-preview-metadata.yml", ["workflow_run:", "Ghost FTP release", "contents: write"]],
   ["ghostftp-desktop/src-tauri/src/bridge.rs", [
     "HTTP_READ_TIMEOUT", "tokio::time::timeout(HTTP_READ_TIMEOUT",
+    "MAX_BRIDGE_CONNECTIONS", "try_acquire_owned()",
+    "if req.has_origin", "create_new(true)", ".mode(0o600)",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/bridge/http_request.rs", [
     "duplicate Content-Length", "Transfer-Encoding is not supported",
     "POST requires Content-Length", "truncated request body",
-    "if req.has_origin", "create_new(true)", ".mode(0o600)",
+    "invalid HTTP header encoding", "invalid HTTP request line",
+    "folded HTTP headers are not supported", "invalid HTTP header name",
   ]]
 ];
 /** Structured/high-value native platform privacy contracts. These checks

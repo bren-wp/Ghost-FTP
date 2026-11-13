@@ -865,182 +865,12 @@ async fn promote_staged_download_noreplace(staging: &Path, final_path: &Path) ->
         })
 }
 
-const MAX_DIRECTORY_UPLOAD_ENTRIES: usize = 100_000;
-const MAX_DIRECTORY_UPLOAD_DEPTH: usize = 64;
-const MAX_DIRECTORY_UPLOAD_PATH_BYTES: usize = 16 * 1024 * 1024;
-
-fn validate_directory_upload_budget(entries: usize, depth: usize, bytes: usize) -> Result<()> {
-    anyhow::ensure!(
-        entries <= MAX_DIRECTORY_UPLOAD_ENTRIES,
-        "directory upload entry limit exceeded"
-    );
-    anyhow::ensure!(
-        depth <= MAX_DIRECTORY_UPLOAD_DEPTH,
-        "directory upload depth limit exceeded"
-    );
-    anyhow::ensure!(
-        bytes <= MAX_DIRECTORY_UPLOAD_PATH_BYTES,
-        "directory upload path byte limit exceeded"
-    );
-    Ok(())
-}
-
-fn safe_upload_name(name: &str) -> bool {
-    !name.is_empty()
-        && !matches!(name, "." | "..")
-        && !name
-            .chars()
-            .any(|ch| matches!(ch, '/' | '\\' | '\0' | '\r' | '\n'))
-}
-
-/// Never materialize an untrusted remote leaf as a Windows device name,
-/// alternate data stream, path separator or control-character filename.
-/// Apply the same conservative policy on Linux for portable downloads.
-fn safe_local_download_leaf(name: &str) -> bool {
-    if !safe_upload_name(name)
-        || name.ends_with('.')
-        || name.ends_with(' ')
-        || name
-            .chars()
-            .any(|ch| ch.is_control() || matches!(ch, ':' | '*' | '?' | '"' | '<' | '>' | '|'))
-    {
-        return false;
-    }
-    let stem = name.split('.').next().unwrap_or("");
-    let upper = stem.to_ascii_uppercase();
-    if matches!(
-        upper.as_str(),
-        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
-    ) {
-        return false;
-    }
-    let mut chars = upper.chars();
-    let prefix = chars.by_ref().take(3).collect::<String>();
-    let suffix = chars.collect::<String>();
-    // Windows reserves COM1–COM9 and LPT1–LPT9, including superscript
-    // ¹/²/³ variants. Return the inverse directly; keep the same validation.
-    let reserved_serial_device = matches!(prefix.as_str(), "COM" | "LPT")
-        && suffix.chars().count() == 1
-        && suffix
-            .chars()
-            .next()
-            .is_some_and(|digit| matches!(digit, '1'..='9' | '¹' | '²' | '³'));
-    !reserved_serial_device
-}
-
-// Treat every server listing as untrusted. A sibling name, parent segment
-// or drive/ADS separator must never escape the user-selected download root.
-fn checked_remote_download_relative(root: &str, child: &str) -> Result<PathBuf> {
-    anyhow::ensure!(
-        root.contains('\\') || !child.contains('\\'),
-        "ambiguous server path separators are unsupported"
-    );
-    let normalized_root = root.replace('\\', "/");
-    let normalized_child = child.replace('\\', "/");
-    let prefix = normalized_root.trim_end_matches('/');
-    // "/" is a valid remote directory root: the empty prefix still requires
-    // an absolute child path and every component is checked below. Reject
-    // empty and repeated-slash roots instead of disabling boundary checks.
-    anyhow::ensure!(
-        !prefix.is_empty() || normalized_root == "/",
-        "download root is invalid"
-    );
-    let remainder = normalized_child
-        .strip_prefix(prefix)
-        .filter(|suffix| suffix.starts_with('/'))
-        .context("server returned a path outside the selected download directory")?;
-    let rel = remainder
-        .strip_prefix('/')
-        .context("invalid child path separator")?;
-    anyhow::ensure!(!rel.is_empty(), "server returned the root as a child file");
-    let mut relative = PathBuf::new();
-    for component in rel.split('/') {
-        anyhow::ensure!(
-            safe_local_download_leaf(component),
-            "server returned an unsafe download filename"
-        );
-        relative.push(component);
-    }
-    Ok(relative)
-}
-
-/// Refuse pre-existing symlinked directory components while preparing a
-/// download tree. Never let create_dir_all follow a local link into files
-/// outside the destination chosen by the user.
-async fn ensure_download_subdirectory(root: &Path, dir: &Path) -> Result<()> {
-    let rel = dir
-        .strip_prefix(root)
-        .context("download directory escaped the selected root")?;
-    let meta = tokio::fs::symlink_metadata(root)
-        .await
-        .context("inspect download root")?;
-    anyhow::ensure!(
-        meta.file_type().is_dir(),
-        "download destination root must be a real directory"
-    );
-    let mut current = root.to_path_buf();
-    for part in rel.components() {
-        anyhow::ensure!(
-            matches!(part, std::path::Component::Normal(_)),
-            "download destination contains a non-normal path component"
-        );
-        current.push(part.as_os_str());
-        match tokio::fs::symlink_metadata(&current).await {
-            Ok(meta) => {
-                anyhow::ensure!(
-                    meta.file_type().is_dir(),
-                    "download destination component is not a real directory"
-                );
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                tokio::fs::create_dir(&current)
-                    .await
-                    .with_context(|| format!("create download directory {}", current.display()))?;
-            }
-            Err(e) => {
-                return Err(e)
-                    .with_context(|| format!("inspect download directory {}", current.display()));
-            }
-        }
-    }
-    Ok(())
-}
-
-const MAX_DIRECTORY_DOWNLOAD_ENTRIES: usize = 100_000;
-const MAX_DIRECTORY_DOWNLOAD_DEPTH: usize = 64;
-const MAX_DIRECTORY_DOWNLOAD_PATH_BYTES: usize = 16 * 1024 * 1024;
-
-fn validate_directory_download_budget(
-    entries: usize,
-    depth: usize,
-    path_bytes: usize,
-) -> Result<()> {
-    anyhow::ensure!(
-        entries <= MAX_DIRECTORY_DOWNLOAD_ENTRIES,
-        "directory download entry budget exceeded"
-    );
-    anyhow::ensure!(
-        depth <= MAX_DIRECTORY_DOWNLOAD_DEPTH,
-        "directory download depth budget exceeded"
-    );
-    anyhow::ensure!(
-        path_bytes <= MAX_DIRECTORY_DOWNLOAD_PATH_BYTES,
-        "directory download path budget exceeded"
-    );
-    Ok(())
-}
-
-pub(crate) fn require_directory_upload_metadata(
-    path: &Path,
-    metadata: std::io::Result<std::fs::Metadata>,
-) -> Result<std::fs::Metadata> {
-    metadata.with_context(|| {
-        format!(
-            "stat directory upload entry {}; refusing to continue with an incomplete source tree",
-            path.display()
-        )
-    })
-}
+mod path_safety;
+pub(crate) use path_safety::require_directory_upload_metadata;
+use path_safety::{
+    checked_remote_download_relative, ensure_download_subdirectory, safe_local_download_leaf,
+    safe_upload_name, validate_directory_download_budget, validate_directory_upload_budget,
+};
 
 const MAX_RENAME_CANDIDATES: usize = 999;
 
@@ -5714,6 +5544,12 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Inventory thresholds are only referenced by test cases. Keep their
+    // imports local so the production target passes -D unused-imports.
+    use super::path_safety::{
+        MAX_DIRECTORY_DOWNLOAD_DEPTH, MAX_DIRECTORY_DOWNLOAD_ENTRIES,
+        MAX_DIRECTORY_DOWNLOAD_PATH_BYTES,
+    };
 
     #[tokio::test]
     async fn spawn_registered_makes_handle_visible_before_worker_cleanup() {
