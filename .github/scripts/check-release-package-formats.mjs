@@ -16,8 +16,9 @@ const magic = (hex) => Buffer.from(hex.replaceAll(" ", ""), "hex");
 export function formatForReleaseAsset(name, version) {
   if (!VERSION.test(version)) throw new Error("Invalid Ghost FTP release version");
   const exact = (template) => template.replaceAll("{version}", version) === name;
-  if (exact("GhostFTP-Windows-x64-Portable-v{version}.exe") ||
-      exact("GhostFTP-Windows-x64-Setup-v{version}.exe")) return "windows-pe64";
+  if (exact("GhostFTP-Windows-x64-Portable-v{version}.exe")) return "windows-pe64";
+  // NSIS Setup can legitimately be an x86 bootstrapper for an x64 app.
+  if (exact("GhostFTP-Windows-x64-Setup-v{version}.exe")) return "windows-pe";
   if (exact("GhostFTP-Windows-x64-Setup-v{version}.msi")) return "msi";
   if (exact("GhostFTP-Linux-x86_64-v{version}") ||
       exact("GhostFTP-Linux-x86_64-v{version}.AppImage")) return "linux-elf64";
@@ -33,12 +34,15 @@ export function validatePackageHeader(bytes, format, filename) {
   const fail = (message) => { throw new Error(filename + ": " + message); };
   if (!Buffer.isBuffer(bytes) || bytes.length < 16) fail("missing or truncated binary header");
   switch (format) {
+    case "windows-pe":
     case "windows-pe64": {
       if (!begins(bytes, magic("4d 5a")) || bytes.length < 0x40) fail("not a Windows PE executable");
       const offset = bytes.readUInt32LE(0x3c);
       if (offset < 0x40 || offset + 6 > bytes.length) fail("invalid PE header offset");
       if (!bytes.subarray(offset, offset + 4).equals(magic("50 45 00 00"))) fail("missing PE signature");
-      if (bytes.readUInt16LE(offset + 4) !== 0x8664) fail("not a Windows x64 executable");
+      const machine = bytes.readUInt16LE(offset + 4);
+      if (machine !== 0x014c && machine !== 0x8664) fail("unsupported Windows PE machine type");
+      if (format === "windows-pe64" && machine !== 0x8664) fail("not a Windows x64 executable");
       return;
     }
     case "msi":

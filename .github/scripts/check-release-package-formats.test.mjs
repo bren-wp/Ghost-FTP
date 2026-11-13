@@ -21,7 +21,7 @@ const gz = Buffer.concat([Buffer.from("1f8b08", "hex"), Buffer.alloc(64)]);
 test("release filename contract maps to real package formats", () => {
   for (const [name, fmt] of [
     ["GhostFTP-Windows-x64-Portable-v0.99.57.exe", "windows-pe64"],
-    ["GhostFTP-Windows-x64-Setup-v0.99.57.exe", "windows-pe64"],
+    ["GhostFTP-Windows-x64-Setup-v0.99.57.exe", "windows-pe"],
     ["GhostFTP-Windows-x64-Setup-v0.99.57.msi", "msi"],
     ["GhostFTP-Linux-x86_64-v0.99.57", "linux-elf64"],
     ["GhostFTP-Linux-x86_64-v0.99.57.AppImage", "linux-elf64"],
@@ -35,7 +35,7 @@ test("release filename contract maps to real package formats", () => {
 });
 
 test("native format headers are validated and cross-format substitutions rejected", () => {
-  for (const [bytes, fmt] of [[pe, "windows-pe64"], [elf, "linux-elf64"],
+  for (const [bytes, fmt] of [[pe, "windows-pe64"], [pe, "windows-pe"], [elf, "linux-elf64"],
     [msi, "msi"], [deb, "deb"], [rpm, "rpm"], [zip, "zip"], [gz, "gzip"]]) {
     assert.doesNotThrow(() => validatePackageHeader(bytes, fmt, "valid"));
     assert.throws(() => validatePackageHeader(Buffer.alloc(128), fmt, "wrong"));
@@ -44,7 +44,8 @@ test("native format headers are validated and cross-format substitutions rejecte
   assert.throws(() => validatePackageHeader(pe, "linux-elf64", "fake.AppImage"));
   const x86 = Buffer.from(pe);
   x86.writeUInt16LE(0x014c, 132);
-  assert.throws(() => validatePackageHeader(x86, "windows-pe64", "x86.exe"));
+  assert.throws(() => validatePackageHeader(x86, "windows-pe64", "x86-portable.exe"));
+  assert.doesNotThrow(() => validatePackageHeader(x86, "windows-pe", "x86-nsis-setup.exe"));
   const arm = Buffer.from(elf);
   arm.writeUInt16LE(0xb7, 18);
   assert.throws(() => validatePackageHeader(arm, "linux-elf64", "arm.AppImage"));
