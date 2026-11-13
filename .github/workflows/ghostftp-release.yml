@@ -297,6 +297,12 @@ jobs:
           unzip -p "dist/GhostFTP-v$VERSION-Update-Service.zip" updates/latest.json             > "$RUNNER_TEMP/ghostftp-latest-from-package.json"
           cmp "$RUNNER_TEMP/ghostftp-latest-from-package.json"             "dist/GhostFTP-v$VERSION-latest.json"
 
+      - name: Verify native packages match their advertised Windows/Linux formats
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .github/scripts/check-release-package-formats.mjs "$VERSION" dist
+
       - name: Generate SHA-256 checksums
         shell: bash
         run: |
