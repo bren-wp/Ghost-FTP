@@ -2694,9 +2694,15 @@ impl TransferManager {
             .await
             .map_err(|e| anyhow::anyhow!("apply delta task: {e}"))?
             .context("apply delta")?;
-            tokio::fs::rename(&out_path, local_path)
+            // The delta library already verified the whole-file BLAKE3.
+            // Apply the same durable staging-byte and no-follow/rollback
+            // promotion contract as every other download backend.
+            verify_staged_download_bytes(&out_path, size).await?;
+            promote_staged_download(&out_path, local_path, id)
                 .await
-                .with_context(|| format!("rename delta result over {}", local_path.display()))?;
+                .with_context(|| {
+                    format!("safely promote delta result to {}", local_path.display())
+                })?;
             Ok(())
         }
         .await;

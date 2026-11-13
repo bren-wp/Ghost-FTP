@@ -13,7 +13,7 @@
 //! whole-file copy; delta never changes *whether* bytes move, only *how*.
 
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
@@ -213,8 +213,9 @@ pub fn plan_delta(
 /// fsync it, then verify the whole-file BLAKE3 against `expected_hash`.
 /// Every op is range-validated against the actual file lengths BEFORE any byte
 /// is written — a hostile or corrupt recipe must error, never panic or read
-/// out of bounds. On any error (including hash mismatch) the partial `out`
-/// file is deleted.
+/// out of bounds. An output path must be absent: never follow or truncate
+/// an existing file or symlink. On failure delete ONLY an output created by
+/// this invocation, preserving preexisting user data.
 pub fn apply_delta(
     basis: Option<&Path>,
     patch: &Path,
@@ -222,8 +223,9 @@ pub fn apply_delta(
     out: &Path,
     expected_hash: &str,
 ) -> Result<()> {
-    let result = apply_delta_inner(basis, patch, recipe, out, expected_hash);
-    if result.is_err() {
+    let mut output_created = false;
+    let result = apply_delta_inner(basis, patch, recipe, out, expected_hash, &mut output_created);
+    if result.is_err() && output_created {
         let _ = std::fs::remove_file(out);
     }
     result
@@ -235,6 +237,7 @@ fn apply_delta_inner(
     recipe: &[RecipeOp],
     out: &Path,
     expected_hash: &str,
+    output_created: &mut bool,
 ) -> Result<()> {
     let basis_len = match basis {
         Some(p) => Some(
@@ -280,7 +283,14 @@ fn apply_delta_inner(
     };
     let mut patch_file =
         File::open(patch).with_context(|| format!("open patch {}", patch.display()))?;
-    let out_file = File::create(out).with_context(|| format!("create {}", out.display()))?;
+    // CREATE_NEW provides the same exclusive-open contract as regular download
+    // staging; never follow a planted symlink or truncate another process's file.
+    let out_file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(out)
+        .with_context(|| format!("exclusively create delta output {}", out.display()))?;
+    *output_created = true;
     let mut out_writer = BufWriter::with_capacity(IO_BUF, out_file);
     let mut buf = vec![0u8; IO_BUF];
     for op in recipe {
@@ -770,6 +780,63 @@ mod tests {
         assert!(!out_p.exists());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn apply_delta_preserves_preexisting_output_and_never_truncates_it() {
+        let dir = temp_dir();
+        let basis = dir.join("basis.bin");
+        let patch = dir.join("patch.bin");
+        let output = dir.join("existing.bin");
+        std::fs::write(&basis, b"new contents").unwrap();
+        std::fs::write(&patch, b"").unwrap();
+        std::fs::write(&output, b"user's original contents").unwrap();
+        let hash = encode_hash(&blake3::hash(b"new contents"));
+        let result = apply_delta(
+            Some(&basis),
+            &patch,
+            &[RecipeOp::Copy {
+                basis_offset: 0,
+                len: 12,
+            }],
+            &output,
+            &hash,
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            std::fs::read(&output).unwrap(),
+            b"user's original contents"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn apply_delta_refuses_existing_symlink_without_deleting_it() {
+        use std::os::unix::fs::symlink;
+        let dir = temp_dir();
+        let basis = dir.join("basis.bin");
+        let patch = dir.join("patch.bin");
+        let valuable = dir.join("valuable.bin");
+        let output = dir.join("preplanted-link.bin");
+        std::fs::write(&basis, b"new contents").unwrap();
+        std::fs::write(&patch, b"").unwrap();
+        std::fs::write(&valuable, b"keep me safe").unwrap();
+        symlink(&valuable, &output).unwrap();
+        let result = apply_delta(
+            Some(&basis),
+            &patch,
+            &[RecipeOp::Copy {
+                basis_offset: 0,
+                len: 12,
+            }],
+            &output,
+            &encode_hash(&blake3::hash(b"new contents")),
+        );
+        assert!(result.is_err());
+        assert!(std::fs::symlink_metadata(&output).unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read(&valuable).unwrap(), b"keep me safe");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
