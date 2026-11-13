@@ -39,9 +39,9 @@ test("README links to all public Previews, never stable-only /releases/latest",(
   assert.ok(readme.includes("[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases)"));
   assert.ok(!readme.includes("releases/latest"));
   const version=JSON.parse(read("version.json"));
-  assert.ok(readme.includes("Ghost FTP "+version.version+" (development Preview)"));
+  assert.ok(readme.includes("Ghost FTP "+version.version+" Preview"));
   assert.equal(version.previousPublishedVersion,version.previousVersion);
-  assert.ok(readme.includes("Previously published: v"+version.previousPublishedVersion));
+  assert.ok(readme.includes("previously published v"+version.previousPublishedVersion));
 });
 
 test("published Preview metadata can be healed after late release.edited without bypassing strict gates",()=>{

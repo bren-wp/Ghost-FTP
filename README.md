@@ -12,7 +12,7 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 **Windows 10/11 x64 · Linux x86_64 · Portable and installable**
 
-[**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore features](#built-for-the-way-you-work) · [See the app](#ghost-ftp-in-action) · [Installation](docs/guides/INSTALLATION.md)
+[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore features](#built-for-the-way-you-work) · [See the app](#ghost-ftp-in-action) · [Installation](docs/guides/INSTALLATION.md)
 
 </div>
 
