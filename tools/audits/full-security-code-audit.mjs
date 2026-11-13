@@ -112,6 +112,7 @@ const REQUIRED = [
   [".github/workflows/ghostftp-preview-metadata.yml", ["workflow_run:", "Ghost FTP release", "contents: write"]],
   ["ghostftp-desktop/src-tauri/src/bridge.rs", [
     "HTTP_READ_TIMEOUT", "tokio::time::timeout(HTTP_READ_TIMEOUT",
+    "MAX_BRIDGE_CONNECTIONS", "try_acquire_owned()",
     "if req.has_origin", "create_new(true)", ".mode(0o600)",
   ]],
   ["ghostftp-desktop/src-tauri/src/bridge/http_request.rs", [

@@ -32,7 +32,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{oneshot, Mutex, Semaphore};
 use uuid::Uuid;
 
 use crate::session::{ExecStream, Session};
@@ -44,6 +44,9 @@ const MAX_ACTIVITY: usize = 200;
 const MAX_BODY: usize = 1024 * 1024; // 1 MiB request bodies
 const MAX_HEADERS: usize = 64 * 1024;
 const HTTP_READ_TIMEOUT: Duration = Duration::from_secs(15);
+// The Agent Bridge is local but untrusted clients can still exhaust tasks
+// and memory with stalled connections. Acquire before spawning a handler.
+const MAX_BRIDGE_CONNECTIONS: usize = 32;
 const MAX_READ_FILE: usize = 256 * 1024; // cap ghostftp_read_file output at 256 KiB
 const MAX_EXEC_BYTES: usize = 512 * 1024; // cap exec output at 512 KiB
 const EXEC_TIMEOUT: Duration = Duration::from_secs(60); // default; kill a hung/streaming command
@@ -1028,15 +1031,23 @@ async fn serve(
     token: String,
     mut shutdown: oneshot::Receiver<()>,
 ) {
+    let connection_slots = Arc::new(Semaphore::new(MAX_BRIDGE_CONNECTIONS));
     loop {
         tokio::select! {
             _ = &mut shutdown => break,
             accepted = listener.accept() => {
                 let Ok((stream, _peer)) = accepted else { continue };
+                let Ok(permit) = connection_slots.clone().try_acquire_owned() else {
+                    // The listener stays responsive without spawning an
+                    // unlimited collection of 15-second slow-client tasks.
+                    drop(stream);
+                    continue;
+                };
                 let app = app.clone();
                 let state = state.clone();
                 let token = token.clone();
                 tokio::spawn(async move {
+                    let _connection_permit = permit;
                     let _ = handle_conn(app, state, stream, token).await;
                 });
             }
@@ -6852,6 +6863,21 @@ mod tests {
         client.write_all(wire).await?;
         client.shutdown().await?;
         read_request(&mut server).await
+    }
+
+    #[tokio::test]
+    async fn bridge_connection_gate_bounds_slow_clients() {
+        let slots = Arc::new(Semaphore::new(MAX_BRIDGE_CONNECTIONS));
+        let mut permits = Vec::new();
+        for _ in 0..MAX_BRIDGE_CONNECTIONS {
+            permits.push(slots.clone().try_acquire_owned().unwrap());
+        }
+        assert!(
+            slots.clone().try_acquire_owned().is_err(),
+            "a 33rd slow client must not create another request handler"
+        );
+        drop(permits);
+        assert!(slots.try_acquire_owned().is_ok());
     }
 
     #[tokio::test]
