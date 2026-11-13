@@ -6907,11 +6907,11 @@ mod tests {
         ] {
             assert!(parse_wire_request(raw.as_bytes()).await.is_err(), "{raw}");
         }
-        assert!(
-            parse_wire_request(b"POST /exec HTTP/1.1\r\nContent-Length: 0\r\nX-Bad: \xff\r\n\r\n")
-                .await
-                .is_err()
-        );
+        assert!(parse_wire_request(
+            b"POST /exec HTTP/1.1\r\nContent-Length: 0\r\nX-Bad: \xff\r\n\r\n"
+        )
+        .await
+        .is_err());
     }
 
     #[tokio::test]

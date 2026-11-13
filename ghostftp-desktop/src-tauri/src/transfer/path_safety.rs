@@ -7,7 +7,11 @@ pub(super) const MAX_DIRECTORY_UPLOAD_ENTRIES: usize = 100_000;
 pub(super) const MAX_DIRECTORY_UPLOAD_DEPTH: usize = 64;
 pub(super) const MAX_DIRECTORY_UPLOAD_PATH_BYTES: usize = 16 * 1024 * 1024;
 
-pub(super) fn validate_directory_upload_budget(entries: usize, depth: usize, bytes: usize) -> Result<()> {
+pub(super) fn validate_directory_upload_budget(
+    entries: usize,
+    depth: usize,
+    bytes: usize,
+) -> Result<()> {
     anyhow::ensure!(
         entries <= MAX_DIRECTORY_UPLOAD_ENTRIES,
         "directory upload entry limit exceeded"
@@ -137,9 +141,12 @@ pub(super) async fn ensure_download_subdirectory(root: &Path, dir: &Path) -> Res
                     // Accept the second creation only after verifying the winner
                     // made a real directory, never a link or a regular file.
                     Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                        let raced = tokio::fs::symlink_metadata(&current)
-                            .await
-                            .with_context(|| format!("recheck raced directory {}", current.display()))?;
+                        let raced =
+                            tokio::fs::symlink_metadata(&current)
+                                .await
+                                .with_context(|| {
+                                    format!("recheck raced directory {}", current.display())
+                                })?;
                         anyhow::ensure!(
                             raced.file_type().is_dir(),
                             "download destination component is not a real directory"
@@ -220,13 +227,11 @@ mod tests {
         for task in tasks {
             task.await.unwrap().unwrap();
         }
-        assert!(
-            tokio::fs::symlink_metadata(&target)
-                .await
-                .unwrap()
-                .file_type()
-                .is_dir()
-        );
+        assert!(tokio::fs::symlink_metadata(&target)
+            .await
+            .unwrap()
+            .file_type()
+            .is_dir());
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
@@ -234,17 +239,19 @@ mod tests {
     #[tokio::test]
     async fn download_subdirectory_never_accepts_existing_symlink() {
         use std::os::unix::fs::symlink;
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-concurrent-link-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-concurrent-link-{}", uuid::Uuid::new_v4()));
         let outside = root.join("outside");
         let selected = root.join("selected");
         tokio::fs::create_dir_all(&selected).await.unwrap();
         tokio::fs::create_dir_all(&outside).await.unwrap();
         symlink(&outside, selected.join("nested")).unwrap();
 
-        assert!(ensure_download_subdirectory(&selected, &selected.join("nested").join("file")).await.is_err());
+        assert!(
+            ensure_download_subdirectory(&selected, &selected.join("nested").join("file"))
+                .await
+                .is_err()
+        );
         assert!(!outside.join("file").exists());
         tokio::fs::remove_dir_all(root).await.unwrap();
     }

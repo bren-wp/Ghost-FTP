@@ -39,8 +39,8 @@ pub(super) async fn read_request(stream: &mut TcpStream) -> Result<Request> {
 
     // Lossy decoding could turn malformed security-relevant header bytes into
     // different text. Local native callers must send valid UTF-8 headers.
-    let header_text = std::str::from_utf8(&buf[..header_end])
-        .context("invalid HTTP header encoding")?;
+    let header_text =
+        std::str::from_utf8(&buf[..header_end]).context("invalid HTTP header encoding")?;
     let mut lines = header_text.split("\r\n");
     let request_line = lines.next().unwrap_or("");
     let mut parts = request_line.split_whitespace();
@@ -77,36 +77,37 @@ pub(super) async fn read_request(stream: &mut TcpStream) -> Result<Request> {
             "invalid HTTP header name"
         );
         anyhow::ensure!(
-            v.bytes().all(|ch| ch == b'\t' || (ch >= 0x20 && ch != 0x7f)),
+            v.bytes()
+                .all(|ch| ch == b'\t' || (ch >= 0x20 && ch != 0x7f)),
             "invalid HTTP header value"
         );
         let key = k.to_ascii_lowercase();
         let val = v.trim();
         match key.as_str() {
-                "content-length" => {
-                    if content_length.is_some() {
-                        return Err(anyhow!("duplicate Content-Length"));
-                    }
-                    anyhow::ensure!(
-                        !val.is_empty() && val.bytes().all(|digit| digit.is_ascii_digit()),
-                        "invalid Content-Length"
-                    );
-                    content_length = Some(val.parse().context("invalid Content-Length")?);
+            "content-length" => {
+                if content_length.is_some() {
+                    return Err(anyhow!("duplicate Content-Length"));
                 }
-                "transfer-encoding" => {
-                    // Chunked requests are not implemented. Reject rather than
-                    // disagreeing with HTTP intermediaries on the body length.
-                    return Err(anyhow!("Transfer-Encoding is not supported"));
-                }
-                "origin" => has_origin = true,
-                "authorization" => {
-                    if auth.is_some() {
-                        return Err(anyhow!("duplicate Authorization"));
-                    }
-                    auth = Some(val.to_string());
-                }
-                _ => {}
+                anyhow::ensure!(
+                    !val.is_empty() && val.bytes().all(|digit| digit.is_ascii_digit()),
+                    "invalid Content-Length"
+                );
+                content_length = Some(val.parse().context("invalid Content-Length")?);
             }
+            "transfer-encoding" => {
+                // Chunked requests are not implemented. Reject rather than
+                // disagreeing with HTTP intermediaries on the body length.
+                return Err(anyhow!("Transfer-Encoding is not supported"));
+            }
+            "origin" => has_origin = true,
+            "authorization" => {
+                if auth.is_some() {
+                    return Err(anyhow!("duplicate Authorization"));
+                }
+                auth = Some(val.to_string());
+            }
+            _ => {}
+        }
     }
     if method == "POST" && content_length.is_none() {
         return Err(anyhow!("POST requires Content-Length"));
@@ -137,4 +138,3 @@ pub(super) async fn read_request(stream: &mut TcpStream) -> Result<Request> {
         body,
     })
 }
-
