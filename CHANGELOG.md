@@ -1,3 +1,10 @@
+## 0.99.60 Preview — 13 November 2026
+
+- Fix recursive folder downloads from remote filesystem root `/`: valid absolute descendants were previously rejected by normalized-prefix validation.
+- Preserve fail-closed checks for unsafe child path components, traversal, duplicate separators, and reserved local device names.
+- Add positive and negative regression tests for absolute remote-root downloads.
+- Keep Preview publication, immutable tags, exact-SHA CI, Windows/Linux package verification, and Stable signing safeguards intact.
+
 ## 0.99.59 Preview — 13 November 2026
 
 - Consolidate active Windows/Linux cloud and installer guidance; retire misleading current support claims for historical platforms without deleting archived QA evidence.
