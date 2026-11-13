@@ -112,9 +112,13 @@ const REQUIRED = [
   [".github/workflows/ghostftp-preview-metadata.yml", ["workflow_run:", "Ghost FTP release", "contents: write"]],
   ["ghostftp-desktop/src-tauri/src/bridge.rs", [
     "HTTP_READ_TIMEOUT", "tokio::time::timeout(HTTP_READ_TIMEOUT",
+    "if req.has_origin", "create_new(true)", ".mode(0o600)",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/bridge/http_request.rs", [
     "duplicate Content-Length", "Transfer-Encoding is not supported",
     "POST requires Content-Length", "truncated request body",
-    "if req.has_origin", "create_new(true)", ".mode(0o600)",
+    "invalid HTTP header encoding", "invalid HTTP request line",
+    "folded HTTP headers are not supported", "invalid HTTP header name",
   ]]
 ];
 /** Structured/high-value native platform privacy contracts. These checks
