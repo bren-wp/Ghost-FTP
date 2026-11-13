@@ -44,14 +44,33 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 </tr>
 </table>
 
-**Also on Linux**
+<!-- BEGIN:real-linux-native-captures -->
+
+### Linux — the real desktop experience
+
+Browse files, organize sites, launch connections and manage transfers in Ghost FTP for Linux.
 
 <table>
 <tr>
-<td width="50%" align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-files.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-files.png" alt="Real Ghost FTP Linux file manager"></a><b>Files on Linux</b></td>
-<td width="50%" align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png" alt="Real Ghost FTP Linux transfers"></a><b>Transfers on Linux</b></td>
+<td width="50%" align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-files.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-files.png" alt="Real Linux Ghost FTP Files workspace"></a><strong>Files</strong></td>
+<td width="50%" align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sites.png" alt="Real Linux Ghost FTP saved Sites workspace"></a><strong>Sites</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-new-connection.png" alt="Real Linux new connection form"></a><strong>New connection</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-transfers.png" alt="Real Linux transfer center"></a><strong>Transfer Center</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-sync.png" alt="Real Linux synchronize folders workspace"></a><strong>Sync</strong></td>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-settings.png" alt="Real Linux settings workspace"></a><strong>Settings</strong></td>
+</tr>
+<tr>
+<td align="center"><a href="docs/assets/screenshots/native-linux/ghostftp-linux-about.png"><img src="docs/assets/screenshots/native-linux/ghostftp-linux-about.png" alt="Real Linux Ghost FTP About workspace"></a><strong>Help & About</strong></td>
 </tr>
 </table>
+
+<p><sub>Verified <strong>real Linux Tauri/WebKit UI</strong> from <a href="https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466">GitHub Actions native build 41524829466</a>, source SHA <code>01d816df5bdd3c76a8fa9c062371777cd345aa28</code>. These are historical native screenshots, not simulated screens or the latest version.</sub></p>
+
+<!-- END:real-linux-native-captures -->
 
 <sub>Original capture information: [Windows image provenance](docs/assets/screenshots/README-NATIVE-CAPTURE.json) · [Linux native capture workflow](https://github.com/bren-wp/Ghost-FTP/actions/runs/41524829466). Historical screenshots are not presented as captures of the current release.</sub>
 
