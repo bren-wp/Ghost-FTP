@@ -790,7 +790,7 @@ impl FtpSession {
             let mut current = inner
                 .lock()
                 .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
-            let _ = current.quit();
+            current.quit();
             Ok(())
         })
         .await
