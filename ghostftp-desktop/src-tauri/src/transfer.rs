@@ -509,95 +509,6 @@ fn basename(path: &str) -> String {
     path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
 }
 
-fn download_staging_path(final_path: &Path, id: &str) -> PathBuf {
-    let parent = final_path.parent().unwrap_or(Path::new("."));
-    parent.join(format!(".ghostftp-download-{id}.part"))
-}
-
-/// Whole-file backends cannot verify a resumed prefix. Allocate a fresh,
-/// unpredictable sibling file per attempt so retries and canceled transfers
-/// never reuse stale or partially written bytes.
-fn fresh_download_staging_path(final_path: &Path, id: &str) -> PathBuf {
-    download_staging_path(final_path, &format!("{id}-{}", Uuid::new_v4().simple()))
-}
-
-/// An exclusive-open failure does *not* confer ownership of a staging
-/// pathname. Preserve the cause through protocol/reconnect error contexts so
-/// the runner never deletes a pre-existing user file/symlink on failure.
-#[derive(Debug)]
-struct DownloadStagingOpenFailure(std::io::Error);
-
-impl std::fmt::Display for DownloadStagingOpenFailure {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "exclusive download staging open failed: {}", self.0)
-    }
-}
-
-impl std::error::Error for DownloadStagingOpenFailure {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.0)
-    }
-}
-
-/// Exclusively create the staging file at the point of the actual write.
-/// File::create follows a pre-planted symlink and truncates an existing file
-/// before promotion can check its type. O_EXCL/CREATE_NEW rejects both.
-async fn create_new_download_staging(path: &Path) -> Result<tokio::fs::File> {
-    tokio::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .await
-        .map_err(DownloadStagingOpenFailure)
-        .with_context(|| format!("exclusively create download staging {}", path.display()))
-}
-
-fn download_backup_path(final_path: &Path, id: &str) -> PathBuf {
-    let parent = final_path.parent().unwrap_or(Path::new("."));
-    parent.join(format!(".ghostftp-download-{id}.backup"))
-}
-
-/// Never follow a final-component symbolic link when deciding whether a
-/// download target is occupied. Path::exists and fs::metadata both report
-/// a dangling symlink as absent, which can silently turn Skip/Rename into
-/// replacement of an unrelated filesystem entry.
-async fn local_path_exists_fail_closed(path: &Path) -> Result<bool> {
-    match tokio::fs::symlink_metadata(path).await {
-        Ok(_) => Ok(true),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => {
-            Err(error).with_context(|| format!("lstat local download target {}", path.display()))
-        }
-    }
-}
-
-fn local_path_exists_sync_fail_closed(path: &Path) -> Result<bool> {
-    match std::fs::symlink_metadata(path) {
-        Ok(_) => Ok(true),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => {
-            Err(error).with_context(|| format!("lstat local rename target {}", path.display()))
-        }
-    }
-}
-
-/// Use the same atomic no-replace Windows/Linux operation as local File Manager
-/// rename. A preexisting (or concurrently created) backup/target must never
-/// be overwritten by a staged download promotion.
-async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
-    let from = from.to_path_buf();
-    let to = to.to_path_buf();
-    tokio::task::spawn_blocking(move || {
-        let src = from.to_str().context("download path is not valid UTF-8")?;
-        let dest = to
-            .to_str()
-            .context("download destination is not valid UTF-8")?;
-        crate::remotefs::local::rename_local_noreplace(src, dest)
-    })
-    .await
-    .context("join local no-replace download promotion")?
-}
-
 /// A completed transfer is not proven by EOF or a success response alone.
 /// Prevent truncation/oversized streams from being marked Done and promoted.
 fn verify_committed_length(
@@ -750,120 +661,15 @@ fn verify_plain_http_download_length(
     Ok(())
 }
 
-/// The common staging path covers every non-Agent download backend: FTP,
-/// FTPS, SFTP, S3, WebDAV, HTTP, Dropbox, OneDrive, Drive, Box and SaaS APIs.
-/// A provider returning success is not proof that the bytes hit the local
-/// temporary file. Do not replace a preexisting file unless the byte count
-/// matches the actual staging file and it has been synced to persistent storage.
-async fn verify_staged_download_bytes(staging: &Path, transferred: u64) -> Result<()> {
-    let metadata = tokio::fs::symlink_metadata(staging)
-        .await
-        .context("inspect completed download staging file")?;
-    anyhow::ensure!(
-        metadata.file_type().is_file(),
-        "download staging is not a regular file"
-    );
-    anyhow::ensure!(
-        metadata.len() == transferred,
-        "download staging size mismatch: counted {transferred} bytes, stored {}",
-        metadata.len()
-    );
-    let file = tokio::fs::OpenOptions::new()
-        .write(true)
-        .open(staging)
-        .await
-        .context("open download staging for durability check")?;
-    file.sync_all()
-        .await
-        .context("sync completed download staging before promotion")?;
-    Ok(())
-}
-
-async fn promote_staged_download(staging: &Path, final_path: &Path, id: &str) -> Result<()> {
-    let backup = download_backup_path(final_path, id);
-    let mut backup_created = false;
-
-    let staging_meta = tokio::fs::symlink_metadata(staging)
-        .await
-        .with_context(|| format!("lstat completed download staging {}", staging.display()))?;
-    anyhow::ensure!(
-        staging_meta.file_type().is_file(),
-        "download promotion refused: staging target is not a regular file"
-    );
-
-    if local_path_exists_fail_closed(final_path).await? {
-        let target_meta = tokio::fs::symlink_metadata(final_path)
-            .await
-            .with_context(|| format!("lstat download target {}", final_path.display()))?;
-        anyhow::ensure!(
-            target_meta.file_type().is_file(),
-            "download overwrite refused: existing destination is not a regular file"
-        );
-        // A previous interrupted promotion may have left a backup. Never
-        // remove it blindly: preserve the only copy of a user's original.
-        move_local_noreplace(final_path, &backup)
-            .await
-            .with_context(|| {
-                format!(
-                    "preserve existing local download target {} without overwriting a backup",
-                    final_path.display()
-                )
-            })?;
-        backup_created = true;
-    }
-
-    if let Err(error) = move_local_noreplace(staging, final_path).await {
-        if backup_created {
-            match move_local_noreplace(&backup, final_path).await {
-                Ok(()) => {
-                    return Err(error).with_context(|| {
-                        format!(
-                            "promote staged download over {}; original target was restored",
-                            final_path.display()
-                        )
-                    });
-                }
-                Err(restore_error) => {
-                    return Err(anyhow::anyhow!(
-                        "failed to promote staged download over {}; original target could not be restored automatically and remains at {}: {}; restore error: {}",
-                        final_path.display(),
-                        backup.display(),
-                        error,
-                        restore_error
-                    ));
-                }
-            }
-        }
-        return Err(error)
-            .with_context(|| format!("promote staged download to {}", final_path.display()));
-    }
-
-    if backup_created {
-        let _ = tokio::fs::remove_file(&backup).await;
-    }
-    Ok(())
-}
-
-/// Finish a Skip/Rename download without racing another process or queued
-/// transfer which created the destination after the initial existence check.
-/// This is an atomic move-if-absent, not a check-then-rename sequence.
-async fn promote_staged_download_noreplace(staging: &Path, final_path: &Path) -> Result<()> {
-    let metadata = tokio::fs::symlink_metadata(staging)
-        .await
-        .context("inspect non-overwrite staging file")?;
-    anyhow::ensure!(
-        metadata.file_type().is_file(),
-        "non-overwrite promotion requires a regular staging file"
-    );
-    move_local_noreplace(staging, final_path)
-        .await
-        .with_context(|| {
-            format!(
-                "download target already occupied or cannot be created without replacing {}",
-                final_path.display()
-            )
-        })
-}
+mod download_staging;
+#[cfg(test)]
+use download_staging::download_backup_path;
+use download_staging::{
+    commit_verified_delta_output, create_new_download_staging, download_staging_path,
+    fresh_download_staging_path, local_path_exists_fail_closed, local_path_exists_sync_fail_closed,
+    promote_staged_download, promote_staged_download_noreplace, verify_staged_download_bytes,
+    DownloadStagingOpenFailure,
+};
 
 mod path_safety;
 pub(crate) use path_safety::require_directory_upload_metadata;
@@ -942,6 +748,17 @@ async fn resolve_remote_rename(
     path: &str,
 ) -> Result<String> {
     resolve_remote_rename_with_probe(path, |candidate| sftp.try_exists(candidate)).await
+}
+
+/// A malicious or faulty Agent must never send more delta patch bytes than
+/// the requested range, or silently end a nonempty range with zero bytes.
+fn checked_agent_delta_chunk_length(remaining: u64, next_bytes: usize) -> Result<u64> {
+    let count = u64::try_from(next_bytes).context("Agent delta chunk length overflow")?;
+    anyhow::ensure!(
+        count > 0 && count <= remaining,
+        "Agent delta chunk is empty or exceeds the requested range"
+    );
+    Ok(count)
 }
 
 impl TransferManager {
@@ -2622,10 +2439,13 @@ impl TransferManager {
         let local_dir = local_path.parent().unwrap_or(Path::new("."));
         let patch_path = local_dir.join(format!(".ghostftp-patch-{}", Uuid::new_v4()));
         let out_path = local_dir.join(format!(".ghostftp-delta-{}.tmp", Uuid::new_v4()));
+        // A path is ours only AFTER exclusive creation succeeded. Never clean
+        // up an unexpected pre-existing pathname, including a symlink.
+        let mut owns_patch = false;
+        let mut owns_delta_output = false;
         let result: Result<()> = async {
-            let mut patch_file = tokio::fs::File::create(&patch_path)
-                .await
-                .with_context(|| format!("create {}", patch_path.display()))?;
+            let mut patch_file = create_new_download_staging(&patch_path).await?;
+            owns_patch = true;
             let mut fetched: u64 = 0;
             let mut last_emit = Instant::now();
             for &(range_off, range_len) in &needed {
@@ -2650,13 +2470,13 @@ impl TransferManager {
                     let bytes = base64::engine::general_purpose::STANDARD
                         .decode(&data_b64)
                         .context("decode chunk")?;
-                    if bytes.is_empty() {
-                        anyhow::bail!("download {remote_path}: short read (file changed?)");
-                    }
-                    self.checkpoint(id, bytes.len() as u64).await?;
+                    let next_len = checked_agent_delta_chunk_length(range_len - got, bytes.len())?;
+                    self.checkpoint(id, next_len).await?;
                     patch_file.write_all(&bytes).await?;
-                    got += bytes.len() as u64;
-                    fetched += bytes.len() as u64;
+                    got += next_len;
+                    fetched = fetched
+                        .checked_add(next_len)
+                        .context("delta download fetched-byte counter overflow")?;
                     if last_emit.elapsed() > Duration::from_millis(100) {
                         self.update(id, |t| t.transferred = fetched).await;
                         if let Some(app) = app {
@@ -2694,14 +2514,19 @@ impl TransferManager {
             .await
             .map_err(|e| anyhow::anyhow!("apply delta task: {e}"))?
             .context("apply delta")?;
-            tokio::fs::rename(&out_path, local_path)
+            owns_delta_output = true;
+            commit_verified_delta_output(&out_path, local_path, size)
                 .await
-                .with_context(|| format!("rename delta result over {}", local_path.display()))?;
+                .with_context(|| {
+                    format!("safely promote delta result to {}", local_path.display())
+                })?;
             Ok(())
         }
         .await;
-        let _ = tokio::fs::remove_file(&patch_path).await;
-        if result.is_err() {
+        if owns_patch {
+            let _ = tokio::fs::remove_file(&patch_path).await;
+        }
+        if result.is_err() && owns_delta_output {
             let _ = tokio::fs::remove_file(&out_path).await;
         }
         result?;
@@ -5544,6 +5369,16 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delta_patch_length_never_exceeds_requested_range() {
+        assert_eq!(checked_agent_delta_chunk_length(8, 8).unwrap(), 8);
+        assert_eq!(checked_agent_delta_chunk_length(8, 3).unwrap(), 3);
+        assert!(checked_agent_delta_chunk_length(8, 0).is_err());
+        assert!(checked_agent_delta_chunk_length(8, 9).is_err());
+        assert!(checked_agent_delta_chunk_length(0, 1).is_err());
+    }
+
     // Inventory thresholds are only referenced by test cases. Keep their
     // imports local so the production target passes -D unused-imports.
     use super::path_safety::{

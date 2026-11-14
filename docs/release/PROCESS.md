@@ -1,6 +1,6 @@
 # Ghost FTP release process — Windows/Linux desktop
 
-**Active source:** 0.99.61 Preview candidate. **Previous canonical public release:** v0.99.60. Check GitHub Releases for the actual newest published edition; development version numbers do not prove publication.
+**Active source:** 0.99.62 Preview candidate. **Previous canonical public release:** v0.99.61. Check GitHub Releases for the actual newest published edition; development version numbers do not prove publication.
 
 The single source of truth is `version.json`. A new version requires synchronized desktop metadata, a matching `docs/releases/<version>.md` file and exact-source CI evidence. If the source version has merged but is **not** yet published, the release-repair path may reuse that unpublished version only under the repository's immutable-lineage checks.
 

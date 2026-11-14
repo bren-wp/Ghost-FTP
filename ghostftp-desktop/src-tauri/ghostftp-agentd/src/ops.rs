@@ -395,6 +395,27 @@ async fn signature(path: &str) -> Response {
     }
 }
 
+/// Promote only a verified regular delta output. The server must not turn
+/// a remote client's delta request into replacement of a local symlink or
+/// directory. This also rejects a staged path replaced by a symlink.
+async fn promote_verified_agent_delta_output(temp: &Path, dest: &Path) -> anyhow::Result<u64> {
+    let staged = tokio::fs::symlink_metadata(temp).await?;
+    anyhow::ensure!(
+        staged.file_type().is_file(),
+        "delta output is not a regular file"
+    );
+    match tokio::fs::symlink_metadata(dest).await {
+        Ok(existing) => anyhow::ensure!(
+            existing.file_type().is_file(),
+            "delta target is not a regular file"
+        ),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.into()),
+    }
+    tokio::fs::rename(temp, dest).await?;
+    Ok(staged.len())
+}
+
 /// Reassemble `dest` from `basis` + `patch` per `recipe` (delta sync, upload
 /// direction). The new content is written to a same-directory temp, fsynced
 /// and BLAKE3-verified by `apply_delta`, then atomically renamed over `dest` —
@@ -413,13 +434,15 @@ async fn delta_assemble(
             recipe.len()
         ));
     }
-    let bytes_reused: u64 = recipe
-        .iter()
-        .map(|op| match *op {
+    let Some(bytes_reused) = recipe.iter().try_fold(0u64, |total, op| {
+        let bytes = match *op {
             ghostftp_agent_proto::delta::RecipeOp::Copy { len, .. } => len,
             ghostftp_agent_proto::delta::RecipeOp::Literal { .. } => 0,
-        })
-        .sum();
+        };
+        total.checked_add(bytes)
+    }) else {
+        return Response::error("delta recipe reused-byte count overflow");
+    };
     // Same-directory temp so the final rename is atomic. agentd has no uuid
     // dep; pid + counter is unique enough per process.
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -447,25 +470,25 @@ async fn delta_assemble(
     match applied {
         Ok(Ok(())) => {}
         Ok(Err(e)) => {
-            let _ = tokio::fs::remove_file(&temp).await;
+            // apply_delta cleans up only its own output. If CREATE_NEW failed,
+            // temp belongs to someone else and must never be unlinked here.
             return Response::error(format!("delta assemble {dest}: {e:#}"));
         }
         Err(e) => {
-            let _ = tokio::fs::remove_file(&temp).await;
+            // A failed worker join cannot prove we own the pathname.
             return Response::error(format!("delta assemble task: {e}"));
         }
     }
-    let bytes_written = match tokio::fs::metadata(&temp).await {
-        Ok(md) => md.len(),
-        Err(e) => {
-            let _ = tokio::fs::remove_file(&temp).await;
-            return Response::error(format!("stat assembled {dest}: {e}"));
-        }
-    };
-    if let Err(e) = tokio::fs::rename(&temp, &dest).await {
-        let _ = tokio::fs::remove_file(&temp).await;
-        return Response::error(format!("rename delta result over {dest}: {e}"));
-    }
+    let bytes_written =
+        match promote_verified_agent_delta_output(Path::new(&temp), Path::new(&dest)).await {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                // apply_delta returned success, therefore this process created the
+                // staging file exclusively and may safely clean up its own output.
+                let _ = tokio::fs::remove_file(&temp).await;
+                return Response::error(format!("promote assembled delta {dest}: {error:#}"));
+            }
+        };
     let _ = tokio::fs::remove_file(&patch).await;
     Response::DeltaDone {
         bytes_reused,
@@ -592,6 +615,57 @@ pub(crate) fn build_command(command: &str) -> tokio::process::Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn delta_upload_rejects_reused_byte_overflow_before_side_effects() {
+        use ghostftp_agent_proto::delta::RecipeOp;
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("preserved.bin");
+        tokio::fs::write(&dest, b"unchanged").await.unwrap();
+        let result = delta_assemble(
+            None,
+            dir.path().join("patch.bin").to_string_lossy().into_owned(),
+            vec![
+                RecipeOp::Copy {
+                    basis_offset: 0,
+                    len: u64::MAX,
+                },
+                RecipeOp::Copy {
+                    basis_offset: 0,
+                    len: 2,
+                },
+            ],
+            dest.to_string_lossy().into_owned(),
+            String::new(),
+        )
+        .await;
+        assert!(matches!(result, Response::Error { .. }));
+        assert_eq!(tokio::fs::read(dest).await.unwrap(), b"unchanged");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn delta_upload_promotion_rejects_symlink_to_user_file() {
+        use std::os::unix::fs::symlink;
+        let dir = tempfile::tempdir().unwrap();
+        let valuable = dir.path().join("valuable.bin");
+        let target = dir.path().join("target.bin");
+        let staging = dir.path().join("delta-new.bin");
+        tokio::fs::write(&valuable, b"preserve").await.unwrap();
+        tokio::fs::write(&staging, b"new").await.unwrap();
+        symlink(&valuable, &target).unwrap();
+        assert!(promote_verified_agent_delta_output(&staging, &target)
+            .await
+            .is_err());
+        assert_eq!(tokio::fs::read(&valuable).await.unwrap(), b"preserve");
+        assert!(tokio::fs::symlink_metadata(&target)
+            .await
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(tokio::fs::read(staging).await.unwrap(), b"new");
+    }
+
     use ghostftp_agent_proto::delta::{self, FileSignature};
 
     fn write_all_policy() -> Policy {
