@@ -2,6 +2,7 @@ use crate::profiles::{AuthMethod, ConnectionProfile};
 use anyhow::{anyhow, Context, Result};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant};
 use suppaftp::native_tls::TlsConnector;
@@ -33,6 +34,9 @@ pub struct FtpSession {
     pub id: String,
     pub profile: ConnectionProfile,
     inner: Arc<StdMutex<FtpStreamKind>>,
+    /// Set before QUIT so an overlapping liveness probe cannot resurrect an
+    /// explicitly disconnected transport.
+    closed: Arc<AtomicBool>,
 }
 
 /// suppaftp ships two separate stream types depending on whether TLS is
@@ -731,10 +735,15 @@ impl FtpSession {
         T: Send + 'static,
     {
         let inner = self.inner.clone();
+        let closed = self.closed.clone();
         tokio::task::spawn_blocking(move || {
             let mut g = inner
                 .lock()
                 .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
+            anyhow::ensure!(
+                !closed.load(Ordering::Acquire),
+                "FTP session was explicitly disconnected"
+            );
             f(&mut g)
         })
         .await
@@ -748,17 +757,44 @@ impl FtpSession {
     pub async fn reconnect(&self) -> Result<()> {
         let inner = self.inner.clone();
         let profile = self.profile.clone();
+        let closed = self.closed.clone();
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut current = inner
                 .lock()
                 .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
+            anyhow::ensure!(
+                !closed.load(Ordering::Acquire),
+                "FTP session was explicitly disconnected"
+            );
             let replacement = connect_profile_stream(&profile).context("reconnect FTP session")?;
+            // A user may have clicked Disconnect while DNS/TLS/auth was in
+            // progress. Do not install the newly authenticated socket then.
+            anyhow::ensure!(
+                !closed.load(Ordering::Acquire),
+                "FTP session disconnected during reconnect"
+            );
             let stale = std::mem::replace(&mut *current, replacement);
             drop(stale);
             Ok(())
         })
         .await
         .map_err(|e| anyhow!("FTP reconnect task join failed: {e}"))?
+    }
+
+    /// Explicit disconnect is terminal for this session id. Only a new user
+    /// Connect action may establish a different live session.
+    pub async fn shutdown(&self) -> Result<()> {
+        self.closed.store(true, Ordering::Release);
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let mut current = inner
+                .lock()
+                .map_err(|_| anyhow!("FTP stream lock poisoned"))?;
+            let _ = current.quit();
+            Ok(())
+        })
+        .await
+        .map_err(|e| anyhow!("FTP disconnect task join failed: {e}"))?
     }
 }
 
@@ -772,6 +808,7 @@ pub async fn ftp_connect(profile: &ConnectionProfile) -> Result<FtpSession> {
         id: uuid::Uuid::new_v4().to_string(),
         profile: profile.clone(),
         inner: Arc::new(StdMutex::new(stream)),
+        closed: Arc::new(AtomicBool::new(false)),
     })
 }
 
