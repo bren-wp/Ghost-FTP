@@ -681,6 +681,7 @@ use download_staging::{
 };
 use remote_upload_staging::{
     fresh_remote_upload_staging_path, preflight_ftp_upload_staging, promote_remote_upload,
+    verify_ftp_upload_staging_size,
 };
 
 mod remote_directory;
@@ -5234,6 +5235,11 @@ async fn dispatch_upload(
             mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app)
                 .await?;
             mgr.checkpoint(id, 0).await?;
+            let expected = tokio::fs::metadata(local)
+                .await
+                .context("stat uploaded FTP source")?
+                .len();
+            verify_ftp_upload_staging_size(ftp, &staging, expected).await?;
             promote_remote_upload(session, &staging, final_remote, allow_replace).await
         }
         Session::Object(obj) => {
@@ -5724,6 +5730,21 @@ mod tests {
         match decoded {
             PersistedRetryInfo::Download { allow_replace, .. } => assert!(!allow_replace),
             PersistedRetryInfo::Upload { .. } => panic!("wrong persisted retry variant"),
+        }
+    }
+
+    #[test]
+    fn legacy_upload_retry_never_grants_remote_overwrite_permission() {
+        let legacy = serde_json::json!({
+            "kind": "upload",
+            "profile_id": "saved-profile",
+            "local": "/tmp/local.bin",
+            "final_remote": "/remote/protected.bin"
+        });
+        let decoded: PersistedRetryInfo = serde_json::from_value(legacy).unwrap();
+        match decoded {
+            PersistedRetryInfo::Upload { allow_replace, .. } => assert!(!allow_replace),
+            _ => panic!("expected an upload retry descriptor"),
         }
     }
 
