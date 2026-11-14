@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.63 Preview development. Previous public release: v0.99.62. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
+> **Ghost FTP v0.99.64 Preview development. Previous public release: v0.99.63. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 # Ghost FTP Audit Index — 0.93.0
 
@@ -6,7 +6,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-This index retains historical 0.93.0 findings. Previous canonical release: **0.99.62**.
+This index retains historical 0.93.0 findings. Previous canonical release: **0.99.63**.
 
 - [Code audit](CODE.md)
 - [Security audit](SECURITY.md)
@@ -25,4 +25,4 @@ Implemented behavior, source inspection, automated CI and target-OS acceptance a
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.63. Previous canonical release: 0.99.62. The previous canonical Preview is v0.99.62; consult GitHub Releases and `docs/releases/0.99.62.md` for its actual acceptance limits.
+Current development line: 0.99.64. Previous canonical release: 0.99.63. The previous canonical Preview is v0.99.63; consult GitHub Releases and `docs/releases/0.99.63.md` for its actual acceptance limits.

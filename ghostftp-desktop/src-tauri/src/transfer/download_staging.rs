@@ -54,12 +54,30 @@ pub(super) async fn cleanup_failed_download_staging(path: &Path, error: &anyhow:
     if error.downcast_ref::<DownloadStagingOpenFailure>().is_some() {
         return;
     }
+    cleanup_owned_regular_staging_file(path).await;
+}
+
+/// After exclusive creation, only remove a regular staging entry. A planted
+/// symlink or directory must not be deleted during best-effort cleanup.
+pub(super) async fn cleanup_owned_regular_staging_file(path: &Path) {
     if tokio::fs::symlink_metadata(path)
         .await
         .is_ok_and(|meta| meta.file_type().is_file())
     {
         let _ = tokio::fs::remove_file(path).await;
     }
+}
+
+/// The delta-upload planner runs on a blocking thread and needs a synchronous
+/// writer. Use CREATE_NEW just like a downloaded staging file, so a failed
+/// open cannot truncate a user's file or follow a planted symlink.
+pub(super) fn create_new_delta_upload_patch(path: &Path) -> Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(DownloadStagingOpenFailure)
+        .with_context(|| format!("exclusively create Agent delta patch {}", path.display()))
 }
 
 pub(super) fn download_backup_path(final_path: &Path, id: &str) -> PathBuf {
@@ -272,6 +290,80 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agent_delta_patch_cannot_clobber_preexisting_output() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delta-upload-excl-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let patch = root.join("user-owned.patch");
+        std::fs::write(&patch, b"valuable existing data").unwrap();
+        let error = create_new_delta_upload_patch(&patch).unwrap_err();
+        assert!(error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
+        assert_eq!(std::fs::read(&patch).unwrap(), b"valuable existing data");
+        let free = root.join("new.patch");
+        let file = create_new_delta_upload_patch(&free).unwrap();
+        drop(file);
+        assert!(std::fs::metadata(&free).unwrap().is_file());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn agent_delta_patch_cannot_follow_or_remove_symlink() {
+        use std::os::unix::fs::symlink;
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delta-upload-link-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let valuable = root.join("valuable");
+        let patch = root.join("planted.patch");
+        std::fs::write(&valuable, b"keep my bytes").unwrap();
+        symlink(&valuable, &patch).unwrap();
+        assert!(create_new_delta_upload_patch(&patch).is_err());
+        assert!(std::fs::symlink_metadata(&patch)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(std::fs::read(&valuable).unwrap(), b"keep my bytes");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn agent_delta_patch_cleanup_removes_only_an_owned_regular_file() {
+        let root = std::env::temp_dir().join(format!("ghostftp-delta-cleanup-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let patch = root.join("planned.patch");
+        let mut file = create_new_delta_upload_patch(&patch).unwrap();
+        use std::io::Write as _;
+        file.write_all(b"partial patch").unwrap();
+        drop(file);
+        cleanup_owned_regular_staging_file(&patch).await;
+        assert!(tokio::fs::symlink_metadata(&patch).await.is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn agent_delta_patch_cleanup_never_unlinks_a_substituted_symlink() {
+        use std::os::unix::fs::symlink;
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delta-cleanup-link-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let valuable = root.join("valuable.bin");
+        let patch = root.join("planned.patch");
+        tokio::fs::write(&valuable, b"keep this file")
+            .await
+            .unwrap();
+        symlink(&valuable, &patch).unwrap();
+        cleanup_owned_regular_staging_file(&patch).await;
+        assert!(tokio::fs::symlink_metadata(&patch)
+            .await
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(tokio::fs::read(&valuable).await.unwrap(), b"keep this file");
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
 
     #[tokio::test]
     async fn failed_exclusive_staging_open_never_deletes_existing_file() {

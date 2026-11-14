@@ -1,3 +1,12 @@
+## 0.99.64 Preview — 14 November 2026
+
+- Create Agent delta-upload patch files exclusively, preventing truncation of preexisting local files or following planted symlinks.
+- Restrict failed delta-upload cleanup to files owned by this attempt; never delete preexisting files when exclusive creation fails or the planner worker cannot prove ownership.
+- Require exact per-chunk byte acknowledgements for Agent delta patch writes. Reject short and oversized acknowledgements.
+- Verify a completed Agent delta upload against a fresh remote stat, the daemon's total reconstructed bytes, and the planned reused-byte count before reporting success.
+- Add regression tests for existing files, symlinks, mismatched acknowledgements and incorrect completion reports. Extend security audit contracts to preserve these checks.
+- Preserve profile persistence after restart, credential-vault integration, and the v0.99.63 transfer/folder safety checks; retain all Windows/Linux quality, protocol E2E and native build gates.
+
 ## 0.99.63 Preview — 14 November 2026
 
 - Reject local symlinks and special files before scheduling any recursive folder upload; use symlink-aware filesystem metadata so selected directories cannot silently upload linked files from outside their tree.

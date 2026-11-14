@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.63 Preview candidate. Previous public release: v0.99.62. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.64 Preview candidate. Previous public release: v0.99.63. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP — Project Status & Recommended Next Work
 
@@ -8,7 +8,7 @@ Historical 0.99.4 development notes (following 0.99.3) are retained below for re
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.62**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.63**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -159,4 +159,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Current development line: 0.99.63. Previous canonical release: 0.99.62. The previous canonical Preview is v0.99.62; see GitHub Releases and `docs/releases/0.99.62.md` for its acceptance limits.
+Current development line: 0.99.64. Previous canonical release: 0.99.63. The previous canonical Preview is v0.99.63; see GitHub Releases and `docs/releases/0.99.63.md` for its acceptance limits.
