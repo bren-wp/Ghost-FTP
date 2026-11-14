@@ -40,6 +40,19 @@ test("real repository security gates remain present and no obvious unsafe trust 
   assert.equal(report.passed,true);
 });
 
+test("saved profiles must be reloaded when the desktop starts", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const app = fs.readFileSync(path.join(root, "ghostftp-desktop/src/App.tsx"), "utf8");
+  const store = fs.readFileSync(
+    path.join(root, "ghostftp-desktop/src/stores/connectionsStore.ts"), "utf8"
+  );
+  assert.ok(app.includes("useConnections.getState().loadProfiles()"));
+  assert.ok(app.includes("Couldn't load saved connections"));
+  assert.ok(store.includes("const persisted = await ipc.listProfiles()"));
+  assert.ok(store.includes("await ipc.saveProfile(p);"));
+  assert.ok(store.includes("await get().loadProfiles();"));
+});
+
 test("persisted Agent Bridge authorization remains revocable through Security settings", () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const read = (file) => fs.readFileSync(path.join(root, file), "utf8");

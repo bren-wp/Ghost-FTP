@@ -47,6 +47,21 @@ pub(super) async fn create_new_download_staging(path: &Path) -> Result<tokio::fs
         .with_context(|| format!("exclusively create download staging {}", path.display()))
 }
 
+/// Best-effort cleanup must never remove a path for which exclusive
+/// creation failed. On subsequent I/O errors, only regular staging files may
+/// be unlinked, never a planted symlink or directory.
+pub(super) async fn cleanup_failed_download_staging(path: &Path, error: &anyhow::Error) {
+    if error.downcast_ref::<DownloadStagingOpenFailure>().is_some() {
+        return;
+    }
+    if tokio::fs::symlink_metadata(path)
+        .await
+        .is_ok_and(|meta| meta.file_type().is_file())
+    {
+        let _ = tokio::fs::remove_file(path).await;
+    }
+}
+
 pub(super) fn download_backup_path(final_path: &Path, id: &str) -> PathBuf {
     let parent = final_path.parent().unwrap_or(Path::new("."));
     parent.join(format!(".ghostftp-download-{id}.backup"))
@@ -257,6 +272,53 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn failed_exclusive_staging_open_never_deletes_existing_file() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-staging-ownership-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let path = root.join("original.part");
+        tokio::fs::write(&path, b"keep original").await.unwrap();
+        let error = create_new_download_staging(&path).await.unwrap_err();
+        assert!(error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
+        cleanup_failed_download_staging(&path, &error).await;
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), b"keep original");
+        let owned = root.join("owned.part");
+        let mut file = create_new_download_staging(&owned).await.unwrap();
+        use tokio::io::AsyncWriteExt as _;
+        file.write_all(b"incomplete transfer").await.unwrap();
+        drop(file);
+        cleanup_failed_download_staging(&owned, &anyhow::anyhow!("network read failed")).await;
+        assert!(tokio::fs::symlink_metadata(&owned).await.is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn failed_exclusive_staging_open_keeps_preplanted_symlink() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("ghostftp-staging-link-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let valuable = root.join("valuable.txt");
+        let planted = root.join("planted.part");
+        tokio::fs::write(&valuable, b"not transferred")
+            .await
+            .unwrap();
+        symlink(&valuable, &planted).unwrap();
+        let error = create_new_download_staging(&planted).await.unwrap_err();
+        cleanup_failed_download_staging(&planted, &error).await;
+        assert!(tokio::fs::symlink_metadata(&planted)
+            .await
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(
+            tokio::fs::read(&valuable).await.unwrap(),
+            b"not transferred"
+        );
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
 
     #[tokio::test]
     async fn delta_output_commit_requires_exact_staged_bytes() {

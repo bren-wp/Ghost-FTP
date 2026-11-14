@@ -81,6 +81,19 @@ export default function App() {
 
   useShortcuts();
 
+  // The saved profiles live in the native durable ProfileStore, not in
+  // transient React state. Load them at every startup (also for normal files
+  // view); the store serializes overlapping reloads in React StrictMode.
+  useEffect(() => {
+    let disposed = false;
+    void useConnections.getState().loadProfiles().catch((error) => {
+      if (!disposed) {
+        toastError(error, "Couldn't load saved connections");
+      }
+    });
+    return () => { disposed = true; };
+  }, []);
+
   useEffect(() => {
     const qaView = (
       globalThis as typeof globalThis & { __GHOSTFTP_QA_VIEW__?: string }

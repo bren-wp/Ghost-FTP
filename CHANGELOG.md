@@ -1,3 +1,15 @@
+## 0.99.63 Preview — 14 November 2026
+
+- Reject local symlinks and special files before scheduling any recursive folder upload; use symlink-aware filesystem metadata so selected directories cannot silently upload linked files from outside their tree.
+- Stop swallowing remote folder-creation errors: verify that an already-existing directory is listable, otherwise abort before queuing file transfers.
+- Never unlink an existing unowned staging file or symlink when exclusive download staging creation fails; add retry/cleanup regression tests.
+- Fix the desktop startup path: explicitly reload previously saved profiles from the durable native store into the React connections list on every application launch; surface a clear error instead of silently showing an empty list.
+- Verify that saved connection profiles, stable identifiers, startup settings and manual rail order survive dropping and recreating the profile store (app restart).
+- Recover the previous valid profile snapshot read-only if an interrupted metadata commit temporarily removed profiles.json, preserving the last saved connections instead of silently displaying an older or empty list.
+- Refuse dangling symbolic links at the profile store/backup location and preserve the original profile files for manual repair.
+- Extend repository-wide static security gates and tests for folder preflight, safe staging cleanup and persistent-profile recovery. Keep OS credential-vault handling and user data schema unchanged.
+- Continue immutable Preview release policy, exact-SHA CI, native Windows/Linux packaging and real FTP/FTPS/SFTP protocol acceptance gates.
+
 ## 0.99.62 Preview — 14 November 2026
 
 - Harden native Agent daemon delta accounting against integer overflow, reject symlink/non-file destinations and preserve unowned staging paths on failure.
