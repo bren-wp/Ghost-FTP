@@ -1,6 +1,6 @@
 # Ghost FTP — Windows/Linux development roadmap
 
-**Development candidate:** v0.99.66 Preview; previous published v0.99.65. **Future Stable target:** v1.0.0, after acceptance.
+**Development candidate:** v0.99.67 Preview; previous published v0.99.66. **Future Stable target:** v1.0.0, after acceptance.
 
 ## Development priorities
 
