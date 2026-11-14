@@ -2070,12 +2070,10 @@ impl SessionManager {
                     }
                 }
                 Session::Ftp(ftp) => {
-                    let _ = ftp
-                        .with_stream(|s| {
-                            s.quit();
-                            Ok(())
-                        })
-                        .await;
+                    // Mark the session closed BEFORE waiting for the control
+                    // stream lock. In-flight health probes must not reconnect
+                    // and reanimate a session after an explicit Disconnect.
+                    let _ = ftp.shutdown().await;
                 }
                 Session::Object(_) => {
                     // Object stores are stateless HTTP — nothing to close.
