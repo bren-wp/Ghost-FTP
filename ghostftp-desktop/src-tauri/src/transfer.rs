@@ -672,6 +672,9 @@ use download_staging::{
     DownloadStagingOpenFailure,
 };
 
+mod remote_directory;
+use remote_directory::ensure_upload_directory;
+
 mod path_safety;
 pub(crate) use path_safety::require_directory_upload_metadata;
 use path_safety::{
@@ -2848,15 +2851,13 @@ impl TransferManager {
             }
         }
 
-        // Only after all entries pass validation may anything be created on
-        // the remote destination. Existing directories may report an error.
-        let _ = fs.create_dir(&remote_root).await;
+        // Only after every local entry has passed preflight may we mutate
+        // the remote tree. Preserve "already exists" compatibility, but never
+        // swallow a permission, authentication or network failure.
+        ensure_upload_directory(fs.as_ref(), &remote_root).await?;
         subdirs.sort_by_key(|s| s.matches('/').count());
         for sd in subdirs {
-            // Preserve compatibility with FTP/SFTP servers that report
-            // "already exists" as an error. Missing directories will still be
-            // diagnosed precisely when the child transfer is started.
-            let _ = fs.create_dir(&sd).await;
+            ensure_upload_directory(fs.as_ref(), &sd).await?;
         }
 
         let mut ids = Vec::with_capacity(files.len());
