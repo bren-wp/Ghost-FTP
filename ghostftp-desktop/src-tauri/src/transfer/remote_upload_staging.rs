@@ -17,7 +17,14 @@ pub(super) fn fresh_remote_upload_staging_path(final_remote: &str, id: &str) -> 
         transfer_id.simple(),
         Uuid::new_v4().simple()
     );
-    let staging_path = super::join_remote(parent, &staging_name);
+    // "shared.dat" has parent "." in the remote inventory API. A mutation
+    // pathname cannot contain a dot component; a bare sibling filename is
+    // both safe and valid for FTP/SFTP operating in the current directory.
+    let staging_path = if parent == "." {
+        staging_name
+    } else {
+        super::join_remote(parent, &staging_name)
+    };
     remotefs::validate_protocol_mutation_path(&staging_path)?;
     anyhow::ensure!(
         staging_path != final_remote,
@@ -143,5 +150,6 @@ mod tests {
             .map(|_| fresh_remote_upload_staging_path("shared.dat", &id).unwrap())
             .collect();
         assert_eq!(names.len(), 128);
+        assert!(names.iter().all(|name| !name.starts_with("./")));
     }
 }
