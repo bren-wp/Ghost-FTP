@@ -30,12 +30,33 @@ pub(super) fn fresh_remote_upload_staging_path(final_remote: &str, id: &str) -> 
 /// filename plus strict preflight protects ordinary collision cases; SFTP
 /// additionally uses CREATE|EXCLUDE when opening the staging file.
 pub(super) async fn preflight_ftp_upload_staging(
-    session: &crate::session::FtpSession,
+    session: &Arc<crate::session::FtpSession>,
     staging: &str,
 ) -> Result<()> {
     anyhow::ensure!(
         !remotefs::ftp::path_exists_fail_closed(session, staging).await?,
         "temporary remote upload path is occupied"
+    );
+    Ok(())
+}
+
+/// FTP's successful local write count is not proof that the server stored
+/// all bytes. Refuse remote promotion unless the server can also confirm SIZE.
+/// If SIZE is unsupported, preserve the existing destination and surface an
+/// error rather than silently accepting a possibly incomplete replacement.
+pub(super) async fn verify_ftp_upload_staging_size(
+    session: &Arc<crate::session::FtpSession>,
+    staging: &str,
+    expected: u64,
+) -> Result<()> {
+    let remote = staging.to_string();
+    let stored = session
+        .with_stream(move |stream| Ok(stream.size(&remote)? as u64))
+        .await
+        .context("FTP server must support SIZE for safe upload promotion")?;
+    anyhow::ensure!(
+        stored == expected,
+        "FTP staged upload size mismatch: expected {expected} bytes, server stored {stored}"
     );
     Ok(())
 }
