@@ -493,6 +493,13 @@ pub struct TransferManager {
     /// Optional shared SQLite store. Unit tests that don't exercise persistence
     /// use `new()`; the desktop app uses `with_db()`.
     db: Option<Arc<crate::db::Db>>,
+    /// Order mutation and SQLite persistence as one logical operation. Without
+    /// this gate an older progress snapshot can be persisted after a terminal
+    /// Done/Canceled record, making crash recovery falsely show active work.
+    ledger_serial: Mutex<()>,
+    /// Prevent simultaneous Retry actions from aborting each other's workers
+    /// or enqueueing the same transfer twice.
+    retry_serial: Mutex<()>,
     /// Throttle progress persistence to avoid turning a fast transfer into a
     /// high-frequency SQLite writer. State transitions still flush immediately.
     persisted_at: Mutex<HashMap<String, Instant>>,
@@ -506,6 +513,16 @@ pub struct TransferManager {
     /// live-adjustable like the concurrency bound. `GHOSTFTP_DELTA=0` still
     /// force-disables regardless of this flag.
     delta_enabled: AtomicBool,
+}
+
+fn is_terminal_transfer_status(status: TransferStatus) -> bool {
+    matches!(
+        status,
+        TransferStatus::Done
+            | TransferStatus::Skipped
+            | TransferStatus::Error
+            | TransferStatus::Canceled
+    )
 }
 
 fn now_ts() -> i64 {
@@ -936,6 +953,8 @@ impl TransferManager {
             persisted_retry: Mutex::new(persisted_retry),
             recovered_retry: Mutex::new(recovered_retry),
             db,
+            ledger_serial: Mutex::new(()),
+            retry_serial: Mutex::new(()),
             persisted_at: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
             bucket: TokenBucket::new(),
@@ -960,12 +979,20 @@ impl TransferManager {
         self.transfers.lock().await.get(id).cloned()
     }
 
+    /// Progress and control updates can only modify an active row. A late
+    /// transport callback must never turn a terminal record back into a live
+    /// transfer, or replace its final byte count. Manual Retry has an explicit
+    /// terminal-to-Queued transition below.
     async fn update<F: FnOnce(&mut Transfer)>(&self, id: &str, f: F) {
+        let _ledger = self.ledger_serial.lock().await;
         let snapshot = {
             let mut transfers = self.transfers.lock().await;
-            transfers.get_mut(id).map(|transfer| {
+            transfers.get_mut(id).and_then(|transfer| {
+                if is_terminal_transfer_status(transfer.status) {
+                    return None;
+                }
                 f(transfer);
-                transfer.clone()
+                Some(transfer.clone())
             })
         };
         if let Some(transfer) = snapshot {
@@ -975,7 +1002,64 @@ impl TransferManager {
         }
     }
 
+    /// Only explicit user Retry may requeue a canceled/failed transfer. The
+    /// status check and reset are atomic with respect to other state updates.
+    async fn reset_for_retry(&self, id: &str) -> Result<()> {
+        let _ledger = self.ledger_serial.lock().await;
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            let transfer = transfers
+                .get_mut(id)
+                .ok_or_else(|| anyhow::anyhow!("transfer {id} not found"))?;
+            anyhow::ensure!(
+                matches!(transfer.status, TransferStatus::Error | TransferStatus::Canceled),
+                "only failed or canceled transfers can be retried"
+            );
+            transfer.status = TransferStatus::Queued;
+            transfer.transferred = 0;
+            transfer.error = None;
+            transfer.retry_attempt = None;
+            transfer.clone()
+        };
+        self.persist_snapshot(snapshot, true).await;
+        Ok(())
+    }
+
+    /// A successful backend return can still contain an incomplete stream.
+    /// Choose and persist the terminal status while holding one transition lock
+    /// so a concurrent Cancel cannot be overwritten by a late completion.
+    async fn finish_transfer(&self, id: &str, result: Result<()>) -> Option<Transfer> {
+        let _ledger = self.ledger_serial.lock().await;
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            let transfer = transfers.get_mut(id)?;
+            if is_terminal_transfer_status(transfer.status) {
+                return None;
+            }
+            let completion = match result {
+                Ok(()) => completed_transfer_size(transfer.size, transfer.transferred).map(|_| ()),
+                Err(error) => Err(error),
+            };
+            match completion {
+                Ok(()) => {
+                    transfer.status = TransferStatus::Done;
+                    if transfer.size == 0 {
+                        transfer.size = transfer.transferred;
+                    }
+                }
+                Err(error) => {
+                    transfer.status = TransferStatus::Error;
+                    transfer.error = Some(safe_transfer_failure(&error).to_string());
+                }
+            }
+            transfer.clone()
+        };
+        self.persist_snapshot(snapshot.clone(), true).await;
+        Some(snapshot)
+    }
+
     async fn insert(&self, t: Transfer) {
+        let _ledger = self.ledger_serial.lock().await;
         self.transfers.lock().await.insert(t.id.clone(), t.clone());
         self.persist_snapshot(t, true).await;
     }
@@ -1355,6 +1439,7 @@ impl TransferManager {
     /// policy-resolved) source/destination. Same id — the panel row resets
     /// in place.
     pub async fn retry(self: &Arc<Self>, id: &str, app: &AppHandle) -> Result<()> {
+        let _retry = self.retry_serial.lock().await;
         match self.get(id).await.map(|t| t.status) {
             Some(TransferStatus::Error) | Some(TransferStatus::Canceled) => {}
             _ => anyhow::bail!("only failed or canceled transfers can be retried"),
@@ -1391,13 +1476,7 @@ impl TransferManager {
         // backend-specific immutable identity/change signal, always restart the
         // first recovered retry from zero rather than risk a hybrid file.
         self.recovered_retry.lock().await.remove(id);
-        self.update(id, |t| {
-            t.status = TransferStatus::Queued;
-            t.transferred = 0;
-            t.error = None;
-            t.retry_attempt = None;
-        })
-        .await;
+        self.reset_for_retry(id).await?;
         if let Some(t) = self.get(id).await {
             let _ = app.emit("transfer://updated", &t);
         }
@@ -5316,48 +5395,18 @@ async fn dispatch_upload(
     }
 }
 
+/// Terminal transition, persistence and emitted event agree even when Cancel
+/// arrives between the network acknowledgment and finalization.
 async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result: Result<()>) {
-    // A backend returning Ok(()) may still have sent fewer/more bytes than
-    // the known source size. Never replace real progress with a fictitious
-    // 100% on such a result, including across FTP/FTPS/SFTP/cloud backends.
-    let result = match result {
-        Ok(()) => match mgr.get(id).await {
-            Some(t) => completed_transfer_size(t.size, t.transferred).map(|_| ()),
-            None => Err(anyhow::anyhow!("completed transfer record disappeared")),
-        },
-        Err(error) => Err(error),
-    };
-    // Cancel updates the row immediately. Cooperative blocking transports (FTP)
-    // may finish ABOR cleanup after that; never let their late result overwrite
-    // the user-visible Canceled state.
-    if mgr.get(id).await.map(|t| t.status) == Some(TransferStatus::Canceled) {
-        mgr.tasks.lock().await.remove(id);
-        return;
-    }
-    match result {
-        Ok(()) => {
-            mgr.update(id, |t| {
-                t.status = TransferStatus::Done;
-                // A zero-sized initial estimate means size was unavailable,
-                // not that an actual multi-byte download is empty.
-                if t.size == 0 {
-                    t.size = t.transferred;
-                }
-            })
-            .await;
-            if let Some(t) = mgr.get(id).await {
-                let _ = app.emit("transfer://done", &t);
+    if let Some(transfer) = mgr.finish_transfer(id, result).await {
+        match transfer.status {
+            TransferStatus::Done => {
+                let _ = app.emit("transfer://done", &transfer);
             }
-        }
-        Err(e) => {
-            mgr.update(id, |t| {
-                t.status = TransferStatus::Error;
-                t.error = Some(safe_transfer_failure(&e).to_string());
-            })
-            .await;
-            if let Some(t) = mgr.get(id).await {
-                let _ = app.emit("transfer://error", &t);
+            TransferStatus::Error => {
+                let _ = app.emit("transfer://error", &transfer);
             }
+            _ => unreachable!("finish_transfer only returns a terminal completion"),
         }
     }
     mgr.tasks.lock().await.remove(id);
