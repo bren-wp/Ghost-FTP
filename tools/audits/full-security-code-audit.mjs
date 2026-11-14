@@ -85,7 +85,7 @@ const REQUIRED = [
     "old_diagnostic_rewritten", "INTERRUPTED_TRANSFER_MESSAGE",
     "verify_committed_length(\"SFTP download\"",
     "verify_committed_length(\"SFTP upload\"",
-    "verify_committed_length(\"SFTP upload source\"",
+    "\"SFTP upload source\",",
     "verify_committed_length(\"FTP download\"",
     "FtpTransferControl::Continue => verify_committed_length(",
     "sync SFTP download staging file", "sync FTP download staging file",
@@ -94,7 +94,6 @@ const REQUIRED = [
     // paused transfers. FTP/FTPS must restart until prefix verification exists.
     "async fn byte_equal_prefix<", "async fn agent_remote_prefix_matches(",
     "byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await?",
-    "byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await?",
     "agent_remote_prefix_matches(session, remote_path, local_path, offset).await?",
     "verify_committed_length(\"Agent download\"",
     "verify_committed_length(\"Agent upload\"",
@@ -110,6 +109,23 @@ const REQUIRED = [
     "ensure_upload_directory(fs.as_ref(), &remote_root).await?",
     "cleanup_failed_download_staging(&working_path, error).await",
     "Session::Ssh(_) | Session::Agent(_)",
+    "source_snapshot.verify(&local_file.metadata().await?)?;",
+    "source_snapshot.verify(&source_after)?;",
+    "verify_local_upload_snapshot(local, &source_snapshot).await?;",
+    "OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE",
+    "is_safe_staged_upload_retry(&e)",
+    "UploadPromotionUnconfirmed",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/transfer/remote_upload_staging.rs", [
+    "fn fresh_remote_upload_staging_path(",
+    "Uuid::new_v4().simple()",
+    "validate_protocol_mutation_path(&staging_path)?",
+    "fn capture_local_upload_snapshot(",
+    "fn verify_local_upload_snapshot(",
+    "symlink_metadata(path)",
+    "self.device == metadata.dev() && self.inode == metadata.ino()",
+    "self.created == metadata.creation_time()",
+    "self.len == metadata.len()",
   ]],
   // Staging and delta commits must be byte-verified, durable and never
   // clobber symlinks, directories, or preexisting unowned temporary files.
@@ -242,6 +258,32 @@ export function inspectPlatformSecurityConfig(source) {
   return failures;
 }
 
+/**
+ * A new UUID staging path has no prior byte prefix to resume. A resumed
+ * offset in this worker is a data-integrity bug even if it matches an old
+ * remote file size. Inspect this scoped worker, not unrelated SFTP download
+ * or Agent resume logic, which still verifies committed prefixes.
+ */
+export function inspectFreshStagedSftpUpload(transferSource) {
+  const start = transferSource.indexOf("    async fn run_ssh_upload(");
+  const end = transferSource.indexOf("\n}\n\nimpl TransferManager {", start);
+  if (start < 0 || end <= start) return ["SFTP staged upload worker missing"];
+  const worker = transferSource.slice(start, end);
+  const required = [
+    "t.transferred = 0;",
+    "let mut transferred: u64 = 0;",
+    "OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE",
+    "source_snapshot.verify(&local_file.metadata().await?)?;",
+    "source_snapshot.verify(&source_after)?;",
+    'verify_committed_length("SFTP upload", local_len, transferred, remote_size)?',
+  ];
+  const failures = required.filter(guard => !worker.includes(guard));
+  if (/\b(?:resume_offset|requested_offset)\b/.test(worker)) {
+    failures.push("fresh SFTP staging must not reuse any previous upload offset");
+  }
+  return failures;
+}
+
 export function audit(root = ROOT) {
   const sourceFiles = trackedSourceFiles(root);
   const offenders = [];
@@ -259,6 +301,13 @@ export function audit(root = ROOT) {
     const content = fs.readFileSync(dest, "utf8");
     for (const guard of guards) if (!content.includes(guard)) {
       missingGuards.push({path:file, required:guard});
+    }
+  }
+  const stagedSftp = "ghostftp-desktop/src-tauri/src/transfer.rs";
+  if (sourceFiles.includes(stagedSftp)) {
+    const transfer = fs.readFileSync(path.join(root, stagedSftp), "utf8");
+    for (const required of inspectFreshStagedSftpUpload(transfer)) {
+      missingGuards.push({path: stagedSftp, required});
     }
   }
   const configPaths = [
