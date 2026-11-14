@@ -2,7 +2,7 @@
 //! be truncated by a failed write before the completed staging file is verified.
 //! A server may reject rename-over-existing; we fail closed, never delete the
 //! previous version to force promotion.
-use crate::remotefs;
+use crate::remotefs::{self, RemoteFs};
 use crate::session::Session;
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -74,14 +74,17 @@ pub(super) async fn promote_remote_upload(
     remotefs::validate_protocol_mutation_path(final_remote)?;
     match &**session {
         Session::Ssh(ssh) => {
+            if !allow_replace {
+                // The SftpFs rename path performs a fail-closed *directory
+                // inventory*: try_exists alone may follow a dangling symlink
+                // and falsely report that its destination is free.
+                return remotefs::sftp::SftpFs::new(ssh.clone())
+                    .rename(staging, final_remote)
+                    .await
+                    .context("SFTP staged upload target is occupied or cannot be safely listed");
+            }
             let cell = ssh.ensure_sftp().await?;
             let sftp = cell.lock().await;
-            if !allow_replace {
-                anyhow::ensure!(
-                    !sftp.try_exists(final_remote.to_string()).await?,
-                    "SFTP upload destination became occupied before promotion"
-                );
-            }
             sftp.rename(staging, final_remote)
                 .await
                 .context("SFTP server could not safely promote verified upload")?;
