@@ -183,14 +183,17 @@ test("paused Windows/Linux transfers cannot silently trust a same-length remote 
     ["OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE", "exclusive creation"],
     ["source_snapshot.verify(&source_after)?;", "local source integrity"],
   ]) {
-    const weakened = transfer.replace(remove, "/* intentionally weakened " + label + " */");
+    assert.ok(sshUpload.includes(remove), "fixture guard missing: " + label);
+    const weakenedWorker = sshUpload.replace(remove, "/* intentionally weakened " + label + " */");
+    const weakened = transfer.slice(0, sshStart) + weakenedWorker + transfer.slice(sshEnd);
     assert.ok(inspectFreshStagedSftpUpload(weakened).length > 0,
       "Staged SFTP safety weakening undetected: " + label);
   }
-  const injected = transfer.replace(
+  const injectedWorker = sshUpload.replace(
     "let mut transferred: u64 = 0;",
     "let mut transferred: u64 = resume_offset;",
   );
+  const injected = transfer.slice(0, sshStart) + injectedWorker + transfer.slice(sshEnd);
   assert.ok(inspectFreshStagedSftpUpload(injected).some(x => x.includes("offset")),
     "Old remote offset reuse must fail the security gate");
 });
