@@ -1028,6 +1028,31 @@ impl TransferManager {
         Ok(())
     }
 
+    /// Commit cancellation to the same serialized state/ledger pipeline as
+    /// finish_transfer. Otherwise a late Done can land between the cooperative
+    /// flag and the separate Canceled status write.
+    async fn mark_canceled(&self, id: &str) -> Option<Transfer> {
+        let _ledger = self.ledger_serial.lock().await;
+        let token = self.cancels.lock().await.get(id).cloned();
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            let transfer = transfers.get_mut(id)?;
+            if !matches!(
+                transfer.status,
+                TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused
+            ) {
+                return None;
+            }
+            if let Some(flag) = token {
+                flag.store(true, Ordering::Release);
+            }
+            transfer.status = TransferStatus::Canceled;
+            transfer.clone()
+        };
+        self.persist_snapshot(snapshot.clone(), true).await;
+        Some(snapshot)
+    }
+
     /// A successful backend return can still contain an incomplete stream.
     /// Choose and persist the terminal status while holding one transition lock
     /// so a concurrent Cancel cannot be overwritten by a late completion.
@@ -1582,34 +1607,26 @@ impl TransferManager {
     }
 
     pub async fn cancel(&self, id: &str, app: &AppHandle) -> Result<()> {
-        // Set the cooperative flag before aborting the async wrapper. A
-        // spawn_blocking FTP/FTPS data loop keeps running after JoinHandle::abort,
-        // so it must observe this flag and issue ABOR itself.
-        if let Some(flag) = self.cancels.lock().await.get(id) {
-            flag.store(true, Ordering::Release);
-        }
+        // Cancel and manual Retry must not race to abort/re-register the same
+        // worker. finish_transfer uses the ledger lock to resolve Cancel vs
+        // Done deterministically before either becomes terminal.
+        let _retry = self.retry_serial.lock().await;
+        let Some(canceled) = self.mark_canceled(id).await else {
+            // An already-completed transfer cannot retroactively be canceled.
+            return Ok(());
+        };
         {
-            let mut w = self.waiting.lock().await;
-            if let Some(pos) = w.iter().position(|x| x == id) {
-                w.remove(pos);
+            let mut waiting = self.waiting.lock().await;
+            if let Some(pos) = waiting.iter().position(|queued| queued == id) {
+                waiting.remove(pos);
             }
         }
-        if let Some(h) = self.tasks.lock().await.remove(id) {
-            h.abort();
+        // FTP spawn_blocking may continue ABOR cleanup after async abort; it
+        // already sees the cancellation flag published by mark_canceled.
+        if let Some(handle) = self.tasks.lock().await.remove(id) {
+            handle.abort();
         }
-        self.update(id, |t| {
-            if matches!(
-                t.status,
-                TransferStatus::Transferring | TransferStatus::Queued | TransferStatus::Paused
-            ) {
-                t.status = TransferStatus::Canceled;
-            }
-        })
-        .await;
-        // There is no `transfer://canceled` event — `updated` carries the row.
-        if let Some(t) = self.get(id).await {
-            let _ = app.emit("transfer://updated", &t);
-        }
+        let _ = app.emit("transfer://updated", &canceled);
         self.bump_queue(app).await;
         Ok(())
     }
@@ -6284,8 +6301,7 @@ mod tests {
             TransferStatus::Transferring,
         ))
         .await;
-        mgr.update("canceled", |t| t.status = TransferStatus::Canceled)
-            .await;
+        assert!(mgr.mark_canceled("canceled").await.is_some());
         // Both successful and failed results from a stale worker are ignored.
         assert!(mgr.finish_transfer("canceled", Ok(())).await.is_none());
         assert!(mgr
@@ -6378,7 +6394,7 @@ mod tests {
             let gate = Arc::clone(&gate);
             tokio::spawn(async move {
                 gate.wait().await;
-                mgr.update(id, |t| t.status = TransferStatus::Canceled).await;
+                let _ = mgr.mark_canceled(id).await;
             })
         };
         gate.wait().await;
