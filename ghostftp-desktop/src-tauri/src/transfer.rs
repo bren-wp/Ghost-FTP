@@ -1012,7 +1012,10 @@ impl TransferManager {
                 .get_mut(id)
                 .ok_or_else(|| anyhow::anyhow!("transfer {id} not found"))?;
             anyhow::ensure!(
-                matches!(transfer.status, TransferStatus::Error | TransferStatus::Canceled),
+                matches!(
+                    transfer.status,
+                    TransferStatus::Error | TransferStatus::Canceled
+                ),
                 "only failed or canceled transfers can be retried"
             );
             transfer.status = TransferStatus::Queued;
@@ -6276,8 +6279,11 @@ mod tests {
     #[tokio::test]
     async fn canceled_transfer_is_never_resurrected_by_late_completion_or_progress() {
         let mgr = TransferManager::new();
-        mgr.insert(terminal_race_test_row("canceled", TransferStatus::Transferring))
-            .await;
+        mgr.insert(terminal_race_test_row(
+            "canceled",
+            TransferStatus::Transferring,
+        ))
+        .await;
         mgr.update("canceled", |t| t.status = TransferStatus::Canceled)
             .await;
         // Both successful and failed results from a stale worker are ignored.
@@ -6295,7 +6301,10 @@ mod tests {
         assert_eq!(row.status, TransferStatus::Canceled);
         assert_eq!(row.transferred, 0);
         mgr.reset_for_retry("canceled").await.unwrap();
-        assert_eq!(mgr.snapshot("canceled").await.unwrap().status, TransferStatus::Queued);
+        assert_eq!(
+            mgr.snapshot("canceled").await.unwrap().status,
+            TransferStatus::Queued
+        );
         assert!(mgr.reset_for_retry("canceled").await.is_err());
     }
 
@@ -6341,8 +6350,11 @@ mod tests {
     #[tokio::test]
     async fn incomplete_backend_success_cannot_be_marked_done() {
         let mgr = TransferManager::new();
-        mgr.insert(terminal_race_test_row("short", TransferStatus::Transferring))
-            .await;
+        mgr.insert(terminal_race_test_row(
+            "short",
+            TransferStatus::Transferring,
+        ))
+        .await;
         let failed = mgr.finish_transfer("short", Ok(())).await.unwrap();
         assert_eq!(failed.status, TransferStatus::Error);
         assert!(failed.error.is_some());
