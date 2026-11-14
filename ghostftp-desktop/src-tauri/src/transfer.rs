@@ -5128,6 +5128,21 @@ async fn run_upload_task(
     let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
+    // A network Retry is one logical upload: keep the original source
+    // identity rather than silently switching to another file revision on
+    // the next fresh staging attempt. Explicit manual Retry is a new run.
+    let source_snapshot = if matches!(&*session, Session::Ftp(_) | Session::Ssh(_)) {
+        match capture_local_upload_snapshot(&local).await {
+            Ok(snapshot) => Some(snapshot),
+            Err(error) => {
+                finalize(&mgr, &id, &app, Err(error)).await;
+                mgr.bump_queue(&app).await;
+                return;
+            }
+        }
+    } else {
+        None
+    };
     let res = loop {
         let attempt = dispatch_upload(
             &mgr,
@@ -5136,6 +5151,7 @@ async fn run_upload_task(
             &local,
             &final_remote,
             allow_replace,
+            source_snapshot.as_ref(),
             &app,
         )
         .await;
@@ -5313,11 +5329,13 @@ async fn dispatch_upload(
     local: &Path,
     final_remote: &str,
     allow_replace: bool,
+    source_snapshot: Option<&LocalUploadSnapshot>,
     app: &AppHandle,
 ) -> Result<()> {
     match &**session {
         Session::Ssh(ssh) => {
-            let source_snapshot = capture_local_upload_snapshot(local).await?;
+            let source_snapshot = source_snapshot.context("SFTP source identity not captured")?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             // SFTP CREATE|EXCLUDE prevents truncation even if a competing
             // writer guesses the staging name after our planner runs.
@@ -5331,7 +5349,8 @@ async fn dispatch_upload(
                 .map_err(|source| anyhow::Error::new(UploadPromotionUnconfirmed(source)))
         }
         Session::Ftp(ftp) => {
-            let source_snapshot = capture_local_upload_snapshot(local).await?;
+            let source_snapshot = source_snapshot.context("FTP source identity not captured")?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             preflight_ftp_upload_staging(ftp, &staging).await?;
             mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app, &source_snapshot)
