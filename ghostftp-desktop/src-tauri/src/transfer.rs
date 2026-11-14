@@ -6494,9 +6494,9 @@ mod tests {
     fn ambiguous_promotion_failure_must_not_be_automatically_replayed() {
         let network = anyhow::anyhow!("connection reset by peer");
         assert!(is_safe_staged_upload_retry(&network));
-        let unknown_commit = anyhow::Error::new(UploadPromotionUnconfirmed(
-            anyhow::anyhow!("connection reset by peer"),
-        ));
+        let unknown_commit = anyhow::Error::new(UploadPromotionUnconfirmed(anyhow::anyhow!(
+            "connection reset by peer"
+        )));
         assert!(!is_safe_staged_upload_retry(&unknown_commit));
         assert_eq!(
             safe_transfer_failure(&unknown_commit),
