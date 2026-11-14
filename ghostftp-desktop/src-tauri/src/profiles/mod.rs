@@ -596,6 +596,91 @@ mod recovery_tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    /// Saved connection metadata survives dropping the store and creating a new
+    /// process-level store. Keychain contents are deliberately not serialized.
+    #[tokio::test]
+    async fn profiles_and_rail_order_survive_close_and_restart() {
+        let dir = temp_profile_dir();
+        let sample = |id: &str, name: &str| -> ConnectionProfile {
+            serde_json::from_value(serde_json::json!({
+                "id": id,
+                "name": name,
+                "protocol": "sftp",
+                "host": "files.example.invalid",
+                "port": 22,
+                "username": "operator",
+                "auth": {"kind": "password", "password": ""},
+                "autoConnect": true,
+                "favorite": true,
+                "defaultRemotePath": "/files",
+                "group": "Work"
+            }))
+            .unwrap()
+        };
+        {
+            let store = ProfileStore::from_dir(&dir).unwrap();
+            store.upsert(sample("saved-first", "First server")).await.unwrap();
+            store.upsert(sample("saved-second", "Second server")).await.unwrap();
+            store.reorder(&[
+                "saved-second".to_string(),
+                "saved-first".to_string(),
+            ]).await.unwrap();
+            assert_eq!(store.list().await.unwrap().len(), 2);
+        }
+        // Starting with the same data directory must retain every saved
+        // profile, its stable ID, connection address and editor metadata.
+        let restarted = ProfileStore::from_dir(&dir).unwrap();
+        let profiles = restarted.list().await.unwrap();
+        assert_eq!(profiles.len(), 2);
+        let first = restarted.get("saved-first").await.unwrap().unwrap();
+        let second = restarted.get("saved-second").await.unwrap().unwrap();
+        assert_eq!(first.name, "First server");
+        assert_eq!(first.host, "files.example.invalid");
+        assert_eq!(first.port, 22);
+        assert_eq!(first.default_remote_path.as_deref(), Some("/files"));
+        assert_eq!(first.auto_connect, Some(true));
+        assert_eq!(first.group.as_deref(), Some("Work"));
+        assert_eq!(first.sort_order, Some(1));
+        assert_eq!(second.sort_order, Some(0));
+        match first.auth {
+            AuthMethod::Password { password } => assert!(password.is_empty()),
+            _ => panic!("saved profile auth method changed"),
+        }
+        drop(restarted);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn invalid_profile_save_does_not_remove_existing_saved_connections() {
+        let dir = temp_profile_dir();
+        let valid: ConnectionProfile = serde_json::from_value(serde_json::json!({
+            "id": "persisted", "name": "Existing site",
+            "protocol": "ftps", "host": "secure.example.invalid",
+            "port": 21, "username": "operator",
+            "auth": {"kind": "password", "password": ""}
+        })).unwrap();
+        let invalid: ConnectionProfile = serde_json::from_value(serde_json::json!({
+            "id": "do-not-save", "name": "Bad password",
+            "protocol": "ftp", "host": "example.invalid",
+            "port": 21, "username": "operator",
+            "auth": {"kind": "password", "password": "SENSITIVE_SENTINEL"}
+        })).unwrap();
+        {
+            let store = ProfileStore::from_dir(&dir).unwrap();
+            store.upsert(valid).await.unwrap();
+            assert!(store.upsert(invalid).await.is_err());
+        }
+        let recovered = ProfileStore::from_dir(&dir).unwrap();
+        assert_eq!(recovered.list().await.unwrap().len(), 1);
+        assert!(recovered.get("persisted").await.unwrap().is_some());
+        assert!(recovered.get("do-not-save").await.unwrap().is_none());
+        assert!(!std::fs::read_to_string(dir.join("profiles.json"))
+            .unwrap()
+            .contains("SENSITIVE_SENTINEL"));
+        drop(recovered);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[tokio::test]
     async fn healthy_store_still_persists_updates() {
         let dir = temp_profile_dir();
