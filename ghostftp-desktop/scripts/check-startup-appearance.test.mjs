@@ -16,6 +16,10 @@ function startupIssues({ native, entry, html, permissions }) {
   if (!created.includes(".visible(false)")) {
     issues.push("native main window must start hidden");
   }
+  if (!created.includes(".background_color(startup_background)")
+      || !native.includes("startup_background_color(saved_theme.as_deref())")) {
+    issues.push("native compositor must use saved-theme background before webview creation");
+  }
   if (!created.includes(".initialization_script(&init_script)")) {
     issues.push("native settings snapshot must be injected before first paint");
   }
@@ -37,7 +41,8 @@ function startupIssues({ native, entry, html, permissions }) {
   }
   if (!html.includes("background-color: #04111e")
       || !html.includes('html[data-theme="light"]')
-      || !html.includes('html[data-theme="ghost-ice"]')) {
+      || !html.includes('html[data-theme="ghost-ice"]')
+      || !html.includes("background-color: #f6f8fa")) {
     issues.push("startup document must have pre-bundle dark/light color fallbacks");
   }
   return issues;

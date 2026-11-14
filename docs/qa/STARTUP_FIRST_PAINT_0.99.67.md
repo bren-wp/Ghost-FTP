@@ -5,7 +5,7 @@
 ## Root cause and implementation
 
 - Tauri created the main WebView window visible before React and CSS were mounted, allowing the host WebView's temporary white surface and an unstyled dark/black frame to appear on launch.
-- The single main window now starts `visible(false)` from its Rust window builder, using the same native settings/theme initialization as before.
+- The single main window now starts `visible(false)` from its Rust window builder, using the same native settings/theme initialization as before. The native compositor/WebView background is set to a saved-theme-matched opaque color (Dark, Light, Ghost Ice) before navigation; invalid theme settings fall back safely to Dark.
 - The React entry point reveals the window via `getCurrentWindow().show()` **after** the application shell mounts, with an explicit `core:window:allow-show` permission scoped to `main`. Non-Tauri browser previews do not call the native window API.
 - The startup HTML includes a tiny synchronous dark/light fallback so the first document frame is never the browser's white default. This is not a substitute for the full stylesheet, nor a new splash screen.
 - A hidden WebView can suppress `requestAnimationFrame`, so startup visibility does not depend on animation frames. React StrictMode cleanup avoids duplicate startup reveal timers.
