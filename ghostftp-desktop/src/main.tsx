@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
@@ -65,10 +67,39 @@ window.addEventListener("error", (event) => {
   );
 });
 
+
+/**
+ * Tauri creates the single main window hidden, avoiding the OS WebView's
+ * temporary white/black surface. Reveal it only after React has committed the
+ * application shell and its imported stylesheet is available.
+ *
+ * Do not wait for requestAnimationFrame: an initially hidden native webview
+ * may throttle or suppress animation frames, leaving the window invisible.
+ */
+function RevealNativeWindowAfterMount({ children }: React.PropsWithChildren) {
+  useEffect(() => {
+    if (!isTauri()) return;
+    // React passive effects run after the first DOM commit. The task boundary
+    // also allows style/layout initialization before the OS maps the window.
+    const reveal = window.setTimeout(() => {
+      void getCurrentWindow().show().catch(() => {
+        // Never print credentials or runtime error payloads to diagnostics.
+        console.error("Ghost FTP could not reveal its main window");
+      });
+    }, 0);
+    // React StrictMode runs the effect twice in development; cancel the first
+    // scheduled reveal rather than racing multiple native window operations.
+    return () => window.clearTimeout(reveal);
+  }, []);
+  return <>{children}</>;
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AppErrorBoundary>
-      <App />
-    </AppErrorBoundary>
+    <RevealNativeWindowAfterMount>
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
+    </RevealNativeWindowAfterMount>
   </React.StrictMode>
 );

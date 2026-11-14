@@ -67,6 +67,16 @@ pub struct AppState {
 /// reads every setting from `ghostftp.db`, exposes them on `window.__GHOSTFTP_SETTINGS__`
 /// for the frontend store to seed from, and sets `data-theme` on `<html>` before
 /// the first paint so there's no theme flash on reload.
+/// Choose the native window/WebView canvas before any page is loaded.
+/// Treat unrecognized or corrupted settings as the safe dark default.
+fn startup_background_color(theme: Option<&str>) -> tauri::webview::Color {
+    match theme {
+        Some("light") => tauri::webview::Color(250, 250, 252, 255),
+        Some("ghost-ice") => tauri::webview::Color(246, 248, 250, 255),
+        _ => tauri::webview::Color(4, 17, 30, 255),
+    }
+}
+
 fn build_settings_init_script(db: &db::Db) -> String {
     let mut map = db.settings_get_all().unwrap_or_default();
     // A fresh install has no rows yet — default the theme so the window still
@@ -258,6 +268,12 @@ original user data and staged restore were preserved for repair"
             // settings can be applied before the first frontend paint.
             {
                 let init_script = build_settings_init_script(&db);
+                let saved_theme = db
+                    .settings_get("appTheme")
+                    .ok()
+                    .flatten()
+                    .and_then(|value| serde_json::from_str::<String>(&value).ok());
+                let startup_background = startup_background_color(saved_theme.as_deref());
                 let window_builder =
                     tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                         .title("Ghost FTP")
@@ -269,6 +285,14 @@ original user data and staged restore were preserved for repair"
                         // starting maximized or fullscreen.
                         .prevent_overflow_with_margin(tauri::LogicalSize::new(32.0, 32.0))
                         .center()
+                        // Do not expose the default WebView2/WebKit surface before
+                        // the document, CSS and React shell have mounted. The
+                        // frontend explicitly shows this window on first render.
+                        .visible(false)
+                        // Match the native compositor and WebView background to the
+                        // saved palette so the first mapped frame never flips
+                        // from white/black into a different theme color.
+                        .background_color(startup_background)
                         // Windows/Linux preserve the branded window chrome.
                         .decorations(false)
                         .resizable(true)
@@ -640,6 +664,26 @@ mod init_script_tests {
         assert!(script.contains("setAttribute('data-theme'"));
         assert!(script.contains("\"appTheme\":\"nord\""));
         assert!(script.contains("\"terminalFontSize\":15"));
+    }
+
+    #[test]
+    fn native_startup_background_matches_saved_theme() {
+        assert_eq!(
+            startup_background_color(Some("dark")),
+            tauri::webview::Color(4, 17, 30, 255)
+        );
+        assert_eq!(
+            startup_background_color(Some("light")),
+            tauri::webview::Color(250, 250, 252, 255)
+        );
+        assert_eq!(
+            startup_background_color(Some("ghost-ice")),
+            tauri::webview::Color(246, 248, 250, 255)
+        );
+        assert_eq!(
+            startup_background_color(Some("invalid")),
+            tauri::webview::Color(4, 17, 30, 255)
+        );
     }
 
     #[test]

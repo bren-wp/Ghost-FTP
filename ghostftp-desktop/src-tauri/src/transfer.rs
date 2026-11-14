@@ -493,6 +493,13 @@ pub struct TransferManager {
     /// Optional shared SQLite store. Unit tests that don't exercise persistence
     /// use `new()`; the desktop app uses `with_db()`.
     db: Option<Arc<crate::db::Db>>,
+    /// Order mutation and SQLite persistence as one logical operation. Without
+    /// this gate an older progress snapshot can be persisted after a terminal
+    /// Done/Canceled record, making crash recovery falsely show active work.
+    ledger_serial: Mutex<()>,
+    /// Prevent simultaneous Retry actions from aborting each other's workers
+    /// or enqueueing the same transfer twice.
+    retry_serial: Mutex<()>,
     /// Throttle progress persistence to avoid turning a fast transfer into a
     /// high-frequency SQLite writer. State transitions still flush immediately.
     persisted_at: Mutex<HashMap<String, Instant>>,
@@ -506,6 +513,16 @@ pub struct TransferManager {
     /// live-adjustable like the concurrency bound. `GHOSTFTP_DELTA=0` still
     /// force-disables regardless of this flag.
     delta_enabled: AtomicBool,
+}
+
+fn is_terminal_transfer_status(status: TransferStatus) -> bool {
+    matches!(
+        status,
+        TransferStatus::Done
+            | TransferStatus::Skipped
+            | TransferStatus::Error
+            | TransferStatus::Canceled
+    )
 }
 
 fn now_ts() -> i64 {
@@ -936,6 +953,8 @@ impl TransferManager {
             persisted_retry: Mutex::new(persisted_retry),
             recovered_retry: Mutex::new(recovered_retry),
             db,
+            ledger_serial: Mutex::new(()),
+            retry_serial: Mutex::new(()),
             persisted_at: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
             bucket: TokenBucket::new(),
@@ -960,12 +979,20 @@ impl TransferManager {
         self.transfers.lock().await.get(id).cloned()
     }
 
+    /// Progress and control updates can only modify an active row. A late
+    /// transport callback must never turn a terminal record back into a live
+    /// transfer, or replace its final byte count. Manual Retry has an explicit
+    /// terminal-to-Queued transition below.
     async fn update<F: FnOnce(&mut Transfer)>(&self, id: &str, f: F) {
+        let _ledger = self.ledger_serial.lock().await;
         let snapshot = {
             let mut transfers = self.transfers.lock().await;
-            transfers.get_mut(id).map(|transfer| {
+            transfers.get_mut(id).and_then(|transfer| {
+                if is_terminal_transfer_status(transfer.status) {
+                    return None;
+                }
                 f(transfer);
-                transfer.clone()
+                Some(transfer.clone())
             })
         };
         if let Some(transfer) = snapshot {
@@ -975,7 +1002,92 @@ impl TransferManager {
         }
     }
 
+    /// Only explicit user Retry may requeue a canceled/failed transfer. The
+    /// status check and reset are atomic with respect to other state updates.
+    async fn reset_for_retry(&self, id: &str) -> Result<()> {
+        let _ledger = self.ledger_serial.lock().await;
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            let transfer = transfers
+                .get_mut(id)
+                .ok_or_else(|| anyhow::anyhow!("transfer {id} not found"))?;
+            anyhow::ensure!(
+                matches!(
+                    transfer.status,
+                    TransferStatus::Error | TransferStatus::Canceled
+                ),
+                "only failed or canceled transfers can be retried"
+            );
+            transfer.status = TransferStatus::Queued;
+            transfer.transferred = 0;
+            transfer.error = None;
+            transfer.retry_attempt = None;
+            transfer.clone()
+        };
+        self.persist_snapshot(snapshot, true).await;
+        Ok(())
+    }
+
+    /// Commit cancellation to the same serialized state/ledger pipeline as
+    /// finish_transfer. Otherwise a late Done can land between the cooperative
+    /// flag and the separate Canceled status write.
+    async fn mark_canceled(&self, id: &str) -> Option<Transfer> {
+        let _ledger = self.ledger_serial.lock().await;
+        let token = self.cancels.lock().await.get(id).cloned();
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            let transfer = transfers.get_mut(id)?;
+            if !matches!(
+                transfer.status,
+                TransferStatus::Queued | TransferStatus::Transferring | TransferStatus::Paused
+            ) {
+                return None;
+            }
+            if let Some(flag) = token {
+                flag.store(true, Ordering::Release);
+            }
+            transfer.status = TransferStatus::Canceled;
+            transfer.clone()
+        };
+        self.persist_snapshot(snapshot.clone(), true).await;
+        Some(snapshot)
+    }
+
+    /// A successful backend return can still contain an incomplete stream.
+    /// Choose and persist the terminal status while holding one transition lock
+    /// so a concurrent Cancel cannot be overwritten by a late completion.
+    async fn finish_transfer(&self, id: &str, result: Result<()>) -> Option<Transfer> {
+        let _ledger = self.ledger_serial.lock().await;
+        let snapshot = {
+            let mut transfers = self.transfers.lock().await;
+            let transfer = transfers.get_mut(id)?;
+            if is_terminal_transfer_status(transfer.status) {
+                return None;
+            }
+            let completion = match result {
+                Ok(()) => completed_transfer_size(transfer.size, transfer.transferred).map(|_| ()),
+                Err(error) => Err(error),
+            };
+            match completion {
+                Ok(()) => {
+                    transfer.status = TransferStatus::Done;
+                    if transfer.size == 0 {
+                        transfer.size = transfer.transferred;
+                    }
+                }
+                Err(error) => {
+                    transfer.status = TransferStatus::Error;
+                    transfer.error = Some(safe_transfer_failure(&error).to_string());
+                }
+            }
+            transfer.clone()
+        };
+        self.persist_snapshot(snapshot.clone(), true).await;
+        Some(snapshot)
+    }
+
     async fn insert(&self, t: Transfer) {
+        let _ledger = self.ledger_serial.lock().await;
         self.transfers.lock().await.insert(t.id.clone(), t.clone());
         self.persist_snapshot(t, true).await;
     }
@@ -1355,6 +1467,7 @@ impl TransferManager {
     /// policy-resolved) source/destination. Same id — the panel row resets
     /// in place.
     pub async fn retry(self: &Arc<Self>, id: &str, app: &AppHandle) -> Result<()> {
+        let _retry = self.retry_serial.lock().await;
         match self.get(id).await.map(|t| t.status) {
             Some(TransferStatus::Error) | Some(TransferStatus::Canceled) => {}
             _ => anyhow::bail!("only failed or canceled transfers can be retried"),
@@ -1391,13 +1504,7 @@ impl TransferManager {
         // backend-specific immutable identity/change signal, always restart the
         // first recovered retry from zero rather than risk a hybrid file.
         self.recovered_retry.lock().await.remove(id);
-        self.update(id, |t| {
-            t.status = TransferStatus::Queued;
-            t.transferred = 0;
-            t.error = None;
-            t.retry_attempt = None;
-        })
-        .await;
+        self.reset_for_retry(id).await?;
         if let Some(t) = self.get(id).await {
             let _ = app.emit("transfer://updated", &t);
         }
@@ -1500,34 +1607,26 @@ impl TransferManager {
     }
 
     pub async fn cancel(&self, id: &str, app: &AppHandle) -> Result<()> {
-        // Set the cooperative flag before aborting the async wrapper. A
-        // spawn_blocking FTP/FTPS data loop keeps running after JoinHandle::abort,
-        // so it must observe this flag and issue ABOR itself.
-        if let Some(flag) = self.cancels.lock().await.get(id) {
-            flag.store(true, Ordering::Release);
-        }
+        // Cancel and manual Retry must not race to abort/re-register the same
+        // worker. finish_transfer uses the ledger lock to resolve Cancel vs
+        // Done deterministically before either becomes terminal.
+        let _retry = self.retry_serial.lock().await;
+        let Some(canceled) = self.mark_canceled(id).await else {
+            // An already-completed transfer cannot retroactively be canceled.
+            return Ok(());
+        };
         {
-            let mut w = self.waiting.lock().await;
-            if let Some(pos) = w.iter().position(|x| x == id) {
-                w.remove(pos);
+            let mut waiting = self.waiting.lock().await;
+            if let Some(pos) = waiting.iter().position(|queued| queued == id) {
+                waiting.remove(pos);
             }
         }
-        if let Some(h) = self.tasks.lock().await.remove(id) {
-            h.abort();
+        // FTP spawn_blocking may continue ABOR cleanup after async abort; it
+        // already sees the cancellation flag published by mark_canceled.
+        if let Some(handle) = self.tasks.lock().await.remove(id) {
+            handle.abort();
         }
-        self.update(id, |t| {
-            if matches!(
-                t.status,
-                TransferStatus::Transferring | TransferStatus::Queued | TransferStatus::Paused
-            ) {
-                t.status = TransferStatus::Canceled;
-            }
-        })
-        .await;
-        // There is no `transfer://canceled` event — `updated` carries the row.
-        if let Some(t) = self.get(id).await {
-            let _ = app.emit("transfer://updated", &t);
-        }
+        let _ = app.emit("transfer://updated", &canceled);
         self.bump_queue(app).await;
         Ok(())
     }
@@ -5049,17 +5148,29 @@ async fn run_upload_task(
     let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
+    // A network Retry is one logical upload: keep the original source
+    // identity rather than silently switching to another file revision on
+    // the next fresh staging attempt. Explicit manual Retry is a new run.
+    let source_snapshot = if matches!(&*session, Session::Ftp(_) | Session::Ssh(_)) {
+        match capture_local_upload_snapshot(&local).await {
+            Ok(snapshot) => Some(snapshot),
+            Err(error) => {
+                finalize(&mgr, &id, &app, Err(error)).await;
+                mgr.bump_queue(&app).await;
+                return;
+            }
+        }
+    } else {
+        None
+    };
     let res = loop {
-        let attempt = dispatch_upload(
-            &mgr,
-            &id,
-            &session,
-            &local,
-            &final_remote,
+        let request = UploadAttempt {
+            local: &local,
+            final_remote: &final_remote,
             allow_replace,
-            &app,
-        )
-        .await;
+            source_snapshot: source_snapshot.as_ref(),
+        };
+        let attempt = dispatch_upload(&mgr, &id, &session, request, &app).await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
                 // Agent alone has a verified upload resume prefix. FTP and
@@ -5226,39 +5337,54 @@ async fn ensure_upload_promotion_allowed(mgr: &Arc<TransferManager>, id: &str) -
     Ok(())
 }
 
+/// Keep the resolved upload target, explicit overwrite intent and stable
+/// source identity together across every automatic retry attempt.
+struct UploadAttempt<'a> {
+    local: &'a Path,
+    final_remote: &'a str,
+    allow_replace: bool,
+    source_snapshot: Option<&'a LocalUploadSnapshot>,
+}
+
 /// Backend dispatch for a single-file upload.
 async fn dispatch_upload(
     mgr: &Arc<TransferManager>,
     id: &str,
     session: &Arc<Session>,
-    local: &Path,
-    final_remote: &str,
-    allow_replace: bool,
+    request: UploadAttempt<'_>,
     app: &AppHandle,
 ) -> Result<()> {
+    let UploadAttempt {
+        local,
+        final_remote,
+        allow_replace,
+        source_snapshot,
+    } = request;
     match &**session {
         Session::Ssh(ssh) => {
-            let source_snapshot = capture_local_upload_snapshot(local).await?;
+            let source_snapshot = source_snapshot.context("SFTP source identity not captured")?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             // SFTP CREATE|EXCLUDE prevents truncation even if a competing
             // writer guesses the staging name after our planner runs.
-            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, &source_snapshot)
+            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
-            verify_local_upload_snapshot(local, &source_snapshot).await?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
             promote_remote_upload(session, &staging, final_remote, allow_replace)
                 .await
                 .map_err(|source| anyhow::Error::new(UploadPromotionUnconfirmed(source)))
         }
         Session::Ftp(ftp) => {
-            let source_snapshot = capture_local_upload_snapshot(local).await?;
+            let source_snapshot = source_snapshot.context("FTP source identity not captured")?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             preflight_ftp_upload_staging(ftp, &staging).await?;
-            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app, &source_snapshot)
+            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app, source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
-            verify_local_upload_snapshot(local, &source_snapshot).await?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             let expected = tokio::fs::metadata(local)
                 .await
                 .context("stat uploaded FTP source")?
@@ -5316,48 +5442,18 @@ async fn dispatch_upload(
     }
 }
 
+/// Terminal transition, persistence and emitted event agree even when Cancel
+/// arrives between the network acknowledgment and finalization.
 async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result: Result<()>) {
-    // A backend returning Ok(()) may still have sent fewer/more bytes than
-    // the known source size. Never replace real progress with a fictitious
-    // 100% on such a result, including across FTP/FTPS/SFTP/cloud backends.
-    let result = match result {
-        Ok(()) => match mgr.get(id).await {
-            Some(t) => completed_transfer_size(t.size, t.transferred).map(|_| ()),
-            None => Err(anyhow::anyhow!("completed transfer record disappeared")),
-        },
-        Err(error) => Err(error),
-    };
-    // Cancel updates the row immediately. Cooperative blocking transports (FTP)
-    // may finish ABOR cleanup after that; never let their late result overwrite
-    // the user-visible Canceled state.
-    if mgr.get(id).await.map(|t| t.status) == Some(TransferStatus::Canceled) {
-        mgr.tasks.lock().await.remove(id);
-        return;
-    }
-    match result {
-        Ok(()) => {
-            mgr.update(id, |t| {
-                t.status = TransferStatus::Done;
-                // A zero-sized initial estimate means size was unavailable,
-                // not that an actual multi-byte download is empty.
-                if t.size == 0 {
-                    t.size = t.transferred;
-                }
-            })
-            .await;
-            if let Some(t) = mgr.get(id).await {
-                let _ = app.emit("transfer://done", &t);
+    if let Some(transfer) = mgr.finish_transfer(id, result).await {
+        match transfer.status {
+            TransferStatus::Done => {
+                let _ = app.emit("transfer://done", &transfer);
             }
-        }
-        Err(e) => {
-            mgr.update(id, |t| {
-                t.status = TransferStatus::Error;
-                t.error = Some(safe_transfer_failure(&e).to_string());
-            })
-            .await;
-            if let Some(t) = mgr.get(id).await {
-                let _ = app.emit("transfer://error", &t);
+            TransferStatus::Error => {
+                let _ = app.emit("transfer://error", &transfer);
             }
+            _ => unreachable!("finish_transfer only returns a terminal completion"),
         }
     }
     mgr.tasks.lock().await.remove(id);
@@ -6187,6 +6283,195 @@ mod tests {
         mgr.pauses.lock().await.get("t1").unwrap().set(false);
         let err = handle.await.unwrap().unwrap_err();
         assert!(err.downcast_ref::<RestartFromPause>().is_some());
+    }
+
+    fn terminal_race_test_row(id: &str, status: TransferStatus) -> Transfer {
+        Transfer {
+            id: id.to_string(),
+            kind: TransferKind::Upload,
+            source: "/tmp/queued-upload.bin".to_string(),
+            destination: "/remote/queued-upload.bin".to_string(),
+            size: 1024,
+            transferred: 0,
+            status,
+            error: None,
+            retry_attempt: None,
+            delta: None,
+            started_at: 11,
+        }
+    }
+
+    #[tokio::test]
+    async fn canceled_transfer_is_never_resurrected_by_late_completion_or_progress() {
+        let mgr = TransferManager::new();
+        mgr.insert(terminal_race_test_row(
+            "canceled",
+            TransferStatus::Transferring,
+        ))
+        .await;
+        let flag = Arc::new(AtomicBool::new(false));
+        mgr.cancels
+            .lock()
+            .await
+            .insert("canceled".to_string(), Arc::clone(&flag));
+        assert!(mgr.mark_canceled("canceled").await.is_some());
+        assert!(flag.load(Ordering::Acquire));
+        // Both successful and failed results from a stale worker are ignored.
+        assert!(mgr.finish_transfer("canceled", Ok(())).await.is_none());
+        assert!(mgr
+            .finish_transfer("canceled", Err(anyhow::anyhow!("late network error")))
+            .await
+            .is_none());
+        mgr.update("canceled", |t| {
+            t.status = TransferStatus::Transferring;
+            t.transferred = 1024;
+        })
+        .await;
+        let row = mgr.snapshot("canceled").await.unwrap();
+        assert_eq!(row.status, TransferStatus::Canceled);
+        assert_eq!(row.transferred, 0);
+        mgr.reset_for_retry("canceled").await.unwrap();
+        assert_eq!(
+            mgr.snapshot("canceled").await.unwrap().status,
+            TransferStatus::Queued
+        );
+        assert!(mgr.reset_for_retry("canceled").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn completed_row_and_sqlite_ledger_reject_stale_progress_after_success() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let mgr = TransferManager::with_db(db.clone());
+        let id = "completed-ledger";
+        mgr.persisted_retry.lock().await.insert(
+            id.to_string(),
+            PersistedRetryInfo::Upload {
+                profile_id: "profile".to_string(),
+                local: PathBuf::from("/tmp/queued-upload.bin"),
+                final_remote: "/remote/queued-upload.bin".to_string(),
+                allow_replace: false,
+            },
+        );
+        mgr.insert(terminal_race_test_row(id, TransferStatus::Transferring))
+            .await;
+        mgr.update(id, |t| t.transferred = 1024).await;
+        let done = mgr.finish_transfer(id, Ok(())).await.unwrap();
+        assert_eq!(done.status, TransferStatus::Done);
+        mgr.update(id, |t| {
+            t.status = TransferStatus::Transferring;
+            t.transferred = 1;
+            t.error = Some("late callback".to_string());
+        })
+        .await;
+        assert_eq!(mgr.snapshot(id).await.unwrap().status, TransferStatus::Done);
+        assert_eq!(mgr.snapshot(id).await.unwrap().transferred, 1024);
+        let row = db
+            .transfer_ledger_list()
+            .unwrap()
+            .into_iter()
+            .find(|(row_id, _, _)| row_id == id)
+            .unwrap();
+        let envelope: PersistedTransferEnvelope = serde_json::from_str(&row.1).unwrap();
+        assert_eq!(envelope.transfer.status, TransferStatus::Done);
+        assert_eq!(envelope.transfer.transferred, 1024);
+        assert!(envelope.transfer.error.is_none());
+    }
+
+    #[tokio::test]
+    async fn concurrent_cancel_and_completion_persist_the_actual_terminal_winner() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let mgr = Arc::new(TransferManager::with_db(db.clone()));
+        let id = "competing-terminal";
+        mgr.persisted_retry.lock().await.insert(
+            id.to_string(),
+            PersistedRetryInfo::Upload {
+                profile_id: "profile".to_string(),
+                local: PathBuf::from("/tmp/source.bin"),
+                final_remote: "/remote/source.bin".to_string(),
+                allow_replace: false,
+            },
+        );
+        let mut row = terminal_race_test_row(id, TransferStatus::Transferring);
+        row.transferred = row.size;
+        mgr.insert(row).await;
+        let gate = Arc::new(tokio::sync::Barrier::new(3));
+        let finisher = {
+            let mgr = Arc::clone(&mgr);
+            let gate = Arc::clone(&gate);
+            tokio::spawn(async move {
+                gate.wait().await;
+                mgr.finish_transfer(id, Ok(())).await
+            })
+        };
+        let canceler = {
+            let mgr = Arc::clone(&mgr);
+            let gate = Arc::clone(&gate);
+            tokio::spawn(async move {
+                gate.wait().await;
+                let _ = mgr.mark_canceled(id).await;
+            })
+        };
+        gate.wait().await;
+        let _ = finisher.await.unwrap();
+        canceler.await.unwrap();
+
+        let memory = mgr.snapshot(id).await.unwrap();
+        let entries = db.transfer_ledger_list().unwrap();
+        let (_, raw, _) = entries
+            .into_iter()
+            .find(|(entry_id, _, _)| entry_id == id)
+            .unwrap();
+        let durable: PersistedTransferEnvelope = serde_json::from_str(&raw).unwrap();
+        assert!(matches!(
+            memory.status,
+            TransferStatus::Done | TransferStatus::Canceled
+        ));
+        assert_eq!(durable.transfer.status, memory.status);
+        assert_eq!(durable.transfer.transferred, memory.transferred);
+        assert_eq!(memory.transferred, 1024);
+    }
+
+    #[tokio::test]
+    async fn concurrent_user_retries_only_allow_one_terminal_to_queued_reset() {
+        let mgr = Arc::new(TransferManager::new());
+        mgr.insert(terminal_race_test_row("one-retry", TransferStatus::Error))
+            .await;
+        let gate = Arc::new(tokio::sync::Barrier::new(9));
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let mgr = Arc::clone(&mgr);
+            let gate = Arc::clone(&gate);
+            workers.push(tokio::spawn(async move {
+                gate.wait().await;
+                mgr.reset_for_retry("one-retry").await.is_ok()
+            }));
+        }
+        gate.wait().await;
+        let mut accepted = 0;
+        for worker in workers {
+            if worker.await.unwrap() {
+                accepted += 1;
+            }
+        }
+        assert_eq!(accepted, 1);
+        assert_eq!(
+            mgr.snapshot("one-retry").await.unwrap().status,
+            TransferStatus::Queued
+        );
+    }
+
+    #[tokio::test]
+    async fn incomplete_backend_success_cannot_be_marked_done() {
+        let mgr = TransferManager::new();
+        mgr.insert(terminal_race_test_row(
+            "short",
+            TransferStatus::Transferring,
+        ))
+        .await;
+        let failed = mgr.finish_transfer("short", Ok(())).await.unwrap();
+        assert_eq!(failed.status, TransferStatus::Error);
+        assert!(failed.error.is_some());
+        assert!(mgr.finish_transfer("short", Ok(())).await.is_none());
     }
 
     // ---------- Durable restart recovery ----------

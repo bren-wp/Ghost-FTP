@@ -1,4 +1,13 @@
-## 0.99.66 Preview candidate — 14 November 2026 (unpublished)
+## 0.99.67 Preview candidate — 14 November 2026 (unpublished)
+
+- Protect final Done, Error, Canceled and Skipped transfer records against late worker/progress callbacks. A concurrent Cancel cannot be overwritten by stale successful finalization.
+- Serialize in-memory transfer status mutation and SQLite ledger writes so a delayed active-progress snapshot cannot persist after a terminal state.
+- Serialize user-driven Retry actions and allow explicit requeue only for canceled/error records.
+- Keep one local FTP/SFTP source identity snapshot across a whole automatic retry sequence, preventing a changed source from silently becoming the next file revision.
+- Keep the Windows/Linux Tauri main window hidden until the first React mount, initialize the first-frame dark/light canvas in HTML and permit a single main-window reveal; add negative startup regression tests and an installed-platform video acceptance checklist.
+- Add regression tests for Cancel/Done races, short successful responses, terminal SQLite preservation, and security-audit guards. Native 4+ GiB/concurrent fault injection and credential-vault acceptance still require real hardware and hosts.
+
+## 0.99.66 Preview — 14 November 2026 (published)
 
 - Create each new SFTP staging file exclusively from byte zero even after Pause/Resume or Retry; never trust a prior attempt's saved progress on a newly named staging file.
 - Block FTP/FTPS/SFTP upload promotion after ordinary source-file changes, symlink swaps or same-size replacement using source metadata and OS file identity.
