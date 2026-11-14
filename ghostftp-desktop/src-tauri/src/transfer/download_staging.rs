@@ -54,6 +54,12 @@ pub(super) async fn cleanup_failed_download_staging(path: &Path, error: &anyhow:
     if error.downcast_ref::<DownloadStagingOpenFailure>().is_some() {
         return;
     }
+    cleanup_owned_regular_staging_file(path).await;
+}
+
+/// After exclusive creation, only remove a regular staging entry. A planted
+/// symlink or directory must not be deleted during best-effort cleanup.
+pub(super) async fn cleanup_owned_regular_staging_file(path: &Path) {
     if tokio::fs::symlink_metadata(path)
         .await
         .is_ok_and(|meta| meta.file_type().is_file())

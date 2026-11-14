@@ -665,7 +665,8 @@ mod download_staging;
 #[cfg(test)]
 use download_staging::download_backup_path;
 use download_staging::{
-    cleanup_failed_download_staging, commit_verified_delta_output, create_new_delta_upload_patch,
+    cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
+    commit_verified_delta_output, create_new_delta_upload_patch,
     create_new_download_staging, download_staging_path, fresh_download_staging_path,
     local_path_exists_fail_closed,
     local_path_exists_sync_fail_closed, promote_staged_download, promote_staged_download_noreplace,
@@ -760,6 +761,28 @@ async fn resolve_remote_rename(
 /// A successful Agent patch upload must acknowledge *all* bytes in the
 /// current request. Missing or over-counted acknowledgements cause a safe
 /// fallback instead of reporting successful transfer of incomplete data.
+/// A daemon reply alone does not prove that a delta update reached disk.
+/// Revalidate its reused-byte and reconstructed-size accounting against a fresh
+/// stat before marking the upload complete.
+fn verify_agent_delta_upload_completion(
+    expected_total: u64,
+    expected_reused: u64,
+    reported_reused: u64,
+    reported_written: u64,
+    remote_size: u64,
+) -> Result<()> {
+    anyhow::ensure!(
+        reported_reused == expected_reused,
+        "Agent delta upload reused-byte acknowledgement mismatch"
+    );
+    verify_committed_length(
+        "Agent delta upload",
+        expected_total,
+        reported_written,
+        remote_size,
+    )
+}
+
 fn verify_agent_delta_patch_ack(expected: usize, acknowledged: u64) -> Result<()> {
     let expected = u64::try_from(expected).context("Agent delta patch length overflow")?;
     anyhow::ensure!(
@@ -2166,7 +2189,7 @@ impl TransferManager {
         };
         let size = plan.literal_bytes + plan.reused_bytes;
         if !delta::delta_worthwhile(&plan, size) {
-            let _ = tokio::fs::remove_file(&local_patch).await;
+            cleanup_owned_regular_staging_file(&local_patch).await;
             anyhow::bail!(
                 "delta barely saves anything ({} of {size} bytes would still cross the wire)",
                 plan.literal_bytes
@@ -2236,7 +2259,23 @@ impl TransferManager {
                 })
                 .await?;
             match resp {
-                Response::DeltaDone { .. } => Ok(()),
+                Response::DeltaDone {
+                    bytes_reused,
+                    bytes_written,
+                } => {
+                    let (remote_size, exists) = agent_stat(session, remote_path).await?;
+                    anyhow::ensure!(
+                        exists,
+                        "Agent delta upload destination missing after assembly"
+                    );
+                    verify_agent_delta_upload_completion(
+                        size,
+                        plan.reused_bytes,
+                        bytes_reused,
+                        bytes_written,
+                        remote_size,
+                    )
+                }
                 Response::Error { message, .. } => {
                     anyhow::bail!("delta assemble {remote_path}: {message}")
                 }
@@ -2252,7 +2291,7 @@ impl TransferManager {
                 })
                 .await;
         }
-        let _ = tokio::fs::remove_file(&local_patch).await;
+        cleanup_owned_regular_staging_file(&local_patch).await;
         result?;
 
         tracing::info!(
@@ -5384,6 +5423,15 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agent_delta_completion_checks_remote_size_and_reused_bytes() {
+        assert!(verify_agent_delta_upload_completion(1000, 800, 800, 1000, 1000).is_ok());
+        assert!(verify_agent_delta_upload_completion(1000, 800, 799, 1000, 1000).is_err());
+        assert!(verify_agent_delta_upload_completion(1000, 800, 800, 999, 1000).is_err());
+        assert!(verify_agent_delta_upload_completion(1000, 800, 800, 1000, 999).is_err());
+        assert!(verify_agent_delta_upload_completion(0, 0, 0, 0, 0).is_ok());
+    }
 
     #[test]
     fn delta_upload_patch_requires_exact_agent_acknowledgements() {
