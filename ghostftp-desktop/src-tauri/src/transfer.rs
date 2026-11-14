@@ -6426,11 +6426,8 @@ mod tests {
     #[tokio::test]
     async fn concurrent_user_retries_only_allow_one_terminal_to_queued_reset() {
         let mgr = Arc::new(TransferManager::new());
-        mgr.insert(terminal_race_test_row(
-            "one-retry",
-            TransferStatus::Error,
-        ))
-        .await;
+        mgr.insert(terminal_race_test_row("one-retry", TransferStatus::Error))
+            .await;
         let gate = Arc::new(tokio::sync::Barrier::new(9));
         let mut workers = Vec::new();
         for _ in 0..8 {
