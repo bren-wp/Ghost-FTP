@@ -665,8 +665,9 @@ mod download_staging;
 #[cfg(test)]
 use download_staging::download_backup_path;
 use download_staging::{
-    cleanup_failed_download_staging, commit_verified_delta_output, create_new_download_staging,
-    download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
+    cleanup_failed_download_staging, commit_verified_delta_output, create_new_delta_upload_patch,
+    create_new_download_staging, download_staging_path, fresh_download_staging_path,
+    local_path_exists_fail_closed,
     local_path_exists_sync_fail_closed, promote_staged_download, promote_staged_download_noreplace,
     verify_staged_download_bytes, DownloadStagingOpenFailure,
 };
@@ -756,6 +757,18 @@ async fn resolve_remote_rename(
 
 /// A malicious or faulty Agent must never send more delta patch bytes than
 /// the requested range, or silently end a nonempty range with zero bytes.
+/// A successful Agent patch upload must acknowledge *all* bytes in the
+/// current request. Missing or over-counted acknowledgements cause a safe
+/// fallback instead of reporting successful transfer of incomplete data.
+fn verify_agent_delta_patch_ack(expected: usize, acknowledged: u64) -> Result<()> {
+    let expected = u64::try_from(expected).context("Agent delta patch length overflow")?;
+    anyhow::ensure!(
+        acknowledged == expected,
+        "Agent delta patch acknowledged an incomplete or oversized chunk"
+    );
+    Ok(())
+}
+
 fn checked_agent_delta_chunk_length(remaining: u64, next_bytes: usize) -> Result<u64> {
     let count = u64::try_from(next_bytes).context("Agent delta chunk length overflow")?;
     anyhow::ensure!(
@@ -2132,19 +2145,22 @@ impl TransferManager {
         let local_patch = local_dir.join(format!(".ghostftp-patch-{}", Uuid::new_v4()));
         let (local_owned, patch_owned) = (local_path.to_path_buf(), local_patch.clone());
         let plan = match tokio::task::spawn_blocking(move || {
-            let patch = std::fs::File::create(&patch_owned)
-                .with_context(|| format!("create {}", patch_owned.display()))?;
-            delta::plan_delta(&remote_sig, &local_owned, patch)
+            let patch = create_new_delta_upload_patch(&patch_owned)?;
+            // Distinguish failures *after* exclusive creation from failures to
+            // create the file. Only the former grant us cleanup ownership.
+            Ok::<_, anyhow::Error>(delta::plan_delta(&remote_sig, &local_owned, patch))
         })
         .await
         {
-            Ok(Ok(plan)) => plan,
-            Ok(Err(e)) => {
-                let _ = tokio::fs::remove_file(&local_patch).await;
+            Ok(Ok(Ok(plan))) => plan,
+            Ok(Ok(Err(e))) => {
+                cleanup_failed_download_staging(&local_patch, &e).await;
                 return Err(e.context("plan delta"));
             }
+            Ok(Err(e)) => return Err(e.context("create delta upload patch")),
             Err(e) => {
-                let _ = tokio::fs::remove_file(&local_patch).await;
+                // A failed join cannot prove which file the worker created;
+                // never unlink an unowned or concurrently replaced pathname.
                 return Err(anyhow::anyhow!("plan delta task: {e}"));
             }
         };
@@ -2186,7 +2202,9 @@ impl TransferManager {
                     })
                     .await?;
                 match resp {
-                    Response::Written { .. } => {}
+                    Response::Written { bytes } => {
+                        verify_agent_delta_patch_ack(n, bytes)?;
+                    }
                     Response::Error { message, .. } => {
                         anyhow::bail!("upload patch {remote_patch}: {message}")
                     }
@@ -5366,6 +5384,14 @@ https://alice:pass@cloud.example/file?x-amz-signature=secret"
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delta_upload_patch_requires_exact_agent_acknowledgements() {
+        assert!(verify_agent_delta_patch_ack(0, 0).is_ok());
+        assert!(verify_agent_delta_patch_ack(128 * 1024, 128 * 1024).is_ok());
+        assert!(verify_agent_delta_patch_ack(4096, 4095).is_err());
+        assert!(verify_agent_delta_patch_ack(4096, 4097).is_err());
+    }
 
     #[test]
     fn delta_patch_length_never_exceeds_requested_range() {

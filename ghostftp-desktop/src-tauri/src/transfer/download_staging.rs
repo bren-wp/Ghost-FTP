@@ -62,6 +62,18 @@ pub(super) async fn cleanup_failed_download_staging(path: &Path, error: &anyhow:
     }
 }
 
+/// The delta-upload planner runs on a blocking thread and needs a synchronous
+/// writer. Use CREATE_NEW just like a downloaded staging file, so a failed
+/// open cannot truncate a user's file or follow a planted symlink.
+pub(super) fn create_new_delta_upload_patch(path: &Path) -> Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(DownloadStagingOpenFailure)
+        .with_context(|| format!("exclusively create Agent delta patch {}", path.display()))
+}
+
 pub(super) fn download_backup_path(final_path: &Path, id: &str) -> PathBuf {
     let parent = final_path.parent().unwrap_or(Path::new("."));
     parent.join(format!(".ghostftp-download-{id}.backup"))
@@ -272,6 +284,47 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agent_delta_patch_cannot_clobber_preexisting_output() {
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-delta-upload-excl-{}",
+            Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let patch = root.join("user-owned.patch");
+        std::fs::write(&patch, b"valuable existing data").unwrap();
+        let error = create_new_delta_upload_patch(&patch).unwrap_err();
+        assert!(error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
+        assert_eq!(std::fs::read(&patch).unwrap(), b"valuable existing data");
+        let free = root.join("new.patch");
+        let file = create_new_delta_upload_patch(&free).unwrap();
+        drop(file);
+        assert!(std::fs::metadata(&free).unwrap().is_file());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn agent_delta_patch_cannot_follow_or_remove_symlink() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-delta-upload-link-{}",
+            Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let valuable = root.join("valuable");
+        let patch = root.join("planted.patch");
+        std::fs::write(&valuable, b"keep my bytes").unwrap();
+        symlink(&valuable, &patch).unwrap();
+        assert!(create_new_delta_upload_patch(&patch).is_err());
+        assert!(std::fs::symlink_metadata(&patch)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(std::fs::read(&valuable).unwrap(), b"keep my bytes");
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[tokio::test]
     async fn failed_exclusive_staging_open_never_deletes_existing_file() {
