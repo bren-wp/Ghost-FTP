@@ -6348,6 +6348,89 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn concurrent_cancel_and_completion_persist_the_actual_terminal_winner() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let mgr = Arc::new(TransferManager::with_db(db.clone()));
+        let id = "competing-terminal";
+        mgr.persisted_retry.lock().await.insert(
+            id.to_string(),
+            PersistedRetryInfo::Upload {
+                profile_id: "profile".to_string(),
+                local: PathBuf::from("/tmp/source.bin"),
+                final_remote: "/remote/source.bin".to_string(),
+                allow_replace: false,
+            },
+        );
+        let mut row = terminal_race_test_row(id, TransferStatus::Transferring);
+        row.transferred = row.size;
+        mgr.insert(row).await;
+        let gate = Arc::new(tokio::sync::Barrier::new(3));
+        let finisher = {
+            let mgr = Arc::clone(&mgr);
+            let gate = Arc::clone(&gate);
+            tokio::spawn(async move {
+                gate.wait().await;
+                mgr.finish_transfer(id, Ok(())).await
+            })
+        };
+        let canceler = {
+            let mgr = Arc::clone(&mgr);
+            let gate = Arc::clone(&gate);
+            tokio::spawn(async move {
+                gate.wait().await;
+                mgr.update(id, |t| t.status = TransferStatus::Canceled).await;
+            })
+        };
+        gate.wait().await;
+        let _ = finisher.await.unwrap();
+        canceler.await.unwrap();
+
+        let memory = mgr.snapshot(id).await.unwrap();
+        let entries = db.transfer_ledger_list().unwrap();
+        let (_, raw, _) = entries
+            .into_iter()
+            .find(|(entry_id, _, _)| entry_id == id)
+            .unwrap();
+        let durable: PersistedTransferEnvelope = serde_json::from_str(&raw).unwrap();
+        assert!(matches!(
+            memory.status,
+            TransferStatus::Done | TransferStatus::Canceled
+        ));
+        assert_eq!(durable.transfer.status, memory.status);
+        assert_eq!(durable.transfer.transferred, memory.transferred);
+        assert_eq!(memory.transferred, 1024);
+    }
+
+    #[tokio::test]
+    async fn concurrent_user_retries_only_allow_one_terminal_to_queued_reset() {
+        let mgr = Arc::new(TransferManager::new());
+        mgr.insert(terminal_race_test_row("one-retry", TransferStatus::Error))
+            .await;
+        let gate = Arc::new(tokio::sync::Barrier::new(9));
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let mgr = Arc::clone(&mgr);
+            let gate = Arc::clone(&gate);
+            workers.push(tokio::spawn(async move {
+                gate.wait().await;
+                mgr.reset_for_retry("one-retry").await.is_ok()
+            }));
+        }
+        gate.wait().await;
+        let mut accepted = 0;
+        for worker in workers {
+            if worker.await.unwrap() {
+                accepted += 1;
+            }
+        }
+        assert_eq!(accepted, 1);
+        assert_eq!(
+            mgr.snapshot("one-retry").await.unwrap().status,
+            TransferStatus::Queued
+        );
+    }
+
+    #[tokio::test]
     async fn incomplete_backend_success_cannot_be_marked_done() {
         let mgr = TransferManager::new();
         mgr.insert(terminal_race_test_row(
