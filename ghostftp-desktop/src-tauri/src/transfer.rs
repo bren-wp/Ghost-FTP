@@ -5209,6 +5209,32 @@ async fn dispatch_download(
     }
 }
 
+/// A pause or Cancel that reached the transfer manager before remote
+/// promotion must never publish a fully staged file as a successful upload.
+async fn ensure_upload_promotion_allowed(mgr: &Arc<TransferManager>, id: &str) -> Result<()> {
+    let token = mgr.cancels.lock().await.get(id).cloned();
+    anyhow::ensure!(
+        token.is_some_and(|flag| !flag.load(Ordering::Acquire)),
+        "upload canceled before remote promotion"
+    );
+    let active = mgr
+        .get(id)
+        .await
+        .is_some_and(|t| t.status == TransferStatus::Transferring);
+    anyhow::ensure!(active, "upload is no longer transferring");
+    let paused = mgr
+        .pauses
+        .lock()
+        .await
+        .get(id)
+        .is_some_and(|gate| gate.is_paused());
+    anyhow::ensure!(
+        !paused && !mgr.pause_all.is_paused(),
+        "upload paused before remote promotion"
+    );
+    Ok(())
+}
+
 /// Backend dispatch for a single-file upload.
 async fn dispatch_upload(
     mgr: &Arc<TransferManager>,
@@ -5227,6 +5253,7 @@ async fn dispatch_upload(
             mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, true)
                 .await?;
             mgr.checkpoint(id, 0).await?;
+            ensure_upload_promotion_allowed(mgr, id).await?;
             promote_remote_upload(session, &staging, final_remote, allow_replace).await
         }
         Session::Ftp(ftp) => {
@@ -5240,6 +5267,7 @@ async fn dispatch_upload(
                 .context("stat uploaded FTP source")?
                 .len();
             verify_ftp_upload_staging_size(ftp, &staging, expected).await?;
+            ensure_upload_promotion_allowed(mgr, id).await?;
             promote_remote_upload(session, &staging, final_remote, allow_replace).await
         }
         Session::Object(obj) => {
