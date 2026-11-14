@@ -113,7 +113,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Development line: Ghost FTP 0.99.67 Preview candidate (previously published v0.99.66). The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
+<sub>Development line: Ghost FTP 0.99.67 Preview candidate (previously published v0.99.66). The candidate also avoids native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
 
 ---
 
