@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.62 Preview development. Previous public release: v0.99.61. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
+> **Ghost FTP v0.99.63 Preview development. Previous public release: v0.99.62. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 **Current 0.99.31 audit:** [Cross-platform security and source-reachability assessment](REPOSITORY_AUDIT_0.99.31.md). This documents baseline counts, confirmed source changes, audit blind spots and device-level residual risks; it is not a penetration-test certification.
 
@@ -18,7 +18,7 @@
 
 > Current development source: **0.99.4**; latest verified published release: **0.99.3**. Historical findings below retain their original version labels.
 
-Previous canonical release: **0.99.61**.
+Previous canonical release: **0.99.62**.
 
 0.93.0 cloud scope: custom S3/Azure desktop endpoints require HTTPS and forbid embedded credentials, query and fragments. Mobile/macOS signed-object transfers use ephemeral bearer URLs, OS TLS trust, no redirects, bounded file sizes and no stored signed links. This is targeted source hardening; penetration testing and complete provider/account parity are not claimed.
 
@@ -121,4 +121,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.62. Previous canonical release: 0.99.61. The previous canonical Preview is v0.99.61; consult GitHub Releases and `docs/releases/0.99.61.md` for its actual acceptance limits.
+Current development line: 0.99.63. Previous canonical release: 0.99.62. The previous canonical Preview is v0.99.62; consult GitHub Releases and `docs/releases/0.99.62.md` for its actual acceptance limits.
