@@ -103,6 +103,9 @@ const REQUIRED = [
     "sync Agent download staging file",
     "Agent download returned an empty non-final chunk",
     "Agent did not acknowledge an empty upload",
+    "inspect_directory_upload_entry(&p).await?",
+    "ensure_upload_directory(fs.as_ref(), &remote_root).await?",
+    "cleanup_failed_download_staging(&working_path, error).await",
     "Session::Ssh(_) | Session::Agent(_)",
   ]],
   // Staging and delta commits must be byte-verified, durable and never
@@ -114,6 +117,8 @@ const REQUIRED = [
     "tokio::fs::rename(staging, final_path)",
     "promote_staged_download_noreplace(staging, final_path)",
     "move_local_noreplace(", "symlink_metadata(",
+    "fn cleanup_failed_download_staging(",
+    "downcast_ref::<DownloadStagingOpenFailure>()",
     "fn promote_staged_download_noreplace(",
   ]],
   ["ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/delta.rs", [
@@ -133,6 +138,19 @@ const REQUIRED = [
     "fn ensure_download_subdirectory(", "symlink_metadata(&current)",
     "std::io::ErrorKind::AlreadyExists", "raced.file_type().is_dir()",
     "fn validate_directory_download_budget(", "fn validate_directory_upload_budget(",
+    "fn inspect_directory_upload_entry(", "tokio::fs::symlink_metadata(path)",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/transfer/remote_directory.rs", [
+    "fn ensure_upload_directory(", "fs.create_dir(path).await",
+    "fs.list_dir(path).await", "cannot create or list remote upload directory",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/profiles/mod.rs", [
+    "fn interrupted_profile_predecessor(", "profiles.json.bak",
+    "profile changes are disabled until storage is repaired",
+    "refusing to write plaintext profile credentials",
+    "fn write(&self, profiles:",
+    "profile_store_refuses_dangling_storage_symlink",
+    "profiles_and_rail_order_survive_close_and_restart",
   ]],
   // Profile credentials may only be saved via the OS vault, never in the
   // exported profiles.json metadata or a replaced/linked export target.
