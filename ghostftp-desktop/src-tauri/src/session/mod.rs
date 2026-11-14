@@ -33,7 +33,7 @@ use russh::{client, Channel, ChannelMsg};
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
@@ -477,6 +477,9 @@ pub struct SshSession {
     sftp: Mutex<Option<Arc<Mutex<SftpSession>>>>,
     /// Serializes reconnects so a burst of failed ops triggers exactly one.
     reconnect_lock: Mutex<()>,
+    /// Explicit user Disconnect is terminal for this session id, even when an
+    /// idle health probe or transfer has retained an Arc to this session.
+    closed: AtomicBool,
     /// Bumped on every successful reconnect; lets a waiter that lost the race
     /// notice another task already reconnected and skip doing it again.
     generation: AtomicU64,
@@ -517,6 +520,7 @@ impl SshSession {
             jump_handle: Mutex::new(None),
             sftp: Mutex::new(None),
             reconnect_lock: Mutex::new(()),
+            closed: AtomicBool::new(false),
             generation: AtomicU64::new(0),
             jobs: Mutex::new(HashMap::new()),
         }
@@ -529,6 +533,10 @@ impl SshSession {
     /// browser and transfers working after a long idle period instead of
     /// failing until the user manually toggles the connection off and on.
     pub async fn ensure_sftp(&self) -> Result<Arc<Mutex<SftpSession>>> {
+        anyhow::ensure!(
+            !self.closed.load(Ordering::Acquire),
+            "SSH session was explicitly disconnected"
+        );
         let dead = self.handle.lock().await.is_closed();
         if dead {
             *self.sftp.lock().await = None;
@@ -582,6 +590,10 @@ impl SshSession {
     /// by it survive untouched.
     async fn reconnect(&self, seen_generation: u64) -> Result<()> {
         let _guard = self.reconnect_lock.lock().await;
+        anyhow::ensure!(
+            !self.closed.load(Ordering::Acquire),
+            "SSH session was explicitly disconnected"
+        );
         if self.generation.load(Ordering::Acquire) != seen_generation {
             return Ok(()); // someone else already reconnected while we waited
         }
@@ -594,6 +606,10 @@ impl SshSession {
         let conn = ssh_connect(&self.profile, verifier, prompter)
             .await
             .context("reconnecting SSH session")?;
+        anyhow::ensure!(
+            !self.closed.load(Ordering::Acquire),
+            "SSH session was disconnected during reconnect"
+        );
         *self.handle.lock().await = conn.handle;
         // Swap in the new bastion hop (if any); dropping the old handle tears
         // down the stale jump connection.
@@ -616,6 +632,10 @@ impl SshSession {
         let mut reconnects = 0u8;
 
         loop {
+            anyhow::ensure!(
+                !self.closed.load(Ordering::Acquire),
+                "SSH session was explicitly disconnected"
+            );
             let generation = self.generation.load(Ordering::Acquire);
             match op().await {
                 Ok(v) => return Ok(v),
@@ -657,6 +677,10 @@ impl SshSession {
     /// open SFTP (keeps exec-only sessions cheap; the `with_sftp` retry covers
     /// the subsystem). Best-effort — callers ignore the result.
     pub async fn ensure_alive(&self) -> Result<()> {
+        anyhow::ensure!(
+            !self.closed.load(Ordering::Acquire),
+            "SSH session was explicitly disconnected"
+        );
         if self.handle.lock().await.is_closed() {
             let generation = self.generation.load(Ordering::Acquire);
             self.reconnect(generation).await?;
@@ -2057,6 +2081,10 @@ impl SessionManager {
                     for job in ssh.list_jobs().await {
                         let _ = ssh.kill_job(&job.op_id).await;
                     }
+                    ssh.closed.store(true, Ordering::Release);
+                    // Wait out a reconnect already in progress before sending
+                    // Disconnect. No new reconnect may start after this flag.
+                    let _reconnect_guard = ssh.reconnect_lock.lock().await;
                     let h = ssh.handle.lock().await;
                     let _ = h
                         .disconnect(russh::Disconnect::ByApplication, "bye", "en")
