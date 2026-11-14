@@ -1,4 +1,11 @@
-## 0.99.65 Preview candidate — 14 November 2026 (unpublished)
+## 0.99.66 Preview candidate — 14 November 2026 (unpublished)
+
+- Create each new SFTP staging file exclusively from byte zero even after Pause/Resume or Retry; never trust a prior attempt's saved progress on a newly named staging file.
+- Block FTP/FTPS/SFTP upload promotion after ordinary source-file changes, symlink swaps or same-size replacement using source metadata and OS file identity.
+- Avoid blindly auto-replaying cloud, Agent, WebDAV and SaaS uploads after ambiguous network failures until provider-level idempotency is proven; manual retry remains possible.
+- Add source-integrity regression tests and an expanded large-file/parallel native OS acceptance matrix. Source metadata verification is not equivalent to cryptographic SHA-256 verification.
+
+## 0.99.65 Preview — 14 November 2026 (published)
 
 - Continue monitoring the health of opened FTP/FTPS/SFTP sessions while the application is running; recover a stale FTP/FTPS control connection with at most one fresh authenticated attempt per probe.
 - Explicit Disconnect now prevents FTP and SSH transport resurrection from late reconnect requests.

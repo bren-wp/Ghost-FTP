@@ -36,7 +36,9 @@ impl LocalUploadSnapshot {
         );
         Ok(Self {
             len: metadata.len(),
-            modified: metadata.modified().context("read upload source modification time")?,
+            modified: metadata
+                .modified()
+                .context("read upload source modification time")?,
             #[cfg(unix)]
             device: metadata.dev(),
             #[cfg(unix)]
@@ -54,7 +56,9 @@ impl LocalUploadSnapshot {
         anyhow::ensure!(
             self.len == metadata.len()
                 && self.modified
-                    == metadata.modified().context("recheck upload source modification time")?,
+                    == metadata
+                        .modified()
+                        .context("recheck upload source modification time")?,
             "staged upload source changed during transfer"
         );
         #[cfg(unix)]
@@ -248,7 +252,9 @@ mod tests {
         tokio::fs::write(&source, b"changed-and-longer")
             .await
             .unwrap();
-        assert!(verify_local_upload_snapshot(&source, &snapshot).await.is_err());
+        assert!(verify_local_upload_snapshot(&source, &snapshot)
+            .await
+            .is_err());
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
@@ -264,7 +270,9 @@ mod tests {
         let snapshot = capture_local_upload_snapshot(&source).await.unwrap();
         tokio::fs::remove_file(&source).await.unwrap();
         tokio::fs::rename(&replacement, &source).await.unwrap();
-        assert!(verify_local_upload_snapshot(&source, &snapshot).await.is_err());
+        assert!(verify_local_upload_snapshot(&source, &snapshot)
+            .await
+            .is_err());
         tokio::fs::remove_file(&source).await.unwrap();
         std::os::unix::fs::symlink(&root, &source).unwrap();
         assert!(capture_local_upload_snapshot(&source).await.is_err());

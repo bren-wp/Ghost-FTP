@@ -2708,7 +2708,12 @@ impl TransferManager {
             .await
             .context("stat SFTP upload source after transfer")?;
         source_snapshot.verify(&source_after)?;
-        verify_committed_length("SFTP upload source", local_len, transferred, source_after.len())?;
+        verify_committed_length(
+            "SFTP upload source",
+            local_len,
+            transferred,
+            source_after.len(),
+        )?;
         drop(remote_file);
         let remote_size = {
             let sftp = sftp_cell.lock().await;
