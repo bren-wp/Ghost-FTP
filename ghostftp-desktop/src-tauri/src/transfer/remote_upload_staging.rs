@@ -8,6 +8,92 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
+#[cfg(windows)]
+use std::os::windows::fs::MetadataExt;
+
+/// File identity and last modification at the start of a staged upload.
+/// This is a low-overhead guard against ordinary source edits/symlink swaps,
+/// not a cryptographic guarantee against forged timestamps or live write races.
+#[derive(Debug, Clone)]
+pub(super) struct LocalUploadSnapshot {
+    len: u64,
+    modified: std::time::SystemTime,
+    #[cfg(unix)]
+    device: u64,
+    #[cfg(unix)]
+    inode: u64,
+    #[cfg(windows)]
+    created: u64,
+}
+
+impl LocalUploadSnapshot {
+    pub(super) fn capture(metadata: &std::fs::Metadata) -> Result<Self> {
+        anyhow::ensure!(
+            metadata.file_type().is_file(),
+            "staged upload source is not a regular file"
+        );
+        Ok(Self {
+            len: metadata.len(),
+            modified: metadata
+                .modified()
+                .context("read upload source modification time")?,
+            #[cfg(unix)]
+            device: metadata.dev(),
+            #[cfg(unix)]
+            inode: metadata.ino(),
+            #[cfg(windows)]
+            created: metadata.creation_time(),
+        })
+    }
+
+    pub(super) fn verify(&self, metadata: &std::fs::Metadata) -> Result<()> {
+        anyhow::ensure!(
+            metadata.file_type().is_file(),
+            "staged upload source changed into a non-file"
+        );
+        anyhow::ensure!(
+            self.len == metadata.len()
+                && self.modified
+                    == metadata
+                        .modified()
+                        .context("recheck upload source modification time")?,
+            "staged upload source changed during transfer"
+        );
+        #[cfg(unix)]
+        anyhow::ensure!(
+            self.device == metadata.dev() && self.inode == metadata.ino(),
+            "staged upload source was replaced during transfer"
+        );
+        #[cfg(windows)]
+        anyhow::ensure!(
+            self.created == metadata.creation_time(),
+            "staged upload source was replaced during transfer"
+        );
+        Ok(())
+    }
+}
+
+pub(super) async fn capture_local_upload_snapshot(
+    path: &std::path::Path,
+) -> Result<LocalUploadSnapshot> {
+    let metadata = tokio::fs::symlink_metadata(path)
+        .await
+        .with_context(|| format!("lstat staged upload source {}", path.display()))?;
+    LocalUploadSnapshot::capture(&metadata)
+}
+
+pub(super) async fn verify_local_upload_snapshot(
+    path: &std::path::Path,
+    source: &LocalUploadSnapshot,
+) -> Result<()> {
+    let metadata = tokio::fs::symlink_metadata(path)
+        .await
+        .with_context(|| format!("recheck staged upload source {}", path.display()))?;
+    source.verify(&metadata)
+}
+
 pub(super) fn fresh_remote_upload_staging_path(final_remote: &str, id: &str) -> Result<String> {
     // Do not embed an arbitrary user-supplied id or filename in an FTP command.
     let transfer_id = Uuid::parse_str(id).context("upload transfer id is not a UUID")?;
@@ -151,5 +237,45 @@ mod tests {
             .collect();
         assert_eq!(names.len(), 128);
         assert!(names.iter().all(|name| !name.starts_with("./")));
+    }
+
+    #[tokio::test]
+    async fn source_changed_during_upload_must_not_be_promoted() {
+        let root = std::env::temp_dir().join(format!("ghostftp-source-guard-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let source = root.join("source.bin");
+        tokio::fs::write(&source, b"before").await.unwrap();
+        let snapshot = capture_local_upload_snapshot(&source).await.unwrap();
+        verify_local_upload_snapshot(&source, &snapshot)
+            .await
+            .unwrap();
+        tokio::fs::write(&source, b"changed-and-longer")
+            .await
+            .unwrap();
+        assert!(verify_local_upload_snapshot(&source, &snapshot)
+            .await
+            .is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn same_length_source_replacement_or_symlink_is_not_accepted() {
+        let root = std::env::temp_dir().join(format!("ghostftp-source-swap-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let source = root.join("source.bin");
+        let replacement = root.join("replacement.bin");
+        tokio::fs::write(&source, b"original").await.unwrap();
+        tokio::fs::write(&replacement, b"replaced").await.unwrap();
+        let snapshot = capture_local_upload_snapshot(&source).await.unwrap();
+        tokio::fs::remove_file(&source).await.unwrap();
+        tokio::fs::rename(&replacement, &source).await.unwrap();
+        assert!(verify_local_upload_snapshot(&source, &snapshot)
+            .await
+            .is_err());
+        tokio::fs::remove_file(&source).await.unwrap();
+        std::os::unix::fs::symlink(&root, &source).unwrap();
+        assert!(capture_local_upload_snapshot(&source).await.is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
     }
 }

@@ -31,3 +31,12 @@
 ## Required release gates
 
 Exact-commit GitHub Actions must pass Rust fmt/tests/Clippy, Windows hardening and native build, Linux native build, TypeScript/React compile and source reachability scanner, protocol E2E and dependency/security checks. Native installed-product manual matrix above must be evidenced in release notes. Do not sign off on every option or promise 100% portability from code review alone.
+
+## Follow-up: staged upload retry and source identity
+
+These are code-review controls in the next PR; the live platform/server acceptance above remains **NOT YET VERIFIED**.
+
+- SFTP uploads to fresh sibling staging files must start at offset **zero** on every attempt, including Pause → Resume, transient network Retry and persisted manual Retry; no bytes from a previous attempt may be trusted on the newly allocated path. SFTP CREATE|EXCLUDE must reject a staging collision.
+- During FTP/FTPS/SFTP writes, replace the local source file with a different inode or same-length file, edit its length or modification timestamp, remove it, and swap it for a symlink. Promotion must fail if file identity/metadata changed; original remote file must be preserved. These checks are **not a cryptographic source hash** and cannot catch malicious mutations with forged metadata.
+- Inject a dropped HTTP response after a successful cloud/Agent/WebDAV/SaaS write. An ambiguous non-idempotent mutation must not be automatically replayed; require an explicit manual retry until provider-specific idempotency and commit reconciliation exist.
+- Confirm abandoned `.ghostftp-upload-*.part` files are reported but not removed without a trustworthy ownership/age proof. Record SHA-256 across source and final remote after completed uploads, particularly 4 GiB + 1 byte and parallel transfers.

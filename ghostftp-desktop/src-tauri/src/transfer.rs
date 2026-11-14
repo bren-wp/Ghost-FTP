@@ -61,6 +61,24 @@ impl std::fmt::Display for RestartFromPause {
 
 impl std::error::Error for RestartFromPause {}
 
+/// An FTP/SFTP server may have renamed the staged file even when the client
+/// lost the final acknowledgment. Automatic replay could overwrite a newer
+/// competing write. Leave the outcome uncertain until a user verifies it.
+#[derive(Debug)]
+struct UploadPromotionUnconfirmed(anyhow::Error);
+
+impl std::fmt::Display for UploadPromotionUnconfirmed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("remote upload promotion could not be confirmed")
+    }
+}
+
+impl std::error::Error for UploadPromotionUnconfirmed {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.0.as_ref())
+    }
+}
+
 /// Payload of the `transfer://queue` event: the FIFO of waiting transfer ids
 /// plus the manager-level state the panel header renders.
 #[derive(Debug, Clone, Serialize)]
@@ -550,6 +568,9 @@ fn safe_transfer_failure_message(message: &str) -> &'static str {
 }
 
 fn safe_transfer_failure(error: &anyhow::Error) -> &'static str {
+    if error.downcast_ref::<UploadPromotionUnconfirmed>().is_some() {
+        return "Remote upload completion is uncertain. Verify the destination before retrying.";
+    }
     safe_transfer_failure_message(&error.to_string())
 }
 
@@ -680,8 +701,9 @@ use download_staging::{
     verify_staged_download_bytes, DownloadStagingOpenFailure,
 };
 use remote_upload_staging::{
-    fresh_remote_upload_staging_path, preflight_ftp_upload_staging, promote_remote_upload,
-    verify_ftp_upload_staging_size,
+    capture_local_upload_snapshot, fresh_remote_upload_staging_path, preflight_ftp_upload_staging,
+    promote_remote_upload, verify_ftp_upload_staging_size, verify_local_upload_snapshot,
+    LocalUploadSnapshot,
 };
 
 mod remote_directory;
@@ -2652,94 +2674,38 @@ impl TransferManager {
         local_path: &Path,
         remote_path: &str,
         app: &AppHandle,
-        exclusive_stage_create: bool,
+        source_snapshot: &LocalUploadSnapshot,
     ) -> Result<()> {
-        self.update(id, |t| t.status = TransferStatus::Transferring)
-            .await;
+        // Every call uses a *new* exclusively created staging pathname.
+        // Progress from a previous attempt cannot be a valid resume offset.
+        self.update(id, |t| {
+            t.status = TransferStatus::Transferring;
+            t.transferred = 0;
+        })
+        .await;
 
-        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
         let local_len = tokio::fs::metadata(local_path)
             .await
             .with_context(|| format!("stat {}", local_path.display()))?
             .len();
-
-        let sftp_cell = session.ensure_sftp().await?;
-        let mut resume_offset = requested_offset.min(local_len);
-        if resume_offset > 0 {
-            let remote_len = {
-                let sftp = sftp_cell.lock().await;
-                sftp.metadata(remote_path)
-                    .await
-                    .ok()
-                    .and_then(|meta| meta.size)
-            };
-            if remote_len == Some(resume_offset) {
-                let mut local_prefix = tokio::fs::File::open(local_path)
-                    .await
-                    .context("open SFTP upload source for resume verification")?;
-                let mut remote_prefix = {
-                    let sftp = sftp_cell.lock().await;
-                    sftp.open(remote_path)
-                        .await
-                        .context("open SFTP upload destination for resume verification")?
-                };
-                if !byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await? {
-                    resume_offset = 0;
-                }
-            } else {
-                resume_offset = 0;
-            }
-        }
-        let mut remote_file = {
-            let sftp = sftp_cell.lock().await;
-            let remote_len = if resume_offset > 0 {
-                sftp.metadata(remote_path)
-                    .await
-                    .ok()
-                    .and_then(|metadata| metadata.size)
-                    .unwrap_or(0)
-            } else {
-                0
-            };
-            if resume_offset > 0 && remote_len == resume_offset {
-                sftp.open_with_flags(remote_path, russh_sftp::protocol::OpenFlags::WRITE)
-                    .await
-                    .with_context(|| format!("open remote {remote_path} for resume"))?
-            } else {
-                resume_offset = 0;
-                if exclusive_stage_create {
-                    use russh_sftp::protocol::OpenFlags;
-                    sftp.open_with_flags(
-                        remote_path,
-                        OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE,
-                    )
-                    .await
-                    .with_context(|| {
-                        format!("exclusively create remote upload staging {remote_path}")
-                    })?
-                } else {
-                    sftp.create(remote_path)
-                        .await
-                        .with_context(|| format!("create remote {remote_path}"))?
-                }
-            }
-        };
-        if resume_offset != requested_offset {
-            self.update(id, |t| t.transferred = resume_offset).await;
-        }
-        if resume_offset > 0 {
-            remote_file.seek(SeekFrom::Start(resume_offset)).await?;
-        }
-
         let mut local_file = tokio::fs::File::open(local_path)
             .await
             .with_context(|| format!("open {}", local_path.display()))?;
-        if resume_offset > 0 {
-            local_file.seek(SeekFrom::Start(resume_offset)).await?;
-        }
+        source_snapshot.verify(&local_file.metadata().await?)?;
+        let sftp_cell = session.ensure_sftp().await?;
+        let mut remote_file = {
+            let sftp = sftp_cell.lock().await;
+            use russh_sftp::protocol::OpenFlags;
+            sftp.open_with_flags(
+                remote_path,
+                OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE,
+            )
+            .await
+            .with_context(|| format!("exclusively create remote upload staging {remote_path}"))?
+        };
 
         let mut buf = vec![0u8; 64 * 1024];
-        let mut transferred: u64 = resume_offset;
+        let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         loop {
             let n = local_file.read(&mut buf).await?;
@@ -2761,9 +2727,14 @@ impl TransferManager {
         let source_after = local_file
             .metadata()
             .await
-            .context("stat SFTP upload source after transfer")?
-            .len();
-        verify_committed_length("SFTP upload source", local_len, transferred, source_after)?;
+            .context("stat SFTP upload source after transfer")?;
+        source_snapshot.verify(&source_after)?;
+        verify_committed_length(
+            "SFTP upload source",
+            local_len,
+            transferred,
+            source_after.len(),
+        )?;
         drop(remote_file);
         let remote_size = {
             let sftp = sftp_cell.lock().await;
@@ -3130,6 +3101,7 @@ impl TransferManager {
         local_path: &Path,
         remote_path: &str,
         app: &AppHandle,
+        source_snapshot: &LocalUploadSnapshot,
     ) -> Result<()> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
@@ -3164,6 +3136,8 @@ impl TransferManager {
         let retry_canceled = canceled.clone();
         let retry_local = local.clone();
         let retry_remote = remote.clone();
+        let first_source_snapshot = source_snapshot.clone();
+        let retry_source_snapshot = source_snapshot.clone();
 
         let attempt = session
             .with_stream(move |stream| {
@@ -3182,6 +3156,7 @@ impl TransferManager {
 
                 let mut file = std::fs::File::open(&local)
                     .with_context(|| format!("open {}", local.display()))?;
+                first_source_snapshot.verify(&file.metadata()?)?;
                 if offset > 0 {
                     file.seek(SeekFrom::Start(offset))?;
                 }
@@ -3197,6 +3172,7 @@ impl TransferManager {
                         FtpTransferControl::Continue
                     }
                 })?;
+                first_source_snapshot.verify(&reader.get_ref().metadata()?)?;
 
                 // Some FTP/FTPS servers can acknowledge a resumed transfer but
                 // persist fewer bytes than the client wrote. A resumed upload
@@ -3259,8 +3235,10 @@ impl TransferManager {
                     // connection, then verifies both bytes sent and remote SIZE.
                     let restart_file = std::fs::File::open(&retry_local)
                         .with_context(|| format!("reopen {}", retry_local.display()))?;
+                    retry_source_snapshot.verify(&restart_file.metadata()?)?;
                     let mut restart_reader = std::io::BufReader::new(restart_file);
                     let written = stream.put_from_reader(&retry_remote, &mut restart_reader)?;
+                    retry_source_snapshot.verify(&restart_reader.get_ref().metadata()?)?;
                     if written != local_len {
                         anyhow::bail!(
                             "FTP recovery upload wrote {} bytes, expected {}",
@@ -4842,6 +4820,10 @@ fn is_transient(e: &anyhow::Error) -> bool {
     )
 }
 
+fn is_safe_staged_upload_retry(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<UploadPromotionUnconfirmed>().is_none() && is_transient(error)
+}
+
 /// GET/HEAD downloads are safe to retry after bounded HTTP rate limits and
 /// gateway outages. Mutating cloud POST/PUT operations deliberately use the
 /// original narrower retry classifier: an ambiguous 5xx response might follow
@@ -5080,12 +5062,21 @@ async fn run_upload_task(
         .await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
-                if !supports_byte_resume(&session) {
+                // Agent alone has a verified upload resume prefix. FTP and
+                // SFTP retries start on fresh remote staging paths.
+                if !matches!(&*session, Session::Agent(_)) {
                     mgr.update(&id, |t| t.transferred = 0).await;
                 }
                 continue;
             }
-            Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
+            // A network failure after a cloud or Agent mutation may mean that
+            // the server committed the write but the acknowledgment was lost.
+            // Only fresh-staged FTP/SFTP whole-file uploads can auto-replay.
+            Err(e)
+                if auto_retries < max_auto_retries
+                    && matches!(&*session, Session::Ftp(_) | Session::Ssh(_))
+                    && is_safe_staged_upload_retry(&e) =>
+            {
                 auto_retries += 1;
                 let delay = match auto_retries {
                     1 => 5,
@@ -5247,28 +5238,36 @@ async fn dispatch_upload(
 ) -> Result<()> {
     match &**session {
         Session::Ssh(ssh) => {
+            let source_snapshot = capture_local_upload_snapshot(local).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             // SFTP CREATE|EXCLUDE prevents truncation even if a competing
             // writer guesses the staging name after our planner runs.
-            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, true)
+            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, &source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
+            verify_local_upload_snapshot(local, &source_snapshot).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
-            promote_remote_upload(session, &staging, final_remote, allow_replace).await
+            promote_remote_upload(session, &staging, final_remote, allow_replace)
+                .await
+                .map_err(|source| anyhow::Error::new(UploadPromotionUnconfirmed(source)))
         }
         Session::Ftp(ftp) => {
+            let source_snapshot = capture_local_upload_snapshot(local).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             preflight_ftp_upload_staging(ftp, &staging).await?;
-            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app)
+            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app, &source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
+            verify_local_upload_snapshot(local, &source_snapshot).await?;
             let expected = tokio::fs::metadata(local)
                 .await
                 .context("stat uploaded FTP source")?
                 .len();
             verify_ftp_upload_staging_size(ftp, &staging, expected).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
-            promote_remote_upload(session, &staging, final_remote, allow_replace).await
+            promote_remote_upload(session, &staging, final_remote, allow_replace)
+                .await
+                .map_err(|source| anyhow::Error::new(UploadPromotionUnconfirmed(source)))
         }
         Session::Object(obj) => {
             mgr.run_object_upload(id, obj.clone(), local, final_remote, app)
@@ -6489,6 +6488,20 @@ mod tests {
             "Permission denied (os error 13)"
         )));
         assert!(!is_transient(&anyhow::anyhow!("No such file or directory")));
+    }
+
+    #[test]
+    fn ambiguous_promotion_failure_must_not_be_automatically_replayed() {
+        let network = anyhow::anyhow!("connection reset by peer");
+        assert!(is_safe_staged_upload_retry(&network));
+        let unknown_commit = anyhow::Error::new(UploadPromotionUnconfirmed(anyhow::anyhow!(
+            "connection reset by peer"
+        )));
+        assert!(!is_safe_staged_upload_retry(&unknown_commit));
+        assert_eq!(
+            safe_transfer_failure(&unknown_commit),
+            "Remote upload completion is uncertain. Verify the destination before retrying."
+        );
     }
 
     #[test]

@@ -3,7 +3,7 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {scanDangerous,audit,inspectPlatformSecurityConfig} from "./full-security-code-audit.mjs";
+import {scanDangerous,audit,inspectPlatformSecurityConfig,inspectFreshStagedSftpUpload} from "./full-security-code-audit.mjs";
 
 test("detects explicit TLS and SSH trust verification bypasses in shipping paths",()=>{
   const cases=[
@@ -159,7 +159,6 @@ test("paused Windows/Linux transfers cannot silently trust a same-length remote 
   assert.match(helper, /left\[\.\.count\] != right\[\.\.count\]/);
   for (const contract of [
     "byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await?",
-    "byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await?",
     "agent_remote_prefix_matches(session, remote_path, local_path, offset).await?",
     "resume_prefix_requires_full_byte_identity_including_same_size_replacement()",
   ]) {
@@ -171,4 +170,30 @@ test("paused Windows/Linux transfers cannot silently trust a same-length remote 
   );
   assert.ok(supports.includes("Session::Ssh(_) | Session::Agent(_)"));
   assert.ok(!supports.includes("Session::Ftp(_)"), "Length-only FTP resume must be disabled");
+  // Uploads use a fresh UUID staging name on every attempt; unlike SFTP
+  // downloads or Agent transfers, there is no verified remote prefix to reuse.
+  assert.deepEqual(inspectFreshStagedSftpUpload(transfer), []);
+  const sshStart = transfer.indexOf("    async fn run_ssh_upload(");
+  const sshEnd = transfer.indexOf("\n}\n\nimpl TransferManager {", sshStart);
+  const sshUpload = transfer.slice(sshStart, sshEnd);
+  assert.ok(!sshUpload.includes("resume_offset"));
+  assert.ok(!sshUpload.includes("requested_offset"));
+  for (const [remove, label] of [
+    ["t.transferred = 0;", "zero-reset"],
+    ["OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE", "exclusive creation"],
+    ["source_snapshot.verify(&source_after)?;", "local source integrity"],
+  ]) {
+    assert.ok(sshUpload.includes(remove), "fixture guard missing: " + label);
+    const weakenedWorker = sshUpload.replace(remove, "/* intentionally weakened " + label + " */");
+    const weakened = transfer.slice(0, sshStart) + weakenedWorker + transfer.slice(sshEnd);
+    assert.ok(inspectFreshStagedSftpUpload(weakened).length > 0,
+      "Staged SFTP safety weakening undetected: " + label);
+  }
+  const injectedWorker = sshUpload.replace(
+    "let mut transferred: u64 = 0;",
+    "let mut transferred: u64 = resume_offset;",
+  );
+  const injected = transfer.slice(0, sshStart) + injectedWorker + transfer.slice(sshEnd);
+  assert.ok(inspectFreshStagedSftpUpload(injected).some(x => x.includes("offset")),
+    "Old remote offset reuse must fail the security gate");
 });

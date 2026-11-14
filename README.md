@@ -99,13 +99,13 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 **For developers**, Ghost FTP keeps deployment and server-side file work close at hand. **For site owners**, it offers a clear view of what is on the computer and what is remote. **For administrators**, host identity checks and controlled file operations support more deliberate workflows.
 
-## Ghost FTP 0.99.65 Preview — connection and upload hardening
+## Ghost FTP 0.99.66 Preview — staged upload integrity hardening
 
-The **unpublished** 0.99.65 candidate adds periodic health probes for connected FTP, FTPS and SFTP sessions and one bounded FTP/FTPS reconnect after an idle control connection is lost. An explicit **Disconnect** closes its session and blocks a late background reconnect. Connections do not survive closing the native application; saved site profiles do.
+The **published** 0.99.65 Preview introduced periodic health probes for connected FTP, FTPS and SFTP sessions and one bounded FTP/FTPS reconnect after an idle control connection is lost. An explicit **Disconnect** closes its session and blocks a late background reconnect. The 0.99.66 development candidate additionally restarts fresh SFTP staging from byte zero, checks local source identity before upload promotion and avoids blindly repeating ambiguous cloud mutations. Connections do not survive closing the native application; saved site profiles do.
 
 FTP/FTPS/SFTP uploads now write to unpredictable sibling staging paths and try remote promotion only after the transfer completes and byte counts match. **This is not a guarantee on all servers:** FTP rename is not an atomic no-replace operation, some FTP/SFTP servers refuse rename-over-existing, and interrupted transfers can leave remote `.ghostftp-upload-*.part` files. Cloud and Agent upload backends have separate mechanisms that are not newly certified by this change. Real Windows Credential Manager, Linux Secret Service, 4+ GiB, multiple-parallel-transfer and server-failure testing are still required.
 
-See [0.99.65 safety audit](docs/audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) and the [Windows/Linux acceptance checklist](docs/qa/LARGE_TRANSFER_AND_VAULT_ACCEPTANCE_0.99.65.md). Current downloadable build remains [v0.99.64](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.64) until a new edition passes release gates.
+See [0.99.65 safety audit](docs/audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) and the [Windows/Linux acceptance checklist](docs/qa/LARGE_TRANSFER_AND_VAULT_ACCEPTANCE_0.99.65.md). The latest published Preview is [v0.99.65](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.65). The 0.99.66 changes are only a development candidate, not a published build.
 
 ## Your trust matters
 
@@ -113,7 +113,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Development line: Ghost FTP 0.99.65 Preview candidate (previously published v0.99.64). The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
+<sub>Development line: Ghost FTP 0.99.66 Preview candidate (previously published v0.99.65). The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
 
 ---
 
