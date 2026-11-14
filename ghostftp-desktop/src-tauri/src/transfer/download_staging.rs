@@ -275,10 +275,8 @@ mod tests {
 
     #[tokio::test]
     async fn failed_exclusive_staging_open_never_deletes_existing_file() {
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-staging-ownership-{}",
-            Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-staging-ownership-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let path = root.join("original.part");
         tokio::fs::write(&path, b"keep original").await.unwrap();
@@ -300,14 +298,13 @@ mod tests {
     #[tokio::test]
     async fn failed_exclusive_staging_open_keeps_preplanted_symlink() {
         use std::os::unix::fs::symlink;
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-staging-link-{}",
-            Uuid::new_v4()
-        ));
+        let root = std::env::temp_dir().join(format!("ghostftp-staging-link-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let valuable = root.join("valuable.txt");
         let planted = root.join("planted.part");
-        tokio::fs::write(&valuable, b"not transferred").await.unwrap();
+        tokio::fs::write(&valuable, b"not transferred")
+            .await
+            .unwrap();
         symlink(&valuable, &planted).unwrap();
         let error = create_new_download_staging(&planted).await.unwrap_err();
         cleanup_failed_download_staging(&planted, &error).await;
@@ -316,7 +313,10 @@ mod tests {
             .unwrap()
             .file_type()
             .is_symlink());
-        assert_eq!(tokio::fs::read(&valuable).await.unwrap(), b"not transferred");
+        assert_eq!(
+            tokio::fs::read(&valuable).await.unwrap(),
+            b"not transferred"
+        );
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 

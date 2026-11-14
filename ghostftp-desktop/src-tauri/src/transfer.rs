@@ -666,10 +666,9 @@ mod download_staging;
 use download_staging::download_backup_path;
 use download_staging::{
     cleanup_failed_download_staging, commit_verified_delta_output, create_new_download_staging,
-    download_staging_path,
-    fresh_download_staging_path, local_path_exists_fail_closed, local_path_exists_sync_fail_closed,
-    promote_staged_download, promote_staged_download_noreplace, verify_staged_download_bytes,
-    DownloadStagingOpenFailure,
+    download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
+    local_path_exists_sync_fail_closed, promote_staged_download, promote_staged_download_noreplace,
+    verify_staged_download_bytes, DownloadStagingOpenFailure,
 };
 
 mod remote_directory;

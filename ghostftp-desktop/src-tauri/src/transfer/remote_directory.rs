@@ -39,9 +39,15 @@ mod tests {
             anyhow::ensure!(self.create_ok, "already exists or permission denied");
             Ok(())
         }
-        async fn rename(&self, _: &str, _: &str) -> Result<()> { Ok(()) }
-        async fn delete(&self, _: &str, _: bool) -> Result<()> { Ok(()) }
-        async fn chmod(&self, _: &str, _: u32) -> Result<()> { Ok(()) }
+        async fn rename(&self, _: &str, _: &str) -> Result<()> {
+            Ok(())
+        }
+        async fn delete(&self, _: &str, _: bool) -> Result<()> {
+            Ok(())
+        }
+        async fn chmod(&self, _: &str, _: u32) -> Result<()> {
+            Ok(())
+        }
         fn capabilities(&self) -> Capabilities {
             Capabilities {
                 can_chmod: false,

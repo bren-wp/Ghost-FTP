@@ -224,13 +224,13 @@ mod tests {
 
     #[tokio::test]
     async fn directory_upload_entry_accepts_only_regular_files_and_directories() {
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-upload-entry-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-upload-entry-{}", uuid::Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let file = root.join("normal.txt");
-        tokio::fs::write(&file, b"upload these bytes").await.unwrap();
+        tokio::fs::write(&file, b"upload these bytes")
+            .await
+            .unwrap();
         let subdir = root.join("subdirectory");
         tokio::fs::create_dir(&subdir).await.unwrap();
         assert!(inspect_directory_upload_entry(&file)
@@ -253,10 +253,8 @@ mod tests {
     #[tokio::test]
     async fn directory_upload_does_not_follow_links_outside_selected_tree() {
         use std::os::unix::fs::symlink;
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-upload-link-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-upload-link-{}", uuid::Uuid::new_v4()));
         let chosen = root.join("chosen");
         let outside = root.join("private");
         tokio::fs::create_dir_all(&chosen).await.unwrap();

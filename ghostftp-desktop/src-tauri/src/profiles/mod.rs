@@ -184,8 +184,7 @@ impl ProfileStore {
         // A dangling symlink is not a missing store. Refuse to start with an
         // apparently empty list and risk hiding the user's saved profiles.
         for candidate in [&path, &backup] {
-            if std::fs::symlink_metadata(candidate)
-                .is_ok_and(|meta| meta.file_type().is_symlink())
+            if std::fs::symlink_metadata(candidate).is_ok_and(|meta| meta.file_type().is_symlink())
             {
                 bail!(
                     "profile storage contains an unsafe symbolic link at {}; existing profiles were not replaced",
@@ -686,7 +685,11 @@ mod recovery_tests {
         }]);
         std::fs::write(&previous, serde_json::to_vec(&profile).unwrap()).unwrap();
         let store = ProfileStore::from_dir(&dir).unwrap();
-        assert!(store.get("retained-from-before-crash").await.unwrap().is_some());
+        assert!(store
+            .get("retained-from-before-crash")
+            .await
+            .unwrap()
+            .is_some());
         assert!(store.reorder(&[]).await.is_err());
         assert!(previous.exists());
         assert_eq!(std::fs::read(dir.join("profiles.json.bak")).unwrap(), b"[]");
@@ -701,7 +704,9 @@ mod recovery_tests {
         use std::os::unix::fs::symlink;
         let dir = temp_profile_dir();
         symlink(dir.join("missing-profile-file"), dir.join("profiles.json")).unwrap();
-        let error = ProfileStore::from_dir(&dir).err().expect("reject unsafe primary");
+        let error = ProfileStore::from_dir(&dir)
+            .err()
+            .expect("reject unsafe primary");
         assert!(error.to_string().contains("unsafe symbolic link"));
         assert!(std::fs::symlink_metadata(dir.join("profiles.json"))
             .unwrap()
@@ -731,12 +736,18 @@ mod recovery_tests {
         };
         {
             let store = ProfileStore::from_dir(&dir).unwrap();
-            store.upsert(sample("saved-first", "First server")).await.unwrap();
-            store.upsert(sample("saved-second", "Second server")).await.unwrap();
-            store.reorder(&[
-                "saved-second".to_string(),
-                "saved-first".to_string(),
-            ]).await.unwrap();
+            store
+                .upsert(sample("saved-first", "First server"))
+                .await
+                .unwrap();
+            store
+                .upsert(sample("saved-second", "Second server"))
+                .await
+                .unwrap();
+            store
+                .reorder(&["saved-second".to_string(), "saved-first".to_string()])
+                .await
+                .unwrap();
             assert_eq!(store.list().await.unwrap().len(), 2);
         }
         // Starting with the same data directory must retain every saved
@@ -770,13 +781,15 @@ mod recovery_tests {
             "protocol": "ftps", "host": "secure.example.invalid",
             "port": 21, "username": "operator",
             "auth": {"kind": "password", "password": ""}
-        })).unwrap();
+        }))
+        .unwrap();
         let invalid: ConnectionProfile = serde_json::from_value(serde_json::json!({
             "id": "do-not-save", "name": "Bad password",
             "protocol": "ftp", "host": "example.invalid",
             "port": 21, "username": "operator",
             "auth": {"kind": "password", "password": "SENSITIVE_SENTINEL"}
-        })).unwrap();
+        }))
+        .unwrap();
         {
             let store = ProfileStore::from_dir(&dir).unwrap();
             store.upsert(valid).await.unwrap();
