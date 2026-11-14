@@ -665,7 +665,8 @@ mod download_staging;
 #[cfg(test)]
 use download_staging::download_backup_path;
 use download_staging::{
-    commit_verified_delta_output, create_new_download_staging, download_staging_path,
+    cleanup_failed_download_staging, commit_verified_delta_output, create_new_download_staging,
+    download_staging_path,
     fresh_download_staging_path, local_path_exists_fail_closed, local_path_exists_sync_fail_closed,
     promote_staged_download, promote_staged_download_noreplace, verify_staged_download_bytes,
     DownloadStagingOpenFailure,
@@ -4863,16 +4864,11 @@ async fn run_download_task(
             &app,
         )
         .await;
-        if staged_download && !byte_resume && attempt.is_err() {
-            // A failed whole-file attempt has no verified resumable prefix.
-            // If exclusive creation itself failed we never owned this path:
-            // do not unlink a preexisting user file or planted symlink.
-            let not_owned = attempt
-                .as_ref()
-                .err()
-                .is_some_and(|error| error.downcast_ref::<DownloadStagingOpenFailure>().is_some());
-            if !not_owned {
-                let _ = tokio::fs::remove_file(&working_path).await;
+        if staged_download && !byte_resume {
+            if let Err(error) = &attempt {
+                // A create_new failure proves the path is NOT ours. Cleanup
+                // must not remove another user's file or a planted symlink.
+                cleanup_failed_download_staging(&working_path, error).await;
             }
         }
         match attempt {
@@ -4938,13 +4934,13 @@ async fn run_download_task(
                         }
                     }
                     Err(error) => {
-                        let _ = tokio::fs::remove_file(&working_path).await;
+                        cleanup_failed_download_staging(&working_path, &error).await;
                         Err(error)
                     }
                 }
             }
             Err(error) => {
-                let _ = tokio::fs::remove_file(&working_path).await;
+                cleanup_failed_download_staging(&working_path, &error).await;
                 Err(error)
             }
         }
