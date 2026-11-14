@@ -269,6 +269,10 @@ original user data and staged restore were preserved for repair"
                         // starting maximized or fullscreen.
                         .prevent_overflow_with_margin(tauri::LogicalSize::new(32.0, 32.0))
                         .center()
+                        // Do not expose the default WebView2/WebKit surface before
+                        // the document, CSS and React shell have mounted. The
+                        // frontend explicitly shows this window on first render.
+                        .visible(false)
                         // Windows/Linux preserve the branded window chrome.
                         .decorations(false)
                         .resizable(true)

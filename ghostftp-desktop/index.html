@@ -5,6 +5,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ghost FTP</title>
+    <!-- Pre-bundle background, applied before the generated CSS loads. -->
+    <style>
+      html { color-scheme: dark; }
+      html, body, #root {
+        margin: 0;
+        min-height: 100%;
+        background-color: #04111e;
+        color: #eaf6ff;
+      }
+      html[data-theme="light"], html[data-theme="ghost-ice"] {
+        color-scheme: light;
+      }
+      html[data-theme="light"], html[data-theme="light"] body,
+      html[data-theme="light"] #root,
+      html[data-theme="ghost-ice"], html[data-theme="ghost-ice"] body,
+      html[data-theme="ghost-ice"] #root {
+        background-color: #fafafc;
+        color: #171c24;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
