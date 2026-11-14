@@ -61,6 +61,24 @@ impl std::fmt::Display for RestartFromPause {
 
 impl std::error::Error for RestartFromPause {}
 
+/// An FTP/SFTP server may have renamed the staged file even when the client
+/// lost the final acknowledgment. Automatic replay could overwrite a newer
+/// competing write. Leave the outcome uncertain until a user verifies it.
+#[derive(Debug)]
+struct UploadPromotionUnconfirmed(anyhow::Error);
+
+impl std::fmt::Display for UploadPromotionUnconfirmed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("remote upload promotion could not be confirmed")
+    }
+}
+
+impl std::error::Error for UploadPromotionUnconfirmed {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.0.as_ref())
+    }
+}
+
 /// Payload of the `transfer://queue` event: the FIFO of waiting transfer ids
 /// plus the manager-level state the panel header renders.
 #[derive(Debug, Clone, Serialize)]
@@ -550,6 +568,9 @@ fn safe_transfer_failure_message(message: &str) -> &'static str {
 }
 
 fn safe_transfer_failure(error: &anyhow::Error) -> &'static str {
+    if error.downcast_ref::<UploadPromotionUnconfirmed>().is_some() {
+        return "Remote upload completion is uncertain. Verify the destination before retrying.";
+    }
     safe_transfer_failure_message(&error.to_string())
 }
 
@@ -4799,6 +4820,10 @@ fn is_transient(e: &anyhow::Error) -> bool {
     )
 }
 
+fn is_safe_staged_upload_retry(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<UploadPromotionUnconfirmed>().is_none() && is_transient(error)
+}
+
 /// GET/HEAD downloads are safe to retry after bounded HTTP rate limits and
 /// gateway outages. Mutating cloud POST/PUT operations deliberately use the
 /// original narrower retry classifier: an ambiguous 5xx response might follow
@@ -5050,7 +5075,7 @@ async fn run_upload_task(
             Err(e)
                 if auto_retries < max_auto_retries
                     && matches!(&*session, Session::Ftp(_) | Session::Ssh(_))
-                    && is_transient(&e) =>
+                    && is_safe_staged_upload_retry(&e) =>
             {
                 auto_retries += 1;
                 let delay = match auto_retries {
@@ -5222,7 +5247,9 @@ async fn dispatch_upload(
             mgr.checkpoint(id, 0).await?;
             verify_local_upload_snapshot(local, &source_snapshot).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
-            promote_remote_upload(session, &staging, final_remote, allow_replace).await
+            promote_remote_upload(session, &staging, final_remote, allow_replace)
+                .await
+                .map_err(|source| anyhow::Error::new(UploadPromotionUnconfirmed(source)))
         }
         Session::Ftp(ftp) => {
             let source_snapshot = capture_local_upload_snapshot(local).await?;
@@ -5238,7 +5265,9 @@ async fn dispatch_upload(
                 .len();
             verify_ftp_upload_staging_size(ftp, &staging, expected).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
-            promote_remote_upload(session, &staging, final_remote, allow_replace).await
+            promote_remote_upload(session, &staging, final_remote, allow_replace)
+                .await
+                .map_err(|source| anyhow::Error::new(UploadPromotionUnconfirmed(source)))
         }
         Session::Object(obj) => {
             mgr.run_object_upload(id, obj.clone(), local, final_remote, app)
@@ -6459,6 +6488,20 @@ mod tests {
             "Permission denied (os error 13)"
         )));
         assert!(!is_transient(&anyhow::anyhow!("No such file or directory")));
+    }
+
+    #[test]
+    fn ambiguous_promotion_failure_must_not_be_automatically_replayed() {
+        let network = anyhow::anyhow!("connection reset by peer");
+        assert!(is_safe_staged_upload_retry(&network));
+        let unknown_commit = anyhow::Error::new(UploadPromotionUnconfirmed(
+            anyhow::anyhow!("connection reset by peer"),
+        ));
+        assert!(!is_safe_staged_upload_retry(&unknown_commit));
+        assert_eq!(
+            safe_transfer_failure(&unknown_commit),
+            "Remote upload completion is uncertain. Verify the destination before retrying."
+        );
     }
 
     #[test]
