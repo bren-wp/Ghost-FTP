@@ -6301,7 +6301,13 @@ mod tests {
             TransferStatus::Transferring,
         ))
         .await;
+        let flag = Arc::new(AtomicBool::new(false));
+        mgr.cancels
+            .lock()
+            .await
+            .insert("canceled".to_string(), Arc::clone(&flag));
         assert!(mgr.mark_canceled("canceled").await.is_some());
+        assert!(flag.load(Ordering::Acquire));
         // Both successful and failed results from a stale worker are ignored.
         assert!(mgr.finish_transfer("canceled", Ok(())).await.is_none());
         assert!(mgr
@@ -6420,8 +6426,11 @@ mod tests {
     #[tokio::test]
     async fn concurrent_user_retries_only_allow_one_terminal_to_queued_reset() {
         let mgr = Arc::new(TransferManager::new());
-        mgr.insert(terminal_race_test_row("one-retry", TransferStatus::Error))
-            .await;
+        mgr.insert(terminal_race_test_row(
+            "one-retry",
+            TransferStatus::Error,
+        ))
+        .await;
         let gate = Arc::new(tokio::sync::Barrier::new(9));
         let mut workers = Vec::new();
         for _ in 0..8 {

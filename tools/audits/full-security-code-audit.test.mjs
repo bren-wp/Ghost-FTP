@@ -136,6 +136,8 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'remote_errors_never_persist_authorization_headers_or_signed_urls()',
     'old_diagnostic_rewritten',
     'INTERRUPTED_TRANSFER_MESSAGE',
+    'async fn mark_canceled(',
+    'self.mark_canceled(id).await',
     'async fn finish_transfer(',
     'async fn reset_for_retry(',
     'let _ledger = self.ledger_serial.lock().await;',

@@ -9,12 +9,13 @@
 | High | `finalize()` previously read the transfer status, then later wrote `Done` or `Error`; a concurrent Cancel could be overwritten. | A single guarded `finish_transfer()` transition refuses terminal rows under the same state mutex, and the UI emits the resulting committed snapshot. |
 | High | Concurrent `update()` calls could persist an older `Transferring` snapshot after a more recent terminal SQLite write. This could cause incorrect crash recovery. | `ledger_serial` orders state mutation and `transfer_ledger_upsert`, including prune and insert, without holding the transfers mutex during SQLite or pruning. |
 | High | A late progress/transport callback could mutate the byte count or status of a completed, skipped, canceled or failed row. | Ordinary updates cannot alter terminal rows. Only an explicit `reset_for_retry()` permits `Error`/`Canceled` → `Queued` with byte count reset. |
+| High | Cancel set the cooperative flag before writing the Canceled row, leaving a window where a finalizer could commit Done first. | `mark_canceled()` now commits the cancellation token, terminal status and SQLite snapshot under the same ledger lock used by finalization; Cancel and manual Retry share a second serialization gate. |
 | Medium | Repeated Retry actions against a terminal row might enqueue the same transfer more than once or abort a newly started worker. | `retry_serial` orders user-triggered Retry requests and the terminal-to-queued reset checks status atomically. |
 | Medium | Each automatic FTP/SFTP attempt previously captured a fresh source identity; a changed source between transient retries could silently change the uploaded revision. | Capture one local identity snapshot per logical automatic retry runner. Validate it on each attempt, the opened source handle, and before remote promotion. |
 
 ## Regression and release evidence
 
-- Unit tests guard Cancel/Done and Cancel/Error interleavings, late progress after Done, durable SQLite status, rejected short successful transfers and manual requeue from failed/canceled only.
+- Unit tests guard Cancel/Done and Cancel/Error interleavings, cancellation token signaling, concurrent Cancel versus complete, late progress after Done, durable SQLite status, rejected short successful transfers and 8 concurrent user retry attempts with only one accepted transition.
 - Full-repository static security-code audit has required-source contracts for `ledger_serial`, immutable terminal guards and `finish_transfer`; a passing static scan does **not** replace manual security review.
 - Exact-head Rust fmt/tests/Clippy, Windows filesystem/security, FTP/FTPS/SFTP E2E and native Windows/Linux build status must be taken from CI for this PR only.
 
