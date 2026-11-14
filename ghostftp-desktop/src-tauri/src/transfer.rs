@@ -674,8 +674,9 @@ use download_staging::{
 mod path_safety;
 pub(crate) use path_safety::require_directory_upload_metadata;
 use path_safety::{
-    checked_remote_download_relative, ensure_download_subdirectory, safe_local_download_leaf,
-    safe_upload_name, validate_directory_download_budget, validate_directory_upload_budget,
+    checked_remote_download_relative, ensure_download_subdirectory, inspect_directory_upload_entry,
+    safe_local_download_leaf, safe_upload_name, validate_directory_download_budget,
+    validate_directory_upload_budget,
 };
 
 const MAX_RENAME_CANDIDATES: usize = 999;
@@ -2808,7 +2809,7 @@ impl TransferManager {
                 .with_context(|| format!("read_dir {}", d.display()))?;
             while let Some(entry) = rd.next_entry().await? {
                 let p = entry.path();
-                let meta = require_directory_upload_metadata(&p, entry.metadata().await)?;
+                let meta = inspect_directory_upload_entry(&p).await?;
                 let name = entry.file_name().into_string().map_err(|_| {
                     anyhow::anyhow!("directory upload refuses filename not representable as UTF-8")
                 })?;
