@@ -293,10 +293,8 @@ mod tests {
 
     #[test]
     fn agent_delta_patch_cannot_clobber_preexisting_output() {
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-delta-upload-excl-{}",
-            Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delta-upload-excl-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
         let patch = root.join("user-owned.patch");
         std::fs::write(&patch, b"valuable existing data").unwrap();
@@ -314,10 +312,8 @@ mod tests {
     #[test]
     fn agent_delta_patch_cannot_follow_or_remove_symlink() {
         use std::os::unix::fs::symlink;
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-delta-upload-link-{}",
-            Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delta-upload-link-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
         let valuable = root.join("valuable");
         let patch = root.join("planted.patch");
