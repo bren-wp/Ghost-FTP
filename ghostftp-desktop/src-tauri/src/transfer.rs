@@ -2652,94 +2652,36 @@ impl TransferManager {
         local_path: &Path,
         remote_path: &str,
         app: &AppHandle,
-        exclusive_stage_create: bool,
     ) -> Result<()> {
-        self.update(id, |t| t.status = TransferStatus::Transferring)
-            .await;
+        // Every call uses a *new* exclusively created staging pathname.
+        // Progress from a previous attempt cannot be a valid resume offset.
+        self.update(id, |t| {
+            t.status = TransferStatus::Transferring;
+            t.transferred = 0;
+        })
+        .await;
 
-        let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
         let local_len = tokio::fs::metadata(local_path)
             .await
             .with_context(|| format!("stat {}", local_path.display()))?
             .len();
-
-        let sftp_cell = session.ensure_sftp().await?;
-        let mut resume_offset = requested_offset.min(local_len);
-        if resume_offset > 0 {
-            let remote_len = {
-                let sftp = sftp_cell.lock().await;
-                sftp.metadata(remote_path)
-                    .await
-                    .ok()
-                    .and_then(|meta| meta.size)
-            };
-            if remote_len == Some(resume_offset) {
-                let mut local_prefix = tokio::fs::File::open(local_path)
-                    .await
-                    .context("open SFTP upload source for resume verification")?;
-                let mut remote_prefix = {
-                    let sftp = sftp_cell.lock().await;
-                    sftp.open(remote_path)
-                        .await
-                        .context("open SFTP upload destination for resume verification")?
-                };
-                if !byte_equal_prefix(&mut local_prefix, &mut remote_prefix, resume_offset).await? {
-                    resume_offset = 0;
-                }
-            } else {
-                resume_offset = 0;
-            }
-        }
-        let mut remote_file = {
-            let sftp = sftp_cell.lock().await;
-            let remote_len = if resume_offset > 0 {
-                sftp.metadata(remote_path)
-                    .await
-                    .ok()
-                    .and_then(|metadata| metadata.size)
-                    .unwrap_or(0)
-            } else {
-                0
-            };
-            if resume_offset > 0 && remote_len == resume_offset {
-                sftp.open_with_flags(remote_path, russh_sftp::protocol::OpenFlags::WRITE)
-                    .await
-                    .with_context(|| format!("open remote {remote_path} for resume"))?
-            } else {
-                resume_offset = 0;
-                if exclusive_stage_create {
-                    use russh_sftp::protocol::OpenFlags;
-                    sftp.open_with_flags(
-                        remote_path,
-                        OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE,
-                    )
-                    .await
-                    .with_context(|| {
-                        format!("exclusively create remote upload staging {remote_path}")
-                    })?
-                } else {
-                    sftp.create(remote_path)
-                        .await
-                        .with_context(|| format!("create remote {remote_path}"))?
-                }
-            }
-        };
-        if resume_offset != requested_offset {
-            self.update(id, |t| t.transferred = resume_offset).await;
-        }
-        if resume_offset > 0 {
-            remote_file.seek(SeekFrom::Start(resume_offset)).await?;
-        }
-
         let mut local_file = tokio::fs::File::open(local_path)
             .await
             .with_context(|| format!("open {}", local_path.display()))?;
-        if resume_offset > 0 {
-            local_file.seek(SeekFrom::Start(resume_offset)).await?;
-        }
+        let sftp_cell = session.ensure_sftp().await?;
+        let mut remote_file = {
+            let sftp = sftp_cell.lock().await;
+            use russh_sftp::protocol::OpenFlags;
+            sftp.open_with_flags(
+                remote_path,
+                OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE,
+            )
+            .await
+            .with_context(|| format!("exclusively create remote upload staging {remote_path}"))?
+        };
 
         let mut buf = vec![0u8; 64 * 1024];
-        let mut transferred: u64 = resume_offset;
+        let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
         loop {
             let n = local_file.read(&mut buf).await?;
@@ -5080,12 +5022,21 @@ async fn run_upload_task(
         .await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
-                if !supports_byte_resume(&session) {
+                // Agent alone has a verified upload resume prefix. FTP and
+                // SFTP retries start on fresh remote staging paths.
+                if !matches!(&*session, Session::Agent(_)) {
                     mgr.update(&id, |t| t.transferred = 0).await;
                 }
                 continue;
             }
-            Err(e) if auto_retries < max_auto_retries && is_transient(&e) => {
+            // A network failure after a cloud or Agent mutation may mean that
+            // the server committed the write but the acknowledgment was lost.
+            // Only fresh-staged FTP/SFTP whole-file uploads can auto-replay.
+            Err(e)
+                if auto_retries < max_auto_retries
+                    && matches!(&*session, Session::Ftp(_) | Session::Ssh(_))
+                    && is_transient(&e) =>
+            {
                 auto_retries += 1;
                 let delay = match auto_retries {
                     1 => 5,
@@ -5250,7 +5201,7 @@ async fn dispatch_upload(
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             // SFTP CREATE|EXCLUDE prevents truncation even if a competing
             // writer guesses the staging name after our planner runs.
-            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, true)
+            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app)
                 .await?;
             mgr.checkpoint(id, 0).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
