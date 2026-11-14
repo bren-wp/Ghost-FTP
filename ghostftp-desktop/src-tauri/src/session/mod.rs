@@ -1944,6 +1944,7 @@ impl SessionManager {
                     jump_handle: Mutex::new(conn.jump_handle),
                     sftp: Mutex::new(None),
                     reconnect_lock: Mutex::new(()),
+                    closed: AtomicBool::new(false),
                     generation: AtomicU64::new(0),
                     jobs: Mutex::new(HashMap::new()),
                 });

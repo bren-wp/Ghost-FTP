@@ -76,7 +76,8 @@ pub(super) async fn promote_remote_upload(
             let source = staging.to_string();
             let target = final_remote.to_string();
             ftp.with_stream(move |stream| {
-                stream.rename(&source, &target)
+                stream
+                    .rename(&source, &target)
                     .context("FTP server could not safely promote verified upload")?;
                 Ok(())
             })
@@ -105,12 +106,7 @@ mod tests {
     #[test]
     fn staging_refuses_unsafe_names_and_traversal_before_remote_io() {
         let id = Uuid::new_v4().to_string();
-        for target in [
-            "/a/../file",
-            "/a/unsafe\\name",
-            "/a/control\nname",
-            "/",
-        ] {
+        for target in ["/a/../file", "/a/unsafe\\name", "/a/control\nname", "/"] {
             assert!(fresh_remote_upload_staging_path(target, &id).is_err());
         }
         assert!(fresh_remote_upload_staging_path("/safe/file", "../unsafe").is_err());

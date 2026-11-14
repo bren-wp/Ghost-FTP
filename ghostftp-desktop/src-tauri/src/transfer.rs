@@ -672,15 +672,15 @@ mod download_staging;
 mod remote_upload_staging;
 #[cfg(test)]
 use download_staging::download_backup_path;
-use remote_upload_staging::{
-    fresh_remote_upload_staging_path, preflight_ftp_upload_staging, promote_remote_upload,
-};
 use download_staging::{
     cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
     commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
     download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
     local_path_exists_sync_fail_closed, promote_staged_download, promote_staged_download_noreplace,
     verify_staged_download_bytes, DownloadStagingOpenFailure,
+};
+use remote_upload_staging::{
+    fresh_remote_upload_staging_path, preflight_ftp_upload_staging, promote_remote_upload,
 };
 
 mod remote_directory;
@@ -2713,7 +2713,9 @@ impl TransferManager {
                         OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE,
                     )
                     .await
-                    .with_context(|| format!("exclusively create remote upload staging {remote_path}"))?
+                    .with_context(|| {
+                        format!("exclusively create remote upload staging {remote_path}")
+                    })?
                 } else {
                     sftp.create(remote_path)
                         .await

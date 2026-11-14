@@ -350,9 +350,9 @@ pub async fn check_session_health(
         Session::Ftp(ftp) => {
             // Do not discard a live session on an idle socket timeout.
             // Reconnect once, then verify the new authenticated transport.
-            check_ftp_session(ftp)
-                .await
-                .map_err(|_| "FTP/FTPS transport unavailable; automatic reconnect failed".to_string())?;
+            check_ftp_session(ftp).await.map_err(|_| {
+                "FTP/FTPS transport unavailable; automatic reconnect failed".to_string()
+            })?;
         }
         Session::Ssh(ssh) => {
             if !ssh.sftp_available().await {

@@ -4,10 +4,7 @@ use crate::session::FtpSession;
 use anyhow::{Context, Result};
 use std::future::Future;
 
-async fn probe_with_one_reconnect<P, R, PF, RF>(
-    mut probe: P,
-    reconnect: R,
-) -> Result<()>
+async fn probe_with_one_reconnect<P, R, PF, RF>(mut probe: P, reconnect: R) -> Result<()>
 where
     P: FnMut() -> PF,
     R: FnOnce() -> RF,
