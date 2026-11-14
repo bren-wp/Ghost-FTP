@@ -152,6 +152,19 @@ const REQUIRED = [
     "profile_store_refuses_dangling_storage_symlink",
     "profiles_and_rail_order_survive_close_and_restart",
   ]],
+  // On app restart, durable profiles must be rehydrated into the
+  // frontend rather than leaving the saved sites list empty until another UI
+  // action happens to fetch it.
+  ["ghostftp-desktop/src/App.tsx", [
+    "useConnections.getState().loadProfiles()",
+    "Couldn't load saved connections",
+  ]],
+  ["ghostftp-desktop/src/stores/connectionsStore.ts", [
+    "loadProfiles: async () => {",
+    "const persisted = await ipc.listProfiles()",
+    "await ipc.saveProfile(p);",
+    "await get().loadProfiles();",
+  ]],
   // Profile credentials may only be saved via the OS vault, never in the
   // exported profiles.json metadata or a replaced/linked export target.
   ["ghostftp-desktop/src-tauri/src/commands/profile_security.rs", [
