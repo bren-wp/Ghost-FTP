@@ -680,8 +680,9 @@ use download_staging::{
     verify_staged_download_bytes, DownloadStagingOpenFailure,
 };
 use remote_upload_staging::{
-    fresh_remote_upload_staging_path, preflight_ftp_upload_staging, promote_remote_upload,
-    verify_ftp_upload_staging_size,
+    capture_local_upload_snapshot, fresh_remote_upload_staging_path, preflight_ftp_upload_staging,
+    promote_remote_upload, verify_ftp_upload_staging_size, verify_local_upload_snapshot,
+    LocalUploadSnapshot,
 };
 
 mod remote_directory;
@@ -2652,6 +2653,7 @@ impl TransferManager {
         local_path: &Path,
         remote_path: &str,
         app: &AppHandle,
+        source_snapshot: &LocalUploadSnapshot,
     ) -> Result<()> {
         // Every call uses a *new* exclusively created staging pathname.
         // Progress from a previous attempt cannot be a valid resume offset.
@@ -2668,6 +2670,7 @@ impl TransferManager {
         let mut local_file = tokio::fs::File::open(local_path)
             .await
             .with_context(|| format!("open {}", local_path.display()))?;
+        source_snapshot.verify(&local_file.metadata().await?)?;
         let sftp_cell = session.ensure_sftp().await?;
         let mut remote_file = {
             let sftp = sftp_cell.lock().await;
@@ -2703,9 +2706,9 @@ impl TransferManager {
         let source_after = local_file
             .metadata()
             .await
-            .context("stat SFTP upload source after transfer")?
-            .len();
-        verify_committed_length("SFTP upload source", local_len, transferred, source_after)?;
+            .context("stat SFTP upload source after transfer")?;
+        source_snapshot.verify(&source_after)?;
+        verify_committed_length("SFTP upload source", local_len, transferred, source_after.len())?;
         drop(remote_file);
         let remote_size = {
             let sftp = sftp_cell.lock().await;
@@ -3072,6 +3075,7 @@ impl TransferManager {
         local_path: &Path,
         remote_path: &str,
         app: &AppHandle,
+        source_snapshot: &LocalUploadSnapshot,
     ) -> Result<()> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
@@ -3106,6 +3110,8 @@ impl TransferManager {
         let retry_canceled = canceled.clone();
         let retry_local = local.clone();
         let retry_remote = remote.clone();
+        let first_source_snapshot = source_snapshot.clone();
+        let retry_source_snapshot = source_snapshot.clone();
 
         let attempt = session
             .with_stream(move |stream| {
@@ -3124,6 +3130,7 @@ impl TransferManager {
 
                 let mut file = std::fs::File::open(&local)
                     .with_context(|| format!("open {}", local.display()))?;
+                first_source_snapshot.verify(&file.metadata()?)?;
                 if offset > 0 {
                     file.seek(SeekFrom::Start(offset))?;
                 }
@@ -3139,6 +3146,7 @@ impl TransferManager {
                         FtpTransferControl::Continue
                     }
                 })?;
+                first_source_snapshot.verify(&reader.get_ref().metadata()?)?;
 
                 // Some FTP/FTPS servers can acknowledge a resumed transfer but
                 // persist fewer bytes than the client wrote. A resumed upload
@@ -3201,8 +3209,10 @@ impl TransferManager {
                     // connection, then verifies both bytes sent and remote SIZE.
                     let restart_file = std::fs::File::open(&retry_local)
                         .with_context(|| format!("reopen {}", retry_local.display()))?;
+                    retry_source_snapshot.verify(&restart_file.metadata()?)?;
                     let mut restart_reader = std::io::BufReader::new(restart_file);
                     let written = stream.put_from_reader(&retry_remote, &mut restart_reader)?;
+                    retry_source_snapshot.verify(&restart_reader.get_ref().metadata()?)?;
                     if written != local_len {
                         anyhow::bail!(
                             "FTP recovery upload wrote {} bytes, expected {}",
@@ -5198,21 +5208,25 @@ async fn dispatch_upload(
 ) -> Result<()> {
     match &**session {
         Session::Ssh(ssh) => {
+            let source_snapshot = capture_local_upload_snapshot(local).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             // SFTP CREATE|EXCLUDE prevents truncation even if a competing
             // writer guesses the staging name after our planner runs.
-            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app)
+            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, &source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
+            verify_local_upload_snapshot(local, &source_snapshot).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
             promote_remote_upload(session, &staging, final_remote, allow_replace).await
         }
         Session::Ftp(ftp) => {
+            let source_snapshot = capture_local_upload_snapshot(local).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             preflight_ftp_upload_staging(ftp, &staging).await?;
-            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app)
+            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app, &source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
+            verify_local_upload_snapshot(local, &source_snapshot).await?;
             let expected = tokio::fs::metadata(local)
                 .await
                 .context("stat uploaded FTP source")?
