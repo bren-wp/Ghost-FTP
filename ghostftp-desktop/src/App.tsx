@@ -10,6 +10,7 @@ import { AuthPromptModal } from "./components/AuthPromptModal";
 import { TitleBar } from "./components/TitleBar";
 import { PremiumFilesChrome, PremiumLiveTransferStrip } from "./components/PremiumFilesChrome";
 import { useConnections } from "./stores/connectionsStore";
+import { startSessionHealthMonitoring } from "./stores/sessionHealthMonitoring";
 import { useTransfers } from "./stores/transfersStore";
 import { useLayout } from "./stores/layoutStore";
 import { useSync } from "./stores/syncStore";
@@ -93,6 +94,10 @@ export default function App() {
     });
     return () => { disposed = true; };
   }, []);
+
+  // Keep all explicitly opened sessions alive while this window is running.
+  // The timer is cleaned up by React and never disconnects a session.
+  useEffect(() => startSessionHealthMonitoring(), []);
 
   useEffect(() => {
     const qaView = (

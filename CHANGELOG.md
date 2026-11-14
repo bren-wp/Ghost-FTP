@@ -1,3 +1,11 @@
+## 0.99.65 Preview candidate — 14 November 2026 (unpublished)
+
+- Continue monitoring the health of opened FTP/FTPS/SFTP sessions while the application is running; recover a stale FTP/FTPS control connection with at most one fresh authenticated attempt per probe.
+- Explicit Disconnect now prevents FTP and SSH transport resurrection from late reconnect requests.
+- Stage FTP/FTPS/SFTP uploads in unique sibling files, verify size and bytes transferred before attempting a final server-side rename; preserve existing final destination during failed staging. Unsupported rename-over-existing fails safely rather than deleting the original.
+- Record explicit overwrite intent in persisted/manual upload retries. Older saved upload retry records default to no overwrite permission.
+- Add native liveness and staging tests; [security findings](docs/audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) and [Windows/Linux acceptance matrix](docs/qa/LARGE_TRANSFER_AND_VAULT_ACCEPTANCE_0.99.65.md) distinguish implemented safeguards from unverified operating-system/server behavior.
+
 ## 0.99.64 Preview — 14 November 2026
 
 - Create Agent delta-upload patch files exclusively, preventing truncation of preexisting local files or following planted symlinks.
