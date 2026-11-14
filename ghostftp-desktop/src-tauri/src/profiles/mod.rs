@@ -131,6 +131,33 @@ pub struct ProfileStore {
     recovery_required: Option<String>,
 }
 
+/// A crash after moving profiles.json aside, but before installing the new
+/// primary, leaves a full predecessor snapshot. Prefer that last committed
+/// primary to an older .bak and never silently start with an empty profile set.
+fn interrupted_profile_predecessor(dir: &Path) -> Result<Option<PathBuf>> {
+    let mut candidates = Vec::new();
+    for entry in std::fs::read_dir(dir).context("enumerate profile recovery snapshots")? {
+        let entry = entry.context("inspect profile recovery entry")?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with(".profiles.json.") && name.ends_with(".previous") {
+            let path = entry.path();
+            let metadata = std::fs::symlink_metadata(&path)
+                .with_context(|| format!("inspect profile recovery {}", path.display()))?;
+            anyhow::ensure!(
+                metadata.file_type().is_file(),
+                "refusing an unsafe non-file profile recovery snapshot"
+            );
+            candidates.push(path);
+        }
+    }
+    anyhow::ensure!(
+        candidates.len() <= 1,
+        "multiple interrupted profile snapshots require manual recovery"
+    );
+    Ok(candidates.pop())
+}
+
 impl ProfileStore {
     pub fn load_or_create(app: &AppHandle) -> Result<Self> {
         let dir = app
@@ -154,6 +181,23 @@ impl ProfileStore {
         }
         let path = dir.join("profiles.json");
         let backup = dir.join("profiles.json.bak");
+        // A dangling symlink is not a missing store. Refuse to start with an
+        // apparently empty list and risk hiding the user's saved profiles.
+        for candidate in [&path, &backup] {
+            if std::fs::symlink_metadata(candidate)
+                .is_ok_and(|meta| meta.file_type().is_symlink())
+            {
+                bail!(
+                    "profile storage contains an unsafe symbolic link at {}; existing profiles were not replaced",
+                    candidate.display()
+                );
+            }
+        }
+        let predecessor = if path.exists() {
+            None
+        } else {
+            interrupted_profile_predecessor(dir)?
+        };
         let mut recovery_required = None;
         let profiles: Vec<ConnectionProfile> = if path.exists() {
             let bytes =
@@ -170,6 +214,34 @@ impl ProfileStore {
                     if backup.exists() {
                         let backup_bytes = std::fs::read(&backup)
                             .with_context(|| format!("reading {}", backup.display()))?;
+                        match serde_json::from_slice(&backup_bytes) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                preserve_corrupt_copy(&backup, &backup_bytes)?;
+                                Vec::new()
+                            }
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                }
+            }
+        } else if let Some(predecessor) = predecessor {
+            // The latest previous primary was moved aside when a profile
+            // update began. Return it read-only; never delete it or silently
+            // load a potentially older backup and lose newer saved profiles.
+            let bytes = std::fs::read(&predecessor)
+                .with_context(|| format!("reading {}", predecessor.display()))?;
+            recovery_required = Some(format!(
+                "profiles.json is missing after an interrupted save; recover the saved profile snapshot at {} before making changes",
+                predecessor.display()
+            ));
+            match serde_json::from_slice(&bytes) {
+                Ok(v) => v,
+                Err(_) => {
+                    preserve_corrupt_copy(&predecessor, &bytes)?;
+                    if backup.exists() {
+                        let backup_bytes = std::fs::read(&backup)?;
                         match serde_json::from_slice(&backup_bytes) {
                             Ok(v) => v,
                             Err(_) => {
@@ -598,6 +670,46 @@ mod recovery_tests {
 
     /// Saved connection metadata survives dropping the store and creating a new
     /// process-level store. Keychain contents are deliberately not serialized.
+    #[tokio::test]
+    async fn interrupted_profile_promotion_preserves_newer_previous_snapshot() {
+        let dir = temp_profile_dir();
+        std::fs::write(dir.join("profiles.json.bak"), b"[]").unwrap();
+        let previous = dir.join(".profiles.json.staged-commit.previous");
+        let profile = serde_json::json!([{
+            "id": "retained-from-before-crash",
+            "name": "Retained connection",
+            "protocol": "sftp",
+            "host": "files.example.invalid",
+            "port": 22,
+            "username": "operator",
+            "auth": {"kind": "password", "password": ""}
+        }]);
+        std::fs::write(&previous, serde_json::to_vec(&profile).unwrap()).unwrap();
+        let store = ProfileStore::from_dir(&dir).unwrap();
+        assert!(store.get("retained-from-before-crash").await.unwrap().is_some());
+        assert!(store.reorder(&[]).await.is_err());
+        assert!(previous.exists());
+        assert_eq!(std::fs::read(dir.join("profiles.json.bak")).unwrap(), b"[]");
+        assert!(!dir.join("profiles.json").exists());
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn profile_store_refuses_dangling_storage_symlink() {
+        use std::os::unix::fs::symlink;
+        let dir = temp_profile_dir();
+        symlink(dir.join("missing-profile-file"), dir.join("profiles.json")).unwrap();
+        let error = ProfileStore::from_dir(&dir).err().expect("reject unsafe primary");
+        assert!(error.to_string().contains("unsafe symbolic link"));
+        assert!(std::fs::symlink_metadata(dir.join("profiles.json"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[tokio::test]
     async fn profiles_and_rail_order_survive_close_and_restart() {
         let dir = temp_profile_dir();
