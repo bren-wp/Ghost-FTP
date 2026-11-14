@@ -329,6 +329,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn agent_delta_patch_cleanup_removes_only_an_owned_regular_file() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delta-cleanup-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let patch = root.join("planned.patch");
+        let mut file = create_new_delta_upload_patch(&patch).unwrap();
+        use std::io::Write as _;
+        file.write_all(b"partial patch").unwrap();
+        drop(file);
+        cleanup_owned_regular_staging_file(&patch).await;
+        assert!(tokio::fs::symlink_metadata(&patch).await.is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn agent_delta_patch_cleanup_never_unlinks_a_substituted_symlink() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("ghostftp-delta-cleanup-link-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let valuable = root.join("valuable.bin");
+        let patch = root.join("planned.patch");
+        tokio::fs::write(&valuable, b"keep this file").await.unwrap();
+        symlink(&valuable, &patch).unwrap();
+        cleanup_owned_regular_staging_file(&patch).await;
+        assert!(tokio::fs::symlink_metadata(&patch).await.unwrap().file_type().is_symlink());
+        assert_eq!(tokio::fs::read(&valuable).await.unwrap(), b"keep this file");
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
     async fn failed_exclusive_staging_open_never_deletes_existing_file() {
         let root =
             std::env::temp_dir().join(format!("ghostftp-staging-ownership-{}", Uuid::new_v4()));
