@@ -20,7 +20,9 @@ fn err<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
 }
 
+mod ftp_session_health;
 mod profile_security;
+use ftp_session_health::check_ftp_session;
 use profile_security::{
     delete_profile_secret, hydrate_profile_secrets, profile_key_passphrase_key,
     profile_password_key, protect_profile_secrets, write_private_profile_export,
@@ -346,7 +348,11 @@ pub async fn check_session_health(
 
     match &*session {
         Session::Ftp(ftp) => {
-            ftp.with_stream(|stream| stream.noop()).await.map_err(err)?;
+            // Do not discard a live session on an idle socket timeout.
+            // Reconnect once, then verify the new authenticated transport.
+            check_ftp_session(ftp)
+                .await
+                .map_err(|_| "FTP/FTPS transport unavailable; automatic reconnect failed".to_string())?;
         }
         Session::Ssh(ssh) => {
             if !ssh.sftp_available().await {
