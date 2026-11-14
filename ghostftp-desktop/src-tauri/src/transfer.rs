@@ -5164,17 +5164,13 @@ async fn run_upload_task(
         None
     };
     let res = loop {
-        let attempt = dispatch_upload(
-            &mgr,
-            &id,
-            &session,
-            &local,
-            &final_remote,
+        let request = UploadAttempt {
+            local: &local,
+            final_remote: &final_remote,
             allow_replace,
-            source_snapshot.as_ref(),
-            &app,
-        )
-        .await;
+            source_snapshot: source_snapshot.as_ref(),
+        };
+        let attempt = dispatch_upload(&mgr, &id, &session, request, &app).await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
                 // Agent alone has a verified upload resume prefix. FTP and
@@ -5341,17 +5337,29 @@ async fn ensure_upload_promotion_allowed(mgr: &Arc<TransferManager>, id: &str) -
     Ok(())
 }
 
+/// Keep the resolved upload target, explicit overwrite intent and stable
+/// source identity together across every automatic retry attempt.
+struct UploadAttempt<'a> {
+    local: &'a Path,
+    final_remote: &'a str,
+    allow_replace: bool,
+    source_snapshot: Option<&'a LocalUploadSnapshot>,
+}
+
 /// Backend dispatch for a single-file upload.
 async fn dispatch_upload(
     mgr: &Arc<TransferManager>,
     id: &str,
     session: &Arc<Session>,
-    local: &Path,
-    final_remote: &str,
-    allow_replace: bool,
-    source_snapshot: Option<&LocalUploadSnapshot>,
+    request: UploadAttempt<'_>,
     app: &AppHandle,
 ) -> Result<()> {
+    let UploadAttempt {
+        local,
+        final_remote,
+        allow_replace,
+        source_snapshot,
+    } = request;
     match &**session {
         Session::Ssh(ssh) => {
             let source_snapshot = source_snapshot.context("SFTP source identity not captured")?;
@@ -5359,10 +5367,10 @@ async fn dispatch_upload(
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             // SFTP CREATE|EXCLUDE prevents truncation even if a competing
             // writer guesses the staging name after our planner runs.
-            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, &source_snapshot)
+            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
-            verify_local_upload_snapshot(local, &source_snapshot).await?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             ensure_upload_promotion_allowed(mgr, id).await?;
             promote_remote_upload(session, &staging, final_remote, allow_replace)
                 .await
@@ -5373,10 +5381,10 @@ async fn dispatch_upload(
             verify_local_upload_snapshot(local, source_snapshot).await?;
             let staging = fresh_remote_upload_staging_path(final_remote, id)?;
             preflight_ftp_upload_staging(ftp, &staging).await?;
-            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app, &source_snapshot)
+            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app, source_snapshot)
                 .await?;
             mgr.checkpoint(id, 0).await?;
-            verify_local_upload_snapshot(local, &source_snapshot).await?;
+            verify_local_upload_snapshot(local, source_snapshot).await?;
             let expected = tokio::fs::metadata(local)
                 .await
                 .context("stat uploaded FTP source")?

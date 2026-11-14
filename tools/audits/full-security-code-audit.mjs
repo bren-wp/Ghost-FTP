@@ -111,7 +111,7 @@ const REQUIRED = [
     "Session::Ssh(_) | Session::Agent(_)",
     "source_snapshot.verify(&local_file.metadata().await?)?;",
     "source_snapshot.verify(&source_after)?;",
-    "verify_local_upload_snapshot(local, &source_snapshot).await?;",
+    "verify_local_upload_snapshot(local, source_snapshot).await?;",
     "OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE",
     "is_safe_staged_upload_retry(&e)",
     "UploadPromotionUnconfirmed",
