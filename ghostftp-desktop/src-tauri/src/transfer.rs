@@ -332,6 +332,8 @@ enum RetryInfo {
         session: Arc<Session>,
         local: PathBuf,
         final_remote: String,
+        /// Only an explicitly selected Overwrite allows replacing an existing file.
+        allow_replace: bool,
     },
 }
 
@@ -354,6 +356,9 @@ enum PersistedRetryInfo {
         profile_id: String,
         local: PathBuf,
         final_remote: String,
+        /// Legacy retry records must never infer overwrite permission.
+        #[serde(default)]
+        allow_replace: bool,
     },
 }
 
@@ -380,11 +385,13 @@ impl PersistedRetryInfo {
             Self::Upload {
                 local,
                 final_remote,
+                allow_replace,
                 ..
             } => RetryInfo::Upload {
                 session,
                 local: local.clone(),
                 final_remote: final_remote.clone(),
+                allow_replace: *allow_replace,
             },
         }
     }
@@ -662,8 +669,12 @@ fn verify_plain_http_download_length(
 }
 
 mod download_staging;
+mod remote_upload_staging;
 #[cfg(test)]
 use download_staging::download_backup_path;
+use remote_upload_staging::{
+    fresh_remote_upload_staging_path, preflight_ftp_upload_staging, promote_remote_upload,
+};
 use download_staging::{
     cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
     commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
@@ -1397,10 +1408,19 @@ impl TransferManager {
                 session,
                 local,
                 final_remote,
+                allow_replace,
             } => {
                 self.spawn_registered(
                     id.to_string(),
-                    run_upload_task(mgr, id_for_task, session, local, final_remote, app_for_task),
+                    run_upload_task(
+                        mgr,
+                        id_for_task,
+                        session,
+                        local,
+                        final_remote,
+                        allow_replace,
+                        app_for_task,
+                    ),
                 )
                 .await;
             }
@@ -1882,6 +1902,7 @@ impl TransferManager {
                 profile_id: session.profile().id.clone(),
                 local: local.clone(),
                 final_remote: final_remote.clone(),
+                allow_replace: policy == OverwritePolicy::Overwrite,
             },
         );
         self.insert(transfer.clone()).await;
@@ -1898,6 +1919,7 @@ impl TransferManager {
                 session: Arc::clone(&session),
                 local: local.clone(),
                 final_remote: final_remote.clone(),
+                allow_replace: policy == OverwritePolicy::Overwrite,
             },
         );
         self.waiting.lock().await.push_back(id.clone());
@@ -1915,7 +1937,15 @@ impl TransferManager {
         let id_for_task = id.clone();
         self.spawn_registered(
             id.clone(),
-            run_upload_task(mgr, id_for_task, session, local, final_remote, app),
+            run_upload_task(
+                mgr,
+                id_for_task,
+                session,
+                local,
+                final_remote,
+                policy == OverwritePolicy::Overwrite,
+                app,
+            ),
         )
         .await;
         Ok(id)
@@ -2621,6 +2651,7 @@ impl TransferManager {
         local_path: &Path,
         remote_path: &str,
         app: &AppHandle,
+        exclusive_stage_create: bool,
     ) -> Result<()> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
@@ -2675,9 +2706,19 @@ impl TransferManager {
                     .with_context(|| format!("open remote {remote_path} for resume"))?
             } else {
                 resume_offset = 0;
-                sftp.create(remote_path)
+                if exclusive_stage_create {
+                    use russh_sftp::protocol::OpenFlags;
+                    sftp.open_with_flags(
+                        remote_path,
+                        OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE,
+                    )
                     .await
-                    .with_context(|| format!("create remote {remote_path}"))?
+                    .with_context(|| format!("exclusively create remote upload staging {remote_path}"))?
+                } else {
+                    sftp.create(remote_path)
+                        .await
+                        .with_context(|| format!("create remote {remote_path}"))?
+                }
             }
         };
         if resume_offset != requested_offset {
@@ -5014,6 +5055,7 @@ async fn run_upload_task(
     session: Arc<Session>,
     local: PathBuf,
     final_remote: String,
+    allow_replace: bool,
     app: AppHandle,
 ) {
     let Some(initial_permit) = mgr.admit(&id).await else {
@@ -5023,7 +5065,16 @@ async fn run_upload_task(
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
     let res = loop {
-        let attempt = dispatch_upload(&mgr, &id, &session, &local, &final_remote, &app).await;
+        let attempt = dispatch_upload(
+            &mgr,
+            &id,
+            &session,
+            &local,
+            &final_remote,
+            allow_replace,
+            &app,
+        )
+        .await;
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
                 if !supports_byte_resume(&session) {
@@ -5162,16 +5213,26 @@ async fn dispatch_upload(
     session: &Arc<Session>,
     local: &Path,
     final_remote: &str,
+    allow_replace: bool,
     app: &AppHandle,
 ) -> Result<()> {
     match &**session {
         Session::Ssh(ssh) => {
-            mgr.run_ssh_upload(id, ssh.clone(), local, final_remote, app)
-                .await
+            let staging = fresh_remote_upload_staging_path(final_remote, id)?;
+            // SFTP CREATE|EXCLUDE prevents truncation even if a competing
+            // writer guesses the staging name after our planner runs.
+            mgr.run_ssh_upload(id, ssh.clone(), local, &staging, app, true)
+                .await?;
+            mgr.checkpoint(id, 0).await?;
+            promote_remote_upload(session, &staging, final_remote, allow_replace).await
         }
         Session::Ftp(ftp) => {
-            mgr.run_ftp_upload(id, ftp.clone(), local, final_remote, app)
-                .await
+            let staging = fresh_remote_upload_staging_path(final_remote, id)?;
+            preflight_ftp_upload_staging(ftp, &staging).await?;
+            mgr.run_ftp_upload(id, ftp.clone(), local, &staging, app)
+                .await?;
+            mgr.checkpoint(id, 0).await?;
+            promote_remote_upload(session, &staging, final_remote, allow_replace).await
         }
         Session::Object(obj) => {
             mgr.run_object_upload(id, obj.clone(), local, final_remote, app)
@@ -6104,6 +6165,7 @@ mod tests {
                 profile_id: "profile-retry".to_string(),
                 local: PathBuf::from("/tmp/source.bin"),
                 final_remote: "/remote/source.bin".to_string(),
+                allow_replace: false,
             },
         };
         db.transfer_ledger_upsert(
@@ -6208,6 +6270,7 @@ mod tests {
                 profile_id: "p".to_string(),
                 local: PathBuf::from("/tmp/active"),
                 final_remote: "/active".to_string(),
+                allow_replace: false,
             },
         );
         mgr.insert(Transfer {
