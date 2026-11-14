@@ -6238,6 +6238,98 @@ mod tests {
         assert!(err.downcast_ref::<RestartFromPause>().is_some());
     }
 
+    fn terminal_race_test_row(id: &str, status: TransferStatus) -> Transfer {
+        Transfer {
+            id: id.to_string(),
+            kind: TransferKind::Upload,
+            source: "/tmp/queued-upload.bin".to_string(),
+            destination: "/remote/queued-upload.bin".to_string(),
+            size: 1024,
+            transferred: 0,
+            status,
+            error: None,
+            retry_attempt: None,
+            delta: None,
+            started_at: 11,
+        }
+    }
+
+    #[tokio::test]
+    async fn canceled_transfer_is_never_resurrected_by_late_completion_or_progress() {
+        let mgr = TransferManager::new();
+        mgr.insert(terminal_race_test_row("canceled", TransferStatus::Transferring))
+            .await;
+        mgr.update("canceled", |t| t.status = TransferStatus::Canceled)
+            .await;
+        // Both successful and failed results from a stale worker are ignored.
+        assert!(mgr.finish_transfer("canceled", Ok(())).await.is_none());
+        assert!(mgr
+            .finish_transfer("canceled", Err(anyhow::anyhow!("late network error")))
+            .await
+            .is_none());
+        mgr.update("canceled", |t| {
+            t.status = TransferStatus::Transferring;
+            t.transferred = 1024;
+        })
+        .await;
+        let row = mgr.snapshot("canceled").await.unwrap();
+        assert_eq!(row.status, TransferStatus::Canceled);
+        assert_eq!(row.transferred, 0);
+        mgr.reset_for_retry("canceled").await.unwrap();
+        assert_eq!(mgr.snapshot("canceled").await.unwrap().status, TransferStatus::Queued);
+        assert!(mgr.reset_for_retry("canceled").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn completed_row_and_sqlite_ledger_reject_stale_progress_after_success() {
+        let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+        let mgr = TransferManager::with_db(db.clone());
+        let id = "completed-ledger";
+        mgr.persisted_retry.lock().await.insert(
+            id.to_string(),
+            PersistedRetryInfo::Upload {
+                profile_id: "profile".to_string(),
+                local: PathBuf::from("/tmp/queued-upload.bin"),
+                final_remote: "/remote/queued-upload.bin".to_string(),
+                allow_replace: false,
+            },
+        );
+        mgr.insert(terminal_race_test_row(id, TransferStatus::Transferring))
+            .await;
+        mgr.update(id, |t| t.transferred = 1024).await;
+        let done = mgr.finish_transfer(id, Ok(())).await.unwrap();
+        assert_eq!(done.status, TransferStatus::Done);
+        mgr.update(id, |t| {
+            t.status = TransferStatus::Transferring;
+            t.transferred = 1;
+            t.error = Some("late callback".to_string());
+        })
+        .await;
+        assert_eq!(mgr.snapshot(id).await.unwrap().status, TransferStatus::Done);
+        assert_eq!(mgr.snapshot(id).await.unwrap().transferred, 1024);
+        let row = db
+            .transfer_ledger_list()
+            .unwrap()
+            .into_iter()
+            .find(|(row_id, _, _)| row_id == id)
+            .unwrap();
+        let envelope: PersistedTransferEnvelope = serde_json::from_str(&row.1).unwrap();
+        assert_eq!(envelope.transfer.status, TransferStatus::Done);
+        assert_eq!(envelope.transfer.transferred, 1024);
+        assert!(envelope.transfer.error.is_none());
+    }
+
+    #[tokio::test]
+    async fn incomplete_backend_success_cannot_be_marked_done() {
+        let mgr = TransferManager::new();
+        mgr.insert(terminal_race_test_row("short", TransferStatus::Transferring))
+            .await;
+        let failed = mgr.finish_transfer("short", Ok(())).await.unwrap();
+        assert_eq!(failed.status, TransferStatus::Error);
+        assert!(failed.error.is_some());
+        assert!(mgr.finish_transfer("short", Ok(())).await.is_none());
+    }
+
     // ---------- Durable restart recovery ----------
 
     #[tokio::test]
