@@ -132,4 +132,4 @@ User-facing and release-facing names should use:
 Framework-specific words such as Tauri should be kept only where technically required by the build ecosystem. Renaming `src-tauri` purely for appearance is not recommended because it increases maintenance/build risk without improving the user experience.
 
 
-Current development line: 0.99.67. Previous canonical release: 0.99.66. The previous canonical Preview is v0.99.66; see GitHub Releases and `docs/releases/0.99.66.md` for its acceptance limits.
+Current development line: 0.99.68. Previous canonical release: 0.99.67. The previous canonical Preview is v0.99.67; see GitHub Releases and `docs/releases/0.99.67.md` for its acceptance limits.
