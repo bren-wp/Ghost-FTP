@@ -1,8 +1,8 @@
-# Ghost FTP 0.99.67 — desktop production-readiness assessment
+# Ghost FTP 0.99.68 — desktop production-readiness assessment
 
-> **Active source and published release:** Ghost FTP v0.99.67 Preview (14 November 2026). **Previous release:** v0.99.66. Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP v0.99.68 Preview candidate. **Previously published release:** v0.99.67 (14 November 2026). Supported platforms: Windows and Linux.
 
-**Status: PUBLISHED PREVIEW, not certified Stable.** See [0.99.65 liveness/remote upload audit](../audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) for pending large/parallel transfers and native vault acceptance. Source metadata is not evidence of a published release. Always check the [GitHub Releases index](https://github.com/bren-wp/Ghost-FTP/releases). The historical pixel-equality release quota is retired; real responsive/accessibility acceptance remains necessary.
+**Status: PREVIEW development source, not certified Stable.** See [0.99.65 liveness/remote upload audit](../audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) for pending large/parallel transfers and native vault acceptance. Source metadata is not evidence of a published release. Always check the [GitHub Releases index](https://github.com/bren-wp/Ghost-FTP/releases). The historical pixel-equality release quota is retired; real responsive/accessibility acceptance remains necessary.
 
 | Boundary | Current automated evidence | Remaining independent acceptance |
 | --- | --- | --- |
