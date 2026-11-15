@@ -1,4 +1,11 @@
-## 0.99.67 Preview candidate — 14 November 2026 (unpublished)
+## 0.99.68 Preview — 15 November 2026 (source changelog; verify GitHub Releases for publication)
+
+- Reject C0/C1 control characters in upload leaf names while retaining valid Unicode filenames; add Rust regression tests.
+- Correct active documentation of the already-published v0.99.67 release, retaining the immutable publication and a dated historical erratum.
+- Document missing main-branch protection in [Issue #296](https://github.com/bren-wp/Ghost-FTP/issues/296) and record outstanding native transfer, credential and UI acceptance. No claim of verified full security or completed physical testing.
+- Advance source/build/update manifests on a new immutable version line rather than reusing the existing published v0.99.67 tag.
+
+## 0.99.67 Preview — 14 November 2026 (published)
 
 - Protect final Done, Error, Canceled and Skipped transfer records against late worker/progress callbacks. A concurrent Cancel cannot be overwritten by stale successful finalization.
 - Serialize in-memory transfer status mutation and SQLite ledger writes so a delayed active-progress snapshot cannot persist after a terminal state.

@@ -1,3 +1,6 @@
+> **Active development source:** Ghost FTP 0.99.68 Preview (Windows/Linux). Publication is determined by GitHub Releases.
+> **Previous canonical release:** v0.99.67 (published 14 November 2026).
+
 # Ghost FTP — Windows/Linux cloud provider inventory
 
 > **Active source:** Ghost FTP 0.99.67 Preview candidate. **Previous canonical release:** v0.99.66. Supported platforms: Windows and Linux.
