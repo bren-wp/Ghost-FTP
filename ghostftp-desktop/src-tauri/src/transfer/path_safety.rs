@@ -233,9 +233,17 @@ mod tests {
             );
         }
         for invalid in ["", ".", "..", "folder/name", "folder\\name"] {
-            assert!(!safe_upload_name(invalid), "accepted unsafe name {invalid:?}");
+            assert!(
+                !safe_upload_name(invalid),
+                "accepted unsafe name {invalid:?}"
+            );
         }
-        for valid in ["report.txt", "račun 2026.csv", "Übertragung.txt", "ファイル.txt"] {
+        for valid in [
+            "report.txt",
+            "račun 2026.csv",
+            "Übertragung.txt",
+            "ファイル.txt",
+        ] {
             assert!(safe_upload_name(valid), "rejected valid name {valid:?}");
         }
     }
