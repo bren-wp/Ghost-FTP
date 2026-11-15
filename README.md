@@ -105,7 +105,7 @@ Published Previews v0.99.65–v0.99.66 introduced periodic FTP/FTPS/SFTP session
 
 FTP/FTPS/SFTP uploads now write to unpredictable sibling staging paths and try remote promotion only after the transfer completes and byte counts match. **This is not a guarantee on all servers:** FTP rename is not an atomic no-replace operation, some FTP/SFTP servers refuse rename-over-existing, and interrupted transfers can leave remote `.ghostftp-upload-*.part` files. Cloud and Agent upload backends have separate mechanisms that are not newly certified by this change. Real Windows Credential Manager, Linux Secret Service, 4+ GiB, multiple-parallel-transfer and server-failure testing are still required.
 
-See [0.99.65 safety audit](docs/audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) and the [Windows/Linux acceptance checklist](docs/qa/LARGE_TRANSFER_AND_VAULT_ACCEPTANCE_0.99.65.md). The latest published Preview is [v0.99.67](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.67); additional native acceptance is still outstanding.
+See [0.99.65 safety audit](docs/audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) and the [Windows/Linux acceptance checklist](docs/qa/LARGE_TRANSFER_AND_VAULT_ACCEPTANCE_0.99.65.md). The latest published Preview is [v0.99.67](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.67); the previously published v0.99.66 Preview remains available in the release history. Additional native acceptance is still outstanding.
 
 ## Your trust matters
 
