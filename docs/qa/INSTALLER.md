@@ -3,7 +3,7 @@
 
 # Ghost FTP Installer QA — Windows/Linux
 
-> **Active source:** Ghost FTP 0.99.67 Preview candidate. **Previous canonical release:** v0.99.66. Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP 0.99.68 Preview. **Previous canonical release:** v0.99.67. Supported platforms: Windows and Linux.
 
 The current distribution is the Windows/Linux **Ghost FTP desktop client** only. Historical standalone Server, CLI and Demo packages are retired; see the [current package matrix](../distribution/PLATFORM_PACKAGES.md). A build artifact is not considered a signed or independently verified production installer.
 ## Production packaging
