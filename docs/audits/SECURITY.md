@@ -121,4 +121,4 @@ Status: source controls are present; exact-SHA CI and target-system failure-path
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.67. Previous canonical release: 0.99.66. The previous canonical Preview is v0.99.66; consult GitHub Releases and `docs/releases/0.99.66.md` for its actual acceptance limits.
+Current development line: 0.99.68. Previous canonical release: 0.99.67. The previous canonical Preview is v0.99.67; consult GitHub Releases and `docs/releases/0.99.67.md` for its actual acceptance limits.
