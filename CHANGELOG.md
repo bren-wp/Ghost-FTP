@@ -1,4 +1,4 @@
-## 0.99.67 Preview candidate — 14 November 2026 (unpublished)
+## 0.99.67 Preview — 14 November 2026 (published)
 
 - Protect final Done, Error, Canceled and Skipped transfer records against late worker/progress callbacks. A concurrent Cancel cannot be overwritten by stale successful finalization.
 - Serialize in-memory transfer status mutation and SQLite ledger writes so a delayed active-progress snapshot cannot persist after a terminal state.
