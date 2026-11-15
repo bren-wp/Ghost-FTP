@@ -1,4 +1,4 @@
-## 0.99.68 Preview candidate — 15 November 2026 (publication pending)
+## 0.99.68 Preview — 15 November 2026 (source changelog; verify GitHub Releases for publication)
 
 - Reject C0/C1 control characters in upload leaf names while retaining valid Unicode filenames; add Rust regression tests.
 - Correct active documentation of the already-published v0.99.67 release, retaining the immutable publication and a dated historical erratum.
