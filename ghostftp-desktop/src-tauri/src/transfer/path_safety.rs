@@ -32,7 +32,7 @@ pub(super) fn safe_upload_name(name: &str) -> bool {
         && !matches!(name, "." | "..")
         && !name
             .chars()
-            .any(|ch| matches!(ch, '/' | '\\' | '\0' | '\r' | '\n'))
+            .any(|ch| ch.is_control() || matches!(ch, '/' | '\\'))
 }
 
 /// Never materialize an untrusted remote leaf as a Windows device name,
@@ -221,6 +221,24 @@ pub(super) async fn inspect_directory_upload_entry(path: &Path) -> Result<std::f
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upload_names_reject_all_control_characters_without_rejecting_unicode() {
+        for codepoint in (0u32..=0x1f).chain(0x7f..=0x9f) {
+            let control = char::from_u32(codepoint).unwrap();
+            let name = format!("file{control}name");
+            assert!(
+                !safe_upload_name(&name),
+                "upload name accepted control codepoint {codepoint:#x}"
+            );
+        }
+        for invalid in ["", ".", "..", "folder/name", "folder\\name"] {
+            assert!(!safe_upload_name(invalid), "accepted unsafe name {invalid:?}");
+        }
+        for valid in ["report.txt", "račun 2026.csv", "Übertragung.txt", "ファイル.txt"] {
+            assert!(safe_upload_name(valid), "rejected valid name {valid:?}");
+        }
+    }
 
     #[tokio::test]
     async fn directory_upload_entry_accepts_only_regular_files_and_directories() {
