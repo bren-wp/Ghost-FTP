@@ -5,7 +5,10 @@
 use crate::remotefs::{self, RemoteFs};
 use crate::session::Session;
 use anyhow::{Context, Result};
+use sha2::{Digest, Sha256};
+use std::io::SeekFrom;
 use std::sync::Arc;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use uuid::Uuid;
 
 #[cfg(unix)]
@@ -20,6 +23,8 @@ use std::os::windows::fs::MetadataExt;
 pub(super) struct LocalUploadSnapshot {
     len: u64,
     modified: std::time::SystemTime,
+    // Hash of bounded source windows, NOT a full-file integrity digest.
+    sampled_sha256: [u8; 32],
     #[cfg(unix)]
     device: u64,
     #[cfg(unix)]
@@ -36,6 +41,9 @@ impl LocalUploadSnapshot {
         );
         Ok(Self {
             len: metadata.len(),
+            // Initialized by capture_local_upload_snapshot after opening the source
+            // and validating the same file handle and pathname before/after reads.
+            sampled_sha256: [0; 32],
             modified: metadata
                 .modified()
                 .context("read upload source modification time")?,
@@ -75,13 +83,68 @@ impl LocalUploadSnapshot {
     }
 }
 
+/// Compare bounded windows (first, middle and last 64 KiB) without loading
+/// multi-gigabyte uploads into memory. Small files are hashed in full. This
+/// detects common same-size edits with restored timestamps, but cannot detect
+/// changes exclusively outside the sampled windows; it is not end-to-end
+/// integrity verification against the remote server.
+async fn sampled_source_sha256(
+    path: &std::path::Path,
+    source: &LocalUploadSnapshot,
+) -> Result<[u8; 32]> {
+    const WINDOW: u64 = 64 * 1024;
+    let mut file = tokio::fs::File::open(path)
+        .await
+        .with_context(|| format!("open upload source for fingerprint {}", path.display()))?;
+    source.verify(
+        &file
+            .metadata()
+            .await
+            .context("stat opened upload fingerprint source")?,
+    )?;
+
+    let last = source.len.saturating_sub(WINDOW);
+    let mut offsets = vec![0, last / 2, last];
+    offsets.sort_unstable();
+    offsets.dedup();
+    let mut hasher = Sha256::new();
+    hasher.update(source.len.to_le_bytes());
+    let mut buffer = [0u8; WINDOW as usize];
+    for offset in offsets {
+        let count = (source.len - offset).min(WINDOW) as usize;
+        file.seek(SeekFrom::Start(offset))
+            .await
+            .context("seek upload fingerprint window")?;
+        file.read_exact(&mut buffer[..count])
+            .await
+            .context("read upload fingerprint window")?;
+        hasher.update(offset.to_le_bytes());
+        hasher.update(&buffer[..count]);
+    }
+
+    source.verify(
+        &file
+            .metadata()
+            .await
+            .context("recheck opened upload fingerprint source")?,
+    )?;
+    source.verify(
+        &tokio::fs::symlink_metadata(path)
+            .await
+            .context("recheck upload fingerprint source pathname")?,
+    )?;
+    Ok(hasher.finalize().into())
+}
+
 pub(super) async fn capture_local_upload_snapshot(
     path: &std::path::Path,
 ) -> Result<LocalUploadSnapshot> {
     let metadata = tokio::fs::symlink_metadata(path)
         .await
         .with_context(|| format!("lstat staged upload source {}", path.display()))?;
-    LocalUploadSnapshot::capture(&metadata)
+    let mut source = LocalUploadSnapshot::capture(&metadata)?;
+    source.sampled_sha256 = sampled_source_sha256(path, &source).await?;
+    Ok(source)
 }
 
 pub(super) async fn verify_local_upload_snapshot(
@@ -91,7 +154,12 @@ pub(super) async fn verify_local_upload_snapshot(
     let metadata = tokio::fs::symlink_metadata(path)
         .await
         .with_context(|| format!("recheck staged upload source {}", path.display()))?;
-    source.verify(&metadata)
+    source.verify(&metadata)?;
+    anyhow::ensure!(
+        sampled_source_sha256(path, source).await? == source.sampled_sha256,
+        "staged upload source sampled content changed during transfer"
+    );
+    Ok(())
 }
 
 pub(super) fn fresh_remote_upload_staging_path(final_remote: &str, id: &str) -> Result<String> {
@@ -208,6 +276,43 @@ pub(super) async fn promote_remote_upload(
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn sampled_fingerprint_handles_empty_single_byte_and_window_boundaries() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-sampled-boundaries-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+
+        for (index, length) in [0usize, 1, 64 * 1024, 64 * 1024 + 1]
+            .into_iter()
+            .enumerate()
+        {
+            let path = root.join(format!("source-{index}.bin"));
+            let mut bytes = vec![0x5Au8; length];
+            tokio::fs::write(&path, &bytes).await.unwrap();
+            let snapshot = capture_local_upload_snapshot(&path).await.unwrap();
+            assert_eq!(snapshot.len, length as u64);
+            verify_local_upload_snapshot(&path, &snapshot)
+                .await
+                .unwrap();
+
+            if !bytes.is_empty() {
+                bytes[length - 1] ^= 0xFF;
+                tokio::fs::write(&path, &bytes).await.unwrap();
+                std::fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_modified(snapshot.modified)
+                    .unwrap();
+                assert!(verify_local_upload_snapshot(&path, &snapshot)
+                    .await
+                    .is_err());
+            }
+        }
+
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
     #[test]
     fn staged_upload_uses_an_unpredictable_sibling_not_the_user_target() {
         let id = Uuid::new_v4().to_string();
@@ -253,6 +358,58 @@ mod tests {
             .await
             .unwrap();
         assert!(verify_local_upload_snapshot(&source, &snapshot)
+            .await
+            .is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn detects_same_size_edit_even_when_mtime_is_restored() {
+        let root = std::env::temp_dir().join(format!("ghostftp-sampled-source-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let path = root.join("source.bin");
+        tokio::fs::write(&path, b"original-content").await.unwrap();
+        let original = capture_local_upload_snapshot(&path).await.unwrap();
+        tokio::fs::write(&path, b"modified-content").await.unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(original.modified)
+            .unwrap();
+        // The legacy metadata guard alone accepts this same-file, same-length
+        // rewrite when the original modification timestamp is restored.
+        original.verify(&std::fs::metadata(&path).unwrap()).unwrap();
+        assert!(verify_local_upload_snapshot(&path, &original)
+            .await
+            .is_err());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn sparse_source_larger_than_four_gib_uses_bounded_fingerprint_io() {
+        use std::io::{Seek, Write};
+        let root = std::env::temp_dir().join(format!("ghostftp-sparse-upload-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let path = root.join("large.bin");
+        let len = u32::MAX as u64 + 17;
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(len).unwrap();
+        drop(file);
+        let snapshot = capture_local_upload_snapshot(&path).await.unwrap();
+        assert_eq!(snapshot.len, len);
+        verify_local_upload_snapshot(&path, &snapshot)
+            .await
+            .unwrap();
+
+        let mut file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.seek(SeekFrom::Start(len - 1)).unwrap();
+        file.write_all(b"X").unwrap();
+        file.set_modified(snapshot.modified).unwrap();
+        drop(file);
+        snapshot.verify(&std::fs::metadata(&path).unwrap()).unwrap();
+        assert!(verify_local_upload_snapshot(&path, &snapshot)
             .await
             .is_err());
         tokio::fs::remove_dir_all(root).await.unwrap();

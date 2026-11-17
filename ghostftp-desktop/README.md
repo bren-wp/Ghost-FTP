@@ -16,7 +16,7 @@
 
 Connect using FTP, explicit FTPS or SFTP. Browse local and remote folders, organize Sites, manage transfer queues, synchronize and compare supported directories, and configure the workspace to suit your workflow. Cloud providers require compatible configuration and appropriate authorization.
 
-**Ghost FTP 0.99.68 Preview development** · previously published **v0.99.67**. The first Stable release follows verified package signatures and upgrade/install acceptance rather than a label change.
+**Ghost FTP 0.99.69 Preview development** · previously published **v0.99.68**. The first Stable release follows verified package signatures and upgrade/install acceptance rather than a label change.
 
 ## Build from source
 

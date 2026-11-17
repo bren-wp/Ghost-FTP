@@ -99,11 +99,11 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 **For developers**, Ghost FTP keeps deployment and server-side file work close at hand. **For site owners**, it offers a clear view of what is on the computer and what is remote. **For administrators**, host identity checks and controlled file operations support more deliberate workflows.
 
-## Ghost FTP 0.99.68 Preview — source candidate
+## Ghost FTP 0.99.69 Preview — safer upload source verification
 
-The **0.99.68** development source extends the previously published v0.99.67 Preview with stricter upload filename validation, Unicode regression tests, an accurate public-release record and a documented branch-protection blocker. Check [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) for actual published availability; source version alone is not proof of publication. Windows/Linux native acceptance and branch protection remain open.
+The **0.99.69** development source strengthens FTP/SFTP staged uploads by comparing bounded SHA-256 fingerprints of the local source before and after transfer. This detects common same-size edits even when a modification timestamp is restored. Small sources are fully hashed; large sources use first/middle/last 64 KiB windows to keep memory and I/O bounded. **This is not a full-file hash or end-to-end remote integrity guarantee.** A sparse >4 GiB regression exercises 64-bit file lengths without transmitting that amount of data. The previously published v0.99.68 Preview is available in the release history. Check [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) to confirm actual publication.
 
-### In the preceding v0.99.67 Preview
+### Previously published transfer improvements
 
 Published Previews v0.99.65–v0.99.66 introduced periodic FTP/FTPS/SFTP session health checks, explicit Disconnect safeguards, fresh sibling-staged uploads and source identity validation before remote promotion. The **published v0.99.67 Preview** additionally makes Cancel/Done/Error transitions irreversible against late callbacks, serializes SQLite transfer-ledger writes and carries one source identity across automatic FTP/SFTP retries. Connections do not survive closing the native application; saved site profiles do.
 
@@ -117,7 +117,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Current development source: Ghost FTP 0.99.68 Preview; the preceding v0.99.67 Preview was published 14 November 2026. This version mitigates native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
+<sub>Current development source: Ghost FTP 0.99.69 Preview; the preceding v0.99.68 Preview was published 15 November 2026. Earlier Preview work mitigates native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
 
 ---
 

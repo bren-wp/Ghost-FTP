@@ -179,6 +179,11 @@ jobs:
           mkdir -p dist/native
           git archive --format=zip --output="dist/GhostFTP-v$VERSION-Source.zip" HEAD
           zip -qr "dist/GhostFTP-v$VERSION-Desktop-Source.zip" ghostftp-desktop
+          # Standalone Desktop-Source.zip must contain its own mandatory
+          # security postinstall hook, not depend on repo-root .github files.
+          test -s ghostftp-desktop/scripts/patch-picomatch-redos.mjs
+          unzip -Z -1 "dist/GhostFTP-v$VERSION-Desktop-Source.zip" |
+            grep -Fx 'ghostftp-desktop/scripts/patch-picomatch-redos.mjs' >/dev/null
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
           zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 

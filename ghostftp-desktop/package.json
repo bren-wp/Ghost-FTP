@@ -1,7 +1,7 @@
 {
   "name": "ghostftp-desktop",
   "private": true,
-  "version": "0.99.68",
+  "version": "0.99.69",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -13,7 +13,7 @@
     "tauri": "tauri",
     "gen:brand-icons": "node scripts/gen-brand-icons.mjs",
     "init-icons": "node scripts/init-icons.mjs",
-    "postinstall": "node scripts/init-icons.mjs",
+    "postinstall": "node scripts/patch-picomatch-redos.mjs && node scripts/init-icons.mjs",
     "check:i18n": "node scripts/check-i18n-parity.mjs",
     "check:ui": "node scripts/check-ui-contract.mjs && node scripts/check-interaction-hardening.mjs && node scripts/check-linux-parity.mjs && node scripts/check-diagnostic-redaction.mjs && node scripts/check-settings-migration.mjs && node scripts/check-password-generator.mjs && node scripts/check-site-duplicates.mjs && node scripts/check-code-editor.mjs && node scripts/check-transfer-view-model.mjs && node scripts/check-transfer-schedule.mjs && node scripts/check-cloud-storage-wizard.mjs && node --test scripts/check-startup-appearance.test.mjs",
     "build:web": "vite build",
@@ -54,11 +54,11 @@
     "@tauri-apps/cli": "~2.12.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.3.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
-    "vite": "8.3.4"
+    "vite": "8.3.8"
   }
 }

@@ -174,8 +174,18 @@ test("Vite stays patched without a time-limited version-reuse exception", () => 
   const quality = read(".github/workflows/ghostftp-quality.yml");
   const pkg = JSON.parse(read("ghostftp-desktop/package.json"));
   const lock = JSON.parse(read("ghostftp-desktop/package-lock.json"));
-  assert.equal(pkg.devDependencies.vite, "8.3.4");
-  assert.equal(lock.packages["node_modules/vite"].version, "8.3.4");
+  // The patched toolchain may move forward without weakening the version
+  // synchronization gate: package.json must pin an exact Vite version, and
+  // the lockfile must resolve that identical version.
+  const pinnedVite = pkg.devDependencies.vite;
+  assert.match(pinnedVite, /^\d+\.\d+\.\d+$/);
+  assert.equal(lock.packages["node_modules/vite"].version, pinnedVite);
+  const pinnedPlugin = pkg.devDependencies["@vitejs/plugin-react"];
+  assert.match(pinnedPlugin, /^\^\d+\.\d+\.\d+$/);
+  assert.equal(
+    lock.packages["node_modules/@vitejs/plugin-react"].version,
+    pinnedPlugin.slice(1)
+  );
   assert.ok(!quality.includes("Recovering previously unpublished 0.95.53"));
   assert.ok(quality.includes("Refusing another PR for an already tagged/published version"));
   assert.ok(quality.includes("Unpublished version repair cannot skip a canonical published predecessor"));
