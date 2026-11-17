@@ -79,17 +79,15 @@ window.addEventListener("error", (event) => {
 function RevealNativeWindowAfterMount({ children }: React.PropsWithChildren) {
   useEffect(() => {
     if (!isTauri()) return;
-    // React passive effects run after the first DOM commit. The task boundary
-    // also allows style/layout initialization before the OS maps the window.
-    const reveal = window.setTimeout(() => {
-      void getCurrentWindow().show().catch(() => {
-        // Never print credentials or runtime error payloads to diagnostics.
-        console.error("Ghost FTP could not reveal its main window");
-      });
-    }, 0);
-    // React StrictMode runs the effect twice in development; cancel the first
-    // scheduled reveal rather than racing multiple native window operations.
-    return () => window.clearTimeout(reveal);
+    // A hidden WebView2 can throttle timers. React's passive effect runs
+    // after the first shell commit, so reveal directly rather than scheduling
+    // another hidden-window task that may never execute on slower machines.
+    // The pre-paint initialization script and imported CSS are already applied.
+    // show() is idempotent if StrictMode replays this effect in development.
+    void getCurrentWindow().show().catch(() => {
+      // Never print credentials or runtime error payloads to diagnostics.
+      console.error("Ghost FTP could not reveal its main window");
+    });
   }, []);
   return <>{children}</>;
 }
