@@ -1,9 +1,23 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
-const allowedRootUrl = "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm";
+// The picomatch exception applies ONLY to the locally patched, tested copy.
+// The npm audit is still executed and every unrecognized root advisory fails.
+const allowedRootUrls = new Map([
+  ["braces", "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"],
+  ["picomatch", "https://github.com/advisories/GHSA-fc5q-39xc-vjpf"],
+]);
 const allowedPackages = new Set([
+  "@vitejs/plugin-react",
+  "anymatch",
   "braces",
+  "fdir",
+  "picomatch",
+  "readdirp",
+  "sucrase",
+  "tinyglobby",
+  "vite",
   "chokidar",
   "fast-glob",
   "micromatch",
@@ -31,6 +45,14 @@ const packages = lock.packages ?? {};
 const severe = Object.entries(vulnerabilities).filter(([, value]) =>
   value?.severity === "high" || value?.severity === "critical"
 );
+
+// Fail-closed local source mitigation. npm reports published tarball versions,
+// not the verified on-disk patch applied after their integrity-checked install.
+// If the patch is missing, modified, or regresses, THIS audit must fail too.
+execFileSync(process.execPath, [fileURLToPath(new URL("./patch-picomatch-redos.mjs", import.meta.url)), "--verify"], {
+  stdio: "inherit",
+  timeout: 15000,
+});
 
 if (severe.length === 0) {
   console.log("npm dev audit policy OK: no high/critical development vulnerabilities.");
@@ -68,7 +90,7 @@ for (const [name, finding] of severe) {
       continue;
     }
 
-    if (via?.url !== allowedRootUrl || via?.name !== "braces" || via?.severity !== "high") {
+    if (via?.url !== allowedRootUrls.get(via?.name) || via?.severity !== "high") {
       throw new Error(
         `Unexpected direct npm advisory for ${name}: ${JSON.stringify({
           name: via?.name,
@@ -91,12 +113,12 @@ for (const [name, finding] of severe) {
 }
 
 if (!sawExpectedRoot) {
-  throw new Error("Expected braces advisory root was not present in npm audit output.");
+  throw new Error("No recognized direct npm advisory root was present in npm audit output.");
 }
 
 const reported = [...names].sort();
 console.warn(
-  `Known dev-only npm advisory temporarily accepted: ${allowedRootUrl}; affected chain: ${reported.join(", ")}`
+  `Known dev-only npm advisory accepted only after local CVE patch verification: ${[...allowedRootUrls.values()].join(", ")}; affected chain: ${reported.join(", ")}`
 );
 console.warn(
   "Runtime dependencies remain separately blocked by npm audit --omit=dev --audit-level=high."
