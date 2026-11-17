@@ -90,7 +90,8 @@ for (const [name, finding] of severe) {
       continue;
     }
 
-    if (via?.url !== allowedRootUrls.get(via?.name) || via?.severity !== "high") {
+    const recognizedRootUrl = allowedRootUrls.get(via?.name);
+    if (!recognizedRootUrl || via?.url !== recognizedRootUrl || via?.severity !== "high") {
       throw new Error(
         `Unexpected direct npm advisory for ${name}: ${JSON.stringify({
           name: via?.name,
