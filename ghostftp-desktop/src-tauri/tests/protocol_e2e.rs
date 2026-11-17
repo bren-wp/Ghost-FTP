@@ -1386,7 +1386,10 @@ async fn concurrent_protocol_worker(
                 })
                 .await
                 .context("FTP parallel upload")?;
-            anyhow::ensure!(written == length, "{protocol} parallel upload length mismatch");
+            anyhow::ensure!(
+                written == length,
+                "{protocol} parallel upload length mismatch"
+            );
 
             let download_path = remote.clone();
             let (read, destination_hash) = ftp
@@ -1402,8 +1405,12 @@ async fn concurrent_protocol_worker(
                 read == length && source_hash == destination_hash,
                 "{protocol} parallel download hash or length mismatch"
             );
-            fs.delete(&remote, false).await.context("FTP parallel delete")?;
-            fs.delete(&base, false).await.context("FTP parallel rmdir")?;
+            fs.delete(&remote, false)
+                .await
+                .context("FTP parallel delete")?;
+            fs.delete(&base, false)
+                .await
+                .context("FTP parallel rmdir")?;
         }
         Session::Ssh(ssh) => {
             let fs = SftpFs::new(ssh.clone());
@@ -1413,9 +1420,7 @@ async fn concurrent_protocol_worker(
             let cell = ssh.ensure_sftp().await?;
             let mut writer = {
                 let sftp = cell.lock().await;
-                sftp.create(&remote)
-                    .await
-                    .context("SFTP parallel create")?
+                sftp.create(&remote).await.context("SFTP parallel create")?
             };
             let mut source = PatternReader::new(length, salt);
             let mut buffer = [0u8; 64 * 1024];
@@ -1485,16 +1490,8 @@ async fn run_concurrent_protocol_matrix(
             let user = username.to_owned();
             let pass = password.to_owned();
             tasks.spawn(async move {
-                concurrent_protocol_worker(
-                    protocol,
-                    host,
-                    port,
-                    &user,
-                    &pass,
-                    size,
-                    index as u8,
-                )
-                .await
+                concurrent_protocol_worker(protocol, host, port, &user, &pass, size, index as u8)
+                    .await
             });
         }
         while let Some(task) = tasks.join_next().await {
