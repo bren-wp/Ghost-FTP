@@ -1292,6 +1292,277 @@ async fn ftp_rejects_incomplete_recursive_delete(
     Ok(())
 }
 
+// Concurrency verification uses independent real FTP/FTPS/SFTP sessions and
+// bounded 64-KiB buffers. This cannot be replaced by parallel in-memory tasks
+// or an upload-only test: every worker verifies downloaded SHA-256 and length.
+struct PatternReader {
+    position: u64,
+    remaining: u64,
+    salt: u8,
+    hash: sha2::Sha256,
+}
+
+impl PatternReader {
+    fn new(length: u64, salt: u8) -> Self {
+        Self {
+            position: 0,
+            remaining: length,
+            salt,
+            hash: sha2::Sha256::new(),
+        }
+    }
+}
+
+impl Read for PatternReader {
+    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+        use sha2::Digest;
+        let len = self.remaining.min(out.len() as u64) as usize;
+        for (index, byte) in out[..len].iter_mut().enumerate() {
+            *byte = (self.position + index as u64) as u8 ^ self.salt;
+        }
+        self.hash.update(&out[..len]);
+        self.position += len as u64;
+        self.remaining -= len as u64;
+        Ok(len)
+    }
+}
+
+#[derive(Default)]
+struct DigestSink {
+    bytes: u64,
+    hash: sha2::Sha256,
+}
+
+impl Write for DigestSink {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        use sha2::Digest;
+        self.hash.update(bytes);
+        self.bytes += bytes.len() as u64;
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+async fn concurrent_protocol_worker(
+    protocol: &str,
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+    length: u64,
+    salt: u8,
+) -> Result<()> {
+    use sha2::Digest;
+
+    let credentials = AuthMethod::Password {
+        password: password.to_owned(),
+    };
+    let p = profile(protocol, host, port, username, credentials);
+    let session = open_session(&p, Arc::new(FixedVerifier(HostDecision::Accept)))
+        .await
+        .with_context(|| format!("{protocol} parallel worker connect"))?;
+    let base = format!("ghostftp-concurrent-{}", Uuid::new_v4().simple());
+    let remote = format!("{base}/payload.bin");
+
+    match session {
+        Session::Ftp(ftp) => {
+            let fs = FtpFs::new(ftp.clone());
+            fs.create_dir(&base)
+                .await
+                .context("FTP concurrent worker mkdir")?;
+
+            let upload_path = remote.clone();
+            let (written, source_hash) = ftp
+                .with_stream(move |stream| {
+                    let mut reader = PatternReader::new(length, salt);
+                    let written = stream.put_from_reader(&upload_path, &mut reader)?;
+                    anyhow::ensure!(reader.remaining == 0, "FTP source not completely consumed");
+                    let digest: [u8; 32] = reader.hash.finalize().into();
+                    Ok((written as u64, digest))
+                })
+                .await
+                .context("FTP parallel upload")?;
+            anyhow::ensure!(written == length, "{protocol} parallel upload length mismatch");
+
+            let download_path = remote.clone();
+            let (read, destination_hash) = ftp
+                .with_stream(move |stream| {
+                    let mut sink = DigestSink::default();
+                    stream.retr_to_writer(&download_path, &mut sink)?;
+                    let digest: [u8; 32] = sink.hash.finalize().into();
+                    Ok((sink.bytes, digest))
+                })
+                .await
+                .context("FTP parallel download")?;
+            anyhow::ensure!(
+                read == length && source_hash == destination_hash,
+                "{protocol} parallel download hash or length mismatch"
+            );
+            fs.delete(&remote, false).await.context("FTP parallel delete")?;
+            fs.delete(&base, false).await.context("FTP parallel rmdir")?;
+        }
+        Session::Ssh(ssh) => {
+            let fs = SftpFs::new(ssh.clone());
+            fs.create_dir(&base)
+                .await
+                .context("SFTP concurrent worker mkdir")?;
+            let cell = ssh.ensure_sftp().await?;
+            let mut writer = {
+                let sftp = cell.lock().await;
+                sftp.create(&remote)
+                    .await
+                    .context("SFTP parallel create")?
+            };
+            let mut source = PatternReader::new(length, salt);
+            let mut buffer = [0u8; 64 * 1024];
+            loop {
+                let count = std::io::Read::read(&mut source, &mut buffer)?;
+                if count == 0 {
+                    break;
+                }
+                writer
+                    .write_all(&buffer[..count])
+                    .await
+                    .context("SFTP parallel upload")?;
+            }
+            writer.flush().await.context("SFTP parallel upload flush")?;
+            drop(writer);
+            let source_hash: [u8; 32] = source.hash.finalize().into();
+            let mut reader = {
+                let sftp = cell.lock().await;
+                sftp.open(&remote)
+                    .await
+                    .context("SFTP parallel download open")?
+            };
+            let mut downloaded = 0u64;
+            let mut destination_hash = sha2::Sha256::new();
+            loop {
+                let count = reader
+                    .read(&mut buffer)
+                    .await
+                    .context("SFTP parallel download")?;
+                if count == 0 {
+                    break;
+                }
+                destination_hash.update(&buffer[..count]);
+                downloaded += count as u64;
+            }
+            drop(reader);
+            let destination_hash: [u8; 32] = destination_hash.finalize().into();
+            anyhow::ensure!(
+                downloaded == length && source_hash == destination_hash,
+                "SFTP parallel download hash or length mismatch"
+            );
+            fs.delete(&remote, false)
+                .await
+                .context("SFTP parallel delete")?;
+            fs.delete(&base, false)
+                .await
+                .context("SFTP parallel rmdir")?;
+        }
+        _ => anyhow::bail!("unsupported parallel test protocol {protocol}"),
+    }
+
+    Ok(())
+}
+
+async fn run_concurrent_protocol_matrix(
+    protocol: &'static str,
+    host: &'static str,
+    port: u16,
+    username: &str,
+    password: &str,
+    counts: &[usize],
+    size: u64,
+) -> Result<()> {
+    for &concurrency in counts {
+        let mut tasks = tokio::task::JoinSet::new();
+        for index in 0..concurrency {
+            let user = username.to_owned();
+            let pass = password.to_owned();
+            tasks.spawn(async move {
+                concurrent_protocol_worker(
+                    protocol,
+                    host,
+                    port,
+                    &user,
+                    &pass,
+                    size,
+                    index as u8,
+                )
+                .await
+            });
+        }
+        while let Some(task) = tasks.join_next().await {
+            task.with_context(|| format!("{protocol} parallel worker panic"))?
+                .with_context(|| format!("{protocol} parallel worker failed"))?;
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn real_concurrent_protocol_roundtrips() -> Result<()> {
+    if !enabled() {
+        eprintln!("Ghost FTP parallel E2E skipped (GHOSTFTP_PROTOCOL_E2E != 1)");
+        return Ok(());
+    }
+    let username = required("GHOSTFTP_E2E_USERNAME")?;
+    let password = required("GHOSTFTP_E2E_PASSWORD")?;
+    // Real transfers on independent localhost connections; each payload is
+    // longer than the 64-KiB chunk size and verified by a complete SHA-256.
+    for (protocol, host, port) in [
+        ("ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?),
+        ("ftps", "localhost", port("GHOSTFTP_E2E_FTPS_PORT")?),
+        ("sftp", "127.0.0.1", port("GHOSTFTP_E2E_SFTP_PORT")?),
+    ] {
+        run_concurrent_protocol_matrix(
+            protocol,
+            host,
+            port,
+            &username,
+            &password,
+            &[1, 4, 8],
+            1024 * 1024 + 17,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn opt_in_real_over_four_gib_parallel_stress() -> Result<()> {
+    if !enabled() || std::env::var("GHOSTFTP_STRESS_4GIB").as_deref() != Ok("1") {
+        eprintln!("Ghost FTP >4-GiB real network stress skipped (opt-in only)");
+        return Ok(());
+    }
+    let username = required("GHOSTFTP_E2E_USERNAME")?;
+    let password = required("GHOSTFTP_E2E_PASSWORD")?;
+    // Requires a dedicated host with > 16 GiB disposable storage. This is
+    // actual network I/O, NOT the fast sparse-metadata regression. Never
+    // enable on the default GitHub-hosted PR runner.
+    for (protocol, host, port) in [
+        ("ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?),
+        ("ftps", "localhost", port("GHOSTFTP_E2E_FTPS_PORT")?),
+        ("sftp", "127.0.0.1", port("GHOSTFTP_E2E_SFTP_PORT")?),
+    ] {
+        run_concurrent_protocol_matrix(
+            protocol,
+            host,
+            port,
+            &username,
+            &password,
+            &[2],
+            u32::MAX as u64 + 17,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     if !enabled() {
