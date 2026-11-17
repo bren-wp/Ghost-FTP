@@ -172,22 +172,35 @@ jobs:
 
           # Prove the NSIS-installed binary itself launches as a GUI application,
           # not only the unpackaged target/release executable used by later QA.
-          $installedProc = Start-Process -FilePath $installedExe.FullName -PassThru
+          # Start with the installed executable's own working directory, not
+          # the actions checkout folder. On loaded Windows runners, first-run
+          # WebView2 initialization may exceed the previous 10-second limit.
+          $installedProc = Start-Process -FilePath $installedExe.FullName -WorkingDirectory $installedExe.DirectoryName -PassThru
           try {
             $opened = $false
-            for ($attempt = 0; $attempt -lt 40; $attempt++) {
-              Start-Sleep -Milliseconds 250
+            for ($attempt = 0; $attempt -lt 120; $attempt++) {
+              Start-Sleep -Milliseconds 500
               $installedProc.Refresh()
               if ($installedProc.HasExited) {
                 throw "NSIS-installed Ghost FTP exited during launch smoke with code $($installedProc.ExitCode)"
               }
+              # Require the actual main window of the launched installed PID;
+              # a running background process alone must NOT pass this gate.
               if ($installedProc.MainWindowHandle -ne 0 -and $installedProc.MainWindowTitle -eq 'Ghost FTP') {
                 $opened = $true
                 break
               }
             }
             if (-not $opened) {
-              throw 'NSIS-installed Ghost FTP did not expose its main GUI window.'
+              Write-Host "NSIS process after 60-second GUI deadline: pid=$($installedProc.Id); exited=$($installedProc.HasExited); handle=$($installedProc.MainWindowHandle); title=$($installedProc.MainWindowTitle)"
+              Get-Process -Id $installedProc.Id -ErrorAction SilentlyContinue |
+                Select-Object Id, ProcessName, Responding, MainWindowHandle, MainWindowTitle, StartTime |
+                Format-List
+              Get-CimInstance Win32_Process -Filter "Name = '$($installedExe.Name)'" |
+                Where-Object { $_.ExecutablePath -eq $installedExe.FullName } |
+                Select-Object ProcessId, ParentProcessId, ExecutablePath |
+                Format-Table -AutoSize
+              throw 'NSIS-installed Ghost FTP failed to expose its main GUI window within 60 seconds.'
             }
           } finally {
             if (-not $installedProc.HasExited) {
