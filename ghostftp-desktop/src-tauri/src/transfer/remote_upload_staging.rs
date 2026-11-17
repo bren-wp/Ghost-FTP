@@ -278,10 +278,8 @@ mod tests {
 
     #[tokio::test]
     async fn sampled_fingerprint_handles_empty_single_byte_and_window_boundaries() {
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-sampled-boundaries-{}",
-            Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-sampled-boundaries-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
 
         for (index, length) in [0usize, 1, 64 * 1024, 64 * 1024 + 1]
