@@ -21,6 +21,13 @@ Capture a SHA-256 fingerprint of first/middle/last 64 KiB source windows while v
 | Existing FTP, FTPS, SFTP E2E | Real localhost protocol roundtrips | Internet reliability and arbitrary host behavior |
 | Windows/Linux native build | Compilation and CI-host package smoke | Every target device, OS vault/reboot and accessibility |
 
+
+## Dependency-security blocker observed 17 November 2026
+
+The v0.99.69 PR initially failed all `npm ci` native jobs because the upgraded `vite@8.3.8` and `@vitejs/plugin-react@6.3.0` package manifest was inconsistent with its older lockfile. The one-time GitHub Actions lock regeneration now produced a matching, integrity-bearing `package-lock.json`; the temporary workflow was subsequently removed from the PR.
+
+**Separate blocker, not resolved by regenerating the lock:** the strict development-dependency audit reported the upstream `picomatch` ReDoS finding [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), propagated through Vite, tinyglobby, micromatch and other build dependencies. At the time of review, there was no independently confirmed patched picomatch version. It would be unsafe to suppress the finding or use an untested major Vite downgrade merely to produce a green build. Track the required remediation in [Issue #299](https://github.com/bren-wp/Ghost-FTP/issues/299). Retain the independent fail-closed development audit and do not publish v0.99.69 until all mandatory exact-head gates pass.
+
 ## Remaining independent acceptance
 
 Run disposable FTP, explicit FTPS, SFTP and cloud hosts. Exercise 0 B, 1 B, 64 KiB, 128 KiB, 1 GiB, 4 GiB+1 byte uploads/downloads, with concurrency 1/4/8 and forced network, disk, permission, pause, cancel, reconnect and process crashes. Record source/remote full SHA-256 and file sizes. Confirm original remote files survive failed overwrite staging, and inspect orphan temporary files. Independently verify Windows Credential Manager and Linux Secret Service across logout/reboot and missing/locked vaults. Conduct real native keyboard, scaling and first-frame UI acceptance.
