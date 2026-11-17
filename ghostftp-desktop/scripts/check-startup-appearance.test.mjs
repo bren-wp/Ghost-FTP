@@ -32,8 +32,13 @@ function startupIssues({ native, entry, html, permissions }) {
   if (!entry.includes("if (!isTauri()) return;")) {
     issues.push("web preview must not call native reveal");
   }
-  if (entry.includes("requestAnimationFrame(")) {
-    issues.push("hidden native webviews may suppress requestAnimationFrame");
+  const reveal = entry.slice(
+    entry.indexOf("function RevealNativeWindowAfterMount("),
+    entry.indexOf("ReactDOM.createRoot(")
+  );
+  if (reveal.includes("requestAnimationFrame(")
+      || reveal.includes("window.setTimeout(")) {
+    issues.push("hidden native webviews may throttle scheduled reveal callbacks");
   }
   if (!permissions.includes("core:window:allow-show")
       || !permissions.includes("core:window:default")) {
@@ -77,14 +82,19 @@ test("startup gate prevents an invisible window caused by a missing native show 
   }).some(x => x.includes("permission")));
 });
 
-test("startup gate prevents reintroducing WebView dark/light flash or RAF deadlock", () => {
+test("startup gate prevents reintroducing WebView dark/light flash or delayed reveal deadlock", () => {
   const source = sources();
   assert.ok(startupIssues({
     ...source,
     html: source.html.replace("background-color: #04111e", "background-color: white"),
   }).some(x => x.includes("fallbacks")));
-  assert.ok(startupIssues({
-    ...source,
-    entry: source.entry.replace("window.setTimeout(", "requestAnimationFrame("),
-  }).some(x => x.includes("requestAnimationFrame")));
+  for (const delayed of [
+    "window.setTimeout(() => {}, 0); ",
+    "requestAnimationFrame(() => {}); ",
+  ]) {
+    assert.ok(startupIssues({
+      ...source,
+      entry: source.entry.replace("void getCurrentWindow().show().catch", delayed + "void getCurrentWindow().show().catch"),
+    }).some(x => x.includes("scheduled reveal callbacks")));
+  }
 });
