@@ -178,10 +178,10 @@ test("Vite stays patched without a time-limited version-reuse exception", () => 
   // synchronization gate: package.json must pin an exact Vite version, and
   // the lockfile must resolve that identical version.
   const pinnedVite = pkg.devDependencies.vite;
-  assert.match(pinnedVite, /^\\d+\\.\\d+\\.\\d+$/);
+  assert.match(pinnedVite, /^\d+\.\d+\.\d+$/);
   assert.equal(lock.packages["node_modules/vite"].version, pinnedVite);
   const pinnedPlugin = pkg.devDependencies["@vitejs/plugin-react"];
-  assert.match(pinnedPlugin, /^\\^\\d+\\.\\d+\\.\\d+$/);
+  assert.match(pinnedPlugin, /^\^\d+\.\d+\.\d+$/);
   assert.equal(
     lock.packages["node_modules/@vitejs/plugin-react"].version,
     pinnedPlugin.slice(1)
