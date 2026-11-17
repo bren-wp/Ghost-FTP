@@ -28,6 +28,12 @@ The v0.99.69 PR initially failed all `npm ci` native jobs because the upgraded `
 
 **Separate blocker, not resolved by regenerating the lock:** the strict development-dependency audit reported the upstream `picomatch` ReDoS finding [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), propagated through Vite, tinyglobby, micromatch and other build dependencies. At the time of review, there was no independently confirmed patched picomatch version. It would be unsafe to suppress the finding or use an untested major Vite downgrade merely to produce a green build. Track the required remediation in [Issue #299](https://github.com/bren-wp/Ghost-FTP/issues/299). Retain the independent fail-closed development audit and do not publish v0.99.69 until all mandatory exact-head gates pass.
 
+## Parallel network test implementation (17 November 2026)
+
+Added [parallel-transfer acceptance instructions](../qa/PARALLEL_TRANSFER_STRESS.md) and `protocol_e2e.rs` test cases for 1/4/8 independent FTP, explicit FTPS and SFTP sessions. Each of the 39 short real-network roundtrips uploads/downloads a 1 MiB + 17 B bounded-memory deterministic stream, verifying full source/destination SHA-256 and received byte count. A distinct, **opt-in only** case exercises two parallel **over-4-GiB** real network transfers per protocol on a properly resourced test host; it is not automatically executed on standard GitHub CI.
+
+**Evidence boundary:** Source changes do not prove a passing CI result or any physical 4 GiB network transfer. The latter requires retained test logs and SHA-256 outcomes from a dedicated host. Full application-queue cancellation and promotion under concurrent fault injection remain outstanding.
+
 ## Remaining independent acceptance
 
 Run disposable FTP, explicit FTPS, SFTP and cloud hosts. Exercise 0 B, 1 B, 64 KiB, 128 KiB, 1 GiB, 4 GiB+1 byte uploads/downloads, with concurrency 1/4/8 and forced network, disk, permission, pause, cancel, reconnect and process crashes. Record source/remote full SHA-256 and file sizes. Confirm original remote files survive failed overwrite staging, and inspect orphan temporary files. Independently verify Windows Credential Manager and Linux Secret Service across logout/reboot and missing/locked vaults. Conduct real native keyboard, scaling and first-frame UI acceptance.
