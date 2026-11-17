@@ -4,6 +4,7 @@ use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
 use ghostftp_lib::remotefs::{ftp::FtpFs, sftp::SftpFs, FileKind, RemoteFs};
 use ghostftp_lib::session::ftp::FtpTransferControl;
 use ghostftp_lib::session::{open_session, HostDecision, HostKeyVerifier, HostPromptKind, Session};
+use sha2::Digest;
 use std::io::{Cursor, Read, SeekFrom, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
