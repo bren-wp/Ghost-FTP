@@ -101,7 +101,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 ## Ghost FTP 0.99.69 Preview — safer upload source verification
 
-The **0.99.69** development source strengthens FTP/SFTP staged uploads by comparing bounded SHA-256 fingerprints of the local source before and after transfer. This detects common same-size edits even when a modification timestamp is restored. Small sources are fully hashed; large sources use first/middle/last 64 KiB windows to keep memory and I/O bounded. **This is not a full-file hash or end-to-end remote integrity guarantee.** A sparse >4 GiB regression exercises 64-bit file lengths without transmitting that amount of data. Check [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) to confirm actual publication.
+The **0.99.69** development source strengthens FTP/SFTP staged uploads by comparing bounded SHA-256 fingerprints of the local source before and after transfer. This detects common same-size edits even when a modification timestamp is restored. Small sources are fully hashed; large sources use first/middle/last 64 KiB windows to keep memory and I/O bounded. **This is not a full-file hash or end-to-end remote integrity guarantee.** A sparse >4 GiB regression exercises 64-bit file lengths without transmitting that amount of data. The previously published v0.99.68 Preview is available in the release history. Check [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) to confirm actual publication.
 
 ### Previously published transfer improvements
 

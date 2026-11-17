@@ -328,8 +328,7 @@ mod tests {
 
     #[tokio::test]
     async fn detects_same_size_edit_even_when_mtime_is_restored() {
-        let root =
-            std::env::temp_dir().join(format!("ghostftp-sampled-source-{}", Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("ghostftp-sampled-source-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let path = root.join("source.bin");
         tokio::fs::write(&path, b"original-content").await.unwrap();
@@ -344,7 +343,9 @@ mod tests {
         // The legacy metadata guard alone accepts this same-file, same-length
         // rewrite when the original modification timestamp is restored.
         original.verify(&std::fs::metadata(&path).unwrap()).unwrap();
-        assert!(verify_local_upload_snapshot(&path, &original).await.is_err());
+        assert!(verify_local_upload_snapshot(&path, &original)
+            .await
+            .is_err());
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
@@ -352,8 +353,7 @@ mod tests {
     #[tokio::test]
     async fn sparse_source_larger_than_four_gib_uses_bounded_fingerprint_io() {
         use std::io::{Seek, Write};
-        let root =
-            std::env::temp_dir().join(format!("ghostftp-sparse-upload-{}", Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("ghostftp-sparse-upload-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let path = root.join("large.bin");
         let len = u32::MAX as u64 + 17;
@@ -362,7 +362,9 @@ mod tests {
         drop(file);
         let snapshot = capture_local_upload_snapshot(&path).await.unwrap();
         assert_eq!(snapshot.len, len);
-        verify_local_upload_snapshot(&path, &snapshot).await.unwrap();
+        verify_local_upload_snapshot(&path, &snapshot)
+            .await
+            .unwrap();
 
         let mut file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
         file.seek(SeekFrom::Start(len - 1)).unwrap();
@@ -370,7 +372,9 @@ mod tests {
         file.set_modified(snapshot.modified).unwrap();
         drop(file);
         snapshot.verify(&std::fs::metadata(&path).unwrap()).unwrap();
-        assert!(verify_local_upload_snapshot(&path, &snapshot).await.is_err());
+        assert!(verify_local_upload_snapshot(&path, &snapshot)
+            .await
+            .is_err());
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
