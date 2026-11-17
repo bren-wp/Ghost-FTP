@@ -22,19 +22,15 @@ jobs:
         with:
           node-version: '22'
           registry-url: https://registry.npmjs.org
-      - name: Refresh only the audited npm lockfile without executing package scripts
+      - name: Resolve exact npm lockfile without running dependency scripts
         working-directory: ghostftp-desktop
         shell: bash
         run: |
           set -euo pipefail
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          # An already-reviewed dev-only braces finding can keep npm audit fix
-          # nonzero. The strict repository audit below must still pass.
-          npm audit fix --package-lock-only --ignore-scripts --no-fund || echo 'Audit fix incomplete; enforcing the independent strict audit policy.'
-          npm ci --ignore-scripts
-          npm audit --omit=dev --audit-level=high
-          node ../.github/scripts/check-npm-dev-audit.mjs
-      - name: Commit verified package-lock only back to this trusted branch
+          npm ci --ignore-scripts --no-audit --no-fund
+          node -e 'const p=require("./package.json"); const l=require("./package-lock.json"); for (const [name,version] of [["vite",p.devDependencies.vite],["@vitejs/plugin-react","6.3.0"]]) { const actual=l.packages["node_modules/"+name]?.version; if (actual!==version) throw Error(name+": lock "+actual+" does not match "+version); }'
+      - name: Commit only the resolved lockfile to the trusted PR branch
         shell: bash
         run: |
           set -euo pipefail
@@ -42,8 +38,15 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add ghostftp-desktop/package-lock.json
           if ! git diff --cached --quiet; then
-            git commit -m 'security: refresh audited npm lockfile for patched Vite toolchain'
+            git commit -m 'build: synchronize npm lockfile with audited source manifest'
             git push origin HEAD:refs/heads/fix/upload-source-sampled-fingerprint-v0-99-69
           else
-            echo 'Audited lockfile already up to date.'
+            echo 'Npm lockfile already matches manifest.'
           fi
+      - name: Enforce independent npm security audit (must not silently bypass findings)
+        working-directory: ghostftp-desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --audit-level=high
+          node ../.github/scripts/check-npm-dev-audit.mjs
