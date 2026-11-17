@@ -276,6 +276,45 @@ pub(super) async fn promote_remote_upload(
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn sampled_fingerprint_handles_empty_single_byte_and_window_boundaries() {
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-sampled-boundaries-{}",
+            Uuid::new_v4()
+        ));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+
+        for (index, length) in [0usize, 1, 64 * 1024, 64 * 1024 + 1]
+            .into_iter()
+            .enumerate()
+        {
+            let path = root.join(format!("source-{index}.bin"));
+            let mut bytes = vec![0x5Au8; length];
+            tokio::fs::write(&path, &bytes).await.unwrap();
+            let snapshot = capture_local_upload_snapshot(&path).await.unwrap();
+            assert_eq!(snapshot.len, length as u64);
+            verify_local_upload_snapshot(&path, &snapshot)
+                .await
+                .unwrap();
+
+            if !bytes.is_empty() {
+                bytes[length - 1] ^= 0xFF;
+                tokio::fs::write(&path, &bytes).await.unwrap();
+                std::fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_modified(snapshot.modified)
+                    .unwrap();
+                assert!(verify_local_upload_snapshot(&path, &snapshot)
+                    .await
+                    .is_err());
+            }
+        }
+
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
     #[test]
     fn staged_upload_uses_an_unpredictable_sibling_not_the_user_target() {
         let id = Uuid::new_v4().to_string();
