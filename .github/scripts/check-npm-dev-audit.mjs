@@ -49,7 +49,7 @@ const severe = Object.entries(vulnerabilities).filter(([, value]) =>
 // Fail-closed local source mitigation. npm reports published tarball versions,
 // not the verified on-disk patch applied after their integrity-checked install.
 // If the patch is missing, modified, or regresses, THIS audit must fail too.
-execFileSync(process.execPath, [fileURLToPath(new URL("./patch-picomatch-redos.mjs", import.meta.url)), "--verify"], {
+execFileSync(process.execPath, [fileURLToPath(new URL("../../ghostftp-desktop/scripts/patch-picomatch-redos.mjs", import.meta.url)), "--verify"], {
   stdio: "inherit",
   timeout: 15000,
 });
