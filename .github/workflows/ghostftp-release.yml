@@ -183,7 +183,7 @@ jobs:
           # security postinstall hook, not depend on repo-root .github files.
           test -s ghostftp-desktop/scripts/patch-picomatch-redos.mjs
           unzip -Z -1 "dist/GhostFTP-v$VERSION-Desktop-Source.zip" |
-            grep -Fxq 'ghostftp-desktop/scripts/patch-picomatch-redos.mjs'
+            grep -Fx 'ghostftp-desktop/scripts/patch-picomatch-redos.mjs' >/dev/null
           zip -qr "dist/GhostFTP-v$VERSION-Updates.zip" updates
           zip -qr "dist/GhostFTP-v$VERSION-Documentation.zip" docs README.md CHANGELOG.md SECURITY.md LICENSE.txt EULA.txt
 
