@@ -1,8 +1,10 @@
-> **Current source: Ghost FTP v0.99.68 Preview candidate; previously published v0.99.67 (14 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Current source: Ghost FTP v0.99.69 Preview candidate; previously published v0.99.68 (15 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP — Project Status & Recommended Next Work
 
 **Current acceptance status (0.99.67):** Published v0.99.65–v0.99.66 Previews introduced FTP/FTPS/SFTP staging, session health probes, source identity guards and safer retry behavior. Irreversible terminal transfer transitions and SQLite ledger ordering ship in the published v0.99.67 Preview; physical 4+ GiB, concurrent fault-injection and Windows/Linux credential-vault acceptance remain outstanding. 4+ GiB, multi-transfer failure injection and installed Windows/Linux credential-vault reconnection have not been established as passed. Read the [scoped audit](../audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) and [native acceptance matrix](../qa/LARGE_TRANSFER_AND_VAULT_ACCEPTANCE_0.99.65.md). The older version numbers below are retained as *historical*, not the present product version.
+
+**Current 0.99.69 source scope:** A sampled SHA-256 fingerprint guards staged FTP/SFTP uploads against common same-size local edits with restored timestamps. Linux sparse-file regressions exercise the 64-bit 4 GiB boundary without live network transfer. Full on-device 4 GiB uploads, concurrent fault injection, installed UI, signed releases and real OS vault verification remain pending.
 
 Historical 0.99.4 development notes (following 0.99.3) are retained below for reference. Historical versioned notes below remain unchanged.
 
@@ -10,7 +12,7 @@ Historical 0.99.4 development notes (following 0.99.3) are retained below for re
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.67**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.68**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -161,4 +163,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Previously published Preview: v0.99.67 (14 November 2026). Current development source: v0.99.68. See GitHub Releases and `docs/releases/0.99.67.md` for current acceptance limits.
+Previously published Preview: v0.99.68 (15 November 2026). Current development source: v0.99.69. See GitHub Releases and `docs/releases/0.99.69.md` for current acceptance limits.

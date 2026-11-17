@@ -1,3 +1,10 @@
+## 0.99.69 Preview — 17 November 2026 (source changelog; verify GitHub Releases for publication)
+
+- Capture an additional bounded SHA-256 fingerprint of each FTP/FTPS/SFTP local upload source and verify it before staging promotion and across automatic retries.
+- Detect common same-size, timestamp-restored source mutations that metadata-only guards would miss. Small files are fully sampled; large files are only sampled at beginning, middle and end. This does not guarantee full-file or remote integrity.
+- Add regressions for restored timestamps and Linux sparse file lengths larger than 4 GiB without allocating or transferring 4 GiB of data.
+- Keep existing staged promotion, explicit Disconnect, remote overwrite policy, retry and credential behavior; independent native large-file and vault acceptance remains outstanding.
+
 ## 0.99.68 Preview — 15 November 2026 (source changelog; verify GitHub Releases for publication)
 
 - Reject C0/C1 control characters in upload leaf names while retaining valid Unicode filenames; add Rust regression tests.
