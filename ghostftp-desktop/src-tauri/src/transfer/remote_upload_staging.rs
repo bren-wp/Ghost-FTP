@@ -357,7 +357,7 @@ mod tests {
         tokio::fs::create_dir_all(&root).await.unwrap();
         let path = root.join("large.bin");
         let len = u32::MAX as u64 + 17;
-        let mut file = std::fs::File::create(&path).unwrap();
+        let file = std::fs::File::create(&path).unwrap();
         file.set_len(len).unwrap();
         drop(file);
         let snapshot = capture_local_upload_snapshot(&path).await.unwrap();
