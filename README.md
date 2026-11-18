@@ -103,7 +103,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 The **0.99.70** development source separates npm advisory policy from the audit command and introduces negative regression tests. It refuses incomplete registry responses, unresolved advisory paths, production dependency exposure and an unmitigated `braces` exception. Any conditional `picomatch` exception still requires verification of all three locally hardened parser copies. Both advisories were withdrawn in the GitHub advisory database by 18 November 2026; the project retains its explicit parser regression checks until the upstream situation and downstream compatibility are independently assessed. **A withdrawn advisory is not a substitute for real safety tests.**
 
-The previously published **v0.99.69 Preview** added bounded local SHA-256 sampling for staged FTP/FTPS/SFTP uploads. Sampling does not prove whole-file or server-side integrity. The Windows/Linux physical acceptance matrix remains outstanding; see [the scoped v0.99.70 release notes](docs/releases/0.99.70.md) and [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) for publication status.
+The previously published v0.99.69 Preview added bounded local SHA-256 sampling for staged FTP/FTPS/SFTP uploads. Sampling does not prove whole-file or server-side integrity. The Windows/Linux physical acceptance matrix remains outstanding; see [the scoped v0.99.70 release notes](docs/releases/0.99.70.md) and [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases) for publication status.
 
 ### Previously published transfer improvements
 
