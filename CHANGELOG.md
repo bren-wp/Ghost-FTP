@@ -1,3 +1,10 @@
+## 0.99.70 Preview — 18 November 2026 (development candidate; publication unverified)
+
+- Harden the independent npm development-dependency audit against incomplete/failed registry responses and missing dependency paths.
+- Add negative security tests for unknown advisories, unapproved `braces` exceptions, production dependency exposure and malformed audit data.
+- Preserve independently verified `picomatch` local parser checks while the upstream advisory situation is reassessed; both named advisories have been withdrawn but a withdrawn advisory is not proof of a patched package.
+- Carry forward the v0.99.69 sampled-source upload protections unchanged. Real Windows/Linux UI, full-file verification, physical large-file transfer and signing acceptance remain separate outstanding requirements.
+
 ## 0.99.69 Preview — 17 November 2026 (source changelog; verify GitHub Releases for publication)
 
 - Capture an additional bounded SHA-256 fingerprint of each FTP/FTPS/SFTP local upload source and verify it before staging promotion and across automatic retries.

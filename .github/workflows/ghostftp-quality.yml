@@ -375,6 +375,7 @@ jobs:
           npm ci
           node scripts/check-desktop-unsigned-update.mjs
           npm audit --omit=dev --audit-level=high
+          node --test ../.github/scripts/check-npm-dev-audit-policy.test.mjs
           node ../.github/scripts/check-npm-dev-audit.mjs
           npm run check:i18n
           npm run check:ui
