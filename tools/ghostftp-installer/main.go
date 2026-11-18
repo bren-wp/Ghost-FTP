@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "0.99.69"
+const version = "0.99.70"
 
 //go:embed site/* site/assets/* payload/GhostFTP.exe
 var bundle embed.FS
