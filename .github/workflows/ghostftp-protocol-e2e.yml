@@ -367,15 +367,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The library stress test spawns its OWN 1/4/8 concurrent real connections.
-          # Do not run a second top-level FTPS fixture test against the same
-          # vsftpd daemon at the same instant: that produces an unrepeatable
-          # control/data handshake race unrelated to the intended worker matrix.
-          # Still require all parallel FTPS/FTP/SFTP uploads and SHA-256
-          # downloads to pass, three independent runs; no ignored failures.
-          for attempt in 1 2 3; do
-            echo "Real FTP/FTPS/SFTP E2E attempt ${attempt}/3"
-            cargo test -p ghostftp --test protocol_e2e --locked -- --test-threads=1 --nocapture
+          # Run ALL real protocol and host-key verification cases once.
+          # The SFTP changed-key test deliberately repairs known_hosts; repeating
+          # the full test binary without reseeding would falsely expect a stale
+          # key again. Never skip this safety test in the first full execution.
+          echo "Full real FTP/FTPS/SFTP security and protocol E2E suite"
+          cargo test -p ghostftp --test protocol_e2e --locked -- --test-threads=1 --nocapture
+
+          # Repeat the independently isolated 1/4/8-worker FULL SHA-256 matrix
+          # twice more (three total). This case is idempotent and uses unique
+          # remote paths on each run, unlike the stateful host-key mutation.
+          # A data-channel TLS failure at any worker still fails the release.
+          for attempt in 2 3; do
+            echo "Real concurrent FTP/FTPS/SFTP E2E attempt ${attempt}/3"
+            cargo test -p ghostftp --test protocol_e2e --locked real_concurrent_protocol_roundtrips -- --exact --test-threads=1 --nocapture
           done
 
       - name: Dump protocol server diagnostics on failure
