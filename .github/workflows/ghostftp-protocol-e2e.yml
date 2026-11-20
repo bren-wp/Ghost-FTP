@@ -235,8 +235,12 @@ jobs:
           write_enable=YES
           local_root=/home/$USERNAME
           pam_service_name=vsftpd
-          pasv_min_port=30010
-          pasv_max_port=30019
+          # Eight independent workers continuously open and close protected
+          # data sockets. Ten passive ports are insufficient once old sockets
+          # linger in CLOSE_WAIT/TIME_WAIT and can trigger cross-session port
+          # reuse under load. Allocate a dedicated, non-overlapping test range.
+          pasv_min_port=30200
+          pasv_max_port=30399
           ssl_enable=YES
           force_local_logins_ssl=YES
           force_local_data_ssl=YES
@@ -382,6 +386,11 @@ jobs:
           cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
           echo "--- FTPS server log ---"
           cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
+          # Local endpoint metadata only; do not print TLS/FTP payloads or secrets.
+          echo "--- FTPS passive socket pressure (30200-30399) ---"
+          sudo ss -tanp | awk 'NR == 1 || /127\\.0\\.0\\.1:30[23][0-9][0-9]/' | tail -n 120 || true
+          echo "--- FTPS daemon process status ---"
+          ps -ef | grep '[v]sftpd' || true
           echo "--- DOS LIST FTP emulation logs ---"
           cat "$RUNNER_TEMP/ghostftp-dos-list.log" 2>/dev/null || true
           cat "$RUNNER_TEMP/ghostftp-dos-invalid.log" 2>/dev/null || true
