@@ -1486,17 +1486,27 @@ async fn run_concurrent_protocol_matrix(
 ) -> Result<()> {
     for &concurrency in counts {
         let mut tasks = tokio::task::JoinSet::new();
+        eprintln!(
+            "Ghost FTP real {protocol} SHA-256 roundtrip matrix: {concurrency} independent sessions"
+        );
         for index in 0..concurrency {
             let user = username.to_owned();
             let pass = password.to_owned();
             tasks.spawn(async move {
                 concurrent_protocol_worker(protocol, host, port, &user, &pass, size, index as u8)
                     .await
+                    .with_context(|| {
+                        format!(
+                            "{protocol} parallel worker {index}/{concurrency} failed during upload/download/verification"
+                        )
+                    })
             });
         }
+        // A worker failure never promotes incomplete transfers to success.
+        // Continue to fail the whole matrix on any TLS, length or digest error.
         while let Some(task) = tasks.join_next().await {
-            task.with_context(|| format!("{protocol} parallel worker panic"))?
-                .with_context(|| format!("{protocol} parallel worker failed"))?;
+            task.with_context(|| format!("{protocol} {concurrency}-worker task panicked"))?
+                .with_context(|| format!("{protocol} {concurrency}-worker roundtrip failed"))?;
         }
     }
     Ok(())
