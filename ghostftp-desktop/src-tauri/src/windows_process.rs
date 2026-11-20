@@ -36,7 +36,7 @@ pub(crate) fn open_with_shell(target: &std::ffi::OsStr) -> std::io::Result<()> {
     let hr = unsafe {
         CoInitializeEx(
             std::ptr::null(),
-            COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE,
+            (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32,
         )
     };
     if hr < 0 {
