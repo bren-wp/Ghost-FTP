@@ -438,16 +438,10 @@ fn spawn_editor(path: &std::path::Path, editor: Option<&str>) -> Result<()> {
             .with_context(|| format!("spawn configured editor for {}", path.display()))?;
         return Ok(());
     }
-    // Use Windows file association directly rather than `cmd /c start`.
-    // Apart from avoiding shell parsing of hostile filenames, this also avoids
-    // the transient console window a console-subsystem cmd.exe can create.
-    let mut command = std::process::Command::new("rundll32.exe");
-    crate::windows_process::hide_console(&mut command);
-    command
-        .arg("url.dll,FileProtocolHandler")
-        .arg(path)
-        .spawn()
-        .with_context(|| format!("spawn editor for {}", path.display()))?;
+    // Use the Windows file association directly: never search PATH/CWD for a
+    // runnable helper or let a console-subsystem process flash on screen.
+    crate::windows_process::open_with_shell(path.as_os_str())
+        .context("open the registered editor with the Windows shell")?;
     Ok(())
 }
 

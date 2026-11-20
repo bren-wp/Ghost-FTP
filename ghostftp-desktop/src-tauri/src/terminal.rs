@@ -18,6 +18,72 @@ fn validate_pty_size(cols: u32, rows: u32) -> Result<()> {
     Ok(())
 }
 
+/// Preserve UTF-8 sequences split across SSH packets. Converting each packet
+/// with from_utf8_lossy separately used to corrupt non-ASCII terminal output.
+#[derive(Default)]
+struct Utf8OutputDecoder {
+    pending: Vec<u8>,
+}
+
+impl Utf8OutputDecoder {
+    fn push(&mut self, chunk: &[u8]) -> String {
+        if chunk.is_empty() {
+            return String::new();
+        }
+        // Fast path for the common case of a complete valid UTF-8 packet.
+        if self.pending.is_empty() {
+            if let Ok(text) = std::str::from_utf8(chunk) {
+                return text.to_owned();
+            }
+        }
+
+        let mut bytes = Vec::with_capacity(self.pending.len() + chunk.len());
+        bytes.append(&mut self.pending);
+        bytes.extend_from_slice(chunk);
+        let mut output = String::with_capacity(bytes.len());
+        let mut offset = 0;
+
+        while offset < bytes.len() {
+            match std::str::from_utf8(&bytes[offset..]) {
+                Ok(text) => {
+                    output.push_str(text);
+                    break;
+                }
+                Err(error) => {
+                    let valid = error.valid_up_to();
+                    output.push_str(
+                        std::str::from_utf8(&bytes[offset..offset + valid])
+                            .expect("validated UTF-8 prefix"),
+                    );
+                    offset += valid;
+                    match error.error_len() {
+                        Some(invalid) => {
+                            output.push('\u{FFFD}');
+                            offset += invalid;
+                        }
+                        None => {
+                            // UTF-8 code points use at most four bytes.
+                            // Only an incomplete 1–3-byte suffix is buffered.
+                            self.pending.extend_from_slice(&bytes[offset..]);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        output
+    }
+
+    fn finish(&mut self) -> &'static str {
+        if self.pending.is_empty() {
+            ""
+        } else {
+            self.pending.clear();
+            "\u{FFFD}"
+        }
+    }
+}
+
 enum PtyCommand {
     Input(Vec<u8>),
     Resize { cols: u32, rows: u32 },
@@ -91,9 +157,10 @@ impl PtyManager {
             let _slot = slot;
             let mut exit_code = None;
             let mut channel = channel;
+            let mut stdout_decoder = Utf8OutputDecoder::default();
+            let mut stderr_decoder = Utf8OutputDecoder::default();
             loop {
                 tokio::select! {
-                    biased;
                     cmd = rx.recv() => {
                         let Some(cmd) = cmd else { break };
                         match cmd {
@@ -115,24 +182,28 @@ impl PtyManager {
                         let Some(msg) = msg else { break };
                         match msg {
                             ChannelMsg::Data { ref data } => {
-                                let s = String::from_utf8_lossy(data).to_string();
-                                let _ = app_for_task.emit(
-                                    "terminal://data",
-                                    TerminalDataEvent {
-                                        terminal_id: id_for_task.clone(),
-                                        data: s,
-                                    },
-                                );
+                                let text = stdout_decoder.push(data);
+                                if !text.is_empty() {
+                                    let _ = app_for_task.emit(
+                                        "terminal://data",
+                                        TerminalDataEvent {
+                                            terminal_id: id_for_task.clone(),
+                                            data: text,
+                                        },
+                                    );
+                                }
                             }
                             ChannelMsg::ExtendedData { ref data, .. } => {
-                                let s = String::from_utf8_lossy(data).to_string();
-                                let _ = app_for_task.emit(
-                                    "terminal://data",
-                                    TerminalDataEvent {
-                                        terminal_id: id_for_task.clone(),
-                                        data: s,
-                                    },
-                                );
+                                let text = stderr_decoder.push(data);
+                                if !text.is_empty() {
+                                    let _ = app_for_task.emit(
+                                        "terminal://data",
+                                        TerminalDataEvent {
+                                            terminal_id: id_for_task.clone(),
+                                            data: text,
+                                        },
+                                    );
+                                }
                             }
                             ChannelMsg::ExitStatus { exit_status } => {
                                 exit_code = Some(exit_status as i32);
@@ -141,6 +212,20 @@ impl PtyManager {
                             _ => {}
                         }
                     }
+                }
+            }
+            // Preserve the final incomplete code point as an explicit
+            // replacement character before emitting terminal://exit.
+            for decoder in [&mut stdout_decoder, &mut stderr_decoder] {
+                let tail = decoder.finish();
+                if !tail.is_empty() {
+                    let _ = app_for_task.emit(
+                        "terminal://data",
+                        TerminalDataEvent {
+                            terminal_id: id_for_task.clone(),
+                            data: tail.to_string(),
+                        },
+                    );
                 }
             }
             ptys.lock().await.remove(&id_for_task);
@@ -198,6 +283,28 @@ impl PtyManager {
 #[cfg(test)]
 mod ipc_security_tests {
     use super::*;
+    #[test]
+    fn terminal_utf8_decoder_preserves_split_multibyte_output() {
+        let mut decoder = Utf8OutputDecoder::default();
+        assert_eq!(decoder.push(b"Hello \xC5"), "Hello ");
+        assert_eq!(decoder.push(b"\xBE \xF0\x9F"), "ž ");
+        assert_eq!(decoder.push(b"\x9A\x80!"), "🚀!");
+        assert_eq!(decoder.finish(), "");
+    }
+
+    #[test]
+    fn terminal_utf8_decoder_handles_invalid_bytes_without_unbounded_buffering() {
+        let mut decoder = Utf8OutputDecoder::default();
+        assert_eq!(decoder.push(b"a\xFFb"), "a�b");
+        assert_eq!(decoder.push(b"\xE2\x82"), "");
+        assert!(decoder.pending.len() <= 3);
+        assert_eq!(decoder.push(b"\xAC!"), "€!");
+        assert_eq!(decoder.push(b"\xE2"), "");
+        assert_eq!(decoder.finish(), "�");
+        assert!(decoder.pending.is_empty());
+        assert_eq!(decoder.finish(), "");
+    }
+
     #[test]
     fn backend_rejects_adversarial_terminal_dimensions() {
         assert!(validate_pty_size(80, 24).is_ok());
