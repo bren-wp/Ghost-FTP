@@ -60,10 +60,23 @@ jobs:
           # Native GUI process launches must stay windowless on Windows. These
           # contracts cover runtime surfaces that have historically flashed a
           # console-subsystem helper during normal GUI workflows.
-          test "$(grep -Fc 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/editor.rs)" -ge 2
+          # Configured editor subprocesses still explicitly suppress console flashes.
+          grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/editor.rs
           grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/oauth.rs
           grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/commands.rs
-          grep -Fq 'crate::windows_process::hide_console(&mut command);' ghostftp-desktop/src-tauri/src/lib.rs
+
+          # Registered browser/file associations must not invoke an executable
+          # resolved through untrusted PATH or CWD. Preserve COM init and the
+          # blocking worker so native shell calls cannot stall the GUI.
+          grep -Fq 'ShellExecuteW(' ghostftp-desktop/src-tauri/src/windows_process.rs
+          grep -Fq 'CoInitializeEx(' ghostftp-desktop/src-tauri/src/windows_process.rs
+          grep -Fq 'open_with_shell(path.as_os_str())' ghostftp-desktop/src-tauri/src/editor.rs
+          grep -Fq 'open_with_shell(std::ffi::OsStr::new(&url))' ghostftp-desktop/src-tauri/src/lib.rs
+          grep -Fq 'tokio::task::spawn_blocking(move ||' ghostftp-desktop/src-tauri/src/lib.rs
+          ! grep -Eq 'Command::new\("rundll32(\.exe)?"\)' \
+            ghostftp-desktop/src-tauri/src/lib.rs \
+            ghostftp-desktop/src-tauri/src/editor.rs
+
           grep -Fq 'creation_flags(CREATE_NO_WINDOW)' ghostftp-desktop/src-tauri/src/main.rs
 
           ! grep -En 'exec\.Command\("(rundll32|reg|powershell|cmd(\.exe)?)"' \
