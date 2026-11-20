@@ -363,7 +363,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo test -p ghostftp --test protocol_e2e --locked -- --nocapture
+          # The library stress test spawns its OWN 1/4/8 concurrent real connections.
+          # Do not run a second top-level FTPS fixture test against the same
+          # vsftpd daemon at the same instant: that produces an unrepeatable
+          # control/data handshake race unrelated to the intended worker matrix.
+          # Still require all parallel FTPS/FTP/SFTP uploads and SHA-256
+          # downloads to pass, three independent runs; no ignored failures.
+          for attempt in 1 2 3; do
+            echo "Real FTP/FTPS/SFTP E2E attempt ${attempt}/3"
+            cargo test -p ghostftp --test protocol_e2e --locked -- --test-threads=1 --nocapture
+          done
 
       - name: Dump protocol server diagnostics on failure
         if: failure()
