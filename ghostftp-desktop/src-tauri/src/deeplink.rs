@@ -217,7 +217,10 @@ mod tests {
 
     #[test]
     fn rejects_oversized_protocol_handler_payload_before_url_decoding() {
-        let url = format!("ghostftp://connect?host={}", "a".repeat(MAX_DEEP_LINK_BYTES));
+        let url = format!(
+            "ghostftp://connect?host={}",
+            "a".repeat(MAX_DEEP_LINK_BYTES)
+        );
         assert!(parse(&url).is_none());
     }
 

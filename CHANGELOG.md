@@ -4,6 +4,7 @@
 - Reject oversized/deceptive `ghostftp://` links, uncontrolled parameter counts, decoded control characters and URL userinfo/ports/fragments before forwarding to the frontend.
 - Preserve split UTF-8 code points and stderr/stdout boundaries in SSH terminal output; remove biased select scheduling for better receive fairness.
 - Extend repository-wide security gates with negative regression tests for Windows shell lookup, deep-link parser limits and SSH terminal decoding. Retain full source-level dead-code and security audit reports, native Rust/Go/TypeScript checks and platform acceptance requirements.
+- Remove two unreferenced legacy v8 concept comparison Python tools after confirming they are no longer called by build/release/QA workflows; retain actual native screenshot verification.
 - No claim of signed Stable release, complete remote-transfer integrity or certified physical Windows/Linux validation. See `docs/audits/WINDOWS_SECURITY_PERFORMANCE_0.99.71.md`.
 
 ## 0.99.70 Preview — 18 November 2026 (development candidate; publication unverified)

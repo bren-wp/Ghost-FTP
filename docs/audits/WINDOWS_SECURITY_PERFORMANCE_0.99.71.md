@@ -13,6 +13,18 @@
 
 ## Full dead-code audit — methodology and limitations
 
+### Baseline evidence from published v0.99.70 CI
+
+The actual "GhostFTP-Full-Repository-Dead-Code-Audit" artifact from the successful main run enumerated **719 tracked working-tree files** (118 TypeScript, 91 Rust, 13 Go and 78 operational scripts). It found **zero single-mention private Rust/TypeScript/Go symbols**, no entrypoint blockers, and **two candidate standalone scripts**:
+
+- \`tools/qa/compare_reference_v8.py\`
+- \`tools/qa/test_compare_reference_v8.py\`
+
+Inspection found that both belong to a retired reference-concept screenshot comparison, are not invoked by build, QA or release workflows, and have no active imported consumers outside their own test. This iteration removes those two obsolete scripts, retaining the current actual-screen capture and native UI tests. The v0.99.71 CI audit must recalculate the inventory after removal.
+
+The matching published v0.99.70 security audit artifact scanned **305 active source files** (91 Rust, 118 TS/TSX, 13 Go and build/CI scripts). It reported no blocking insecure-pattern or missing-guard findings and listed unverified physical/production conditions: Authenticode signing, 4+ GiB remote integrity and crash recovery, native credential-vault acceptance, and long-running UI/performance benchmarks.
+
+
 The existing `tools/audits/full-dead-code-audit.mjs` recursively inventories checked-in TypeScript, Rust, Go and operational scripts, skips symlinks/generated outputs, reports potential unreachable or singly referenced nonpublic functions and requires key entrypoints. `ghostftp-desktop/scripts/check-source-reachability.mjs` follows TypeScript imports, Rust module edges and release script references; the quality gate also runs TypeScript and Rust/Go compiler checks. Candidate-only symbols are deliberately **not deleted** without proof for runtime callback, reflection, conditional compilation and compatibility paths. No claims of zero dead code can be made solely from textual search.
 
 ## Full security audit — methodology and limitations
