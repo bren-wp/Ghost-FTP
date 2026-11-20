@@ -22,6 +22,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use url::Url;
 
+const MAX_DEEP_LINK_BYTES: usize = 16 * 1024;
+const MAX_DEEP_LINK_PARAMETERS: usize = 64;
+
 /// A parsed `ghostftp://` link, forwarded to the UI to prefill an editor. Every
 /// field is optional so a partial link still does something sensible; the UI
 /// fills the gaps with its own defaults.
@@ -56,8 +59,19 @@ pub struct DeepLink {
 /// everything else arrives as query parameters — so the site's own host lives
 /// in `?host=`, not in the URL authority.
 pub fn parse(raw: &str) -> Option<DeepLink> {
-    let url = Url::parse(raw.trim()).ok()?;
-    if url.scheme() != "ghostftp" {
+    // Protocol handlers are untrusted OS entrypoints. Refuse oversized input
+    // before URL decoding/allocations and any work on the GUI's event queue.
+    let raw = raw.trim();
+    if raw.len() > MAX_DEEP_LINK_BYTES {
+        return None;
+    }
+    let url = Url::parse(raw).ok()?;
+    if url.scheme() != "ghostftp"
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.port().is_some()
+        || url.fragment().is_some()
+    {
         return None;
     }
     // `ghostftp://connect?…` → authority "connect". Fall back to the path for a
@@ -71,17 +85,19 @@ pub fn parse(raw: &str) -> Option<DeepLink> {
         action: action.to_lowercase(),
         ..Default::default()
     };
-    for (k, v) in url.query_pairs() {
+    for (index, (k, v)) in url.query_pairs().enumerate() {
+        if index >= MAX_DEEP_LINK_PARAMETERS {
+            return None;
+        }
         let v = v.to_string();
         if v.is_empty() {
             continue;
         }
-        // Bound attacker-controlled protocol-handler input before it reaches
-        // React state or later network flows. Deep links may be invoked by any
-        // web page registered with the OS.
-        if v.len() > 4096 {
-            tracing::warn!("ignoring oversized '{k}' parameter in a ghostftp:// link");
-            continue;
+        // Never pass malformed or excessive data to the React event queue.
+        // Control characters are unsafe in UI labels and network targets.
+        // Keep raw parameter names out of logs to prevent log injection.
+        if v.len() > 4096 || v.chars().any(char::is_control) {
+            return None;
         }
         match k.as_ref() {
             "protocol" => dl.protocol = Some(v.to_lowercase()),
@@ -197,6 +213,34 @@ mod tests {
         let dl = parse("ghostftp://terminal?name=My%20Site").unwrap();
         assert_eq!(dl.action, "terminal");
         assert_eq!(dl.name.as_deref(), Some("My Site"));
+    }
+
+    #[test]
+    fn rejects_oversized_protocol_handler_payload_before_url_decoding() {
+        let url = format!(
+            "ghostftp://connect?host={}",
+            "a".repeat(MAX_DEEP_LINK_BYTES)
+        );
+        assert!(parse(&url).is_none());
+    }
+
+    #[test]
+    fn rejects_query_parameter_floods_and_control_character_injection() {
+        let pairs = (0..=MAX_DEEP_LINK_PARAMETERS)
+            .map(|index| format!("name{index}=ok"))
+            .collect::<Vec<_>>()
+            .join("&");
+        assert!(parse(&format!("ghostftp://connect?{pairs}")).is_none());
+        assert!(parse("ghostftp://connect?name=hello%0Aworld").is_none());
+        assert!(parse("ghostftp://connect?host=bad%00host").is_none());
+        assert!(parse("ghostftp://connect?host=%1B%5B31m").is_none());
+    }
+
+    #[test]
+    fn rejects_protocol_handler_userinfo_port_and_fragments() {
+        assert!(parse("ghostftp://user@connect?host=example.invalid").is_none());
+        assert!(parse("ghostftp://connect:123?host=example.invalid").is_none());
+        assert!(parse("ghostftp://connect?host=example.invalid#hidden").is_none());
     }
 
     #[test]

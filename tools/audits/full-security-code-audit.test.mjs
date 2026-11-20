@@ -3,7 +3,7 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {scanDangerous,audit,inspectPlatformSecurityConfig,inspectFreshStagedSftpUpload} from "./full-security-code-audit.mjs";
+import {scanDangerous,audit,inspectPlatformSecurityConfig,inspectFreshStagedSftpUpload,inspectWindowsShellSecurity} from "./full-security-code-audit.mjs";
 
 test("detects explicit TLS and SSH trust verification bypasses in shipping paths",()=>{
   const cases=[
@@ -14,6 +14,20 @@ test("detects explicit TLS and SSH trust verification bypasses in shipping paths
   ];
   for(const [path,source,id] of cases)assert.equal(scanDangerous(path,source)[0]?.id,id);
 });
+test("security inventory covers top-level React and shared component source", () => {
+  for (const file of [
+    "ghostftp-desktop/src/App.tsx",
+    "ghostftp-desktop/src/main.tsx",
+    "ghostftp-desktop/packages/file-ui/src/components/FilePanel.tsx",
+  ]) {
+    assert.equal(
+      scanDangerous(file, "console.log(password)")[0]?.id,
+      "password-logging",
+      file,
+    );
+  }
+});
+
 test("scans shipped Agent daemon and shared wire protocol source", () => {
   for (const path of [
     "ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/delta.rs",
@@ -204,4 +218,30 @@ test("paused Windows/Linux transfers cannot silently trust a same-length remote 
   const injected = transfer.slice(0, sshStart) + injectedWorker + transfer.slice(sshEnd);
   assert.ok(inspectFreshStagedSftpUpload(injected).some(x => x.includes("offset")),
     "Old remote offset reuse must fail the security gate");
+});
+
+test("Windows shell and deep-link checks reject search-path hijacking and weakened limits", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const files = [
+    "ghostftp-desktop/src-tauri/src/windows_process.rs",
+    "ghostftp-desktop/src-tauri/src/lib.rs",
+    "ghostftp-desktop/src-tauri/src/editor.rs",
+    "ghostftp-desktop/src-tauri/src/deeplink.rs",
+    "ghostftp-desktop/src-tauri/src/terminal.rs",
+  ];
+  const baseline = Object.fromEntries(files.map(f => [f, fs.readFileSync(path.join(root, f), "utf8")]));
+  assert.deepEqual(inspectWindowsShellSecurity(baseline), []);
+  const attempt = (file, oldText, replacement, needle) => {
+    assert.ok(baseline[file].includes(oldText));
+    const weakened = {...baseline, [file]: baseline[file].replace(oldText, replacement)};
+    assert.ok(inspectWindowsShellSecurity(weakened).some(x => x.path === file && x.required.includes(needle)));
+  };
+  attempt(files[0], "ShellExecuteW(", "disallowedShellCall(", "ShellExecuteW");
+  attempt(files[0], "CoInitializeEx(", "noComSetup(", "CoInitializeEx");
+  attempt(files[1], "open_with_shell(std::ffi::OsStr::new(&url))", "unsafeOpen(&url)", "open_with_shell");
+  attempt(files[2], "open_with_shell(path.as_os_str())", "unsafeOpen(path)", "open_with_shell");
+  attempt(files[3], "index >= MAX_DEEP_LINK_PARAMETERS", "false", "MAX_DEEP_LINK_PARAMETERS");
+  attempt(files[4], "stdout_decoder.push(data)", "String::from_utf8_lossy(data)", "stdout_decoder");
+  attempt(files[2], "open_with_shell(path.as_os_str())",
+    'Command::new("rundll32.exe").spawn()', "Do not search Windows PATH");
 });

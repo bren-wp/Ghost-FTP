@@ -1,9 +1,9 @@
-> **Active development source:** Ghost FTP 0.99.70 Preview (Windows/Linux). Publication is determined by GitHub Releases.
-> **Previous canonical release:** v0.99.69 (published 17 November 2026).
+> **Active development source:** Ghost FTP 0.99.71 Preview (Windows/Linux). Publication is determined by GitHub Releases.
+> **Previous canonical release:** v0.99.70 (published 18 November 2026).
 
-# Ghost FTP 0.99.70 — desktop production-readiness assessment
+# Ghost FTP 0.99.71 — desktop production-readiness assessment
 
-> **Active source:** Ghost FTP v0.99.70 Preview candidate. **Previously published release:** v0.99.69 (17 November 2026). Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP v0.99.71 Preview candidate. **Previously published release:** v0.99.70 (18 November 2026). Supported platforms: Windows and Linux.
 
 **Status: PREVIEW development source, not certified Stable.** See [0.99.65 liveness/remote upload audit](../audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) for pending large/parallel transfers and native vault acceptance. Source metadata is not evidence of a published release. Always check the [GitHub Releases index](https://github.com/bren-wp/Ghost-FTP/releases). The historical pixel-equality release quota is retired; real responsive/accessibility acceptance remains necessary.
 

@@ -152,7 +152,7 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
 }
 
 #[tauri::command]
-fn open_external_url(url: String) -> Result<(), String> {
+async fn open_external_url(url: String) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|_| "Invalid external URL".to_string())?;
     // Compare the original input as well: URL parsers normalize dot segments,
     // percent-encoded path segments and host casing before path verification.
@@ -161,27 +161,30 @@ fn open_external_url(url: String) -> Result<(), String> {
     }
 
     #[cfg(windows)]
-    let result = {
-        let mut command = std::process::Command::new("rundll32.exe");
-        crate::windows_process::hide_console(&mut command);
-        command
-            .arg("url.dll,FileProtocolHandler")
-            .arg(parsed.as_str())
-            .spawn()
-    };
+    {
+        // Windows ShellExecuteW opens the registered browser without running an
+        // executable found through PATH/CWD; keep COM/Shell on a blocking worker.
+        return tokio::task::spawn_blocking(move || {
+            crate::windows_process::open_with_shell(std::ffi::OsStr::new(&url))
+        })
+        .await
+        .map_err(|_| "Windows shell worker failed".to_string())?
+        .map_err(|_| "Could not open the default browser".to_string());
+    }
 
     #[cfg(target_os = "linux")]
-    let result = std::process::Command::new("xdg-open")
-        .arg(parsed.as_str())
-        .spawn();
+    {
+        std::process::Command::new("xdg-open")
+            .arg(parsed.as_str())
+            .spawn()
+            .map(|_| ())
+            .map_err(|_| "Could not open the default browser".to_string())
+    }
 
     #[cfg(not(any(windows, target_os = "linux")))]
-    return Err("Opening external links is unsupported on this platform".to_string());
-
-    #[cfg(any(windows, target_os = "linux"))]
-    result
-        .map(|_| ())
-        .map_err(|error| format!("Could not open the default browser: {error}"))
+    {
+        Err("Opening external links is unsupported on this platform".to_string())
+    }
 }
 
 /// A database open failure is not permission to replace the user's state.

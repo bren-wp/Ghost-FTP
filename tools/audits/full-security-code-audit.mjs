@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const IGNORED = new Set([".git", "node_modules", "target", "build", ".build", ".gradle", "dist", "coverage", ".idea"]);
-const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml"]);
+const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml", ".py"]);
 const isSource = (p) => SOURCE_EXT.has(path.extname(p).toLowerCase());
 const toPosix = (p) => p.split(path.sep).join("/");
 
@@ -41,6 +41,8 @@ export const dangerousPatterns = [
 ];
 export function isRuntimeCode(file) {
   const production = [
+    "ghostftp-desktop/src/", // Also cover App.tsx/main.tsx, not only subfolders.
+    "ghostftp-desktop/packages/file-ui/src/",
     "ghostftp-desktop/src-tauri/src/",
     "ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/",
     "ghostftp-desktop/src-tauri/ghostftp-agentd/src/",
@@ -273,6 +275,42 @@ export function inspectPlatformSecurityConfig(source) {
   return failures;
 }
 
+/// Windows shell security contracts: source-level safeguards against executable
+/// search-path hijacking, GUI stalls and malformed protocol-handler input.
+/// This is a regression scanner, not a substitute for native penetration tests.
+export function inspectWindowsShellSecurity(source) {
+  const files = {
+    shell: "ghostftp-desktop/src-tauri/src/windows_process.rs",
+    app: "ghostftp-desktop/src-tauri/src/lib.rs",
+    editor: "ghostftp-desktop/src-tauri/src/editor.rs",
+    links: "ghostftp-desktop/src-tauri/src/deeplink.rs",
+    terminal: "ghostftp-desktop/src-tauri/src/terminal.rs",
+  };
+  const failures = [];
+  const required = [
+    [files.shell, "ShellExecuteW("],
+    [files.shell, "CoInitializeEx("],
+    [files.app, "tokio::task::spawn_blocking(move ||"],
+    [files.app, "open_with_shell(std::ffi::OsStr::new(&url))"],
+    [files.editor, "open_with_shell(path.as_os_str())"],
+    [files.links, "if raw.len() > MAX_DEEP_LINK_BYTES"],
+    [files.links, "index >= MAX_DEEP_LINK_PARAMETERS"],
+    [files.links, "v.chars().any(char::is_control)"],
+    [files.terminal, "struct Utf8OutputDecoder"],
+    [files.terminal, "stdout_decoder.push(data)"],
+    [files.terminal, "stderr_decoder.push(data)"],
+  ];
+  for (const [file, text] of required) {
+    if (!source[file]?.includes(text)) failures.push({path:file, required:text});
+  }
+  for (const file of [files.shell, files.app, files.editor]) {
+    if (/Command::new\s*\(\s*"rundll32(?:\.exe)?"\s*\)/i.test(source[file] ?? "")) {
+      failures.push({path:file, required:"Do not search Windows PATH/CWD for rundll32.exe"});
+    }
+  }
+  return failures;
+}
+
 /**
  * A new UUID staging path has no prior byte prefix to resume. A resumed
  * offset in this worker is a data-integrity bug even if it matches an old
@@ -335,7 +373,19 @@ export function audit(root = ROOT) {
     return [file, fs.existsSync(absolute) ? fs.readFileSync(absolute, "utf8") : ""];
   }));
   const platformConfigBlockers = inspectPlatformSecurityConfig(configSource);
-  const counts = Object.fromEntries(["rs","ts","tsx","kt","go","js","mjs","sh","yml","yaml","kts"]
+  const windowsPaths = [
+    "ghostftp-desktop/src-tauri/src/windows_process.rs",
+    "ghostftp-desktop/src-tauri/src/lib.rs",
+    "ghostftp-desktop/src-tauri/src/editor.rs",
+    "ghostftp-desktop/src-tauri/src/deeplink.rs",
+    "ghostftp-desktop/src-tauri/src/terminal.rs",
+  ];
+  const windowsSources = Object.fromEntries(windowsPaths.map(file => {
+    const absolute = path.join(root, file);
+    return [file, fs.existsSync(absolute) ? fs.readFileSync(absolute, "utf8") : ""];
+  }));
+  const windowsShellBlockers = inspectWindowsShellSecurity(windowsSources);
+  const counts = Object.fromEntries(["rs","ts","tsx","kt","go","js","mjs","sh","yml","yaml","kts","py"]
     .map(ext=>[ext, sourceFiles.filter(file=>file.endsWith("."+ext)).length]));
   const findings = [
     { severity:"blocking-production", surface:"desktop signing", state:"not-verified", reason:"Windows Authenticode and signed in-place upgrade proofs remain acceptance blockers." },
@@ -350,8 +400,9 @@ export function audit(root = ROOT) {
     blockingPatterns:offenders,
     missingSecurityGuards:missingGuards,
     platformConfigBlockers,
+    windowsShellBlockers,
     findings,
-    passed:offenders.length===0 && missingGuards.length===0 && platformConfigBlockers.length===0
+    passed:offenders.length===0 && missingGuards.length===0 && platformConfigBlockers.length===0 && windowsShellBlockers.length===0
   };
 }
 if (process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
