@@ -235,8 +235,12 @@ jobs:
           write_enable=YES
           local_root=/home/$USERNAME
           pam_service_name=vsftpd
-          pasv_min_port=30010
-          pasv_max_port=30019
+          # Eight independent workers continuously open and close protected
+          # data sockets. Ten passive ports are insufficient once old sockets
+          # linger in CLOSE_WAIT/TIME_WAIT and can trigger cross-session port
+          # reuse under load. Allocate a dedicated, non-overlapping test range.
+          pasv_min_port=30200
+          pasv_max_port=30399
           ssl_enable=YES
           force_local_logins_ssl=YES
           force_local_data_ssl=YES
@@ -363,7 +367,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo test -p ghostftp --test protocol_e2e --locked -- --nocapture
+          # Run ALL real protocol and host-key verification cases once.
+          # The SFTP changed-key test deliberately repairs known_hosts; repeating
+          # the full test binary without reseeding would falsely expect a stale
+          # key again. Never skip this safety test in the first full execution.
+          echo "Full real FTP/FTPS/SFTP security and protocol E2E suite"
+          cargo test -p ghostftp --test protocol_e2e --locked -- --test-threads=1 --nocapture
+
+          # Repeat the independently isolated 1/4/8-worker FULL SHA-256 matrix
+          # twice more (three total). This case is idempotent and uses unique
+          # remote paths on each run, unlike the stateful host-key mutation.
+          # A data-channel TLS failure at any worker still fails the release.
+          for attempt in 2 3; do
+            echo "Real concurrent FTP/FTPS/SFTP E2E attempt ${attempt}/3"
+            cargo test -p ghostftp --test protocol_e2e --locked real_concurrent_protocol_roundtrips -- --exact --test-threads=1 --nocapture
+          done
 
       - name: Dump protocol server diagnostics on failure
         if: failure()
@@ -373,6 +391,11 @@ jobs:
           cat "$RUNNER_TEMP/ghostftp-ftp.log" 2>/dev/null || true
           echo "--- FTPS server log ---"
           cat "$RUNNER_TEMP/ghostftp-ftps.log" 2>/dev/null || true
+          # Local endpoint metadata only; do not print TLS/FTP payloads or secrets.
+          echo "--- FTPS passive socket pressure (30200-30399) ---"
+          sudo ss -tanp | awk 'NR == 1 || /127\\.0\\.0\\.1:30[23][0-9][0-9]/' | tail -n 120 || true
+          echo "--- FTPS daemon process status ---"
+          ps -ef | grep '[v]sftpd' || true
           echo "--- DOS LIST FTP emulation logs ---"
           cat "$RUNNER_TEMP/ghostftp-dos-list.log" 2>/dev/null || true
           cat "$RUNNER_TEMP/ghostftp-dos-invalid.log" 2>/dev/null || true
