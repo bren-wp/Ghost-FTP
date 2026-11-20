@@ -14,6 +14,20 @@ test("detects explicit TLS and SSH trust verification bypasses in shipping paths
   ];
   for(const [path,source,id] of cases)assert.equal(scanDangerous(path,source)[0]?.id,id);
 });
+test("security inventory covers top-level React and shared component source", () => {
+  for (const file of [
+    "ghostftp-desktop/src/App.tsx",
+    "ghostftp-desktop/src/main.tsx",
+    "ghostftp-desktop/packages/file-ui/src/components/FilePanel.tsx",
+  ]) {
+    assert.equal(
+      scanDangerous(file, "console.log(password)")[0]?.id,
+      "password-logging",
+      file,
+    );
+  }
+});
+
 test("scans shipped Agent daemon and shared wire protocol source", () => {
   for (const path of [
     "ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/delta.rs",

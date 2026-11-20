@@ -25,6 +25,8 @@ Inspection found that both belong to a retired reference-concept screenshot comp
 The matching published v0.99.70 security audit artifact scanned **305 active source files** (91 Rust, 118 TS/TSX, 13 Go and build/CI scripts). It reported no blocking insecure-pattern or missing-guard findings and listed unverified physical/production conditions: Authenticode signing, 4+ GiB remote integrity and crash recovery, native credential-vault acceptance, and long-running UI/performance benchmarks.
 
 
+The security inventory was also expanded to scan top-level React entry components (`App.tsx`, `main.tsx`), shared file UI source, and Python files in addition to the previously covered Rust/TypeScript/Go/CI sources. This closes a blind spot in the source-level scan; static patterns still do not prove absence of every vulnerability.
+
 The existing `tools/audits/full-dead-code-audit.mjs` recursively inventories checked-in TypeScript, Rust, Go and operational scripts, skips symlinks/generated outputs, reports potential unreachable or singly referenced nonpublic functions and requires key entrypoints. `ghostftp-desktop/scripts/check-source-reachability.mjs` follows TypeScript imports, Rust module edges and release script references; the quality gate also runs TypeScript and Rust/Go compiler checks. Candidate-only symbols are deliberately **not deleted** without proof for runtime callback, reflection, conditional compilation and compatibility paths. No claims of zero dead code can be made solely from textual search.
 
 ## Full security audit — methodology and limitations

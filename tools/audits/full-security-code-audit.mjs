@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const IGNORED = new Set([".git", "node_modules", "target", "build", ".build", ".gradle", "dist", "coverage", ".idea"]);
-const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml"]);
+const SOURCE_EXT = new Set([".rs", ".ts", ".tsx", ".go", ".js", ".mjs", ".sh", ".yml", ".yaml", ".py"]);
 const isSource = (p) => SOURCE_EXT.has(path.extname(p).toLowerCase());
 const toPosix = (p) => p.split(path.sep).join("/");
 
@@ -41,6 +41,8 @@ export const dangerousPatterns = [
 ];
 export function isRuntimeCode(file) {
   const production = [
+    "ghostftp-desktop/src/", // Also cover App.tsx/main.tsx, not only subfolders.
+    "ghostftp-desktop/packages/file-ui/src/",
     "ghostftp-desktop/src-tauri/src/",
     "ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/",
     "ghostftp-desktop/src-tauri/ghostftp-agentd/src/",
@@ -383,7 +385,7 @@ export function audit(root = ROOT) {
     return [file, fs.existsSync(absolute) ? fs.readFileSync(absolute, "utf8") : ""];
   }));
   const windowsShellBlockers = inspectWindowsShellSecurity(windowsSources);
-  const counts = Object.fromEntries(["rs","ts","tsx","kt","go","js","mjs","sh","yml","yaml","kts"]
+  const counts = Object.fromEntries(["rs","ts","tsx","kt","go","js","mjs","sh","yml","yaml","kts","py"]
     .map(ext=>[ext, sourceFiles.filter(file=>file.endsWith("."+ext)).length]));
   const findings = [
     { severity:"blocking-production", surface:"desktop signing", state:"not-verified", reason:"Windows Authenticode and signed in-place upgrade proofs remain acceptance blockers." },
