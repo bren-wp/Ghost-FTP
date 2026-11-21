@@ -135,6 +135,9 @@ test("maintained desktop and Go security configurations fail closed on weakening
 test("native desktop upload/download integrity guards are required across SFTP and FTP/FTPS", () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const transfer = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer.rs"), "utf8");
+  const transferTests = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer/tests.rs"), "utf8");
+  const httpTests = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer/http_length_integrity_tests.rs"), "utf8");
+  const integrity = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer/integrity.rs"), "utf8");
   for (const guard of [
     'verify_committed_length("SFTP download"',
     'verify_committed_length("SFTP upload"',
@@ -159,7 +162,15 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'canceled_transfer_is_never_resurrected_by_late_completion_or_progress()',
     'completed_row_and_sqlite_ledger_reject_stale_progress_after_success()',
   ]) {
-    assert.ok(transfer.includes(guard), "Transfer completion safety guard was removed: " + guard);
+    const source = (
+      ['verify_committed_length("FTP download"', 'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()'].includes(guard) ? httpTests
+      : ['every_protocol_download_staging_requires_exact_bytes_and_durable_file()',
+         'remote_errors_never_persist_authorization_headers_or_signed_urls()',
+         'canceled_transfer_is_never_resurrected_by_late_completion_or_progress()',
+         'completed_row_and_sqlite_ledger_reject_stale_progress_after_success()'].includes(guard) ? transferTests
+      : transfer
+    );
+    assert.ok(source.includes(guard), "Transfer completion safety guard was removed: " + guard);
   }
   // Do not silently mark known-size short results done or replace real
   // progress with the guessed initial size.
@@ -184,7 +195,10 @@ test("paused Windows/Linux transfers cannot silently trust a same-length remote 
     "agent_remote_prefix_matches(session, remote_path, local_path, offset).await?",
     "resume_prefix_requires_full_byte_identity_including_same_size_replacement()",
   ]) {
-    assert.ok(transfer.includes(contract), "Verified resume guard missing: " + contract);
+    const source = contract === "resume_prefix_requires_full_byte_identity_including_same_size_replacement()"
+      ? fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/transfer/tests.rs"), "utf8")
+      : transfer;
+    assert.ok(source.includes(contract), "Verified resume guard missing: " + contract);
   }
   const supports = transfer.slice(
     transfer.indexOf("fn supports_byte_resume(session: &Session)"),
