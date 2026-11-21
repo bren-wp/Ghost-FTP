@@ -23,11 +23,12 @@ Require exactly the following current check-run names, observed on the verified 
 - `build (windows-latest, --bundles nsis,msi, GhostFTP-Windows-x64-Preview)`
 - `build (ubuntu-22.04, --bundles deb,rpm,appimage, GhostFTP-Linux-x86_64-Preview)`
 - `Real FTP / FTPS / SFTP roundtrip`
+- `Real Windows FTP upload/download roundtrip`
 - `Windows filesystem security regressions`
 - `Desktop security gate`
 - `windows` (Validate Windows hardening)
 
-Do not require skipped release-publishing jobs, schedule-only metadata jobs or matrix parent names. The required contexts must be present for ordinary PRs. Ensure `strict: true` or use a similarly rigorous exact-head merge queue. Review requirements should be strengthened to one approval where an independent reviewer is reliably available. A zero-approval PR rule still blocks direct pushes while permitting a sole maintainer to merge a green PR.
+Do not require skipped release-publishing jobs, schedule-only metadata jobs or matrix parent names. The new Windows network-transfer test is a mandatory gate for releases after its CI verification. The required contexts must be present for ordinary PRs. Ensure `strict: true` or use a similarly rigorous exact-head merge queue. Review requirements should be strengthened to one approval where an independent reviewer is reliably available. A zero-approval PR rule still blocks direct pushes while permitting a sole maintainer to merge a green PR.
 
 ## Automatic release fail-closed check
 
@@ -37,5 +38,5 @@ The `Ghost FTP release` workflow now reads the GitHub branch API and **refuses a
 
 1. GitHub API `GET /repos/bren-wp/Ghost-FTP/branches/main` reports `protected: true` and the protection endpoint confirms admin enforcement, strict required checks and conversations.
 2. A deliberate disposable failing PR is blocked from merging, including an admin's ordinary merge workflow.
-3. A current, fully green PR with all eight exact check contexts can merge, and main's post-merge checks complete.
+3. A current, fully green PR with all nine exact check contexts can merge, and main's post-merge checks complete.
 4. Record GitHub settings evidence and dates in issue #302 before closure. The presence of this document or script is **not** evidence that the protections have been enabled.

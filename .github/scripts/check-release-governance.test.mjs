@@ -40,6 +40,22 @@ test("every passing main native build can automatically trigger a release", () =
 
 });
 
+test("real Windows FTP roundtrip cannot be bypassed by the protocol security gate", () => {
+  const workflow = read(".github/workflows/ghostftp-protocol-e2e.yml");
+  const fixture = read(".github/scripts/windows-ftp-e2e-server.py");
+  const rust = read("ghostftp-desktop/src-tauri/tests/protocol_e2e.rs");
+  assert.ok(workflow.includes("name: Real Windows FTP upload/download roundtrip"));
+  assert.ok(workflow.includes("runs-on: windows-latest"));
+  assert.ok(workflow.includes("GHOSTFTP_WINDOWS_FTP_E2E = '1'"));
+  assert.ok(workflow.includes("cargo test -p ghostftp --test protocol_e2e --locked real_windows_ftp_roundtrip"));
+  assert.ok(workflow.includes("needs: [real-protocol-roundtrip, windows-real-ftp-roundtrip, windows-file-integrity]"));
+  assert.ok(workflow.includes('test "$WINDOWS_NETWORK_RESULT" = success'));
+  assert.ok(fixture.includes('FTPServer(("127.0.0.1", port), LoopbackFTPHandler)'));
+  assert.ok(fixture.includes('authorizer.override_perm(username, str(readonly), perm="elr")'));
+  assert.ok(rust.includes('async fn real_windows_ftp_roundtrip() -> Result<()>'));
+  assert.ok(rust.includes('ftp_roundtrip('), "Windows must reuse the real upload/download integrity assertions");
+});
+
 test("automatic release fails closed if main is not protected (issue #302)", () => {
   const workflow = read(".github/workflows/ghostftp-release.yml");
   const protect = workflow.indexOf("Require protected main before automatic release promotion");

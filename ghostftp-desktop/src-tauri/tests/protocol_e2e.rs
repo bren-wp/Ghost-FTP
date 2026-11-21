@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use ghostftp_lib::profiles::{AuthMethod, ConnectionProfile};
@@ -1641,4 +1642,25 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     .await?;
 
     Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn real_windows_ftp_roundtrip() -> Result<()> {
+    if std::env::var("GHOSTFTP_WINDOWS_FTP_E2E").as_deref() != Ok("1") {
+        eprintln!("Windows FTP transfer E2E skipped (explicit opt-in not set)");
+        return Ok(());
+    }
+    if !cfg!(windows) {
+        return Err(anyhow!("Windows FTP transfer E2E must run on Windows"));
+    }
+    let username = required("GHOSTFTP_E2E_USERNAME")?;
+    let password = required("GHOSTFTP_E2E_PASSWORD")?;
+    ftp_roundtrip(
+        "ftp",
+        "127.0.0.1",
+        port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+    )
+    .await
 }

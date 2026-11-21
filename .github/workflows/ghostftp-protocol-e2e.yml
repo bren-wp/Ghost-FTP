@@ -414,6 +414,72 @@ jobs:
               print("protocol runtime version probe failed:", exc)
           PY
 
+  windows-real-ftp-roundtrip:
+    name: Real Windows FTP upload/download roundtrip
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri -> target
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install local FTP fixture
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check 'pyftpdlib>=2.1,<3'
+      - name: Prepare native Rust frontendDist
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ghostftp-desktop/dist | Out-Null
+          Set-Content ghostftp-desktop/dist/index.html '<!doctype html><html><body></body></html>'
+      - name: Real FTP upload, download, rename and overwrite safety on Windows
+        working-directory: ghostftp-desktop/src-tauri
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:GHOSTFTP_WINDOWS_FTP_E2E = '1'
+          $env:GHOSTFTP_E2E_FTP_PORT = '2121'
+          $env:GHOSTFTP_E2E_USERNAME = 'ghostftp_windows_e2e'
+          $env:GHOSTFTP_E2E_PASSWORD = [Guid]::NewGuid().ToString('N')
+          Write-Output "::add-mask::$env:GHOSTFTP_E2E_PASSWORD"
+          $root = Join-Path $env:RUNNER_TEMP 'ghostftp-windows-ftp'
+          $env:GHOSTFTP_WINDOWS_FTP_ROOT = $root
+          New-Item -ItemType Directory -Force (Join-Path $root 'ghostftp-e2e-readonly') | Out-Null
+          $script = Join-Path $env:GITHUB_WORKSPACE '.github/scripts/windows-ftp-e2e-server.py'
+          $stdout = Join-Path $env:RUNNER_TEMP 'ghostftp-windows-ftp.stdout'
+          $stderr = Join-Path $env:RUNNER_TEMP 'ghostftp-windows-ftp.stderr'
+          $server = Start-Process -FilePath (Get-Command python).Source -ArgumentList @('-u', "`"$script`"") -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 40; $i++) {
+              if ($server.HasExited) { throw 'Local Windows FTP fixture exited before readiness' }
+              $probe = [Net.Sockets.TcpClient]::new()
+              try {
+                $probe.Connect('127.0.0.1', 2121)
+                $ready = $true
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              } finally {
+                $probe.Dispose()
+              }
+            }
+            if (-not $ready) { throw 'Local Windows FTP fixture did not bind loopback port 2121' }
+            for ($attempt = 1; $attempt -le 2; $attempt++) {
+              Write-Output "Windows network transfer E2E attempt $attempt/2"
+              cargo test -p ghostftp --test protocol_e2e --locked real_windows_ftp_roundtrip -- --exact --nocapture
+              if ($LASTEXITCODE -ne 0) { throw "Windows FTP E2E failed in attempt $attempt" }
+            }
+          } finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            Remove-Item Env:GHOSTFTP_E2E_PASSWORD -ErrorAction SilentlyContinue
+          }
+
   windows-file-integrity:
     name: Windows filesystem security regressions
     runs-on: windows-latest
@@ -442,7 +508,7 @@ jobs:
 
   desktop-security-gate:
     name: Desktop security gate
-    needs: [real-protocol-roundtrip, windows-file-integrity]
+    needs: [real-protocol-roundtrip, windows-real-ftp-roundtrip, windows-file-integrity]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -452,7 +518,9 @@ jobs:
         env:
           PROTOCOL_RESULT: ${{ needs.real-protocol-roundtrip.result }}
           WINDOWS_RESULT: ${{ needs.windows-file-integrity.result }}
+          WINDOWS_NETWORK_RESULT: ${{ needs.windows-real-ftp-roundtrip.result }}
         run: |
           set -euo pipefail
           test "$PROTOCOL_RESULT" = success
           test "$WINDOWS_RESULT" = success
+          test "$WINDOWS_NETWORK_RESULT" = success

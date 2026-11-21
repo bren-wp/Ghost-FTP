@@ -21,6 +21,7 @@ required_checks=(
   "build (windows-latest, --bundles nsis,msi, GhostFTP-Windows-x64-Preview)"
   "build (ubuntu-22.04, --bundles deb,rpm,appimage, GhostFTP-Linux-x86_64-Preview)"
   "Real FTP / FTPS / SFTP roundtrip"
+  "Real Windows FTP upload/download roundtrip"
   "Windows filesystem security regressions"
   "Desktop security gate"
   "windows"
