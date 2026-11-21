@@ -119,7 +119,7 @@ fn agent_file_reply_rejects_corruption_oversize_and_false_byte_counts() {
     assert!(decode_agent_file_response("not-valid-base64", 0).is_err());
     assert!(decode_agent_file_response("YQ==", 2).is_err());
     assert!(decode_agent_file_response("A", 0).is_err());
-    let oversized = "A".repeat(((MAX_READ_FILE + 2) / 3) * 4 + 1);
+    let oversized = "A".repeat(MAX_READ_FILE.div_ceil(3) * 4 + 1);
     assert!(decode_agent_file_response(&oversized, 0).is_err());
 }
 

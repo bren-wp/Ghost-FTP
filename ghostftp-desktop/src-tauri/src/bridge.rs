@@ -2901,7 +2901,7 @@ pub(crate) async fn op_mkdir(
 /// Validate a paired Agent's read reply before exposing text through the bridge.
 fn decode_agent_file_response(data: &str, bytes: u64) -> Result<Vec<u8>> {
     use base64::Engine as _;
-    const MAX_ENCODED_READ: usize = ((MAX_READ_FILE + 2) / 3) * 4;
+    const MAX_ENCODED_READ: usize = MAX_READ_FILE.div_ceil(3) * 4;
     if data.len() > MAX_ENCODED_READ {
         anyhow::bail!("Agent file response exceeds the preview limit");
     }
