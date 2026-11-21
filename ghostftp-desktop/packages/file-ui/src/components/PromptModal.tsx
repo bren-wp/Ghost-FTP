@@ -72,8 +72,10 @@ export function PromptModal({
           disabled={submitting}
           onChange={(e) => { setValue(e.target.value); setFailure(null); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void submit();
-            else if (e.key === "Escape") closeIfIdle();
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void submit();
+            }
           }}
           className="w-full rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 text-sm outline-none focus:border-accent disabled:cursor-wait disabled:opacity-70"
         />
