@@ -10,6 +10,7 @@
 - The desktop and file-ui now share the same accessible focus-management hook, retaining `trapFocus: false` for the main workspaces and the dialog's Escape/focus restoration contract.
 - The unused JavaScript imports `@tauri-apps/plugin-fs` and `@tauri-apps/plugin-shell` had no production source references; both dependencies and their npm lockfile records were removed. Tauri native filesystem and Windows Shell operations are separate and were not removed.
 - The repository dead-code analyzer now handles Rust nested comments, raw strings and character literals inside `#[cfg(test)]` modules; tests cover production symbols after such modules.
+- Native Agent Bridge tests were extracted to `bridge/tests.rs` without removing authorization/revocation coverage. A malformed Agent file preview now fails closed with a bounded decoded length and a verified byte count, and the daemon detects true truncation by reading at most the allowed size plus one byte.
 - The existing interaction-hardening source regression checks were updated to require delegation and the new guards. No user-facing colors, layout rules or text were intentionally changed by the modal refactor.
 
 ## Review boundaries and next evidence
