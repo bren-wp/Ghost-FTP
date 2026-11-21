@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -97,10 +98,12 @@ test("Windows/Linux Quick Connect warns on FTP cleartext and resets passwords on
 
 test("Windows/Linux Sites shows real saved-profile cards with separate keyboard actions", () => {
   const sites = read("ghostftp-desktop/src/components/SiteManagerDialog.tsx");
+  const siteRows = read("ghostftp-desktop/src/components/SiteManagerSiteRow.tsx");
   const styles = read("ghostftp-desktop/src/styles.css");
-  assert.ok(sites.includes('className="ghost-site-row-main"'));
-  assert.ok(sites.includes('className="ghost-site-row-favorite"'));
-  assert.ok(sites.includes('aria-current={active ? "true" : undefined}'));
+  assert.ok(sites.includes('import { SiteRow } from "./SiteManagerSiteRow"'), "Sites must render its actual saved-site row component");
+  assert.ok(siteRows.includes('className="ghost-site-row-main"'));
+  assert.ok(siteRows.includes('className="ghost-site-row-favorite"'));
+  assert.ok(siteRows.includes('aria-current={active ? "true" : undefined}'));
   assert.ok(sites.includes("await connect(selected.id)"));
   assert.ok(sites.includes("const deletionTarget = confirmDeleteId"), "deletion must pin the originally confirmed profile");
   assert.ok(sites.includes("await deleteProfile(deletionTarget.id)"), "delete must await the pinned original profile, not a newly selected row");

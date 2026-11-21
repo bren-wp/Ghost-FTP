@@ -852,7 +852,7 @@ for (const forbidden of ["openOfficialUrl", "ReferenceWindowTitlebar", "Visit gh
   if (about.includes(forbidden)) failures.push(`Help & About still escapes the single-window shell: ${forbidden}`);
 }
 
-const siteManager = read("src/components/SiteManagerDialog.tsx");
+const siteManager = read("src/components/SiteManagerDialog.tsx") + "\n" + read("src/components/SiteManagerEmptyState.tsx");
 for (const required of [
   "ghost-site-filterbar",
   "FilterChip",

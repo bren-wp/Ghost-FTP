@@ -1,4 +1,12 @@
-## 0.99.72 Preview — 21 November 2026 (development candidate; not yet published)
+## 0.99.73 Preview — 21 November 2026 (development candidate; not yet published)
+
+- Fix Sites wasting screen width on Windows/Linux because legacy CSS reserved a third column for a two-panel UI.
+- Make the populated Sites list and details fill the available viewport; use content-width breakpoints for smaller native windows.
+- Replace duplicated no-sites/profile placeholders with one wider onboarding card and all three functional setup actions.
+- Extract `SiteManagerEmptyState.tsx` and `site-manager-layout.css`; add a Sites geometry/action regression check.
+- Maintain mandatory security, dead-code, Clippy, real protocol E2E and native packaging CI; no unverified 1:1 visual or dependency-upgrade claims.
+
+## 0.99.72 Preview — 21 November 2026 (published Preview)
 
 - Move transfer-length, HTTP wire-metadata validation and object-store progress guards into a dedicated `transfer/integrity.rs` module, while preserving existing transfer/public interface behavior.
 - Move ~2,100 lines of transfer regression tests to focused files, including HTTP integrity and transfer behavior; keep all prior coverage and source-only build checks.

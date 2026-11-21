@@ -9,6 +9,7 @@ import { applyAccent } from "./lib/accent";
 import { startLocalization } from "./lib/i18n";
 import { redactSensitiveText } from "./lib/redact";
 import "./styles.css";
+import "./styles/site-manager-layout.css";
 
 // English is the primary UI language. Language selection lives in Settings.
 startLocalization();

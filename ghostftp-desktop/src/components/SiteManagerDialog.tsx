@@ -1,10 +1,9 @@
+// Ghost FTP by Brendigo
 import { useEffect, useMemo, useRef, useState } from "react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
   Bookmark,
   Cloud,
-  ChevronDown,
-  ChevronUp,
   CopyPlus,
   Download,
   Edit3,
@@ -16,7 +15,6 @@ import {
   Save,
   Search,
   Server,
-  Star,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -28,6 +26,9 @@ import { duplicateSavedSiteIds, matchingSavedSites } from "@/lib/siteDuplicates"
 import { ConfirmModal } from "./ConfirmModal";
 import { CloudAccountConnect } from "./CloudAccountConnect";
 import { CloudStorageConnect } from "./CloudStorageConnect";
+import { SiteManagerEmptyState } from "./SiteManagerEmptyState";
+import { FilterChip, SiteSortHeader, type SiteSortField } from "./SiteManagerListControls";
+import { SiteRow } from "./SiteManagerSiteRow";
 import { ipc } from "@/lib/ipc";
 import { toast } from "@/stores/toastStore";
 import { toastError } from "@/lib/errors";
@@ -40,7 +41,7 @@ interface Props {
 
 type View = "all" | "favorites" | "recent" | "bookmarks" | string;
 type Action = "save" | "test" | "connect" | "duplicate" | "delete" | null;
-type SiteSortField = "name" | "host" | "protocol" | "lastUsed";
+
 
 const DIRECT_EDIT_PROTOCOLS = new Set<Protocol>(["sftp", "ftp", "ftps"]);
 
@@ -468,66 +469,14 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
         )}
 
         {profiles.length === 0 && !query ? (
-          <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_356px]">
-            <section className="ghost-site-manager-table min-w-0 overflow-auto border-r border-border p-3" aria-label="Saved sites">
-              <div className="mb-3 flex items-center gap-2 rounded-lg border border-border bg-bg-subtle px-3 py-2 text-xs text-text-muted">
-                <Search size={14} aria-hidden="true" />
-                <span>Search saved sites</span>
-                <span className="ml-auto tabular-nums">0 sites</span>
-              </div>
-              <div className="ghost-sites-empty">
-                <div className="ghost-sites-empty-card">
-              <Server size={52} className="mx-auto text-accent" />
-              <h2 className="mt-4 text-[20px] font-semibold">Add your first site</h2>
-              <p className="mx-auto mt-2 max-w-md text-[12px] leading-5 text-text-muted">
-                Save an FTP, FTPS, SFTP or cloud connection here so it is easy to find and reconnect later.
-              </p>
-              <div className="mt-5 flex flex-wrap justify-center gap-2">
-                <button
-                  type="button"
-                  className="ghost-primary-button"
-                  disabled={Boolean(action) || editing}
-                title={editing ? "Save or cancel changes before leaving this site." : undefined}
-                onClick={() => openNewConnection()}
-                >
-                  <Plus size={15} /> New Site
-                </button>
-                <button
-                  type="button"
-                  className="ghost-mini-button"
-                  disabled={Boolean(action) || editing}
-                  onClick={() => setCloudWizard("oauth")}
-                >
-                  <Cloud size={14} /> Connect Cloud
-                </button>
-                <button
-                  type="button"
-                  className="ghost-mini-button"
-                  disabled={Boolean(action) || editing}
-                title={editing ? "Save or cancel changes before leaving this site." : undefined}
-                onClick={() => openDialog("import")}
-                >
-                  <Download size={14} /> Import Sites
-                </button>
-                </div>
-              </div>
-              </div>
-            </section>
-            <aside className="ghost-site-manager-details min-w-0 overflow-y-auto bg-[#071f35] p-4" aria-label="Selected site details">
-              <div className="mb-3 border-b border-border pb-3 text-[11px] font-semibold uppercase tracking-wider text-accent">
-                Selected profile
-              </div>
-              <h2 className="text-[17px] font-semibold text-text">No site selected</h2>
-              <p className="mt-2 text-xs leading-5 text-text-muted">
-                Save your first connection to see its actual protocol, remote path and security details here.
-              </p>
-              <button type="button" className="ghost-primary-button mt-5" onClick={() => openNewConnection()}>
-                <Plus size={14} /> Add connection
-              </button>
-            </aside>
-          </div>
+          <SiteManagerEmptyState
+            disabled={Boolean(action) || editing}
+            onNewSite={() => openNewConnection()}
+            onConnectCloud={() => setCloudWizard("oauth")}
+            onImportSites={() => openDialog("import")}
+          />
         ) : (
-          <div className="ghost-site-manager-workspace grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_356px] gap-0">
+          <div className="ghost-site-manager-workspace ghost-site-manager-workspace--populated grid min-h-0 flex-1">
           <section
             className="ghost-site-manager-table min-w-0 overflow-auto p-3"
             aria-label="Saved sites"
@@ -892,106 +841,6 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   );
 }
 
-
-function FilterChip({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
-  return <button type="button" className={`ghost-site-filter-chip ${active ? "active" : ""}`} aria-pressed={active} onClick={onClick}><span>{label}</span><b>{count}</b></button>;
-}
-
-function SiteSortHeader({
-  label,
-  field,
-  activeField,
-  direction,
-  onSort,
-}: {
-  label: string;
-  field: SiteSortField;
-  activeField: SiteSortField;
-  direction: "asc" | "desc";
-  onSort: (field: SiteSortField) => void;
-}) {
-  const active = activeField === field;
-  return (
-    <button
-      type="button"
-      className={`flex min-w-0 items-center gap-1 text-left hover:text-white focus-visible:outline-none focus-visible:text-white ${active ? "text-text" : "text-text-dim"}`}
-      aria-label={`Sort by ${label}`}
-      aria-pressed={active}
-      onClick={() => onSort(field)}
-    >
-      <span className="truncate">{label}</span>
-      {active ? direction === "asc" ? <ChevronUp size={12}/> : <ChevronDown size={12}/> : null}
-    </button>
-  );
-}
-
-function SiteRow({
-  profile, active, favorite, favoriteBusy, connected, onClick, onFavorite,
-}: {
-  profile: ConnectionProfile; active: boolean; favorite: boolean;
-  favoriteBusy: boolean; connected: boolean;
-  onClick: () => void; onFavorite: () => void;
-}) {
-  const tag = profile.tags?.[0] || profile.group || "Sites";
-  const initials = profile.name.trim().split(/\s+/).slice(0, 2)
-    .map((part) => part.charAt(0)).join("").toUpperCase() || "S";
-  const subtitle = profile.defaultRemotePath?.trim() || profile.host;
-  return (
-    <div className={`ghost-site-row ${active ? "is-selected" : ""}`} role="group"
-      aria-label={`Saved site: ${profile.name}`}>
-      <button type="button" className="ghost-site-row-main"
-        onClick={onClick} aria-current={active ? "true" : undefined}
-        title={`${profile.name} — ${profile.protocol.toUpperCase()} — ${profile.host}`}>
-        <span className="ghost-site-row-avatar" aria-hidden="true">{initials}</span>
-        <span className="ghost-site-row-copy">
-          <strong className="ghost-site-row-name">{profile.name}</strong>
-          <span className="ghost-site-row-subtitle">{profile.protocol.toUpperCase()} · {subtitle}</span>
-          <span className="ghost-site-row-extra">
-            <em className={`ghost-site-row-tag ${tagToneClass(tag)}`}>{tag}</em>
-            <span className={connected ? "text-success" : "text-text-dim"}>
-              {connected ? "Connected" : formatLastUsed(profile.lastUsed)}
-            </span>
-          </span>
-        </span>
-      </button>
-      <button type="button" className="ghost-site-row-favorite"
-        onClick={onFavorite} disabled={favoriteBusy} aria-pressed={favorite}
-        aria-label={favorite ? `Remove ${profile.name} from favorites` : `Add ${profile.name} to favorites`}
-        title={favorite ? "Remove favorite" : "Add to favorites"}>
-        <Star size={16} fill={favorite ? "currentColor" : "none"} />
-      </button>
-    </div>
-  );
-}
-
-function tagToneClass(label: string) {
-  const normalized = label.trim().toLowerCase();
-  if (normalized.includes("production")) return "border-sky-400/55 bg-sky-500/15 text-sky-300";
-  if (normalized.includes("staging")) return "border-emerald-400/55 bg-emerald-500/15 text-emerald-300";
-  if (normalized.includes("personal")) return "border-pink-400/55 bg-pink-500/15 text-pink-300";
-  if (normalized.includes("client")) return "border-orange-400/55 bg-orange-500/15 text-orange-300";
-  if (normalized.includes("development") || normalized.includes("dev")) return "border-violet-400/55 bg-violet-500/15 text-violet-300";
-  if (normalized.includes("backup")) return "border-rose-400/55 bg-rose-500/15 text-rose-300";
-  const palette = [
-    "border-sky-400/55 bg-sky-500/15 text-sky-300",
-    "border-emerald-400/55 bg-emerald-500/15 text-emerald-300",
-    "border-violet-400/55 bg-violet-500/15 text-violet-300",
-    "border-orange-400/55 bg-orange-500/15 text-orange-300",
-    "border-pink-400/55 bg-pink-500/15 text-pink-300",
-    "border-rose-400/55 bg-rose-500/15 text-rose-300",
-  ];
-  const hash = Array.from(normalized).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return palette[hash % palette.length];
-}
-
-function formatLastUsed(value?: number) {
-  if (!value) return "—";
-  const date = new Date(value * 1000);
-  const now = new Date();
-  return date.toDateString() === now.toDateString()
-    ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : date.toLocaleDateString();
-}
 
 function EditField({
   label,
