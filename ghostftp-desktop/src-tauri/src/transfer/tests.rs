@@ -29,8 +29,7 @@ fn delta_patch_length_never_exceeds_requested_range() {
 // Inventory thresholds are only referenced by test cases. Keep their
 // imports local so the production target passes -D unused-imports.
 use super::path_safety::{
-    MAX_DIRECTORY_DOWNLOAD_DEPTH, MAX_DIRECTORY_DOWNLOAD_ENTRIES,
-    MAX_DIRECTORY_DOWNLOAD_PATH_BYTES,
+    MAX_DIRECTORY_DOWNLOAD_DEPTH, MAX_DIRECTORY_DOWNLOAD_ENTRIES, MAX_DIRECTORY_DOWNLOAD_PATH_BYTES,
 };
 
 #[tokio::test]
@@ -510,8 +509,7 @@ fn remote_root_directory_download_keeps_path_validation() {
 #[tokio::test]
 async fn directory_download_rejects_symlinked_local_parents() {
     use std::os::unix::fs::symlink;
-    let sandbox =
-        std::env::temp_dir().join(format!("ghostftp-download-links-{}", Uuid::new_v4()));
+    let sandbox = std::env::temp_dir().join(format!("ghostftp-download-links-{}", Uuid::new_v4()));
     let root = sandbox.join("download");
     let outside = sandbox.join("other-user-files");
     tokio::fs::create_dir_all(&root).await.unwrap();
@@ -542,15 +540,13 @@ fn directory_download_10k_inventory_budget_is_bounded() {
         validate_directory_download_budget(i + 1, 1, bytes).unwrap();
     }
     assert!(
-        validate_directory_download_budget(MAX_DIRECTORY_DOWNLOAD_ENTRIES + 1, 1, bytes)
-            .is_err()
+        validate_directory_download_budget(MAX_DIRECTORY_DOWNLOAD_ENTRIES + 1, 1, bytes).is_err()
     );
     assert!(
         validate_directory_download_budget(1, MAX_DIRECTORY_DOWNLOAD_DEPTH + 1, bytes).is_err()
     );
     assert!(
-        validate_directory_download_budget(1, 1, MAX_DIRECTORY_DOWNLOAD_PATH_BYTES + 1)
-            .is_err()
+        validate_directory_download_budget(1, 1, MAX_DIRECTORY_DOWNLOAD_PATH_BYTES + 1).is_err()
     );
 }
 
@@ -582,8 +578,7 @@ async fn in_memory_cloud_adapters_reject_huge_files_without_reading_them() {
 
 #[tokio::test]
 async fn bounded_cloud_reader_rejects_changed_files_and_preserves_content() {
-    let root =
-        std::env::temp_dir().join(format!("ghostftp-bounded-content-{}", Uuid::new_v4()));
+    let root = std::env::temp_dir().join(format!("ghostftp-bounded-content-{}", Uuid::new_v4()));
     tokio::fs::create_dir_all(&root).await.unwrap();
     let path = root.join("small.bin");
     tokio::fs::write(&path, b"abcde").await.unwrap();
@@ -1356,8 +1351,7 @@ fn adversarial_remote_filenames_cannot_create_windows_devices_or_ads() {
             "unsafe filename accepted: {name:?}"
         );
         assert!(
-            checked_remote_download_relative("/downloads", &format!("/downloads/{name}"))
-                .is_err(),
+            checked_remote_download_relative("/downloads", &format!("/downloads/{name}")).is_err(),
             "unsafe recursive download accepted: {name:?}"
         );
     }
@@ -1762,8 +1756,7 @@ async fn delta_upload_reuses_unchanged_blocks() {
 
     // Mutate 1 KiB in the middle and upload again → delta.
     let mut content = std::fs::read(&local).unwrap();
-    content[10 * 1024 * 1024..10 * 1024 * 1024 + 1024]
-        .copy_from_slice(&det_bytes(0xBBBB, 1024));
+    content[10 * 1024 * 1024..10 * 1024 * 1024 + 1024].copy_from_slice(&det_bytes(0xBBBB, 1024));
     std::fs::write(&local, &content).unwrap();
     mgr.update("t", |t| t.transferred = 0).await;
     mgr.agent_upload_with_delta_core("t", &session, &local, &remote_s, None)

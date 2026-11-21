@@ -17,7 +17,11 @@ pub(super) fn completed_transfer_size(expected: u64, actual: u64) -> Result<u64>
 /// earlier directory listing. Guard each part before writing: a broken or
 /// malicious backend must not consume unlimited disk after exceeding its own
 /// declared object length. Zero-length objects are verified normally.
-pub(super) fn checked_object_download_progress(expected: u64, written: u64, next_bytes: usize) -> Result<u64> {
+pub(super) fn checked_object_download_progress(
+    expected: u64,
+    written: u64,
+    next_bytes: usize,
+) -> Result<u64> {
     let next_bytes = u64::try_from(next_bytes).context("object chunk length overflow")?;
     let next = written
         .checked_add(next_bytes)
@@ -69,7 +73,9 @@ pub(super) fn checked_http_download_progress(
 }
 
 /// The declared wire size is meaningful only for identity-encoded HTTP.
-pub(super) fn declared_plain_http_length(headers: &reqwest::header::HeaderMap) -> Result<Option<u64>> {
+pub(super) fn declared_plain_http_length(
+    headers: &reqwest::header::HeaderMap,
+) -> Result<Option<u64>> {
     use reqwest::header::{CONTENT_ENCODING, CONTENT_LENGTH};
     let mut encodings = headers.get_all(CONTENT_ENCODING).iter();
     if let Some(encoding) = encodings.next() {
