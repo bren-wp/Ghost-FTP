@@ -6838,18 +6838,37 @@ fn format_exec_result(body: &Value) -> String {
     out
 }
 
+fn http_reason_phrase(status: u16) -> &'static str {
+    match status {
+        200 => "OK",
+        201 => "Created",
+        202 => "Accepted",
+        204 => "No Content",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        408 => "Request Timeout",
+        409 => "Conflict",
+        413 => "Content Too Large",
+        422 => "Unprocessable Content",
+        429 => "Too Many Requests",
+        500 => "Internal Server Error",
+        502 => "Bad Gateway",
+        503 => "Service Unavailable",
+        504 => "Gateway Timeout",
+        _ => "Unknown Status",
+    }
+}
+
 async fn write_raw(
     stream: &mut TcpStream,
     status: u16,
     content_type: &str,
     body: &[u8],
 ) -> Result<()> {
-    let reason = match status {
-        200 => "OK",
-        202 => "Accepted",
-        405 => "Method Not Allowed",
-        _ => "OK",
-    };
+    let reason = http_reason_phrase(status);
     let head = format!(
         "HTTP/1.1 {status} {reason}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         body.len()

@@ -1,4 +1,4 @@
-//! Native execution of a controller's [`Request`] on this machine.
+//! Ghost FTP by Brendigo — Native execution of a controller's [`Request`] on this machine.
 //!
 //! Every side-effecting op is gated by the daemon's [`Policy`] *before* it runs;
 //! a refusal comes back as [`Response::denied`] so the controller (and the AI

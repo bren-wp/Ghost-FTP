@@ -93,6 +93,27 @@
     }
 
     #[test]
+    fn http_error_statuses_use_correct_reason_phrases() {
+        for (status, reason) in [
+            (200, "OK"),
+            (400, "Bad Request"),
+            (401, "Unauthorized"),
+            (403, "Forbidden"),
+            (404, "Not Found"),
+            (405, "Method Not Allowed"),
+            (413, "Content Too Large"),
+            (429, "Too Many Requests"),
+            (500, "Internal Server Error"),
+            (502, "Bad Gateway"),
+            (503, "Service Unavailable"),
+            (504, "Gateway Timeout"),
+        ] {
+            assert_eq!(http_reason_phrase(status), reason);
+        }
+        assert_eq!(http_reason_phrase(599), "Unknown Status");
+    }
+
+    #[test]
     fn agent_file_reply_rejects_corruption_oversize_and_false_byte_counts() {
         assert_eq!(decode_agent_file_response("YQ==", 1).unwrap(), b"a");
         assert_eq!(decode_agent_file_response("", 0).unwrap(), b"");
