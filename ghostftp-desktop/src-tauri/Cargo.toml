@@ -68,7 +68,7 @@ ssh-key = { version = "0.6", features = ["ed25519", "rsa", "encryption", "getran
 # daemon's identity/config dir, so embedded and headless are interchangeable.
 ghostftp-agent-proto = { path = "ghostftp-agent-proto" }
 ghostftp-agentd = { path = "ghostftp-agentd" }
-mdns-sd = "0.11"
+mdns-sd = "0.22"
 
 # FTP / FTPS — sync API, driven from tokio via spawn_blocking.
 suppaftp = { version = "12", features = ["native-tls"] }

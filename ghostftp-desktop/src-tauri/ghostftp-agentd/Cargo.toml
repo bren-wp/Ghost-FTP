@@ -20,7 +20,7 @@ dirs = "5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 gethostname = "0.4"
-mdns-sd = "0.11"
+mdns-sd = "0.22"
 libc = "0.2"
 
 [dev-dependencies]
