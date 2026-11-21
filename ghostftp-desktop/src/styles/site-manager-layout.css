@@ -1,0 +1,207 @@
+/* Ghost FTP by Brendigo — responsive Sites workspace */
+.ghost-site-manager {
+  container: sites-workspace / inline-size;
+}
+
+.ghost-site-manager .ghost-site-manager-workspace.ghost-site-manager-workspace--populated {
+  display: grid !important;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(320px, 42%) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: clamp(10px, 1.1vw, 20px) !important;
+  padding: clamp(10px, 1.2vw, 18px);
+  overflow: hidden;
+}
+
+.ghost-site-manager .ghost-site-manager-workspace.ghost-site-manager-workspace--empty {
+  display: grid !important;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  padding: clamp(10px, 1.3vw, 20px);
+  overflow: hidden;
+}
+
+.ghost-site-manager-workspace--populated > .ghost-site-manager-table,
+.ghost-site-manager-workspace--populated > .ghost-site-manager-details {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.ghost-site-manager-workspace--populated > .ghost-site-manager-table {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+.ghost-site-manager-workspace--populated > .ghost-site-manager-details {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+.ghost-site-manager-workspace--empty > .ghost-site-manager-table {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.ghost-site-manager-workspace--empty .ghost-sites-empty {
+  width: 100%;
+  min-width: 0;
+  padding: clamp(16px, 3vw, 40px);
+}
+
+.ghost-site-manager-workspace--empty .ghost-sites-empty-card {
+  width: min(780px, 100%);
+  padding: clamp(24px, 3.5vw, 48px);
+  border-radius: 16px;
+}
+
+.ghost-sites-empty-icon {
+  display: grid;
+  width: 78px;
+  height: 78px;
+  margin: 0 auto 16px;
+  place-items: center;
+  color: #47b6ff;
+  background: #103755;
+  border: 1px solid #245c81;
+  border-radius: 20px;
+}
+
+.ghost-sites-empty-eyebrow {
+  margin: 0 0 9px;
+  color: #7ab9e4;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.ghost-sites-empty-heading {
+  margin: 0;
+  color: #edf7ff;
+  font-size: clamp(23px, 2.3vw, 30px);
+  font-weight: 720;
+  line-height: 1.24;
+}
+
+.ghost-sites-empty-description {
+  max-width: 530px;
+  margin: 14px auto 0;
+  color: #a9c9e2;
+  font-size: 14px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.ghost-sites-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.ghost-sites-empty-actions button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.ghost-sites-empty-actions button:focus-visible {
+  outline: 2px solid #85d0ff;
+  outline-offset: 3px;
+}
+
+.ghost-sites-empty-hint {
+  margin: 20px auto 0;
+  max-width: 560px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #86aaca;
+}
+
+@container sites-workspace (max-width: 940px) {
+  .ghost-site-manager .ghost-site-manager-workspace.ghost-site-manager-workspace--populated {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(240px, 44%) minmax(0, 1fr) !important;
+    overflow: hidden;
+  }
+
+  .ghost-site-manager-workspace--populated > .ghost-site-manager-table {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  .ghost-site-manager-workspace--populated > .ghost-site-manager-details {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+}
+
+@container sites-workspace (max-width: 590px) {
+  .ghost-site-manager .ghost-site-manager-workspace.ghost-site-manager-workspace--populated {
+    display: flex !important;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    gap: 10px !important;
+    padding: 9px;
+  }
+
+  .ghost-site-manager-workspace--populated > .ghost-site-manager-table {
+    flex: 0 0 auto;
+    min-height: 210px !important;
+    max-height: min(42dvh, 360px) !important;
+  }
+
+  .ghost-site-manager-workspace--populated > .ghost-site-manager-details {
+    flex: 1 0 auto;
+    min-height: 240px !important;
+    max-height: none !important;
+  }
+
+  .ghost-site-manager-workspace--empty .ghost-sites-empty {
+    padding: 10px;
+  }
+
+  .ghost-site-manager-workspace--empty .ghost-sites-empty-card {
+    padding: 20px 16px;
+  }
+
+  .ghost-sites-empty-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ghost-sites-empty-actions button {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@container sites-workspace (max-height: 620px) {
+  .ghost-site-manager-workspace--empty .ghost-sites-empty {
+    align-items: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost-sites-empty-actions button { transition: none; }
+}
