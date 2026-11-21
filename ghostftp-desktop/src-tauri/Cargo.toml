@@ -131,7 +131,7 @@ keyring = { version = "3", features = ["windows-native", "linux-native"] }
 argon2 = "0.5"
 aes-gcm = "0.10"
 flate2 = "1"
-rand = "0.8"
+rand = "0.10"
 
 # Windows-only: registry access for the PuTTY sessions importer, plus the
 # Cloud Filter API (`cldapi.dll`) that powers on-demand virtual folders (Plan 9)
