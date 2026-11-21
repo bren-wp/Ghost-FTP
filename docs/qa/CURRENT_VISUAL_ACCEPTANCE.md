@@ -15,6 +15,8 @@
 
 Pixel-exactness is meaningful only for a controlled rendering environment with a genuinely approved reference. Differences from dynamic timestamps, filesystem entries, font rasterizers and OS chrome must be identified rather than hidden behind invented percentages. Visual parity does not establish accessibility, transfer integrity, encryption or release readiness. All required security, protocol and installer gates remain independent.
 
+**Current reference inventory:** `docs/qa/PREMIUM_REFERENCE_75.json` lists 59 maintained desktop screens (30 Windows and 29 Linux). `docs/qa/PREMIUM_REFERENCE_EVIDENCE.json` reports **0/59 verified** for the current source; every entry remains `unverified`. This is not a claim that those screens are absent or defective—only that exact, approved, current-version pixel evidence has not been recorded.
+
 The current tracked `docs/qa/PREMIUM_REFERENCE_EVIDENCE.json` contains unverified screen entries. Earlier README screenshots have documented native-build provenance but must not be described as new-version captures. Re-capture before a current-version screenshot claim.
 
 See [visual tools](../../tools/visual/pixel_compare.py), [existing reference inventory](PREMIUM_REFERENCE_EVIDENCE.json), [QA overview](README.md) and [Stable release requirements](../release/STABLE_RELEASE_POLICY.md).

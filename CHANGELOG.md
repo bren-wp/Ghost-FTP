@@ -8,6 +8,7 @@
 - Remove unused Tauri JavaScript filesystem and shell plugin dependencies from both package.json and the resolved lockfile; native Rust transfer/path permissions remain unchanged.
 - Improve conservative Rust dead-code analysis to handle nested block comments, raw string delimiters and character literals, with regression fixtures.
 - Split 400+ Agent Bridge Rust tests into their own module; reject malformed/oversized Agent file previews, validate reported byte lengths and fix exact-size truncation flags, with regressions.
+- Correct Agent Bridge HTTP status reason phrases for failed requests and add code-level tests for common success and error statuses.
 - Correct 0.99.73 published lineage across Windows/Linux documentation, reconcile current EULA/LICENSE distribution addendum and add legal, visual and focused code audit checklists.
 - This is **source-only** until exact-commit CI and Windows/Linux native/FTP E2E acceptance pass. Approved 1:1 visuals, signed updates, independent commercial licence review and GitHub main protection remain separate acceptance work.
 
