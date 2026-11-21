@@ -1,4 +1,4 @@
-> **Current source: Ghost FTP v0.99.73 Preview candidate; previously published v0.99.72 (21 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Current source: Ghost FTP v0.99.74 Preview candidate; previously published v0.99.73 (21 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP — Project Status & Recommended Next Work
 
@@ -12,7 +12,7 @@ Historical 0.99.4 development notes (following 0.99.3) are retained below for re
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.72**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.73**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
@@ -30,7 +30,7 @@ Previous canonical release: **0.99.72**. Live publication state is determined fr
 | Productivity | Docked terminal, command palette, snippets, shortcuts and shell integration |
 | Preferences | Themes, language, transfer limits, security settings, notifications and advanced controls |
 | Security/privacy | OS credential storage where supported, CSP, signed-updater path, credential redaction and no required telemetry |
-| Android | Native FTP, explicit FTPS and SFTP connection/listing/download/upload/delete/new-folder actions plus Files/Sites/Transfers/Sync & Backup/Settings/Help & About workspace parity |
+| Historical Android support | Retired from the maintained Windows/Linux client source and current release inventory; historical release notes retain earlier work |
 | Documentation provenance | Local README/docs images are verified against the latest published release tag |
 
 Full capability detail: [FEATURES.md](FEATURES.md).
@@ -163,4 +163,4 @@ Publishing a development release is not the same as a stable/FINAL claim. Stable
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Potvrđeni rezultati testova, a ne samo broj verzije, određuju spremnost izdanja.
 
 
-Previously published Preview: v0.99.72 (21 November 2026). Current development source: v0.99.73. See GitHub Releases and `docs/releases/0.99.73.md` for current acceptance limits.
+Previously published Preview: v0.99.73 (21 November 2026). Current development source: v0.99.74. See GitHub Releases and `docs/releases/0.99.73.md` for current acceptance limits.

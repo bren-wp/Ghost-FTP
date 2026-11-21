@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -37,6 +38,16 @@ test("every passing main native build can automatically trigger a release", () =
   assert.ok(workflow.includes("false:true:21"));
   assert.ok(workflow.includes("Refusing v0.95.52 while v0.95.51"));
 
+});
+
+test("automatic release fails closed if main is not protected (issue #302)", () => {
+  const workflow = read(".github/workflows/ghostftp-release.yml");
+  const protect = workflow.indexOf("Require protected main before automatic release promotion");
+  const select = workflow.indexOf("Authorize latest native build for exact current main SHA");
+  assert.ok(protect >= 0 && protect < select, "Protection check must precede release authorization");
+  assert.ok(workflow.includes('MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq \'.protected\')"'));
+  assert.ok(workflow.includes('if [ "$MAIN_PROTECTED" != "true" ]; then'));
+  assert.ok(workflow.includes("Refusing automatic Ghost FTP release: main is unprotected"));
 });
 
 test("merged changes advance version, except exact unpublished release repairs with immutable lineage", () => {

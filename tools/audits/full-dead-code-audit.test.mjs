@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -58,11 +59,26 @@ fn last() {}`;
   assert.deepEqual(privateSymbolCandidates([["src/lib.rs", rust]], "rust").map(x=>x.name), ["before", "after", "last"]);
 });
 
+test("Rust test-module boundaries survive nested comments, character literals and raw strings", () => {
+  const source = [
+    "fn before() {}",
+    "#[cfg(test)]",
+    "mod tests {",
+    "  /* outer { /* nested } */ still { */",
+    "  const CLOSE: char = '}';",
+    "  let data = r###\"} quote \"## still raw }\"###;",
+    "  fn internalOnly() {}",
+    "}",
+    "fn after() {}",
+  ].join("\n");
+  assert.deepEqual(privateSymbolCandidates([["src/lib.rs", source]], "rust").map(x => x.name), ["before", "after"]);
+});
 test("whole-project inventory sees desktop scripts and excludes generated files", () => temporary((root, put) => {
   for (const [name, content] of [
     ["ghostftp-desktop/src/main.tsx", "function unusedUi() {}"],
     ["ghostftp-desktop/src-tauri/src/lib.rs", "fn unusedRust() {}"],
     ["ghostftp-desktop/src-tauri/tests/protocol_e2e.rs", "#[test]\nfn realTest() {}"],
+    ["ghostftp-desktop/src-tauri/src/bridge/tests.rs", "fn embeddedUnitTestOnly() {}"],
     ["tools/ghostftp-installer/main.go", "package main\nfunc main() {}\nfunc unusedInstaller() {}"],
     ["tools/ghostftp-runtime/main.go", "package main\nfunc main() {}"],
     ["ghostftp-desktop/target/generated.rs", "generated"],
@@ -71,9 +87,10 @@ test("whole-project inventory sees desktop scripts and excludes generated files"
   assert.deepEqual(report.entrypointBlockers, []);
   assert.ok(report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="unusedRust"));
   assert.ok(!report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="realTest"));
+  assert.ok(!report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="embeddedUnitTestOnly"));
   assert.ok("desktopTypeScript" in report.advisoryPrivateSymbols);
   assert.ok("installerRuntimeGo" in report.advisoryPrivateSymbols);
-  assert.equal(report.counts.rust, 2);
+  assert.equal(report.counts.rust, 3);
 }));
 
 test("obsolete mock server automation remains prohibited", () => {

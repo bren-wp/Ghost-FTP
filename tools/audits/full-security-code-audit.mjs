@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Ghost FTP by Brendigo
 /**
  * Exact-source security code audit across all maintained platforms and release
  * automation. Static checks are regression gates, not a penetration test.
@@ -53,6 +54,7 @@ export function isRuntimeCode(file) {
   ];
   return production.some(p => file.startsWith(p)) &&
     !/\/(?:test|tests|__tests__)\//i.test(file) &&
+    !/\/tests\.rs$/i.test(file) &&
     !/(?:\.test|_test)\.(?:rs|go|ts|tsx|kt)$/i.test(file);
 }
 export function scanDangerous(file, content) {
@@ -195,6 +197,9 @@ const REQUIRED = [
     "fn promote_verified_agent_delta_output(", "symlink_metadata(temp)",
     "existing.file_type().is_file()", "total.checked_add(bytes)",
     "apply_delta cleans up only its own output",
+    "async fn agent_read_file_reports_truncation_only_when_bytes_are_missing()",
+    ".take((cap as u64).saturating_add(1))",
+    "let truncated = buf.len() > cap;",
   ]],
   // The transfer path-safety domain was extracted from transfer.rs. Treat
   // removal of its fail-closed checks as a security regression, not dead code.
@@ -251,6 +256,12 @@ const REQUIRED = [
     "HTTP_READ_TIMEOUT", "tokio::time::timeout(HTTP_READ_TIMEOUT",
     "MAX_BRIDGE_CONNECTIONS", "try_acquire_owned()",
     "if req.has_origin", "create_new(true)", ".mode(0o600)",
+    "fn decode_agent_file_response(", "decode_agent_file_response(&data, bytes)",
+    "Agent read returned invalid or oversized data",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/bridge/tests.rs", [
+    "agent_file_reply_rejects_corruption_oversize_and_false_byte_counts",
+    "revoke_all_access_clears_runtime_profiles_and_approval_policy",
   ]],
   ["ghostftp-desktop/src-tauri/src/bridge/http_request.rs", [
     "duplicate Content-Length", "Transfer-Encoding is not supported",

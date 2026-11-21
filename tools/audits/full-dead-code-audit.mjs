@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Ghost FTP by Brendigo
 /**
  * Conservative repository-wide dead-code inventory.
  * No file or public API is deleted automatically. Compiler, runtime, OS and
@@ -44,11 +45,17 @@ export function rustTestModuleRanges(source) {
     let depth = 0;
     let finish = source.length;
     let mode = "code";
+    let blockDepth = 0;
     for (let index = start; index < source.length; index++) {
       const ch = source[index], next = source[index + 1];
       if (mode === "line") { if (ch === "\n") mode = "code"; continue; }
       if (mode === "block") {
-        if (ch === "*" && next === "/") { mode = "code"; index++; }
+        if (ch === "/" && next === "*") { blockDepth++; index++; continue; }
+        if (ch === "*" && next === "/") {
+          blockDepth--;
+          if (blockDepth === 0) mode = "code";
+          index++;
+        }
         continue;
       }
       if (mode === "string") {
@@ -57,7 +64,22 @@ export function rustTestModuleRanges(source) {
         continue;
       }
       if (ch === "/" && next === "/") { mode = "line"; index++; continue; }
-      if (ch === "/" && next === "*") { mode = "block"; index++; continue; }
+      if (ch === "/" && next === "*") { mode = "block"; blockDepth = 1; index++; continue; }
+      if (ch === "r" && (next === '"' || next === "#")) {
+        let quote = index + 1;
+        while (source[quote] === "#") quote++;
+        if (source[quote] === '"') {
+          const terminator = '"' + "#".repeat(quote - index - 1);
+          const end = source.indexOf(terminator, quote + 1);
+          if (end === -1) break;
+          index = end + terminator.length - 1;
+          continue;
+        }
+      }
+      if (ch === "'") {
+        const character = /^'(?:\\.|[^\\'])'/.exec(source.slice(index));
+        if (character) { index += character[0].length - 1; continue; }
+      }
       if (ch === '"') { mode = "string"; continue; }
       if (ch === "{") depth++;
       else if (ch === "}" && --depth === 0) {
@@ -126,9 +148,9 @@ export function audit(directory = root) {
   // Rust integration tests are binaries with harness-registered #[test]
   // entrypoints, never production functions. Include them as references,
   // but never report their own test functions as unused application code.
-  const rustTests = rust.filter((p) => /\/(?:tests|test)\//.test(posix(p)))
+  const rustTests = rust.filter((p) => /\/(?:tests|test)\/|\/tests\.rs$/.test(posix(p)))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
-  const rustSources = rust.filter((p) => !/\/(?:tests|test)\//.test(posix(p)))
+  const rustSources = rust.filter((p) => !/\/(?:tests|test)\/|\/tests\.rs$/.test(posix(p)))
     .map((p) => [posix(path.relative(directory, p)), fs.readFileSync(p, "utf8")]);
   const typescript = files.filter((p) => p.startsWith(inside("ghostftp-desktop/")) && /\.(?:ts|tsx)$/.test(p));
   const tsSources = typescript.filter((p) => !/\.(?:test|spec)\.(?:ts|tsx)$/.test(p))

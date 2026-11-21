@@ -1,4 +1,18 @@
-## 0.99.73 Preview — 21 November 2026 (development candidate; not yet published)
+<!-- Ghost FTP by Brendigo -->
+
+## 0.99.74 Preview — 21 November 2026 (development candidate; not yet published)
+
+- Prevent repeat destructive confirmation and file prompt actions through synchronous guards that remain held until successful dismissal; release guards safely after a failed action.
+- Reuse the shared file-ui confirmation component and accessible dialog focus hook from the desktop shell instead of maintaining duplicate implementations.
+- Handle Escape once, prevent unintended Enter form submission, and retain the existing desktop toast and shared inline error feedback.
+- Remove unused Tauri JavaScript filesystem and shell plugin dependencies from both package.json and the resolved lockfile; native Rust transfer/path permissions remain unchanged.
+- Improve conservative Rust dead-code analysis to handle nested block comments, raw string delimiters and character literals, with regression fixtures.
+- Split 400+ Agent Bridge Rust tests into their own module; reject malformed/oversized Agent file previews, validate reported byte lengths and fix exact-size truncation flags, with regressions.
+- Correct Agent Bridge HTTP status reason phrases for failed requests and add code-level tests for common success and error statuses.
+- Correct 0.99.73 published lineage across Windows/Linux documentation, reconcile current EULA/LICENSE distribution addendum and add legal, visual and focused code audit checklists.
+- This is **source-only** until exact-commit CI and Windows/Linux native/FTP E2E acceptance pass. Approved 1:1 visuals, signed updates, independent commercial licence review and GitHub main protection remain separate acceptance work.
+
+## 0.99.73 Preview — 21 November 2026 (published Preview)
 
 - Fix Sites wasting screen width on Windows/Linux because legacy CSS reserved a third column for a two-panel UI.
 - Make the populated Sites list and details fill the available viewport; use content-width breakpoints for smaller native windows.

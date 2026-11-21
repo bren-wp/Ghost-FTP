@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import fs from "node:fs";
 import "./check-transfer-failure-review.mjs";
 
@@ -23,22 +24,32 @@ function requireExcludes(file, forbidden, label) {
 }
 
 requireIncludes(
+  "src/hooks/useDialog.ts",
+  ['export { useDialog } from "@ghostftp/file-ui";'],
+  "single accessible dialog hook implementation"
+);
+requireIncludes(
+  "packages/file-ui/src/hooks/useDialog.ts",
+  ["trapFocus = true", 'if (e.key !== "Tab" || !trapFocus) return;', "[enabled, trapFocus]"],
+  "shared desktop and file-ui focus management"
+);
+
+requireIncludes(
   "src/components/ConfirmModal.tsx",
   [
-    "const [submitting, setSubmitting] = useState(false)",
-    "await onConfirm();",
-    "disabled={submitting}",
-    "aria-busy={submitting}",
-    "toastError(error",
-    "Working…",
+    "FileConfirmModal",
+    "onError={(error) => toastError(error",
   ],
-  "duplicate-confirm protection"
+  "desktop wrapper delegates to shared confirmation and preserves error toast"
 );
 
 requireIncludes(
   "packages/file-ui/src/components/ConfirmModal.tsx",
   [
     "const [submitting, setSubmitting] = useState(false)",
+    "const submittingRef = useRef(false)",
+    "if (submittingRef.current) return;",
+    "submittingRef.current = true;",
     "await onConfirm();",
     "disabled={submitting}",
     "aria-busy={submitting}",
@@ -52,6 +63,9 @@ requireIncludes(
   "packages/file-ui/src/components/PromptModal.tsx",
   [
     "const [submitting, setSubmitting] = useState(false)",
+    "const submittingRef = useRef(false)",
+    "if (submittingRef.current || value.trim().length === 0) return;",
+    "submittingRef.current = true;",
     "await onSubmit(value);",
     "disabled={submitting}",
     "aria-busy={submitting}",
@@ -60,6 +74,17 @@ requireIncludes(
   ],
   "shared file-ui prompt serialization"
 );
+
+const confirmHandler = read("packages/file-ui/src/components/ConfirmModal.tsx");
+const promptHandler = read("packages/file-ui/src/components/PromptModal.tsx");
+for (const [name, source] of [["confirm", confirmHandler], ["prompt", promptHandler]]) {
+  const submitStart = source.indexOf(name === "confirm" ? "const confirm = async" : "const submit = async");
+  const catchStart = source.indexOf("} catch", submitStart);
+  const releaseStart = source.indexOf("submittingRef.current = false;", submitStart);
+  if (submitStart < 0 || catchStart < 0 || releaseStart < catchStart) {
+    failures.push(name + " modal: single-flight guard must remain held until successful close; release only on failure");
+  }
+}
 
 requireIncludes(
   "packages/file-ui/src/components/FilePane.tsx",

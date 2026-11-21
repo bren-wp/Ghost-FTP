@@ -24,6 +24,17 @@ jobs:
       should_publish: ${{ steps.latest.outputs.should_publish }}
       native_run_id: ${{ steps.latest.outputs.native_run_id }}
     steps:
+      - name: Require protected main before automatic release promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.protected')"
+          if [ "$MAIN_PROTECTED" != "true" ]; then
+            echo "::error::Refusing automatic Ghost FTP release: main is unprotected (issue #302)." >&2
+            exit 1
+          fi
       - id: latest
         name: Authorize latest native build for exact current main SHA
         env:
