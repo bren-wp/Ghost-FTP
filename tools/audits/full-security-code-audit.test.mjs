@@ -75,6 +75,7 @@ test("persisted Agent Bridge authorization remains revocable through Security se
   const ipc = read("ghostftp-desktop/src/lib/ipc.ts");
   const commands = read("ghostftp-desktop/src-tauri/src/commands.rs");
   const native = read("ghostftp-desktop/src-tauri/src/bridge.rs");
+  const bridgeTests = read("ghostftp-desktop/src-tauri/src/bridge/tests.rs");
   const app = read("ghostftp-desktop/src-tauri/src/lib.rs");
   assert.ok(ui.includes("<AgentBridgeSecurityCard/>"), "Agent Bridge controls must stay reachable");
   assert.ok(ui.includes("Confirm revoke all access"), "revocation requires explicit UI confirmation");
@@ -86,7 +87,7 @@ test("persisted Agent Bridge authorization remains revocable through Security se
   assert.ok(app.includes("commands::bridge_revoke_all_access,"));
   assert.ok(native.includes("pub async fn revoke_all_access"));
   assert.ok(native.includes("config.enabled_profiles.is_empty()"));
-  assert.ok(native.includes("revoke_all_access_clears_runtime_profiles_and_approval_policy"));
+  assert.ok(bridgeTests.includes("revoke_all_access_clears_runtime_profiles_and_approval_policy"));
 });
 
 test("repository security inventory finds every occurrence and prohibits unsafe browser/CLI bridges", () => {
