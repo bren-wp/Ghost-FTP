@@ -1,9 +1,9 @@
 // Ghost FTP by Brendigo
 export const PRODUCT_NAME = "Ghost FTP";
-export const PRODUCT_VERSION = "0.99.73";
-export const PRODUCT_VERSION_DISPLAY = "0.99.73";
-export const PRODUCT_VERSION_BADGE = "0.99.73";
-export const PRODUCT_BUILD = "2026.11.21.02";
+export const PRODUCT_VERSION = "0.99.74";
+export const PRODUCT_VERSION_DISPLAY = "0.99.74";
+export const PRODUCT_VERSION_BADGE = "0.99.74";
+export const PRODUCT_BUILD = "2026.11.21.03";
 export const PRODUCT_RELEASE_DATE = "21 November 2026";
 export const PRODUCT_SITE = "https://ghostftp.com";
 // Verified published Ghost FTP website routes; the in-app updater remains separate.
