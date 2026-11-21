@@ -103,7 +103,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 Ghost FTP now rejects ambiguous HTTP download metadata instead of risking incorrect length verification. Core transfer integrity checks have been modularized for clearer maintenance and test coverage.
 
-The previously published 0.99.71 release hardens **Windows file and browser opening** by calling the native Shell API instead of searching PATH/CWD for `rundll32.exe`. Approved external links run on a blocking worker so Shell/COM work does not freeze the Tauri interface. The registered file association is still controlled by Windows and the user.
+The previously published v0.99.71 Preview release hardens **Windows file and browser opening** by calling the native Shell API instead of searching PATH/CWD for `rundll32.exe`. Approved external links run on a blocking worker so Shell/COM work does not freeze the Tauri interface. The registered file association is still controlled by Windows and the user.
 
 Untrusted `ghostftp://` deep links now have bounded input and query counts, refuse decoded control characters, and reject embedded URL userinfo, ports and fragments. The SSH terminal now preserves UTF-8 sequences split between network packets (with separate stdout/stderr decoders) and uses a fair event loop to avoid output starvation during heavy input.
 
