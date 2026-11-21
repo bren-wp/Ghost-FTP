@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { useId, useRef, useState } from "react";
 import { useDialog } from "../hooks/useDialog";
 
@@ -8,6 +9,7 @@ interface Props {
   destructive?: boolean;
   onClose: () => void;
   onConfirm: () => void | Promise<void>;
+  onError?: (error: unknown) => void;
 }
 
 export function ConfirmModal({
@@ -17,25 +19,31 @@ export function ConfirmModal({
   destructive,
   onClose,
   onConfirm,
+  onError,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [failure, setFailure] = useState<string | null>(null);
 
   const closeIfIdle = () => {
-    if (!submitting) onClose();
+    if (!submittingRef.current) onClose();
   };
 
   const confirm = async () => {
-    if (submitting) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setFailure(null);
     try {
       await onConfirm();
       onClose();
-    } catch {
-      setFailure("Action failed. Please try again.");
+    } catch (error) {
+      if (onError) onError(error);
+      else setFailure("Action failed. Please try again.");
+    } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
