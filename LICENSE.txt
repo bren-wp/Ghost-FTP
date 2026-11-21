@@ -1,9 +1,9 @@
 Ghost FTP by Brendigo
 
 GHOST FTP DESKTOP — CURRENT DISTRIBUTION ADDENDUM
-Version 1.2 · 21 November 2026
+Version 1.3 · 21 November 2026
 
-1. Scope. The supported end-user product in the 0.99.72 Preview source line is the Ghost FTP graphical file-transfer client for Windows and Linux, together with any actual client installers, portable archives, documentation and updates. Names of older standalone Server, CLI and Demo products in historic terms are not a promise that those separately distributed products remain available, maintained or licensed in the current release. Current functionality is defined by the actual shipped build and public release notes.
+1. Scope. The supported end-user product in the 0.99.73 Preview source line is the Ghost FTP graphical file-transfer client for Windows and Linux, together with any actual client installers, portable archives, documentation and updates. Names of older standalone Server, CLI and Demo products in historic terms are not a promise that those separately distributed products remain available, maintained or licensed in the current release. Current functionality is defined by the actual shipped build and public release notes.
 
 2. Entitlements. The contracting licensor is the legal entity identified in the relevant order or other applicable commercial document. This clarification neither creates new charges nor changes paid entitlements already agreed. A publicly available Preview binary is not proof of a paid subscription, a warranty of unrestricted commercial rights, or authorisation to access third-party servers. Open-source dependencies remain subject to their own binding licence terms.
 
