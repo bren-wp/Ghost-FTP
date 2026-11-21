@@ -268,7 +268,7 @@ fn file_mode(_md: &std::fs::Metadata) -> Option<u32> {
 
 async fn read_file(path: &str, max_bytes: u64) -> Response {
     let cap = max_bytes.min(4 * 1024 * 1024) as usize;
-    let mut file = match tokio::fs::File::open(path).await {
+    let file = match tokio::fs::File::open(path).await {
         Ok(f) => f,
         Err(e) => return Response::error(format!("open {path}: {e}")),
     };
