@@ -1,4 +1,4 @@
-# Ghost FTP for Windows & Linux
+# Ghost FTP by Brendigo — Windows & Linux
 
 **More Than Transfer. Total Control.** All your local and remote files in one focused desktop app.
 
@@ -16,7 +16,7 @@
 
 Connect using FTP, explicit FTPS or SFTP. Browse local and remote folders, organize Sites, manage transfer queues, synchronize and compare supported directories, and configure the workspace to suit your workflow. Cloud providers require compatible configuration and appropriate authorization.
 
-**Ghost FTP 0.99.73 Preview development** · previously published **v0.99.72**. The first Stable release follows verified package signatures and upgrade/install acceptance rather than a label change.
+**Source version: Ghost FTP 0.99.73 Preview.** Confirm the latest published package on the [Releases page](https://github.com/bren-wp/Ghost-FTP/releases); the previous published build was v0.99.72. The first Stable release follows verified package signatures and upgrade/install acceptance rather than a label change.
 
 ## Build from source
 
