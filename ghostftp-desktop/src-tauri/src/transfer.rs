@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 use crate::session::ftp::FtpTransferControl;
 use crate::session::{
     BoxSession, DropboxSession, DynamicsSession, FtpSession, GDriveSession, HttpSession,

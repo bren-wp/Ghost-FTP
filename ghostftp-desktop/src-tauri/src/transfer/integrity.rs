@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 use super::*;
 
 /// Some HTTP/cloud backends cannot obtain a size before transfer and store 0.

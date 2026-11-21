@@ -1,5 +1,7 @@
 <div align="center">
 
+**Ghost FTP by Brendigo**
+
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420">
 
 # Ghost FTP
@@ -29,7 +31,7 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ## Ghost FTP in action
 
-**Real screenshots from running Ghost FTP builds.** These are genuine native Windows and Linux application captures, not AI-generated mockups. Screenshots may show earlier versions.
+**See Ghost FTP in action.** Genuine native Windows/Linux application captures with build provenance—not AI artwork or mockups. Screenshots from earlier versions remain explicitly identified.
 
 <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP on Windows: actual local and remote file workspace" width="100%"></a>
 

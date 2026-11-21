@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 use super::*;
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH};
 

@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 export const PRODUCT_NAME = "Ghost FTP";
 export const PRODUCT_VERSION = "0.99.72";
 export const PRODUCT_VERSION_DISPLAY = "0.99.72";

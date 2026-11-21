@@ -1,3 +1,20 @@
+Ghost FTP by Brendigo
+
+GHOST FTP DESKTOP — CURRENT DISTRIBUTION ADDENDUM
+Version 1.2 · 21 November 2026
+
+1. Scope. The supported end-user product in the 0.99.72 Preview source line is the Ghost FTP graphical file-transfer client for Windows and Linux, together with any actual client installers, portable archives, documentation and updates. Names of older standalone Server, CLI and Demo products in historic terms are not a promise that those separately distributed products remain available, maintained or licensed in the current release. Current functionality is defined by the actual shipped build and public release notes.
+
+2. Entitlements. The contracting licensor is the legal entity identified in the relevant order or other applicable commercial document. This clarification neither creates new charges nor changes paid entitlements already agreed. A publicly available Preview binary is not proof of a paid subscription, a warranty of unrestricted commercial rights, or authorisation to access third-party servers. Open-source dependencies remain subject to their own binding licence terms.
+
+3. Preview and security. Preview software is not independently certified as production-ready. An asset checksum verifies bytes, not publisher identity. Public CI tests, demonstrations and screenshots do not certify operation with every host, network or operating system. An official Stable designation requires separate evidence of release signing, installed upgrades, compatibility and security checks.
+
+4. Data and responsible use. Users must obtain permission to access the chosen endpoints and retain appropriate backups before destructive operations or synchronisation. Technical categories of data processed locally and information sent to selected network endpoints are described in docs/legal/PRIVACY.md. Endpoint hosts, hosting providers and separate cloud identity providers may process data under their own arrangements.
+
+5. Mandatory law and interpretation. Nothing in this addendum waives non-excludable consumer rights, privacy rights, statutory software remedies or rights that cannot lawfully be limited. It supplements the historical terms below for current product-scope clarity only; governing law, fees and the remaining enforceable substantive licence terms are unchanged. If a legal clause is unenforceable, applicable mandatory law prevails to that extent. Seek independent qualified legal review before presenting these terms as legally approved for every jurisdiction.
+
+--- HISTORICAL AGREEMENT AND PRIOR ADDENDUM RETAINED ---
+
 GHOST FTP — CLIENT, SERVER, CLI AND DEMO ADDENDUM
 Version 1.1 (Preview component clarification) — 29 October 2026
 
