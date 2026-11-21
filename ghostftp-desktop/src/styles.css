@@ -1,3 +1,4 @@
+/* Ghost FTP by Brendigo */
 @import "@xterm/xterm/css/xterm.css";
 
 @tailwind base;
@@ -1956,7 +1957,6 @@ body,
   border-bottom: 1px solid rgba(56,171,255,.25);
 }
 .ghost-site-manager-hero h1,.ghost-transfer-center-heading h1 { letter-spacing: -.35px; }
-.ghost-site-manager > .grid { grid-template-columns: 242px minmax(0,1fr) 348px !important; }
 .ghost-site-manager-nav { background:#06182b !important; }
 .ghost-site-manager-table { background:#061729 !important; }
 .ghost-site-manager-details { background:#071a2e !important; }
@@ -1974,11 +1974,7 @@ body,
 .ghost-properties-dialog { width:min(530px,calc(100vw - 24px)) !important; }
 .ghost-standalone-view .ghost-window-controls button:hover { background:rgba(56,171,255,.12) !important; }
 .ghost-standalone-view .ghost-window-controls button:last-child:hover { background:#c42b3b !important; }
-@media (max-width: 1100px) {
-  .ghost-site-manager > .grid { grid-template-columns: 190px minmax(430px,1fr) 300px !important; }
-}
 @media (max-width: 760px) {
-  .ghost-site-manager > .grid { grid-template-columns: 132px minmax(390px,1fr) 276px !important; }
   .ghost-new-connection-dialog,.ghost-properties-dialog { width:calc(100vw - 12px) !important; }
 }
 
@@ -2449,9 +2445,6 @@ body,
     width: 184px !important;
     min-width: 184px !important;
     flex-basis: 184px !important;
-  }
-  .ghost-site-manager > .grid {
-    grid-template-columns: 190px minmax(420px,1fr) 300px !important;
   }
 }
 
@@ -3061,11 +3054,6 @@ button:active,
 }
 
 @media (max-width: 1180px) {
-  .ghost-site-manager-workspace {
-    grid-template-columns: 196px minmax(420px, 1fr) 304px !important;
-    overflow-x: auto;
-  }
-
   .ghost-site-manager-hero {
     overflow-x: auto;
     overflow-y: hidden;
