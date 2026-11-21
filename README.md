@@ -103,7 +103,15 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 **For developers**, Ghost FTP keeps deployment and server-side file work close at hand. **For site owners**, it offers a clear view of what is on the computer and what is remote. **For administrators**, host identity checks and controlled file operations support more deliberate workflows.
 
-## Ghost FTP 0.99.72 Preview — safer transfers and dependable file management
+## Ghost FTP 0.99.73 Preview — Sites that fit your window
+
+The **Sites** workspace now uses the full available width instead of reserving a phantom third column. New users get one spacious first-connection view with New Site, Connect Cloud and Import Sites; saved sites get a flexible two-column layout that stacks when the desktop window is narrow.
+
+The previously published **v0.99.72 Preview** introduced safer HTTP transfer-length verification and modularized integrity tests. [See v0.99.72 release notes](docs/releases/0.99.72.md).
+
+### Earlier transfer and security improvements (v0.99.72)
+
+Ghost FTP 0.99.72 Preview — safer transfers and dependable file management
 
 Ghost FTP now rejects ambiguous HTTP download metadata instead of risking incorrect length verification. Core transfer integrity checks have been modularized for clearer maintenance and test coverage.
 
@@ -127,7 +135,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Current development source: Ghost FTP 0.99.72 Preview; the preceding v0.99.71 Preview was published 20 November 2026. Earlier Preview work mitigates native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
+<sub>Current development source: Ghost FTP 0.99.73 Preview; the previously published v0.99.72 Preview was published 21 November 2026. Earlier Preview work mitigates native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
 
 ---
 

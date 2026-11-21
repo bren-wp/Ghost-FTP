@@ -196,7 +196,7 @@
   }
 }
 
-@container sites-workspace (max-height: 620px) {
+@media (max-height: 620px) {
   .ghost-site-manager-workspace--empty .ghost-sites-empty {
     align-items: start;
   }
