@@ -2898,6 +2898,22 @@ pub(crate) async fn op_mkdir(
     }
 }
 
+/// Validate a paired Agent's read reply before exposing text through the bridge.
+fn decode_agent_file_response(data: &str, bytes: u64) -> Result<Vec<u8>> {
+    use base64::Engine as _;
+    const MAX_ENCODED_READ: usize = ((MAX_READ_FILE + 2) / 3) * 4;
+    if data.len() > MAX_ENCODED_READ {
+        anyhow::bail!("Agent file response exceeds the preview limit");
+    }
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .context("Agent file response has invalid base64")?;
+    if decoded.len() > MAX_READ_FILE || decoded.len() as u64 != bytes {
+        anyhow::bail!("Agent file response length differs from its byte count");
+    }
+    Ok(decoded)
+}
+
 /// Read a (text) file from a Ghost FTP Agent machine via the daemon, capped like the
 /// SFTP path. The gate has already run in `op_read_file`.
 async fn op_read_file_agent(
@@ -2907,7 +2923,6 @@ async fn op_read_file_agent(
     session_id: &str,
     path: &str,
 ) -> (u16, Value) {
-    use base64::Engine as _;
     use ghostftp_agent_proto::msg::{Request, Response};
     let resp = agent
         .request(Request::ReadFile {
@@ -2921,9 +2936,23 @@ async fn op_read_file_agent(
             bytes,
             truncated,
         }) => {
-            let decoded = base64::engine::general_purpose::STANDARD
-                .decode(&data)
-                .unwrap_or_default();
+            let decoded = match decode_agent_file_response(&data, bytes) {
+                Ok(decoded) => decoded,
+                Err(_) => {
+                    state
+                        .log(
+                            app,
+                            activity(
+                                "error",
+                                session_id,
+                                "Agent read response failed validation".to_string(),
+                                false,
+                            ),
+                        )
+                        .await;
+                    return (502, json!({"error": "Agent read returned invalid or oversized data"}));
+                }
+            };
             let content = String::from_utf8_lossy(&decoded).to_string();
             state
                 .log(

@@ -92,6 +92,17 @@
         std::fs::remove_file(path).expect("cleanup discovery");
     }
 
+    #[test]
+    fn agent_file_reply_rejects_corruption_oversize_and_false_byte_counts() {
+        assert_eq!(decode_agent_file_response("YQ==", 1).unwrap(), b"a");
+        assert_eq!(decode_agent_file_response("", 0).unwrap(), b"");
+        assert!(decode_agent_file_response("not-valid-base64", 0).is_err());
+        assert!(decode_agent_file_response("YQ==", 2).is_err());
+        assert!(decode_agent_file_response("A", 0).is_err());
+        let oversized = "A".repeat(((MAX_READ_FILE + 2) / 3) * 4 + 1);
+        assert!(decode_agent_file_response(&oversized, 0).is_err());
+    }
+
     #[tokio::test]
     async fn revoke_all_access_clears_runtime_profiles_and_approval_policy() {
         let bridge = BridgeState::new();

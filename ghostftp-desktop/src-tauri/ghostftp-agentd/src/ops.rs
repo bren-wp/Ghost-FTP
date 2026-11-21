@@ -273,22 +273,15 @@ async fn read_file(path: &str, max_bytes: u64) -> Response {
         Err(e) => return Response::error(format!("open {path}: {e}")),
     };
     let mut buf = Vec::new();
-    let mut chunk = vec![0u8; 64 * 1024];
-    let mut truncated = false;
-    loop {
-        match file.read(&mut chunk).await {
-            Ok(0) => break,
-            Ok(n) => {
-                buf.extend_from_slice(&chunk[..n]);
-                if buf.len() >= cap {
-                    buf.truncate(cap);
-                    truncated = true;
-                    break;
-                }
-            }
-            Err(e) => return Response::error(format!("read {path}: {e}")),
-        }
+    if let Err(e) = file
+        .take((cap as u64).saturating_add(1))
+        .read_to_end(&mut buf)
+        .await
+    {
+        return Response::error(format!("read {path}: {e}"));
     }
+    let truncated = buf.len() > cap;
+    buf.truncate(cap);
     Response::File {
         data: b64().encode(&buf),
         bytes: buf.len() as u64,
@@ -615,6 +608,43 @@ pub(crate) fn build_command(command: &str) -> tokio::process::Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn agent_read_file_reports_truncation_only_when_bytes_are_missing() {
+        use base64::Engine as _;
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("preview.txt");
+        let path = file.to_string_lossy();
+
+        tokio::fs::write(&file, b"ABCD").await.unwrap();
+        match read_file(&path, 4).await {
+            Response::File { data, bytes, truncated } => {
+                assert_eq!(b64().decode(data).unwrap(), b"ABCD");
+                assert_eq!(bytes, 4);
+                assert!(!truncated);
+            }
+            other => panic!("unexpected Agent read reply: {other:?}"),
+        }
+
+        tokio::fs::write(&file, b"ABCDE").await.unwrap();
+        match read_file(&path, 4).await {
+            Response::File { data, bytes, truncated } => {
+                assert_eq!(b64().decode(data).unwrap(), b"ABCD");
+                assert_eq!(bytes, 4);
+                assert!(truncated);
+            }
+            other => panic!("unexpected Agent read reply: {other:?}"),
+        }
+
+        match read_file(&path, 0).await {
+            Response::File { data, bytes, truncated } => {
+                assert!(b64().decode(data).unwrap().is_empty());
+                assert_eq!(bytes, 0);
+                assert!(truncated);
+            }
+            other => panic!("unexpected Agent read reply: {other:?}"),
+        }
+    }
 
     #[tokio::test]
     async fn delta_upload_rejects_reused_byte_overflow_before_side_effects() {
