@@ -70,7 +70,7 @@ test("Rust test-module boundaries survive nested comments, character literals an
     "  fn internalOnly() {}",
     "}",
     "fn after() {}",
-  ].join("\\n");
+  ].join("\n");
   assert.deepEqual(privateSymbolCandidates([["src/lib.rs", source]], "rust").map(x => x.name), ["before", "after"]);
 });
 test("whole-project inventory sees desktop scripts and excludes generated files", () => temporary((root, put) => {
