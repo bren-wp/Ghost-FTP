@@ -1,55 +1,22 @@
-# Ghost FTP Privacy
+# Ghost FTP by Brendigo — Desktop privacy
 
-Ghost FTP is designed as a local-first file-transfer application for Windows, Linux and macOS. Connection profiles, settings and transfer state are stored on the user's device. Ordinary FTP, explicit FTPS and SFTP transfers run between the user's device and the endpoint selected by the user; Ghost FTP does not require a Brendigo-hosted transfer proxy.
+**Product:** Ghost FTP Preview for Windows and Linux. **Description updated:** 21 November 2026.
 
-## Credentials
+Ghost FTP is a local-first desktop file-transfer client. Basic FTP, explicit FTPS and SFTP do not require a Ghost FTP user account or a Brendigo-operated file-transfer proxy. The app handles files between the user's device and the endpoint they select. This description covers the desktop application; websites, cloud services and endpoint operators have their own notices.
 
-Where supported by the desktop build, secrets are stored through operating-system credential facilities or protected references instead of ordinary profile data. Password fields are masked; active session secrets must be cleared on disconnect and never persisted to ordinary profiles.
+## Locally processed information
+The client may retain connection profile metadata (such as host, port and protocol), local settings, selected paths, transfer queue/history, recovery records and application caches. Where supported, saved credentials are held through OS credential facilities or protected references, rather than ordinary profile fields. Passwords, SSH private-key contents and tokens should not appear in normal UI logs. OS credential storage, backups, roaming profiles and uninstall behaviour depend on the actual system.
 
-Passwords, passphrases, SSH private-key contents, tokens and equivalent secrets must not be written to normal application, notification or crash logs.
+Users can change or delete saved profiles and transfer history through supported app controls; OS-managed secrets and independent backup copies may need separate removal. No blanket local retention period is claimed because it varies by feature and installed version.
 
-## Component-specific data boundaries (v0.99.22 Preview)
+## External connections
+User-requested file transfers reveal connection metadata and content to the selected server/provider and network intermediaries as required by the chosen protocol. **Plain FTP does not encrypt traffic**; prefer validated FTPS or SFTP for sensitive operations. Optional cloud OAuth and similar login flows communicate with the selected identity provider. Signed file URLs and authorisation tokens are secrets.
 
-**Ghost FTP Client and Ghost CLI:** Real transfers connect directly to user-selected, authorized endpoints using the shared protocol engine. Saved profiles may be accessible to the CLI within the same OS account; the client does **not** automatically synchronize private credentials, keys, bookmarks or transfer histories among different devices.
+Optional update checks contact the configured Ghost FTP update endpoint. Downloading a release through GitHub invokes GitHub's separate service and privacy practices. Clicking support links opens a browser. Core desktop transfers do not require mandatory usage analytics or a Brendigo cloud account.
 
-**Ghost FTP Server:** Independently deployed file-transfer service. The operator determines storage, identities, certificates, firewall/network exposure, data-retention obligations and backups. Its optional administrative dashboard is local-only and returns authenticated live operational metrics, not customer files or passwords; the browser administrator token remains in volatile memory.
+## Responsibility and inquiries
+Ghost FTP does not claim ownership of customer files, profiles or credentials. The server operator, user's organisation and third-party providers are responsible for their respective systems, lawful access, retention, access logs and rights requests. If users voluntarily send information to Brendigo support, that is a separate interaction subject to the relevant service notice.
 
-**Ghost FTP Demo:** An offline product walkthrough using intentionally fictional site names and sample files. Demo transfer progress, upload, download, cancellation and sync planning are simulated **in process**, never sent to remote endpoints. The Demo has no customer credentials, telemetry requirement or persistent demonstration database. Closing the program clears demo operations.
+For product privacy questions, use the [official contact page](https://ghostftp.com/hr/contact). Never send credentials, signing keys, bearer URLs or private file contents in public support tickets. The legal identity, lawful basis, contact details and GDPR Article 13/14 information for separately hosted services must be supplied by the entity actually operating those services; this source file does not invent them.
 
-Distribution through GitHub Releases involves GitHub's own service and download processing subject to GitHub's separate privacy terms. Browser/websites that link to releases may have their own policies; these are separate from the application's local processing.
-
-## Telemetry
-
-Ghost FTP does not require analytics or telemetry for core operation. The supplied production configuration does not silently enable usage tracking.
-
-If optional diagnostics are introduced in a future version, they must be explicit, documented and separable from core transfer functionality.
-
-## Network activity
-
-User-requested connections necessarily disclose connection information to the selected server and the network infrastructure required to reach it. Desktop update checks contact the configured official Ghost FTP update service and accept installation only through the updater's verification path.
-
-Help & About remains inside the native desktop application. Canonical downloads are published through GitHub Releases; the repository does not contain a separate public website application.
-
-## Local data
-
-Local settings, profile metadata, transfer state and required caches are stored on the user's device. Desktop profile writes use staged/backup recovery paths to reduce corruption risk.
-
-Terminal suggestion history is session-only and credential-looking commands are excluded from in-memory suggestions. Notification-center history is session-only. Startup cleanup removes legacy terminal/notification history keys created by older development builds.
-
-User-facing diagnostics pass through credential redaction for common password, passphrase, token, API-key, authorization, credential-URL and private-key patterns. Redaction is defense in depth and does not replace the rule that secrets must not be included in errors or logs.
-
-## Files and servers
-
-Ghost FTP does not claim ownership of files, server data, connection profiles or credentials processed by the application. Users remain responsible for authorization, server identity verification, backups and the consequences of requested file operations.
-
-## Privacy and product information
-
-Ghost FTP is authored by Brendigo. Privacy Policy and Terms of use are available through desktop Help & About, using the same approved HTTPS destinations. Ordinary FTP/FTPS/SFTP transfers require no Ghost FTP account; therefore no Ghost FTP account-deletion workflow exists. Server-side data remains under the control of the selected provider or server operator.
-
-## Canonical privacy record
-
-This file is the canonical privacy description for the Ghost FTP software configuration distributed from this repository. Hosted services, if introduced separately in the future, require their own service-specific privacy terms.
-
-## Temporary signed cloud storage links
-
-On supported macOS desktop workflows, users may transfer one object using a temporary provider-signed HTTPS URL. This URL is a bearer credential. The client keeps it only in volatile session memory and clears the UI after use; it is never included in connection profile files, backups, recent-transfer history or diagnostics. Files move directly between the user-selected device and provider endpoint; Ghost FTP does not proxy the contents. The provider may collect normal request metadata and enforce its own retention and access policy. System TLS verification is mandatory and redirects are rejected. Users control the link's expiry, scope and permission on the cloud provider's side.
+See [Security](../../SECURITY.md), [Licence](../../LICENSE.txt) and [Third-party notices](THIRD_PARTY_NOTICES.md).

@@ -1,8 +1,12 @@
 # Ghost FTP release process — Windows/Linux desktop
 
-**Active source:** 0.99.71 Preview candidate. **Previous canonical public release:** v0.99.70. Check GitHub Releases for the actual newest published edition; development version numbers do not prove publication.
+**Active source:** 0.99.72 Preview candidate. **Previous canonical public release:** v0.99.71. Check GitHub Releases for the actual newest published edition; development version numbers do not prove publication.
 
 The single source of truth is `version.json`. A new version requires synchronized desktop metadata, a matching `docs/releases/<version>.md` file and exact-source CI evidence. If the source version has merged but is **not** yet published, the release-repair path may reuse that unpublished version only under the repository's immutable-lineage checks.
+
+## Protect the main branch (repository owner)
+
+Production source is not protected by CI alone. The owner must configure GitHub branch protection under issue [#302](https://github.com/bren-wp/Ghost-FTP/issues/302). Run `bash .github/scripts/enable-main-protection.sh --check` to verify the live rules; the owner-only `--apply` variant requires GitHub repository Administration:write permission. See [the operational acceptance procedure](BRANCH_PROTECTION_302.md). A successful CI run never substitutes for `main.protected: true`.
 
 ## Required exact-source gates
 

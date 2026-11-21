@@ -1183,6 +1183,7 @@ jobs:
         shell: bash
         env:
           GHOSTFTP_CAPTURE_COMMIT: ${{ github.event.pull_request.head.sha }}
+          GHOSTFTP_CAPTURE_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
           PR_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail

@@ -1,6 +1,8 @@
+// Ghost FTP by Brendigo
 import { useRef, useState } from "react";
 import {
   ChevronRight,
+  Copy,
   FileText,
   Globe2,
   HelpCircle,
@@ -70,6 +72,23 @@ export function AboutDialog({ onClose, initialTab = "about" }: Props) {
 
 function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
   const check = useUpdater((s) => s.check);
+  const [copyFeedback, setCopyFeedback] = useState("");
+  const copyVersionDetails = async () => {
+    const supportDetails = [
+      "Ghost FTP by Brendigo",
+      `Version: ${PRODUCT_VERSION_DISPLAY}`,
+      `Build: ${PRODUCT_BUILD}`,
+      `Release date: ${PRODUCT_RELEASE_DATE}`,
+      `Platform: ${currentPlatform()}`,
+    ].join("\n");
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(supportDetails);
+      setCopyFeedback("Version details copied");
+    } catch {
+      setCopyFeedback("Clipboard unavailable. The version and build are displayed above.");
+    }
+  };
   return (
     <div className="ghost-about-reference-screen">
       <header className="ghost-about-reference-heading">
@@ -107,6 +126,12 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
             <Meta label={tr("Release Date")} value={PRODUCT_RELEASE_DATE}/>
             <Meta label={tr("Languages")} value={`${APP_LOCALES.length} interface languages`}/>
           </dl>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" className="ghost-primary-button flex items-center gap-2 text-xs" aria-label="Copy Ghost FTP version and build details" onClick={() => void copyVersionDetails()}>
+              <Copy size={14} aria-hidden="true"/> Copy version details
+            </button>
+            <span role="status" aria-live="polite" className="text-[11px] text-text-muted">{copyFeedback}</span>
+          </div>
         </section>
 
         <aside className="ghost-about-reference-resources" aria-label="Support and resources">

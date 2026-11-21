@@ -1,5 +1,7 @@
 <div align="center">
 
+**Ghost FTP by Brendigo**
+
 <img src="ghostftp-desktop/branding/ghostftp-logo.svg" alt="Ghost FTP" width="420">
 
 # Ghost FTP
@@ -29,7 +31,9 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ## Ghost FTP in action
 
-**Real screenshots from running Ghost FTP builds.** These are genuine native Windows and Linux application captures, not AI-generated mockups. Screenshots may show earlier versions.
+**See Ghost FTP in action.** Genuine native Windows/Linux application captures with build provenance—not AI artwork or mockups. Screenshots from earlier versions remain explicitly identified.
+
+**Latest verified Windows 0.99.71 native captures:** [Windows & Linux build QA — 20 November 2026](https://github.com/bren-wp/Ghost-FTP/actions/runs/44665767749) (artifact **GhostFTP-Windows-x64-Preview-QA**; files, sites, transfers, settings, About, properties and responsive compact/minimum windows). The embedded images below retain their documented earlier-version provenance; current QA capture bundles are linked rather than silently relabeled.
 
 <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP on Windows: actual local and remote file workspace" width="100%"></a>
 
@@ -99,9 +103,11 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 **For developers**, Ghost FTP keeps deployment and server-side file work close at hand. **For site owners**, it offers a clear view of what is on the computer and what is remote. **For administrators**, host identity checks and controlled file operations support more deliberate workflows.
 
-## Ghost FTP 0.99.71 Preview — safer Windows shell actions and reliable terminal output
+## Ghost FTP 0.99.72 Preview — safer transfers and dependable file management
 
-This development source hardens **Windows file and browser opening** by calling the native Shell API instead of searching PATH/CWD for `rundll32.exe`. Approved external links run on a blocking worker so Shell/COM work does not freeze the Tauri interface. The registered file association is still controlled by Windows and the user.
+Ghost FTP now rejects ambiguous HTTP download metadata instead of risking incorrect length verification. Core transfer integrity checks have been modularized for clearer maintenance and test coverage.
+
+The previously published v0.99.71 Preview release hardens **Windows file and browser opening** by calling the native Shell API instead of searching PATH/CWD for `rundll32.exe`. Approved external links run on a blocking worker so Shell/COM work does not freeze the Tauri interface. The registered file association is still controlled by Windows and the user.
 
 Untrusted `ghostftp://` deep links now have bounded input and query counts, refuse decoded control characters, and reject embedded URL userinfo, ports and fragments. The SSH terminal now preserves UTF-8 sequences split between network packets (with separate stdout/stderr decoders) and uses a fair event loop to avoid output starvation during heavy input.
 
@@ -121,7 +127,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Current development source: Ghost FTP 0.99.71 Preview; the preceding v0.99.70 Preview was published 18 November 2026. Earlier Preview work mitigates native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
+<sub>Current development source: Ghost FTP 0.99.72 Preview; the preceding v0.99.71 Preview was published 20 November 2026. Earlier Preview work mitigates native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
 
 ---
 

@@ -1,0 +1,47 @@
+# Ghost FTP by Brendigo
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /ghostftp-desktop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Zagreb
+    open-pull-requests-limit: 4
+    groups:
+      npm-maintenance:
+        dependency-type: development
+        update-types: [minor, patch]
+  - package-ecosystem: cargo
+    directory: /ghostftp-desktop/src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Zagreb
+    open-pull-requests-limit: 4
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Zagreb
+    open-pull-requests-limit: 3
+  - package-ecosystem: gomod
+    directory: /tools/ghostftp-runtime
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Zagreb
+    open-pull-requests-limit: 2
+  - package-ecosystem: gomod
+    directory: /tools/ghostftp-installer
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Zagreb
+    open-pull-requests-limit: 2

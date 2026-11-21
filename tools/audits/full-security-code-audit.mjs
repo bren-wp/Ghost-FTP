@@ -79,7 +79,7 @@ const REQUIRED = [
   // All Windows/Linux download destinations must be byte-verified before
   // marking Done; uploaded SFTP bytes must match both local and server size.
   ["ghostftp-desktop/src-tauri/src/transfer.rs", [
-    "fn verify_committed_length(", "fn completed_transfer_size(",
+    "fn verify_committed_length(", 
     "verify_staged_download_bytes(&working_path, record.transferred)",
     "commit_verified_delta_output(&out_path, local_path, size)",
     "checked_agent_delta_chunk_length(range_len - got, bytes.len())",
@@ -88,7 +88,7 @@ const REQUIRED = [
     "verify_committed_length(\"SFTP download\"",
     "verify_committed_length(\"SFTP upload\"",
     "\"SFTP upload source\",",
-    "verify_committed_length(\"FTP download\"",
+    
     "FtpTransferControl::Continue => verify_committed_length(",
     "sync SFTP download staging file", "sync FTP download staging file",
     "completed_transfer_size(transfer.size, transfer.transferred).map(|_| ())",
@@ -129,9 +129,36 @@ const REQUIRED = [
     "let _retry = self.retry_serial.lock().await;",
     "if is_terminal_transfer_status(transfer.status)",
     "mgr.finish_transfer(id, result).await",
+    
+    
+    
+  ]],
+  
+  // Guards and their regression cases remain mandatory after the transfer.rs
+  // split. Check each *real* destination file, never a consolidated text blob.
+  ["ghostftp-desktop/src-tauri/src/transfer/integrity.rs", [
+    "fn completed_transfer_size(",
+    "fn checked_object_download_progress(",
+    "fn declared_full_http_download_length(",
+    "fn checked_http_download_progress(",
+    "fn declared_plain_http_length(",
+    "fn verify_plain_http_download_length(",
+    "headers.get_all(CONTENT_LENGTH).iter()",
+    "headers.get_all(CONTENT_ENCODING).iter()",
+    "ambiguous Content-Length headers",
+    "ambiguous Content-Encoding headers",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/transfer/http_length_integrity_tests.rs", [
+    "verify_committed_length(\"FTP download\"",
+    "fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()",
+    "fn remote_errors_never_persist_authorization_headers_or_signed_urls()",
+    "fn ambiguous_duplicate_wire_metadata_fails_closed()",
+  ]],
+  ["ghostftp-desktop/src-tauri/src/transfer/tests.rs", [
     "terminal_race_test_row(",
     "canceled_transfer_is_never_resurrected_by_late_completion_or_progress()",
     "completed_row_and_sqlite_ledger_reject_stale_progress_after_success()",
+    "resume_prefix_requires_full_byte_identity_including_same_size_replacement()",
   ]],
   ["ghostftp-desktop/src-tauri/src/transfer/remote_upload_staging.rs", [
     "fn fresh_remote_upload_staging_path(",
