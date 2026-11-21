@@ -108,7 +108,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
-For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.72 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
+For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.73 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
 
 ## Your trust matters
 
