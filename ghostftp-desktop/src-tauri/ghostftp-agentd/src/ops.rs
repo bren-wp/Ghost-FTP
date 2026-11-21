@@ -618,7 +618,11 @@ mod tests {
 
         tokio::fs::write(&file, b"ABCD").await.unwrap();
         match read_file(&path, 4).await {
-            Response::File { data, bytes, truncated } => {
+            Response::File {
+                data,
+                bytes,
+                truncated,
+            } => {
                 assert_eq!(b64().decode(data).unwrap(), b"ABCD");
                 assert_eq!(bytes, 4);
                 assert!(!truncated);
@@ -628,7 +632,11 @@ mod tests {
 
         tokio::fs::write(&file, b"ABCDE").await.unwrap();
         match read_file(&path, 4).await {
-            Response::File { data, bytes, truncated } => {
+            Response::File {
+                data,
+                bytes,
+                truncated,
+            } => {
                 assert_eq!(b64().decode(data).unwrap(), b"ABCD");
                 assert_eq!(bytes, 4);
                 assert!(truncated);
@@ -637,7 +645,11 @@ mod tests {
         }
 
         match read_file(&path, 0).await {
-            Response::File { data, bytes, truncated } => {
+            Response::File {
+                data,
+                bytes,
+                truncated,
+            } => {
                 assert!(b64().decode(data).unwrap().is_empty());
                 assert_eq!(bytes, 0);
                 assert!(truncated);

@@ -2950,7 +2950,10 @@ async fn op_read_file_agent(
                             ),
                         )
                         .await;
-                    return (502, json!({"error": "Agent read returned invalid or oversized data"}));
+                    return (
+                        502,
+                        json!({"error": "Agent read returned invalid or oversized data"}),
+                    );
                 }
             };
             let content = String::from_utf8_lossy(&decoded).to_string();
