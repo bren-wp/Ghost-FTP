@@ -151,6 +151,7 @@ const REQUIRED = [
   ["ghostftp-desktop/src-tauri/src/transfer/http_length_integrity_tests.rs", [
     "verify_committed_length(\"FTP download\"",
     "fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()",
+    "fn remote_errors_never_persist_authorization_headers_or_signed_urls()",
     "fn ambiguous_duplicate_wire_metadata_fails_closed()",
   ]],
   ["ghostftp-desktop/src-tauri/src/transfer/tests.rs", [

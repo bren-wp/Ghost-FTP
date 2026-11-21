@@ -163,9 +163,9 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'completed_row_and_sqlite_ledger_reject_stale_progress_after_success()',
   ]) {
     const source = (
-      ['verify_committed_length("FTP download"', 'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()'].includes(guard) ? httpTests
+      ['verify_committed_length("FTP download"', 'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()',
+         'remote_errors_never_persist_authorization_headers_or_signed_urls()'].includes(guard) ? httpTests
       : ['every_protocol_download_staging_requires_exact_bytes_and_durable_file()',
-         'remote_errors_never_persist_authorization_headers_or_signed_urls()',
          'canceled_transfer_is_never_resurrected_by_late_completion_or_progress()',
          'completed_row_and_sqlite_ledger_reject_stale_progress_after_success()'].includes(guard) ? transferTests
       : transfer
