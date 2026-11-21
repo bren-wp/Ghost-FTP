@@ -1,6 +1,6 @@
 # Ghost FTP by Brendigo — Confirmation reliability and dead-code review
 
-**Scope:** Ghost FTP 0.99.73 Preview source; targeted desktop and shared file-ui confirmation/prompt components. This is a **focused** audit, not certification that the entire 812-item repository tree is free of vulnerabilities or dead code.
+**Scope:** Ghost FTP 0.99.74 Preview source; targeted desktop and shared file-ui confirmation/prompt components. This is a **focused** audit, not certification that the entire 812-item repository tree is free of vulnerabilities or dead code.
 
 ## Verified source findings and changes
 
