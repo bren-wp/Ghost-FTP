@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { useId, useRef, useState } from "react";
 import { useDialog } from "../hooks/useDialog";
 
@@ -20,17 +21,19 @@ export function PromptModal({
 }: Props) {
   const [value, setValue] = useState(initialValue);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [failure, setFailure] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
   const closeIfIdle = () => {
-    if (!submitting) onClose();
+    if (!submittingRef.current) onClose();
   };
 
   const submit = async () => {
-    if (submitting || value.trim().length === 0) return;
+    if (submittingRef.current || value.trim().length === 0) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setFailure(null);
     try {
@@ -38,6 +41,8 @@ export function PromptModal({
       onClose();
     } catch {
       setFailure("Action failed. Please try again.");
+    } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -65,7 +70,7 @@ export function PromptModal({
           ref={inputRef}
           value={value}
           disabled={submitting}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => { setValue(e.target.value); setFailure(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter") void submit();
             else if (e.key === "Escape") closeIfIdle();
