@@ -53,11 +53,11 @@ async fn http_parser_rejects_malformed_request_lines_and_headers() {
     ] {
         assert!(parse_wire_request(raw.as_bytes()).await.is_err(), "{raw}");
     }
-    assert!(parse_wire_request(
-        b"POST /exec HTTP/1.1\r\nContent-Length: 0\r\nX-Bad: \xff\r\n\r\n"
-    )
-    .await
-    .is_err());
+    assert!(
+        parse_wire_request(b"POST /exec HTTP/1.1\r\nContent-Length: 0\r\nX-Bad: \xff\r\n\r\n")
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
