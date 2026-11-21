@@ -599,8 +599,7 @@ const INTERRUPTED_TRANSFER_MESSAGE: &str = "Transfer was interrupted by the prev
 mod integrity;
 use self::integrity::{
     checked_http_download_progress, checked_object_download_progress, completed_transfer_size,
-    declared_full_http_download_length, declared_plain_http_length,
-    verify_plain_http_download_length,
+    declared_full_http_download_length, verify_plain_http_download_length,
 };
 
 mod download_staging;
