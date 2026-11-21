@@ -13,6 +13,6 @@
 - **Release scope.** Only promise Windows/Linux client functions present in a tested build. Retired Server/CLI/Demo references in historical documents do not reinstate those products. State Preview versus Stable clearly.
 - **Jurisdiction, language and disputes.** Confirm the governing law, jurisdiction/venue, mandatory consumer exceptions, authoritative contract language and dispute routes with qualified counsel before legal sign-off.
 
-**Document control:** The current addendum applies to the Ghost FTP 0.99.73 Preview source line as of 21 November 2026; the source version is not proof of a published or signed binary. Material contract changes should be approved separately and versioned with an effective date. This checklist is not legal advice or an attorney opinion.
+**Document control:** The current addendum applies to the Ghost FTP 0.99.74 Preview source line as of 21 November 2026; the source version is not proof of a published or signed binary. Material contract changes should be approved separately and versioned with an effective date. This checklist is not legal advice or an attorney opinion.
 
 [Commercial licence](../../EULA.txt) · [Distributor licence copy](../../LICENSE.txt) · [Privacy](PRIVACY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md).
