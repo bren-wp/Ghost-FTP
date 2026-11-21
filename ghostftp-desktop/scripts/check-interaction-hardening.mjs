@@ -75,6 +75,17 @@ requireIncludes(
   "shared file-ui prompt serialization"
 );
 
+const confirmHandler = read("packages/file-ui/src/components/ConfirmModal.tsx");
+const promptHandler = read("packages/file-ui/src/components/PromptModal.tsx");
+for (const [name, source] of [["confirm", confirmHandler], ["prompt", promptHandler]]) {
+  const submitStart = source.indexOf(name === "confirm" ? "const confirm = async" : "const submit = async");
+  const catchStart = source.indexOf("} catch", submitStart);
+  const releaseStart = source.indexOf("submittingRef.current = false;", submitStart);
+  if (submitStart < 0 || catchStart < 0 || releaseStart < catchStart) {
+    failures.push(name + " modal: single-flight guard must remain held until successful close; release only on failure");
+  }
+}
+
 requireIncludes(
   "packages/file-ui/src/components/FilePane.tsx",
   [

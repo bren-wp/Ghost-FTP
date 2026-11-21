@@ -41,7 +41,6 @@ export function PromptModal({
       onClose();
     } catch {
       setFailure("Action failed. Please try again.");
-    } finally {
       submittingRef.current = false;
       setSubmitting(false);
     }

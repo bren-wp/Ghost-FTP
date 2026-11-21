@@ -40,11 +40,13 @@ export function ConfirmModal({
       await onConfirm();
       onClose();
     } catch (error) {
-      if (onError) onError(error);
-      else setFailure("Action failed. Please try again.");
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
+      try {
+        if (onError) onError(error);
+        else setFailure("Action failed. Please try again.");
+      } finally {
+        submittingRef.current = false;
+        setSubmitting(false);
+      }
     }
   };
 
