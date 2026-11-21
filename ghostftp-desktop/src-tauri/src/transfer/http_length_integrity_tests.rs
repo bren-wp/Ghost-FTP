@@ -1,5 +1,6 @@
 // Ghost FTP by Brendigo
 use super::*;
+use super::integrity::declared_plain_http_length;
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH};
 
 #[test]
