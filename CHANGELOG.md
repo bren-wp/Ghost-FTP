@@ -1,4 +1,12 @@
-## 0.99.71 Preview — 20 November 2026 (development candidate; publication unverified)
+## 0.99.72 Preview — 21 November 2026 (development candidate; not yet published)
+
+- Move transfer-length, HTTP wire-metadata validation and object-store progress guards into a dedicated `transfer/integrity.rs` module, while preserving existing transfer/public interface behavior.
+- Move ~2,100 lines of transfer regression tests to focused files, including HTTP integrity and transfer behavior; keep all prior coverage and source-only build checks.
+- Fail closed on ambiguous repeated `Content-Length` and `Content-Encoding` response headers instead of accepting the first header value.
+- Add negative tests for duplicated HTTP wire metadata and preserve staging, resume, no-overwrite, cancellation and safe error redaction policies.
+- **Candidate only:** Rust/Clippy, native Windows/Linux builds, security/dead-code audits, protocol E2E and physical installation/visual acceptance still require independent verification.
+
+## 0.99.71 Preview — 20 November 2026 (published Preview)
 
 - Replace unqualified Windows `rundll32.exe` invocations for external links and editor file associations with direct `ShellExecuteW`, with COM initialization and a blocking worker for external URL opens.
 - Reject oversized/deceptive `ghostftp://` links, uncontrolled parameter counts, decoded control characters and URL userinfo/ports/fragments before forwarding to the frontend.
