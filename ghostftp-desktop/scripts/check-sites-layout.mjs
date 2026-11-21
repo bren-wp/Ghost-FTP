@@ -22,6 +22,15 @@ for (const label of ["Add your first site", "New Site", "Connect Cloud", "Import
 for (const callback of ["onNewSite", "onConnectCloud", "onImportSites"]) {
   assert.ok(onboarding.includes(`onClick={${callback}}`), "Missing wired action: " + callback);
 }
+const legacy = read("src/styles.css");
+for (const obsolete of [
+  "grid-template-columns: 242px minmax(0,1fr) 348px",
+  "grid-template-columns: 190px minmax(430px,1fr) 300px",
+  "grid-template-columns: 132px minmax(390px,1fr) 276px",
+  "grid-template-columns: 196px minmax(420px, 1fr) 304px",
+]) {
+  assert.ok(!legacy.includes(obsolete), "Retired three-column Sites rule returned: " + obsolete);
+}
 assert.match(entry, /import "\.\/styles\.css";\s*import "\.\/styles\/site-manager-layout\.css";/);
 assert.match(css, /container:\s*sites-workspace\s*\/\s*inline-size/);
 assert.match(css, /ghost-site-manager-workspace--empty\s*\{/);
