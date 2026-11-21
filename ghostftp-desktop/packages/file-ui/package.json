@@ -27,7 +27,7 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "lucide-react": "^0.456.0",
-    "material-icon-theme": "5.36.1",
+    "material-icon-theme": "5.40.0",
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
