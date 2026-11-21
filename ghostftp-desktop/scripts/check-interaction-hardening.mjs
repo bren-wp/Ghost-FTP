@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import fs from "node:fs";
 import "./check-transfer-failure-review.mjs";
 
@@ -25,20 +26,19 @@ function requireExcludes(file, forbidden, label) {
 requireIncludes(
   "src/components/ConfirmModal.tsx",
   [
-    "const [submitting, setSubmitting] = useState(false)",
-    "await onConfirm();",
-    "disabled={submitting}",
-    "aria-busy={submitting}",
-    "toastError(error",
-    "Working…",
+    "FileConfirmModal",
+    "onError={(error) => toastError(error",
   ],
-  "duplicate-confirm protection"
+  "desktop wrapper delegates to shared confirmation and preserves error toast"
 );
 
 requireIncludes(
   "packages/file-ui/src/components/ConfirmModal.tsx",
   [
     "const [submitting, setSubmitting] = useState(false)",
+    "const submittingRef = useRef(false)",
+    "if (submittingRef.current) return;",
+    "submittingRef.current = true;",
     "await onConfirm();",
     "disabled={submitting}",
     "aria-busy={submitting}",
@@ -52,6 +52,9 @@ requireIncludes(
   "packages/file-ui/src/components/PromptModal.tsx",
   [
     "const [submitting, setSubmitting] = useState(false)",
+    "const submittingRef = useRef(false)",
+    "if (submittingRef.current || value.trim().length === 0) return;",
+    "submittingRef.current = true;",
     "await onSubmit(value);",
     "disabled={submitting}",
     "aria-busy={submitting}",
