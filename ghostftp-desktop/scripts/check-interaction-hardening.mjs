@@ -24,6 +24,17 @@ function requireExcludes(file, forbidden, label) {
 }
 
 requireIncludes(
+  "src/hooks/useDialog.ts",
+  ['export { useDialog } from "@ghostftp/file-ui";'],
+  "single accessible dialog hook implementation"
+);
+requireIncludes(
+  "packages/file-ui/src/hooks/useDialog.ts",
+  ["trapFocus = true", 'if (e.key !== "Tab" || !trapFocus) return;', "[enabled, trapFocus]"],
+  "shared desktop and file-ui focus management"
+);
+
+requireIncludes(
   "src/components/ConfirmModal.tsx",
   [
     "FileConfirmModal",

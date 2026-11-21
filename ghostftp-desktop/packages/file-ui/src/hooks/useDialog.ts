@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { useEffect, useRef, type RefObject } from "react";
 
 const FOCUSABLE = [
@@ -20,6 +21,8 @@ interface Options {
    * their open state so focus management re-runs each time they appear.
    */
   enabled?: boolean;
+  /** False for primary workspaces that must keep the app navigation tabbable. */
+  trapFocus?: boolean;
 }
 
 // The accessible-dialog behaviors every modal needs, in one place:
@@ -30,7 +33,7 @@ interface Options {
 // Pass a ref to the dialog panel (the box, not the backdrop).
 export function useDialog(
   ref: RefObject<HTMLElement | null>,
-  { onClose, initialFocus, enabled = true }: Options = {}
+  { onClose, initialFocus, enabled = true, trapFocus = true }: Options = {}
 ) {
   // Keep the latest onClose without re-binding the listener every render.
   const onCloseRef = useRef(onClose);
@@ -60,7 +63,7 @@ export function useDialog(
         onCloseRef.current?.();
         return;
       }
-      if (e.key !== "Tab") return;
+      if (e.key !== "Tab" || !trapFocus) return;
       const items = focusables();
       if (items.length === 0) {
         e.preventDefault();
@@ -91,5 +94,5 @@ export function useDialog(
     // ref / initialFocus are stable useRef objects; re-bind only when the
     // dialog's open state flips (for always-mounted modals).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, trapFocus]);
 }
