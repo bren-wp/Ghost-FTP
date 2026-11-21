@@ -4,6 +4,10 @@
 
 The single source of truth is `version.json`. A new version requires synchronized desktop metadata, a matching `docs/releases/<version>.md` file and exact-source CI evidence. If the source version has merged but is **not** yet published, the release-repair path may reuse that unpublished version only under the repository's immutable-lineage checks.
 
+## Protect the main branch (repository owner)
+
+Production source is not protected by CI alone. The owner must configure GitHub branch protection under issue [#302](https://github.com/bren-wp/Ghost-FTP/issues/302). Run `bash .github/scripts/enable-main-protection.sh --check` to verify the live rules; the owner-only `--apply` variant requires GitHub repository Administration:write permission. See [the operational acceptance procedure](BRANCH_PROTECTION_302.md). A successful CI run never substitutes for `main.protected: true`.
+
 ## Required exact-source gates
 
 1. Build and run Windows/Linux native package and installer smoke checks.
