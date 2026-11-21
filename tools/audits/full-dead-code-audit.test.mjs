@@ -78,6 +78,7 @@ test("whole-project inventory sees desktop scripts and excludes generated files"
     ["ghostftp-desktop/src/main.tsx", "function unusedUi() {}"],
     ["ghostftp-desktop/src-tauri/src/lib.rs", "fn unusedRust() {}"],
     ["ghostftp-desktop/src-tauri/tests/protocol_e2e.rs", "#[test]\nfn realTest() {}"],
+    ["ghostftp-desktop/src-tauri/src/bridge/tests.rs", "fn embeddedUnitTestOnly() {}"],
     ["tools/ghostftp-installer/main.go", "package main\nfunc main() {}\nfunc unusedInstaller() {}"],
     ["tools/ghostftp-runtime/main.go", "package main\nfunc main() {}"],
     ["ghostftp-desktop/target/generated.rs", "generated"],
@@ -86,9 +87,10 @@ test("whole-project inventory sees desktop scripts and excludes generated files"
   assert.deepEqual(report.entrypointBlockers, []);
   assert.ok(report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="unusedRust"));
   assert.ok(!report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="realTest"));
+  assert.ok(!report.advisoryPrivateSymbols.desktopRust.some(x=>x.name==="embeddedUnitTestOnly"));
   assert.ok("desktopTypeScript" in report.advisoryPrivateSymbols);
   assert.ok("installerRuntimeGo" in report.advisoryPrivateSymbols);
-  assert.equal(report.counts.rust, 2);
+  assert.equal(report.counts.rust, 3);
 }));
 
 test("obsolete mock server automation remains prohibited", () => {

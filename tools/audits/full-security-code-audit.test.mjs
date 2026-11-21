@@ -44,6 +44,7 @@ test("scans shipped Agent daemon and shared wire protocol source", () => {
 test("never treats human documentation or test fixtures as shipped runtime",()=>{
   assert.deepEqual(scanDangerous("docs/audits/SECURITY.md","curl -k"),[]);
   assert.deepEqual(scanDangerous("ghostftp-desktop/src-tauri/tests/Mock.rs","StrictHostKeyChecking=no"),[]);
+  assert.deepEqual(scanDangerous("ghostftp-desktop/src-tauri/src/bridge/tests.rs","danger_accept_invalid_certs(true)"),[]);
   assert.deepEqual(scanDangerous("ghostftp-desktop/src-tauri/src/known_hosts.rs","safe nofollow secure"),[]);
 });
 test("real repository security gates remain present and no obvious unsafe trust bypass ships",()=>{

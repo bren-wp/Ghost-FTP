@@ -54,6 +54,7 @@ export function isRuntimeCode(file) {
   ];
   return production.some(p => file.startsWith(p)) &&
     !/\/(?:test|tests|__tests__)\//i.test(file) &&
+    !/\/tests\.rs$/i.test(file) &&
     !/(?:\.test|_test)\.(?:rs|go|ts|tsx|kt)$/i.test(file);
 }
 export function scanDangerous(file, content) {
