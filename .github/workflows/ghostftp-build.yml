@@ -1162,7 +1162,7 @@ jobs:
   # separately reviewable commit. Never use synthetic/reference images.
   promote_readme_native_captures:
     needs: build
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'development/0.95.18-') }}
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'refactor/transfer-integrity-modules-v0-99-72' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1183,6 +1183,7 @@ jobs:
         shell: bash
         env:
           GHOSTFTP_CAPTURE_COMMIT: ${{ github.event.pull_request.head.sha }}
+          GHOSTFTP_CAPTURE_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
           PR_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail

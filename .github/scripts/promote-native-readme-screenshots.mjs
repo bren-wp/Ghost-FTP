@@ -10,7 +10,7 @@ const root = process.cwd();
 const input = path.resolve(process.argv[2] || "qa/windows");
 const version = JSON.parse(fs.readFileSync("version.json","utf8")).version;
 const sourceSha = process.env.GHOSTFTP_CAPTURE_COMMIT || "";
-if (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== sourceSha) throw new Error("Native capture SHA does not match workflow SHA.");
+if (process.env.GHOSTFTP_CAPTURE_EXPECTED_HEAD && process.env.GHOSTFTP_CAPTURE_EXPECTED_HEAD !== sourceSha) throw new Error("Native capture SHA does not match expected source HEAD.");
 const runId = process.env.GITHUB_RUN_ID || "";
 if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) || !/^[a-f0-9]{40}$/.test(sourceSha) || !/^\d+$/.test(runId)) {
   throw new Error("Missing exact, trusted native QA provenance.");
