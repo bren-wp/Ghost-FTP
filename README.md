@@ -1,3 +1,4 @@
+<!-- Ghost FTP by Brendigo -->
 <div align="center">
 
 **Ghost FTP by Brendigo**
@@ -103,31 +104,11 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 **For developers**, Ghost FTP keeps deployment and server-side file work close at hand. **For site owners**, it offers a clear view of what is on the computer and what is remote. **For administrators**, host identity checks and controlled file operations support more deliberate workflows.
 
-## Ghost FTP 0.99.73 Preview — Sites that fit your window
+## A clearer workspace in Ghost FTP 0.99.73 Preview
 
-The **Sites** workspace now uses the full available width instead of reserving a phantom third column. New users get one spacious first-connection view with New Site, Connect Cloud and Import Sites; saved sites get a flexible two-column layout that stacks when the desktop window is narrow.
+The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
-The previously published **v0.99.72 Preview** introduced safer HTTP transfer-length verification and modularized integrity tests. [See v0.99.72 release notes](docs/releases/0.99.72.md).
-
-### Earlier transfer and security improvements (v0.99.72)
-
-Ghost FTP 0.99.72 Preview — safer transfers and dependable file management
-
-Ghost FTP now rejects ambiguous HTTP download metadata instead of risking incorrect length verification. Core transfer integrity checks have been modularized for clearer maintenance and test coverage.
-
-The previously published v0.99.71 Preview release hardens **Windows file and browser opening** by calling the native Shell API instead of searching PATH/CWD for `rundll32.exe`. Approved external links run on a blocking worker so Shell/COM work does not freeze the Tauri interface. The registered file association is still controlled by Windows and the user.
-
-Untrusted `ghostftp://` deep links now have bounded input and query counts, refuse decoded control characters, and reject embedded URL userinfo, ports and fragments. The SSH terminal now preserves UTF-8 sequences split between network packets (with separate stdout/stderr decoders) and uses a fair event loop to avoid output starvation during heavy input.
-
-The **previously published v0.99.70 Preview** introduced a fail-closed npm development security audit. Earlier v0.99.69 introduced bounded source fingerprinting; neither mechanism proves complete remote file integrity. See the [v0.99.71 release notes](docs/releases/0.99.71.md), [Windows source audit](docs/audits/WINDOWS_SECURITY_PERFORMANCE_0.99.71.md), and [native acceptance checklist](docs/qa/WINDOWS_SHELL_UTF8_ACCEPTANCE_0.99.71.md).
-
-### Previously published transfer improvements
-
-Published Previews v0.99.65–v0.99.66 introduced periodic FTP/FTPS/SFTP session health checks, explicit Disconnect safeguards, fresh sibling-staged uploads and source identity validation before remote promotion. The **published v0.99.67 Preview** additionally makes Cancel/Done/Error transitions irreversible against late callbacks, serializes SQLite transfer-ledger writes and carries one source identity across automatic FTP/SFTP retries. Connections do not survive closing the native application; saved site profiles do.
-
-FTP/FTPS/SFTP uploads now write to unpredictable sibling staging paths and try remote promotion only after the transfer completes and byte counts match. **This is not a guarantee on all servers:** FTP rename is not an atomic no-replace operation, some FTP/SFTP servers refuse rename-over-existing, and interrupted transfers can leave remote `.ghostftp-upload-*.part` files. Cloud and Agent upload backends have separate mechanisms that are not newly certified by this change. Real Windows Credential Manager, Linux Secret Service, 4+ GiB, multiple-parallel-transfer and server-failure testing are still required.
-
-See [0.99.65 safety audit](docs/audits/SESSION_LIVENESS_REMOTE_UPLOAD_AUDIT_0.99.65.md) and the [Windows/Linux acceptance checklist](docs/qa/LARGE_TRANSFER_AND_VAULT_ACCEPTANCE_0.99.65.md). The confirmed public [v0.99.67 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.67) was published on 14 November 2026; v0.99.66 remains in the release history. Additional native acceptance is still outstanding.
+For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.72 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
 
 ## Your trust matters
 
@@ -135,7 +116,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Current development source: Ghost FTP 0.99.73 Preview; the previously published v0.99.72 Preview was published 21 November 2026. Earlier Preview work mitigates native startup white/black WebView flashes by revealing the single window only after the React shell mounts; [first-frame platform QA](docs/qa/STARTUP_FIRST_PAINT_0.99.67.md) is not yet certified. The first Stable release requires separately validated signing, upgrades and native-platform acceptance. Check [Releases](https://github.com/bren-wp/Ghost-FTP/releases) for the newest *published* package.</sub>
+<sub>Ghost FTP 0.99.73 is the current source version; consult GitHub Releases for published downloads. The images above are authentic, documented native captures from earlier builds, not certified v0.99.73 screenshots. A Stable release requires separate signing, installed-upgrade and native-platform verification.</sub>
 
 ---
 
