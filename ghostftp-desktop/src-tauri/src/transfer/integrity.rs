@@ -126,4 +126,3 @@ pub(super) fn verify_plain_http_download_length(
     }
     Ok(())
 }
-
