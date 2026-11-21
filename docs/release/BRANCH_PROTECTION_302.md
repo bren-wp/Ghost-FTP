@@ -29,6 +29,10 @@ Require exactly the following current check-run names, observed on the verified 
 
 Do not require skipped release-publishing jobs, schedule-only metadata jobs or matrix parent names. The required contexts must be present for ordinary PRs. Ensure `strict: true` or use a similarly rigorous exact-head merge queue. Review requirements should be strengthened to one approval where an independent reviewer is reliably available. A zero-approval PR rule still blocks direct pushes while permitting a sole maintainer to merge a green PR.
 
+## Automatic release fail-closed check
+
+The `Ghost FTP release` workflow now reads the GitHub branch API and **refuses automatic publication while `main.protected` is not `true`**. This is a source-level safeguard only, not a substitute for repository-side rules and review enforcement. It intentionally prevents an unprotected direct push from producing an automatic release. Admins must still verify all exact-head mandatory contexts, the negative failing-PR merge case and a successful passing merge before closing issue #302.
+
 ## Acceptance evidence (not yet completed)
 
 1. GitHub API `GET /repos/bren-wp/Ghost-FTP/branches/main` reports `protected: true` and the protection endpoint confirms admin enforcement, strict required checks and conversations.

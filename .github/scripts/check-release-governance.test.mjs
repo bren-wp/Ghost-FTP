@@ -39,6 +39,16 @@ test("every passing main native build can automatically trigger a release", () =
 
 });
 
+test("automatic release fails closed if main is not protected (issue #302)", () => {
+  const workflow = read(".github/workflows/ghostftp-release.yml");
+  const protect = workflow.indexOf("Require protected main before automatic release promotion");
+  const select = workflow.indexOf("Authorize latest native build for exact current main SHA");
+  assert.ok(protect >= 0 && protect < select, "Protection check must precede release authorization");
+  assert.ok(workflow.includes('MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq \'.protected\')"'));
+  assert.ok(workflow.includes('if [ "$MAIN_PROTECTED" != "true" ]; then'));
+  assert.ok(workflow.includes("Refusing automatic Ghost FTP release: main is unprotected"));
+});
+
 test("merged changes advance version, except exact unpublished release repairs with immutable lineage", () => {
   const quality = read(".github/workflows/ghostftp-quality.yml");
   assert.ok(quality.includes('BASE_VERSION'));
