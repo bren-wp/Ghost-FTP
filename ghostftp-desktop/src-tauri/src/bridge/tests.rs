@@ -86,8 +86,7 @@ fn discovery_file_token_is_private_on_creation() {
         .mode();
     assert_eq!(mode & 0o777, 0o600);
     let body: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("read file"))
-            .expect("parse discovery");
+        serde_json::from_slice(&std::fs::read(&path).expect("read file")).expect("parse discovery");
     assert_eq!(body["token"], "test-token");
     std::fs::remove_file(path).expect("cleanup discovery");
 }
