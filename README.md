@@ -104,7 +104,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 **For developers**, Ghost FTP keeps deployment and server-side file work close at hand. **For site owners**, it offers a clear view of what is on the computer and what is remote. **For administrators**, host identity checks and controlled file operations support more deliberate workflows.
 
-## A clearer workspace in Ghost FTP 0.99.73 Preview
+## A clearer workspace in Ghost FTP 0.99.74 Preview
 
 The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
@@ -116,7 +116,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Ghost FTP 0.99.73 is the current source version; consult GitHub Releases for published downloads. The images above are authentic, documented native captures from earlier builds, not certified v0.99.73 screenshots. A Stable release requires separate signing, installed-upgrade and native-platform verification.</sub>
+<sub>Ghost FTP 0.99.74 is the current source version; consult GitHub Releases for published downloads. The images above are authentic, documented native captures from earlier builds, not certified v0.99.74 screenshots. A Stable release requires separate signing, installed-upgrade and native-platform verification.</sub>
 
 ---
 
