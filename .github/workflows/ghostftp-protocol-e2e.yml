@@ -437,7 +437,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force ghostftp-desktop/dist | Out-Null
           Set-Content ghostftp-desktop/dist/index.html '<!doctype html><html><body></body></html>'
-      - name: Real FTP upload, download, rename and overwrite safety on Windows
+      - name: Real FTP transfer safety and 1/4/8 parallel SHA-256 integrity on Windows
         working-directory: ghostftp-desktop/src-tauri
         shell: pwsh
         run: |
@@ -474,6 +474,9 @@ jobs:
               Write-Output "Windows network transfer E2E attempt $attempt/2"
               cargo test -p ghostftp --test protocol_e2e --locked real_windows_ftp_roundtrip -- --exact --nocapture
               if ($LASTEXITCODE -ne 0) { throw "Windows FTP E2E failed in attempt $attempt" }
+              Write-Output "Windows 1/4/8 simultaneous FTP data-channel SHA-256 roundtrip attempt $attempt/2"
+              cargo test -p ghostftp --test protocol_e2e --locked real_windows_concurrent_ftp_roundtrips -- --exact --nocapture
+              if ($LASTEXITCODE -ne 0) { throw "Windows FTP parallel integrity E2E failed in attempt $attempt" }
             }
           } finally {
             Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
