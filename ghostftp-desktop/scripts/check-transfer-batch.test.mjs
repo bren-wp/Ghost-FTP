@@ -138,3 +138,53 @@ test("silent mode prevents duplicate basename enqueueing and skips destination q
   assert.equal(harness.warnings.length, 1);
   assert.equal(harness.listCalls, 0);
 });
+
+
+async function withUserAgent(userAgent, fn) {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: { userAgent },
+  });
+  try {
+    return await fn();
+  } finally {
+    if (saved) Object.defineProperty(globalThis, "navigator", saved);
+    else delete globalThis.navigator;
+  }
+}
+
+test("local Windows skip detects case-only collisions in the existing destination", async () =>
+  withUserAgent("Windows NT 10.0", async () => {
+    reset();
+    harness.existing = [{ name: "Report.TXT", size: 5 }];
+    harness.decisions = [choice("skip")];
+    const { started, start } = capture();
+    await runBatch("local", "/destination", "local", [file("report.txt")], start);
+    assert.deepEqual(started, []);
+    assert.equal(harness.asks.length, 1);
+    assert.equal(harness.asks[0].name, "report.txt", "show original filename to user");
+  }));
+
+test("local Windows silent mode rejects case-only duplicate destinations", async () =>
+  withUserAgent("Windows NT 10.0", async () => {
+    reset();
+    settings.promptOnOverwrite = false;
+    const { started, start } = capture();
+    await runBatch("local", "/destination", "local", [file("Report.TXT"), file("report.txt")], start);
+    assert.deepEqual(started, [["/source/Report.TXT", "overwrite"]]);
+    assert.equal(harness.warnings.length, 1);
+  }));
+
+test("remote and Linux destinations retain case-sensitive names", async () => {
+  for (const [userAgent, side] of [["Windows NT 10.0", "remote"], ["Linux x86_64", "local"]]) {
+    await withUserAgent(userAgent, async () => {
+      reset();
+      settings.promptOnOverwrite = false;
+      const { started, start } = capture();
+      await runBatch(side, "/destination", side, [file("Report.TXT"), file("report.txt")], start);
+      assert.deepEqual(started, [["/source/Report.TXT", "overwrite"], ["/source/report.txt", "overwrite"]]);
+      assert.equal(harness.warnings.length, 0);
+    });
+  }
+});
