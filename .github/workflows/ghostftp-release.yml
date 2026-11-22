@@ -1,7 +1,8 @@
 name: Ghost FTP release
 
-# Every successfully built main commit triggers automatic release promotion.
-# The workflow is never authorized by builds from pull requests or forks.
+# Every successfully built, verified main commit can trigger automatic Preview promotion.
+# A protected main or exact merged-PR provenance is required; unreviewed direct
+# pushes on unprotected main cannot publish. Only main push builds can trigger.
 on:
   workflow_run:
     workflows: ["Ghost FTP native build"]
