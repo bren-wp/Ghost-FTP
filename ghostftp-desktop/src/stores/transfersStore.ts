@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { create } from "zustand";
 import { ipc, onTransferEvent, onTransferQueue } from "@/lib/ipc";
 import { useSettings } from "./settingsStore";
