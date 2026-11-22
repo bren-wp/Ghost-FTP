@@ -104,6 +104,8 @@ function buildCells(
     rects
   );
   for (const r of rects) {
+    // Extreme size ratios may round the smaller rectangle down to zero.
+    if (![r.x, r.y, r.w, r.h].every(Number.isFinite) || r.w <= 0 || r.h <= 0) continue;
     if (r.w < MIN_SIDE || r.h < MIN_SIDE) {
       cells.push({ node: r.node, x: r.x, y: r.y, w: r.w, h: r.h, depth: depth + 1 });
     } else {
@@ -263,7 +265,9 @@ export function DiskTreemap({
         // Hairline separator.
         ctx.strokeStyle = dark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.15)";
         ctx.lineWidth = 0.5;
-        ctx.strokeRect(cell.x + 0.25, cell.y + 0.25, cell.w - 0.5, cell.h - 0.5);
+        if (cell.w >= 1 && cell.h >= 1) {
+          ctx.strokeRect(cell.x + 0.25, cell.y + 0.25, cell.w - 0.5, cell.h - 0.5);
+        }
       }
     }
 

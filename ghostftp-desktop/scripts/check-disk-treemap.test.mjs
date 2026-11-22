@@ -86,3 +86,15 @@ test("treemap is accessible from keyboard and supports correct high-DPI redraw",
   assert.ok(usage.includes("max-h-[36vh] w-full"), "ranked items must not squeeze narrow maps");
   assert.ok(!usage.includes("Math.max(1, pct)"), "zero-byte items must not draw fake one-percent bars");
 });
+
+
+test("extreme big-to-small ratios never leave zero-area or non-finite hit targets", () => {
+  const cells = [];
+  buildCells(root([file("very-large", 1e308), file("very-small", 1)], 1e308),
+    0, 0, 600, 240, 0, cells);
+  assert.ok(cells.length >= 2);
+  assert.ok(cells.every(cell => cell.w > 0 && cell.h > 0));
+  assert.ok(cells.every(cell => [cell.x, cell.y, cell.w, cell.h].every(Number.isFinite)));
+  assert.ok(source.includes("if (cell.w >= 1 && cell.h >= 1)"),
+    "do not stroke negative dimensions for subpixel-size files");
+});
