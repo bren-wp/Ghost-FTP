@@ -19,6 +19,7 @@ import { useLayout } from "@/stores/layoutStore";
 import { toast } from "@/stores/toastStore";
 import type { DuNode, ScanStrategy } from "@/lib/types";
 import { fmtSize } from "@/lib/format";
+import { rankDiskItems, safeDiskPercent } from "@/lib/visualizationMath";
 import {
   materialIconUrl,
   ContextMenu,
@@ -290,7 +291,7 @@ function DiskUsage() {
               ) : current ? (
                 <span className="truncate">
                   {current.name} · {fmtSize(current.size)} ·{" "}
-                  {(current.children?.length ?? 0).toLocaleString()} items — click a box to drill in
+                  {(current.children?.length ?? 0).toLocaleString()} items — select a folder using arrows or click to open
                 </span>
               ) : null}
             </div>
@@ -348,7 +349,7 @@ function RankedList({
 }) {
   const children = node?.children ?? [];
   const parentSize = node?.size ?? 0;
-  const shown = children.slice(0, MAX_ROWS);
+  const shown = rankDiskItems(children).slice(0, MAX_ROWS);
 
   return (
     <div className="flex w-80 shrink-0 flex-col bg-bg-panel">
@@ -363,19 +364,37 @@ function RankedList({
           </div>
         ) : (
           shown.map((c) => {
-            const pct = parentSize > 0 ? (c.size / parentSize) * 100 : 0;
+            const pct = safeDiskPercent(c.size, parentSize);
+            const shownSize = Number.isFinite(c.size) && c.size >= 0 ? fmtSize(c.size) : "Unknown size";
+            const percentageLabel = pct > 0 && pct < 1
+              ? "<1%"
+              : Number.isFinite(c.size) && c.size >= 0 ? Math.round(pct) + "%" : "—";
             const isDir = c.kind === "directory";
             const matUrl =
               c.kind === "file" ? materialIconUrl(c.name) : undefined;
             return (
               <button
                 key={c.path}
-                onClick={() => isDir && onDrill(c)}
+                onClick={(event) => {
+                  if (isDir) onDrill(c);
+                  else {
+                    const box = event.currentTarget.getBoundingClientRect();
+                    onContext(c, box.left + 12, box.bottom);
+                  }
+                }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   onContext(c, e.clientX, e.clientY);
                 }}
-                title={c.path}
+                title={isDir ? "Open folder: " + c.path : "File actions: " + c.path}
+                aria-label={c.name + ", " + shownSize + ", " + percentageLabel + " of folder"}
+                onKeyDown={(event) => {
+                  if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                    event.preventDefault();
+                    const box = event.currentTarget.getBoundingClientRect();
+                    onContext(c, box.left + 12, box.bottom);
+                  }
+                }}
                 className={cn(
                   "flex w-full items-center gap-2 border-b border-border-subtle px-3 py-1.5 text-left text-xs",
                   isDir
@@ -399,19 +418,19 @@ function RankedList({
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="min-w-0 truncate">{c.name}</span>
                     <span className="shrink-0 tabular-nums text-text-dim">
-                      {fmtSize(c.size)}
+                      {shownSize}
                     </span>
                   </div>
                   {/* Percentage-of-parent bar */}
                   <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-bg-subtle">
                     <div
                       className="h-full rounded-full bg-accent"
-                      style={{ width: `${Math.max(1, pct)}%` }}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
                 <span className="w-10 shrink-0 text-right tabular-nums text-[10px] text-text-dim">
-                  {pct >= 0.1 ? `${pct.toFixed(0)}%` : "<1%"}
+                  {percentageLabel}
                 </span>
               </button>
             );

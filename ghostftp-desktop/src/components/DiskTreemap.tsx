@@ -31,11 +31,13 @@ interface SizedChild {
 
 /** Split children into two size-balanced groups (input is size-desc sorted). */
 function partition(items: SizedChild[]): [SizedChild[], SizedChild[]] {
-  const total = items.reduce((a, c) => a + c.value, 0);
+  // Normalize values first: large valid sizes must not overflow sums.
+  const scale = items.reduce((largest, item) => Math.max(largest, item.value), 0);
+  const total = items.reduce((sum, item) => sum + item.value / scale, 0);
   let acc = 0;
   let i = 0;
-  while (i < items.length - 1 && acc + items[i].value < total / 2) {
-    acc += items[i].value;
+  while (i < items.length - 1 && acc + items[i].value / scale < total / 2) {
+    acc += items[i].value / scale;
     i++;
   }
   // Keep at least one item in each group.
@@ -51,14 +53,15 @@ function splitLayout(
   h: number,
   out: { node: DuNode; x: number; y: number; w: number; h: number }[]
 ) {
-  if (items.length === 0 || w <= 0 || h <= 0) return;
+  if (items.length === 0 || !Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return;
   if (items.length === 1) {
     out.push({ node: items[0].node, x, y, w, h });
     return;
   }
   const [a, b] = partition(items);
-  const aVal = a.reduce((s, c) => s + c.value, 0);
-  const total = aVal + b.reduce((s, c) => s + c.value, 0);
+  const scale = items.reduce((largest, item) => Math.max(largest, item.value), 0);
+  const aVal = a.reduce((sum, item) => sum + item.value / scale, 0);
+  const total = aVal + b.reduce((sum, item) => sum + item.value / scale, 0);
   if (total <= 0) return;
   const frac = aVal / total;
   if (w >= h) {
@@ -83,7 +86,7 @@ function buildCells(
 ) {
   cells.push({ node, x, y, w, h, depth });
   if (depth >= MAX_DEPTH) return;
-  const kids = (node.children ?? []).filter((c) => c.size > 0);
+  const kids = (node.children ?? []).filter((c) => Number.isFinite(c.size) && c.size > 0);
   if (kids.length === 0) return;
   const ix = x + PAD;
   const iy = y + PAD;
@@ -172,6 +175,10 @@ export function DiskTreemap({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const [pixelRatio, setPixelRatio] = useState(1);
+  const hasDrawableData =
+    Number.isFinite(root.size) && root.size > 0 &&
+    (root.children?.some((child) => Number.isFinite(child.size) && child.size > 0) ?? false);
   const cellsRef = useRef<Cell[]>([]);
   const [hoverPath, setHoverPath] = useState<string | null>(null);
   // Bumped when the app theme changes so the canvas repaints with fresh tokens.
@@ -193,6 +200,18 @@ export function DiskTreemap({
     return () => ro.disconnect();
   }, []);
 
+  // Device pixel ratio can change when moving a window between monitors.
+  // Cap it to avoid allocating enormous canvas bitmaps on ultra-high DPI.
+  useEffect(() => {
+    const update = () => {
+      const device = window.devicePixelRatio;
+      setPixelRatio(Number.isFinite(device) ? Math.min(2.5, Math.max(1, device)) : 1);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   // Repaint on theme switches (the app toggles `data-theme` on <html>).
   useEffect(() => {
     const mo = new MutationObserver(() => setThemeTick((t) => t + 1));
@@ -208,16 +227,16 @@ export function DiskTreemap({
     const canvas = canvasRef.current;
     if (!canvas || size.w === 0 || size.h === 0) return;
     const dark = isDarkTheme();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = size.w * dpr;
-    canvas.height = size.h * dpr;
+    const dpr = pixelRatio;
+    canvas.width = Math.max(1, Math.round(size.w * dpr));
+    canvas.height = Math.max(1, Math.round(size.h * dpr));
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, size.w, size.h);
 
     const cells: Cell[] = [];
-    if (root.size > 0 && (root.children?.length ?? 0) > 0) {
+    if (hasDrawableData) {
       buildCells(root, 0, 0, size.w, size.h, 0, cells);
     }
     cellsRef.current = cells;
@@ -228,7 +247,9 @@ export function DiskTreemap({
         cell.node.kind !== "directory" ||
         !cell.node.children ||
         cell.node.children.length === 0 ||
-        cell.depth >= MAX_DEPTH;
+        cell.depth >= MAX_DEPTH ||
+        cell.w < MIN_SIDE * 2 ||
+        cell.h < MIN_SIDE * 2;
       if (cell.depth === 0) {
         // The container itself: neutral backdrop from the theme.
         ctx.fillStyle = rgbVar("--bg-subtle");
@@ -251,10 +272,15 @@ export function DiskTreemap({
       if (hc) {
         ctx.strokeStyle = dark ? "#fff" : "#111";
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(hc.x + 0.75, hc.y + 0.75, hc.w - 1.5, hc.h - 1.5);
+        ctx.strokeRect(
+          hc.x + 0.75,
+          hc.y + 0.75,
+          Math.max(0, hc.w - 1.5),
+          Math.max(0, hc.h - 1.5),
+        );
       }
     }
-  }, [root, size, colorMode, hoverPath, themeTick]);
+  }, [root, size, pixelRatio, hasDrawableData, colorMode, hoverPath, themeTick]);
 
   const cellAt = (px: number, py: number, wantDir: boolean): Cell | null => {
     // Deepest cell (last in array among containers) wins.
@@ -298,12 +324,45 @@ export function DiskTreemap({
     }
   };
 
+  const onCanvasKeyDown = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const folders = cellsRef.current.filter(
+      (cell) => cell.depth > 0 && cell.node.kind === "directory" &&
+        cell.w >= MIN_SIDE && cell.h >= MIN_SIDE,
+    );
+    if (folders.length === 0) return;
+    const index = folders.findIndex((cell) => cell.node.path === hoverPath);
+    const current = folders[index >= 0 ? index : 0];
+    const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
+    const backward = event.key === "ArrowLeft" || event.key === "ArrowUp";
+    if (forward || backward || event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      const nextIndex = event.key === "Home" ? 0 :
+        event.key === "End" ? folders.length - 1 :
+        index < 0 ? 0 :
+        (index + (forward ? 1 : -1) + folders.length) % folders.length;
+      const next = folders[nextIndex];
+      setHoverPath(next.node.path);
+      onHover(next.node);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onDrill(current.node);
+    } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      event.preventDefault();
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) onContext(current.node, rect.left + current.x + 8, rect.top + current.y + 8);
+    }
+  };
+
   return (
     <div ref={wrapRef} className="relative h-full w-full overflow-hidden">
       <canvas
         ref={canvasRef}
         style={{ width: size.w, height: size.h }}
-        className="block cursor-pointer"
+        className="block cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+        role="group"
+        tabIndex={hasDrawableData ? 0 : -1}
+        aria-label={"Disk usage map for " + root.name + ". Arrow keys select folders, Enter opens, Shift+F10 shows actions."}
+        onKeyDown={onCanvasKeyDown}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
         onClick={onClick}
@@ -314,9 +373,11 @@ export function DiskTreemap({
             : "Click a box to drill into a folder"
         }
       />
-      {root.size === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-text-dim">
-          Nothing to show — this folder is empty ({fmtSize(0)}).
+      {!hasDrawableData && (
+        <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-text-dim" role="status">
+          {root.size === 0
+            ? "Nothing to show — this folder is empty (" + fmtSize(0) + ")."
+            : "No measurable items available for this folder."}
         </div>
       )}
     </div>
