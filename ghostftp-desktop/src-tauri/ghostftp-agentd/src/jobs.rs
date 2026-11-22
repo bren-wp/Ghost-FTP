@@ -26,6 +26,8 @@ use tokio::sync::oneshot;
 const JOB_TTL: Duration = Duration::from_secs(60 * 60);
 /// Hard ceiling on tracked jobs; over it, the oldest finished ones are dropped.
 const MAX_JOBS: usize = 256;
+/// Maximum concurrent active jobs owned by any one paired controller.
+const MAX_JOBS_PER_PEER: usize = 32;
 
 /// A byte buffer that stops growing at `cap` and remembers it was clipped, so a
 /// runaway job can't balloon the daemon's memory (mirrors the exec output cap).
@@ -93,10 +95,49 @@ impl JobStore {
         Self::default()
     }
 
+    /// Admit the job while the store mutex is held, *before* spawning a process.
+    /// The lock spans capacity checks, OS spawn and insertion: concurrent clients
+    /// cannot oversubscribe the daemon or replace an existing process handle.
+    fn admit(jobs: &mut HashMap<String, Job>, job_id: &str) -> std::io::Result<()> {
+        use std::io::{Error, ErrorKind};
+        if jobs.contains_key(job_id) {
+            return Err(Error::new(ErrorKind::AlreadyExists, "job id is already tracked"));
+        }
+        let namespace = |id: &str| id.split_once(':').map_or("", |(peer, _)| peer);
+        let peer = namespace(job_id);
+        let active_for_peer = jobs.iter().filter(|(id, job)| {
+            namespace(id) == peer && job.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner).running
+        }).count();
+        if active_for_peer >= MAX_JOBS_PER_PEER {
+            return Err(Error::new(ErrorKind::WouldBlock, "controller's active job quota reached"));
+        }
+        if jobs.len() >= MAX_JOBS {
+            // A completed job may be retired early to make room; never evict
+            // or overwrite a running process, even when the store is full.
+            let oldest_finished = jobs.iter()
+                .filter_map(|(id, job)| job.state.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .finished_at.map(|at| (id.clone(), at)))
+                .min_by_key(|(_, at)| *at)
+                .map(|(id, _)| id);
+            if let Some(id) = oldest_finished {
+                jobs.remove(&id);
+            } else {
+                return Err(Error::new(ErrorKind::WouldBlock, "daemon's active job capacity reached"));
+            }
+        }
+        Ok(())
+    }
+
     /// Spawn `command` in the daemon's native shell under `job_id`, capturing up
     /// to `max_bytes` of each stream. Returns the spawn error if the child can't
     /// start; otherwise the job runs to completion in the background.
     pub fn start(&self, job_id: &str, command: &str, max_bytes: usize) -> std::io::Result<()> {
+        let mut jobs = self.jobs.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        Self::prune(&mut jobs);
+        Self::admit(&mut jobs, job_id)?;
+        // Keep the admission lock through spawn and insertion. If spawn fails,
+        // no slot was inserted, and the guard releases the capacity.
         let mut cmd = crate::ops::build_command(command);
         cmd.stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -151,8 +192,6 @@ impl JobStore {
             st.finished_at = Some(Instant::now());
         });
 
-        let mut jobs = self.jobs.lock().unwrap();
-        Self::prune(&mut jobs);
         jobs.insert(
             job_id.to_string(),
             Job {
@@ -380,4 +419,84 @@ mod tests {
         }
         assert!(stopped, "killed job never went to finished");
     }
+
+    fn placeholder_job(running: bool, finished_at: Option<Instant>) -> Job {
+        Job {
+            stdout: Arc::new(Mutex::new(CappedBuf::new(0))),
+            stderr: Arc::new(Mutex::new(CappedBuf::new(0))),
+            state: Arc::new(Mutex::new(JobState {
+                running,
+                exit_code: if running { None } else { Some(0) },
+                finished_at,
+            })),
+            kill: Mutex::new(None),
+        }
+    }
+
+    #[test]
+    fn admission_rejects_duplicate_and_per_controller_overload() {
+        let mut jobs = HashMap::new();
+        for n in 0..MAX_JOBS_PER_PEER {
+            jobs.insert(format!("peer-a:{n}"), placeholder_job(true, None));
+        }
+        assert_eq!(
+            JobStore::admit(&mut jobs, "peer-a:new").unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert_eq!(
+            JobStore::admit(&mut jobs, "peer-a:0").unwrap_err().kind(),
+            std::io::ErrorKind::AlreadyExists
+        );
+        assert!(JobStore::admit(&mut jobs, "peer-b:new").is_ok());
+        assert_eq!(jobs.len(), MAX_JOBS_PER_PEER);
+    }
+
+    #[test]
+    fn admission_never_evicts_running_jobs_but_reaps_finished_when_full() {
+        let mut jobs = HashMap::new();
+        for n in 0..MAX_JOBS {
+            jobs.insert(format!("peer-{n}:job"), placeholder_job(true, None));
+        }
+        assert_eq!(
+            JobStore::admit(&mut jobs, "new-peer:new").unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert_eq!(jobs.len(), MAX_JOBS);
+        let completed = "peer-0:job";
+        let state = &jobs.get(completed).unwrap().state;
+        let mut state = state.lock().unwrap();
+        state.running = false;
+        state.finished_at = Some(Instant::now());
+        drop(state);
+        assert!(JobStore::admit(&mut jobs, "new-peer:new").is_ok());
+        assert!(!jobs.contains_key(completed));
+        assert_eq!(jobs.len(), MAX_JOBS - 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn simultaneous_starts_cannot_overwrite_same_job_id() {
+        let store = Arc::new(JobStore::new());
+        let mut attempts = Vec::new();
+        for _ in 0..12 {
+            let store = store.clone();
+            attempts.push(tokio::task::spawn_blocking(move || {
+                #[cfg(windows)]
+                let command = "Write-Output admitted";
+                #[cfg(not(windows))]
+                let command = "echo admitted";
+                store.start("peer:one-id", command, small_cap())
+            }));
+        }
+        let mut accepted = 0;
+        for result in attempts {
+            match result.await.unwrap() {
+                Ok(()) => accepted += 1,
+                Err(err) => assert_eq!(err.kind(), std::io::ErrorKind::AlreadyExists),
+            }
+        }
+        assert_eq!(accepted, 1);
+        assert!(store.poll("peer:one-id").is_some());
+        store.kill("peer:one-id");
+    }
 }
+
