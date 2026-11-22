@@ -136,6 +136,11 @@ function OverwriteModal({
             <Check checked={remember} onChange={setRemember}>
               Remember my choice as the default
             </Check>
+            {remember && (
+              <p role="status" aria-live="polite" className="pl-6 text-xs text-warning">
+                Your selected action will apply to future filename conflicts without another prompt, including the rest of this batch.
+              </p>
+            )}
           </div>
         </div>
 
