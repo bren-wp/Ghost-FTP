@@ -1,6 +1,6 @@
 # Ghost FTP by Brendigo — Protecting main (active issue #320)
 
-> Legacy document filename retained for historical links. Original issue #302 is deleted (GitHub HTTP 410); active tracking and release blocker: [#320](https://github.com/bren-wp/Ghost-FTP/issues/320).
+> Legacy document filename retained for historical links. Original issue #302 is deleted (GitHub HTTP 410); active defense-in-depth protection hardening: [#320](https://github.com/bren-wp/Ghost-FTP/issues/320).
 
 **Last observed:** `main.protected = false`, no active rulesets. Source CI cannot replace GitHub's server-side merge restrictions. The active issue #320 must remain **open** until protections are applied and verified by a repository administrator.
 
