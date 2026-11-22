@@ -1503,13 +1503,65 @@ async fn run_concurrent_protocol_matrix(
                     })
             });
         }
-        // A worker failure never promotes incomplete transfers to success.
-        // Continue to fail the whole matrix on any TLS, length or digest error.
-        while let Some(task) = tasks.join_next().await {
-            task.with_context(|| format!("{protocol} {concurrency}-worker task panicked"))?
-                .with_context(|| format!("{protocol} {concurrency}-worker roundtrip failed"))?;
+        // Do not drop the JoinSet on the first failed task. Doing so aborts
+        // otherwise-active real transfers and can leave a partially uploaded
+        // remote test fixture while also hiding other independent failures.
+        // Drain every started worker before returning the first error.
+        drain_parallel_worker_tasks(&mut tasks, protocol, concurrency).await?;
+    }
+    Ok(())
+}
+
+async fn drain_parallel_worker_tasks(
+    tasks: &mut tokio::task::JoinSet<Result<()>>,
+    protocol: &str,
+    concurrency: usize,
+) -> Result<()> {
+    let mut first_failure = None;
+    while let Some(task) = tasks.join_next().await {
+        let result = task
+            .with_context(|| format!("{protocol} {concurrency}-worker task panicked"))
+            .and_then(|result| {
+                result.with_context(|| format!("{protocol} {concurrency}-worker roundtrip failed"))
+            });
+        if let Err(error) = result {
+            if first_failure.is_none() {
+                first_failure = Some(error);
+            }
         }
     }
+    if let Some(error) = first_failure {
+        return Err(error);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn failed_parallel_worker_does_not_abort_other_started_workers() -> Result<()> {
+    use std::sync::atomic::AtomicUsize;
+
+    let completed = Arc::new(AtomicUsize::new(0));
+    let mut tasks = tokio::task::JoinSet::new();
+    tasks.spawn(async { Err(anyhow!("deliberate worker fault")) });
+    for _ in 0..2 {
+        let completed = Arc::clone(&completed);
+        tasks.spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            completed.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        });
+    }
+    let error = drain_parallel_worker_tasks(&mut tasks, "ftp", 3)
+        .await
+        .expect_err("one failing parallel worker must fail the whole matrix");
+    anyhow::ensure!(
+        format!("{error:#}").contains("deliberate worker fault"),
+        "parallel failure must retain the original error cause"
+    );
+    anyhow::ensure!(
+        completed.load(Ordering::SeqCst) == 2 && tasks.is_empty(),
+        "all other workers must finish before the matrix reports failure"
+    );
     Ok(())
 }
 
