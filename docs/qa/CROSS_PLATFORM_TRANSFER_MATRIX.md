@@ -1,6 +1,6 @@
 # Ghost FTP by Brendigo — Windows and Linux transfer acceptance matrix
 
-**Current development source:** 0.99.76 Preview (unpublished). **Latest published:** v0.99.75 Preview. This table records *automated test scope*, not an assertion that every user-facing feature has been certified. A green CI job proves only the cases that actually ran on its specified operating system.
+**Current development source:** 0.99.77 Preview (unpublished). **Latest published:** v0.99.76 Preview. This table records *automated test scope*, not an assertion that every user-facing feature has been certified. A green CI job proves only the cases that actually ran on its specified operating system.
 
 | Feature / scenario | Linux automated coverage | Windows automated coverage | Required additional acceptance |
 | --- | --- | --- | --- |
