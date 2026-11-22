@@ -105,3 +105,33 @@ export function recentTransferLog(
   }
   return newest;
 }
+
+/** View-only sorting: never reprioritize persisted/native transfer work. */
+export type TransferSortOrder = "queue" | "newest" | "oldest" | "largest" | "name";
+
+export function sortTransferView(
+  transfers: readonly Transfer[],
+  order: TransferSortOrder,
+): Transfer[] {
+  if (order === "queue") return [...transfers];
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+  const sortable = transfers.map((transfer, index) => ({ transfer, index }));
+  const valid = (value: number): number | null =>
+    Number.isFinite(value) && value >= 0 ? value : null;
+  sortable.sort((a, b) => {
+    if (order === "name") {
+      const nameA = String(a.transfer.source ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "";
+      const nameB = String(b.transfer.source ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "";
+      const cmp = collator.compare(nameA, nameB);
+      return cmp || a.index - b.index;
+    }
+    const first = valid(order === "largest" ? a.transfer.size : a.transfer.startedAt);
+    const second = valid(order === "largest" ? b.transfer.size : b.transfer.startedAt);
+    if (first === null && second !== null) return 1;
+    if (second === null && first !== null) return -1;
+    if (first === null || second === null) return a.index - b.index;
+    const cmp = order === "oldest" ? first - second : second - first;
+    return cmp || a.index - b.index;
+  });
+  return sortable.map(({ transfer }) => transfer);
+}

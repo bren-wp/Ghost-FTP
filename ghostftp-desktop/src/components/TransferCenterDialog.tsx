@@ -21,6 +21,8 @@ import { useConnections } from "@/stores/connectionsStore";
 import {
   countTransferStatuses,
   filterTransferView,
+  sortTransferView,
+  type TransferSortOrder,
   recentTransferLog,
   type TransferStatusTab,
   type TransferDirectionFilter,
@@ -62,6 +64,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const [query, setQuery] = useState("");
   const [directionFilter, setDirectionFilter] = useState<TransferDirectionFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TransferTimeFilter>("all");
+  const [sortOrder, setSortOrder] = useState<TransferSortOrder>("queue");
   const [historyClock, setHistoryClock] = useState(() => Date.now() / 1000);
   useEffect(() => {
     if (timeFilter === "all") return;
@@ -180,6 +183,11 @@ export function TransferCenterDialog({ onClose }: Props) {
     [transfers, tab, query, directionFilter, timeFilter, historyClock]
   );
 
+
+  const sortedTransfers = useMemo(
+    () => sortTransferView(filtered, sortOrder),
+    [filtered, sortOrder]
+  );
 
   // Review the latest real backend failure in one action, regardless of
   // previous text/direction/time filters. This never retries automatically.
@@ -528,6 +536,18 @@ export function TransferCenterDialog({ onClose }: Props) {
             <option value="week">Last 7 days</option>
             <option value="month">Last 30 days</option>
           </select>
+          <select
+            className="ghost-ref-input h-8 w-36"
+            aria-label="Transfer sort order"
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value as TransferSortOrder)}
+          >
+            <option value="queue">Queue order</option>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="largest">Largest first</option>
+            <option value="name">File name (A–Z)</option>
+          </select>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
@@ -555,7 +575,7 @@ export function TransferCenterDialog({ onClose }: Props) {
                 <span className="text-right">Actions</span>
               </div>
               <div className="min-w-[920px]">
-                {filtered.map((transfer, index) => (
+                {sortedTransfers.map((transfer, index) => (
                   <div
                     key={transfer.id}
                     ref={selected?.id === transfer.id && transfer.status === "error" ? focusedFailureRowRef : undefined}

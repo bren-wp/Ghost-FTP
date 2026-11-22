@@ -4843,6 +4843,12 @@ input.ghost-pane-address:focus-visible {
   flex: 0 0 118px !important;
 }
 
+.ghost-transfer-filters select[aria-label="Transfer sort order"] {
+  width: 148px !important;
+  min-width: 148px !important;
+  flex: 0 0 148px !important;
+}
+
 .ghost-sites-empty {
   display: grid;
   flex: 1 1 auto;
@@ -4987,6 +4993,12 @@ input.ghost-pane-address:focus-visible {
     min-width: 108px !important;
     flex: 1 1 108px !important;
   }
+
+  .ghost-transfer-filters select[aria-label="Transfer sort order"] {
+    width: auto !important;
+    min-width: 126px !important;
+    flex: 1 1 126px !important;
+  }
 }
 
 @media (max-width: 560px) {
@@ -4997,6 +5009,9 @@ input.ghost-pane-address:focus-visible {
 
   .ghost-transfer-filters select[aria-label="Transfer direction filter"],
   .ghost-transfer-filters select[aria-label="Transfer time filter"] {
+    min-width: 0 !important;
+  }
+  .ghost-transfer-filters select[aria-label="Transfer sort order"] {
     min-width: 0 !important;
   }
 }
