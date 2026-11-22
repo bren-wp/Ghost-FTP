@@ -20,7 +20,7 @@
 - A skipped, canceled, queued or failed test is **not passed**. Do not label the Windows FTP scenario or new parallel 1/4/8 Windows matrix verified before each reports success on the latest pull-request SHA.
 - Build success on Windows and Linux is distinct from user-interface pixel parity, device acceptance, certificate trust and end-to-end functionality of external services.
 - Native screenshots must come from running apps on the claimed version and operating system, with approval of the reference source recorded before declaring pixel parity.
-- `main` branch protection remains an external owner-admin task (issue #302); source-only protection scripts do not authorize closing it.
+- `main` branch protection remains an external owner-admin task (active issue #320; former #302 was deleted); source-only protection scripts do not authorize closing it.
 
 ## Reproduction
 
