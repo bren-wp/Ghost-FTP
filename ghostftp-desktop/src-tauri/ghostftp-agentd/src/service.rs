@@ -168,7 +168,9 @@ mod linux {
     }
 
     pub(super) fn unit_file(exe: &std::path::Path, extra: &[String]) -> Result<String> {
-        let exe = exe.to_str().context("service executable path must be valid UTF-8")?;
+        let exe = exe
+            .to_str()
+            .context("service executable path must be valid UTF-8")?;
         Ok(format!(
             "[Unit]\n\
              Description=Ghost FTP Agent daemon (control this machine from Ghost FTP)\n\
@@ -226,7 +228,9 @@ mod windows {
     }
 
     pub(super) fn task_run_command(exe: &std::path::Path, extra: &[String]) -> Result<String> {
-        let exe = exe.to_str().context("task executable path must be valid UTF-8")?;
+        let exe = exe
+            .to_str()
+            .context("task executable path must be valid UTF-8")?;
         Ok(format!(
             "{} {}",
             quote_windows_argument(exe)?,
@@ -280,10 +284,7 @@ mod tests {
 
     #[test]
     fn run_args_keeps_each_argument_separate() {
-        let argv = vec![
-            "--config-dir".to_string(),
-            "dir with spaces".to_string(),
-        ];
+        let argv = vec!["--config-dir".to_string(), "dir with spaces".to_string()];
         let result = run_args(&argv, |value| {
             validate_service_argument(value)?;
             Ok(format!("<{value}>"))
@@ -357,11 +358,9 @@ mod tests {
             "--config-dir".to_string(),
             r"C:\Users\Test User\Ghost FTP".to_string(),
         ];
-        let task = windows::task_run_command(
-            Path::new(r"C:\Program Files\Ghost FTP\agentd.exe"),
-            &args,
-        )
-        .unwrap();
+        let task =
+            windows::task_run_command(Path::new(r"C:\Program Files\Ghost FTP\agentd.exe"), &args)
+                .unwrap();
         assert_eq!(
             task,
             r#""C:\Program Files\Ghost FTP\agentd.exe" "run" "--config-dir" "C:\Users\Test User\Ghost FTP""#
