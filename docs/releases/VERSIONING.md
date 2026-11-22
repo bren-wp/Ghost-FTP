@@ -1,8 +1,8 @@
-> **Ghost FTP v0.99.75 Preview candidate. Previous public release: v0.99.74. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.76 Preview candidate. Previous public release: v0.99.75. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP Versioning
 
-Current development edition: **0.99.75 Preview**. Previous published canonical release: **v0.99.74**.
+Current development edition: **0.99.76 Preview**. Previous published canonical release: **v0.99.75**.
 
 Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
