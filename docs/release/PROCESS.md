@@ -6,7 +6,7 @@ The single source of truth is `version.json`. A new version requires synchronize
 
 ## Protect the main branch (repository owner)
 
-Production source is not protected by CI alone. The owner must configure GitHub branch protection under issue [#302](https://github.com/bren-wp/Ghost-FTP/issues/302). Run `bash .github/scripts/enable-main-protection.sh --check` to verify the live rules; the owner-only `--apply` variant requires GitHub repository Administration:write permission. See [the operational acceptance procedure](BRANCH_PROTECTION_302.md). A successful CI run never substitutes for `main.protected: true`.
+Production source is not protected by CI alone. The owner must configure GitHub branch protection under issue [#320](https://github.com/bren-wp/Ghost-FTP/issues/320). Run `bash .github/scripts/enable-main-protection.sh --check` to verify the live rules; the owner-only `--apply` variant requires GitHub repository Administration:write permission. See [the operational acceptance procedure](BRANCH_PROTECTION_302.md). A successful CI run never substitutes for `main.protected: true`.
 
 ## Required exact-source gates
 
