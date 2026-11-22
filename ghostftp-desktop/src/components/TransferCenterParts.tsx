@@ -91,6 +91,9 @@ export function TransferRow({
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(event) => {
+        // Native button keyboard activation must not be intercepted by the
+        // enclosing selectable row (Enter/Space bubble from child buttons).
+        if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onClick();
@@ -103,7 +106,7 @@ export function TransferRow({
       }`}
     >
       <span className="text-text-dim">{index}</span>
-      <span className="truncate font-medium">{baseName(transfer.source)}</span>
+      <span className="truncate font-medium" title={transfer.source} dir="auto">{baseName(transfer.source)}</span>
       <span className={transfer.kind === "upload" ? "text-accent" : "text-success"}>
         {transfer.kind === "upload" ? "↑ Upload" : "↓ Download"}
       </span>
@@ -185,7 +188,7 @@ export function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: 
   const pct = transferProgressPercent(transfer);
   return (
     <div className="space-y-1 text-[11px] text-text-muted">
-      <div className="truncate font-semibold text-text">
+      <div className="truncate font-semibold text-text" title={transfer.source} dir="auto">
         {baseName(transfer.source)}
       </div>
       <div className="h-3 overflow-hidden rounded border border-border bg-[#03111d]">

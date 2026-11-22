@@ -70,3 +70,19 @@ test("bandwidth presentation sanitizes invalid or negative samples", () => {
   assert.ok(source.includes("data.reduce((highest, sample)"),
     "peak calculation should not create a duplicate large history array");
 });
+
+test("keyboard actions inside transfer rows are not stolen by row selection", () => {
+  const begin = source.indexOf("export function TransferRow(");
+  const end = source.indexOf("export function TransferDetails(", begin);
+  assert.ok(begin >= 0 && end > begin);
+  const row = source.slice(begin, end);
+  assert.ok(row.includes("event.target !== event.currentTarget"),
+    "ignore bubbled Enter and Space from native Pause/Retry/Cancel buttons");
+  assert.ok(row.includes('event.key === "Enter" || event.key === " "'),
+    "the row itself must remain keyboard-selectable");
+  assert.ok(row.includes("event.stopPropagation(); onPauseResume();"));
+  assert.ok(row.includes("event.stopPropagation(); onRetry();"));
+  assert.ok(row.includes("event.stopPropagation(); onCancel();"));
+  assert.ok(row.includes('title={transfer.source} dir="auto"'),
+    "full file path must remain inspectable for truncated names");
+});
