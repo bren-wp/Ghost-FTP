@@ -80,10 +80,7 @@ export function TransferRow({
   onCancel: () => void;
   onRetry: () => void;
 }) {
-  const pct =
-    transfer.size > 0
-      ? Math.max(0, Math.min(100, (transfer.transferred / transfer.size) * 100))
-      : 0;
+  const pct = transferProgressPercent(transfer);
   const pausable = transfer.status === "transferring" || transfer.status === "queued" || transfer.status === "paused";
   const cancelable = pausable;
   const retryable = transfer.status === "error";
@@ -185,10 +182,7 @@ export function TransferRow({
 }
 
 export function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: number }) {
-  const pct =
-    transfer.size > 0
-      ? Math.max(0, Math.min(100, (transfer.transferred / transfer.size) * 100))
-      : 0;
+  const pct = transferProgressPercent(transfer);
   return (
     <div className="space-y-1 text-[11px] text-text-muted">
       <div className="truncate font-semibold text-text">
@@ -214,14 +208,17 @@ export function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: 
 }
 
 export function BandwidthChart({ history }: { history: BandwidthSample[] }) {
-  const data =
-    history.length > 1
-      ? history
-      : [
-          { upload: 0, download: 0 },
-          { upload: 0, download: 0 },
-        ];
-  const peak = Math.max(0, ...data.flatMap((sample) => [sample.upload, sample.download]));
+  const data = (history.length > 1
+    ? history
+    : [
+        { upload: 0, download: 0 },
+        { upload: 0, download: 0 },
+      ]).map((sample) => ({
+    upload: Number.isFinite(sample.upload) ? Math.max(0, sample.upload) : 0,
+    download: Number.isFinite(sample.download) ? Math.max(0, sample.download) : 0,
+  }));
+  // Keep the graph finite even if a bad source rate reaches presentation.
+  const peak = data.reduce((highest, sample) => Math.max(highest, sample.upload, sample.download), 0);
   const scaleMax = Math.max(1, peak);
   const points = (key: keyof BandwidthSample) =>
     data
@@ -271,18 +268,25 @@ export function BandwidthChart({ history }: { history: BandwidthSample[] }) {
   );
 }
 
-function etaOf(transfer: Transfer, speed: number) {
+export function transferProgressPercent(transfer: Pick<Transfer, "size" | "transferred">): number {
+  if (!Number.isFinite(transfer.size) || transfer.size <= 0 ||
+      !Number.isFinite(transfer.transferred) || transfer.transferred < 0) return 0;
+  return Math.max(0, Math.min(100, (transfer.transferred / transfer.size) * 100));
+}
+
+export function etaOf(transfer: Transfer, speed: number) {
   if (
-    !speed ||
+    !Number.isFinite(speed) || speed <= 0 ||
+    !Number.isFinite(transfer.size) ||
+    !Number.isFinite(transfer.transferred) ||
+    transfer.transferred < 0 ||
     transfer.status !== "transferring" ||
     transfer.size <= transfer.transferred
   ) {
     return "—";
   }
-  const seconds = Math.max(
-    0,
-    Math.ceil((transfer.size - transfer.transferred) / speed)
-  );
+  const seconds = Math.ceil((transfer.size - transfer.transferred) / speed);
+  if (!Number.isFinite(seconds) || seconds < 0) return "—";
   const minutes = Math.floor(seconds / 60);
   const remainder = seconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
@@ -292,12 +296,15 @@ export function baseName(path: string) {
   return path.split(/[\\/]/).filter(Boolean).pop() || path || "transfer";
 }
 
-function formatRate(bytesPerSecond: number) {
-  return bytesPerSecond > 0 ? `${formatBytes(bytesPerSecond)}/s` : "—";
+export function formatRate(bytesPerSecond: number) {
+  return Number.isFinite(bytesPerSecond) && bytesPerSecond > 0
+    ? `${formatBytes(bytesPerSecond)}/s` : "—";
 }
 
-function formatBytes(bytes: number) {
-  if (!bytes) return "—";
+export function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  // A real zero-byte file is not an unknown size.
+  if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];
   let index = 0;
   let value = bytes;
