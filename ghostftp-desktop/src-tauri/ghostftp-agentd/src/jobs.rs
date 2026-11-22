@@ -138,7 +138,10 @@ impl JobStore {
             if let Some(id) = oldest_finished {
                 jobs.remove(&id);
             } else {
-                return Err(Error::new(ErrorKind::WouldBlock, "daemon's active job capacity reached"));
+                return Err(Error::new(
+                    ErrorKind::WouldBlock,
+                    "daemon's active job capacity reached",
+                ));
             }
         }
         Ok(())
