@@ -192,7 +192,14 @@ export function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: 
       <div className="truncate font-semibold text-text" title={transfer.source} dir="auto">
         {baseName(transfer.source)}
       </div>
-      <div className="h-3 overflow-hidden rounded border border-border bg-[#03111d]">
+      <div
+        role="progressbar"
+        aria-label={"Progress for " + baseName(transfer.source)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Number(pct.toFixed(0))}
+        className="h-3 overflow-hidden rounded border border-border bg-[#03111d]"
+      >
         <div
           className="h-full bg-accent-strong"
           style={{ width: `${pct}%` }}
@@ -243,7 +250,7 @@ export function BandwidthChart({
           {" "}↓ {graph.hasData ? measuredRate(graph.average.download) : "—"}
         </span>
       </div>
-      <div className="relative h-32 w-full min-w-0 overflow-hidden rounded-md border border-border-subtle bg-[#041522]">
+      <div className="relative h-24 w-full min-w-0 overflow-hidden rounded-md border border-border-subtle bg-[#041522]">
         {graph.hasData ? (
           <svg
             viewBox="0 0 600 120"

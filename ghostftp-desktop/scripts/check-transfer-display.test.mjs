@@ -97,3 +97,18 @@ test("keyboard actions inside transfer rows are not stolen by row selection", ()
   assert.ok(row.includes('title={transfer.source} dir="auto"'),
     "full file path must remain inspectable for truncated names");
 });
+
+
+test("detail progress and bandwidth chart stay accessible in compact desktop panels", () => {
+  const detailStart = source.indexOf("export function TransferDetails(");
+  const chartStart = source.indexOf("export function BandwidthChart(", detailStart);
+  assert.ok(detailStart > 0 && chartStart > detailStart);
+  const detail = source.slice(detailStart, chartStart);
+  assert.ok(detail.includes('role="progressbar"'));
+  assert.ok(detail.includes('aria-valuenow={Number(pct.toFixed(0))}'));
+  const chart = source.slice(chartStart, source.indexOf("export function transferProgressPercent(", chartStart));
+  assert.ok(chart.includes('className="relative h-24 w-full'),
+    "bandwidth graph must stay within the fixed-height transfer summary panel");
+  assert.ok(chart.includes("Average ↑"));
+  assert.ok(chart.includes("graph.hasData"));
+});
