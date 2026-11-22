@@ -1,4 +1,4 @@
-> **Current source: Ghost FTP v0.99.75 Preview candidate; previously published v0.99.74 (22 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Current source: Ghost FTP v0.99.76 Preview candidate; previously published v0.99.75 (22 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP — Project Status & Recommended Next Work
 
@@ -12,7 +12,7 @@ Historical 0.99.4 development notes (following 0.99.3) are retained below for re
 
 Historical 0.93.0 findings remain as context; current development and open Issues are tracked in the **0.95.30** release notes.
 
-Previous canonical release: **0.99.74**. Live publication state is determined from GitHub Releases.
+Previous canonical release: **0.99.75**. Live publication state is determined from GitHub Releases.
 
 ## Cloud capabilities — 0.93.0 candidate
 
