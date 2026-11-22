@@ -1,6 +1,14 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.77 Preview — 22 November 2026 (development candidate; not yet published)
+## 0.99.78 Preview — 22 November 2026 (development candidate; not yet published)
+
+- Check global Remote Agent job admission before OS spawn, rejecting duplicate IDs without ever starting or overwriting an untracked child process.
+- Limit active detached jobs to 32 per pinned controller; preserve the 256-job daemon ceiling, never evict live jobs and safely reclaim finished entries when capacity is full.
+- Add deterministic per-controller/global saturation tests and a concurrent duplicate-start regression, pending verified native CI execution.
+- Synchronize Preview source version and release documentation; retain fail-closed release requirements and independent platform acceptance.
+
+
+## 0.99.77 Preview — published 22 November 2026
 
 - Expand authentic FTP/explicit FTPS loopback tests to prove same-session reauthentication, terminal explicit Disconnect, and fresh authenticated connection with preserved binary content and distinct session identity.
 - Inject a real streaming source failure into a unique FTP/FTPS staging sibling, reauthenticate, assert existing remote target contents survive unmodified and clean partial staging data.

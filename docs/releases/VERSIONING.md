@@ -1,8 +1,8 @@
-> **Ghost FTP v0.99.77 Preview candidate. Previous public release: v0.99.76. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.78 Preview candidate. Previous public release: v0.99.77. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP Versioning
 
-Current development edition: **0.99.77 Preview**. Previous published canonical release: **v0.99.76**.
+Current development edition: **0.99.78 Preview**. Previous published canonical release: **v0.99.77**.
 
 Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
@@ -29,9 +29,9 @@ Ghost FTP uses semantic versioning with a pre-1.0 development train.
 
 ## Current cycle
 
-- Active source/release cycle: **0.99.77**
-- Previous canonical release: **0.99.76**
-- Previous source version: **0.99.73** (verified public predecessor).
+- Active source/release cycle: **0.99.78**
+- Previous canonical release: **0.99.77**
+- Previous source version: **0.99.77** (verified public predecessor).
 - Historical versions **0.30.11** and **0.30.12** had merged-but-unpublished source transitions; their provenance remains in the release history.
 - Live publication state: GitHub Releases is authoritative.
 
