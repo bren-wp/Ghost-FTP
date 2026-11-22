@@ -76,7 +76,7 @@ function OverwriteModal({
         <div className="px-5 py-4">
           <div className="text-sm text-text-muted">
             A {info.kind === "directory" ? "folder" : "file"} named{" "}
-            <span className="font-medium text-text">{info.name}</span> already
+            <span className="font-medium text-text break-all" dir="auto">{info.name}</span> already
             exists {where} in:
           </div>
           <div
@@ -113,29 +113,33 @@ function OverwriteModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
+        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3 max-[620px]:flex-col-reverse max-[620px]:items-stretch">
           <button
+            type="button"
             onClick={cancel}
-            className="rounded-md px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text"
+            className="rounded-md px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text max-[620px]:w-full max-[620px]:justify-center"
           >
             Cancel transfer
           </button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-[620px]:grid max-[620px]:w-full max-[620px]:grid-cols-3">
             <button
+              type="button"
               onClick={() => pick("skip")}
-              className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text"
+              className="flex items-center justify-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text max-[620px]:min-w-0 max-[620px]:px-2"
             >
               <SkipForward size={13} /> Skip
             </button>
             <button
+              type="button"
               onClick={() => pick("rename")}
               className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text"
             >
               <Copy size={13} /> Keep both
             </button>
             <button
+              type="button"
               onClick={() => pick("overwrite")}
-              className="btn-accent flex items-center gap-1 rounded-md px-3.5 py-1.5 text-sm font-medium text-white"
+              className="btn-accent flex items-center justify-center gap-1 rounded-md px-3.5 py-1.5 text-sm font-medium text-white max-[620px]:min-w-0 max-[620px]:px-2"
             >
               <FolderSync size={14} /> Overwrite
             </button>
