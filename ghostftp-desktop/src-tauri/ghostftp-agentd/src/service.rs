@@ -44,6 +44,16 @@ pub fn uninstall() -> Result<()> {
     bail!("service uninstall isn't supported on this platform");
 }
 
+/// Inspect the installed service/task without starting it or mutating identity.
+pub fn status() -> Result<()> {
+    #[cfg(target_os = "linux")]
+    return linux::status();
+    #[cfg(target_os = "windows")]
+    return windows::status();
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    bail!("service status isn't supported on this platform");
+}
+
 /// Build the `run …` argument line shared by every backend.
 fn validate_service_argument(value: &str) -> Result<()> {
     // Unit files are line-based and Windows tasks are command-line based.
@@ -80,7 +90,8 @@ mod linux {
             let dir = dirs::config_dir()
                 .context("no user config dir")?
                 .join("systemd/user");
-            std::fs::create_dir_all(&dir).ok();
+            std::fs::create_dir_all(&dir)
+                .with_context(|| format!("create {}", dir.display()))?;
             (dir.join("ghostftp-agentd.service"), true)
         };
         std::fs::write(&path, unit).with_context(|| format!("write {}", path.display()))?;
@@ -115,6 +126,31 @@ mod linux {
                  \x20         sudo loginctl enable-linger $USER"
             );
         }
+        Ok(())
+    }
+
+    pub fn status() -> Result<()> {
+        let user_flag = unsafe { libc_geteuid() } != 0;
+        let mut command = Command::new("systemctl");
+        if user_flag {
+            command.arg("--user");
+        }
+        let output = command
+            .args([
+                "show",
+                "ghostftp-agentd.service",
+                "--no-pager",
+                "--property=LoadState,ActiveState,SubState,UnitFileState",
+            ])
+            .output()
+            .context("query ghostftp-agentd systemd service")?;
+        if !output.status.success() {
+            bail!(
+                "systemctl show failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+        print!("{}", String::from_utf8_lossy(&output.stdout));
         Ok(())
     }
 
@@ -252,12 +288,32 @@ mod windows {
         if !status.success() {
             bail!("schtasks failed to create the task");
         }
-        // Start it now so the user doesn't have to log out/in first.
-        let _ = Command::new("schtasks")
+        // Report a failed initial launch; a scheduled but not running agent
+        // must not be presented as a successfully started remote service.
+        let started = Command::new("schtasks")
             .args(["/run", "/tn", TASK_NAME])
-            .status();
-        println!("Installed logon task '{TASK_NAME}'. It starts ghostftp-agentd at every sign-in.");
+            .status()
+            .context("start Ghost FTP Agent logon task")?;
+        if !started.success() {
+            bail!("Ghost FTP Agent task was created but could not start; inspect 'service-status'");
+        }
+        println!("Installed and started logon task '{TASK_NAME}'. It starts at every sign-in.");
         println!("  remove: ghostftp-agentd uninstall");
+        Ok(())
+    }
+
+    pub fn status() -> Result<()> {
+        let output = Command::new("schtasks")
+            .args(["/query", "/tn", TASK_NAME, "/fo", "LIST"])
+            .output()
+            .context("query Ghost FTP Agent logon task")?;
+        if !output.status.success() {
+            bail!(
+                "Ghost FTP Agent logon task not found or unavailable: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+        print!("{}", String::from_utf8_lossy(&output.stdout));
         Ok(())
     }
 

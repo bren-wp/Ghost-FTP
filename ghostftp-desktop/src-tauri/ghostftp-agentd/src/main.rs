@@ -8,6 +8,7 @@
 //!   ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy
 //!   ghostftp-agentd install   [--port N] [--read-only]               run as a background service (autostart)
 //!   ghostftp-agentd uninstall                                        remove the background service
+//!   ghostftp-agentd service-status                                   show installed service/task state
 //!
 //! `pair` is `run` with a pairing window open: already-paired controllers keep
 //! working while new ones pair, and nothing needs restarting afterwards.
@@ -114,6 +115,10 @@ async fn main() -> Result<()> {
         .init();
 
     let args = parse_args();
+    // Status must be observational: no new device identity, key or config file.
+    if args.command == "service-status" {
+        return ghostftp_agentd::service::status();
+    }
     let dir = ghostftp_agentd::config_dir(args.config_dir.clone())?;
     let identity = Identity::load_or_create(&identity_path(&dir))?;
     let mut config = Config::load(&config_path(&dir))?;
@@ -408,11 +413,12 @@ fn print_help() {
          \x20 ghostftp-agentd unpair    <fingerprint|all>                      remove a pinned controller\n\
          \x20 ghostftp-agentd permit    <pin> <read|write|delete|terminal> <on|off>  update device policy\n\
          \x20 ghostftp-agentd install   [--port N] [--read-only]               run as a service (autostart)\n\
-         \x20 ghostftp-agentd uninstall                                        remove the service\n\n\
+         \x20 ghostftp-agentd uninstall                                        remove the service\n\
+         \x20 ghostftp-agentd service-status                                   show service/task state\n\n\
          `pair` keeps serving already-paired controllers while the window is open\n\
          (default {DEFAULT_WINDOW_MIN} min) and after it closes — no restart needed. `--json` prints\n\
          one machine-readable event per line for hosting panels. `install` sets up\n\
-         a systemd unit / LaunchAgent / logon task that runs `ghostftp-agentd run`.\n\n\
+         a systemd unit / Windows logon task that runs `ghostftp-agentd run`.\n\n\
          SHARED FLAGS:\n\
          \x20 --config-dir <path>   override the config/identity directory\n\n\
          Default port: {}",
