@@ -1763,8 +1763,13 @@ async fn real_windows_ftp_roundtrip() -> Result<()> {
     )
     .await?;
     lifecycle::verify_ftp_reconnect_and_disconnect(
-        "ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?, &username, &password,
-    ).await?;
+        "ftp",
+        "127.0.0.1",
+        port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+    )
+    .await?;
     lifecycle::verify_staged_upload_source_fault(
         "ftp",
         "127.0.0.1",
