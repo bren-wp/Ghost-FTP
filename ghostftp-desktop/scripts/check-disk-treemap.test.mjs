@@ -82,5 +82,7 @@ test("treemap is accessible from keyboard and supports correct high-DPI redraw",
   assert.ok(usage.includes("rankDiskItems(children)"));
   assert.ok(usage.includes("safeDiskPercent(c.size, parentSize)"));
   assert.ok(usage.includes("onContext(c, box.left + 12, box.bottom)"));
+  assert.ok(usage.includes("flex-col md:flex-row"), "small windows need stacked map/list layout");
+  assert.ok(usage.includes("max-h-[36vh] w-full"), "ranked items must not squeeze narrow maps");
   assert.ok(!usage.includes("Math.max(1, pct)"), "zero-byte items must not draw fake one-percent bars");
 });

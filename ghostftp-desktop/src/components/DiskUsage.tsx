@@ -142,12 +142,12 @@ function DiskUsage() {
   return createPortal(
     <div className="anim-modal fixed inset-0 z-modal flex flex-col bg-bg">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-bg-panel px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-bg-panel px-3 py-2">
         <HardDrive size={15} className="shrink-0 text-accent" />
         <span className="shrink-0 text-sm font-semibold">Disk Usage</span>
 
         {/* Breadcrumb into the tree */}
-        <div className="flex min-w-0 flex-1 items-center overflow-x-auto whitespace-nowrap text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="order-last flex w-full min-w-0 items-center overflow-x-auto whitespace-nowrap text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:order-none md:w-auto md:flex-1">
           <button
             onClick={() => navigateTo(-1)}
             className={cn(
@@ -259,9 +259,9 @@ function DiskUsage() {
           </div>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* Treemap */}
-          <div className="relative flex min-w-0 flex-1 flex-col border-r border-border">
+          <div className="relative flex min-h-[180px] min-w-0 flex-1 flex-col border-b border-border md:min-h-0 md:border-b-0 md:border-r">
             <div className="min-h-0 flex-1 p-2">
               {current && !scanning ? (
                 <DiskTreemap
@@ -352,7 +352,7 @@ function RankedList({
   const shown = useMemo(() => rankDiskItems(children).slice(0, MAX_ROWS), [node]);
 
   return (
-    <div className="flex w-80 shrink-0 flex-col bg-bg-panel">
+    <div className="flex max-h-[36vh] w-full shrink-0 flex-col bg-bg-panel md:max-h-none md:w-80">
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-bg-subtle px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
         <span>Biggest items</span>
         <span>{children.length.toLocaleString()}</span>
@@ -366,9 +366,11 @@ function RankedList({
           shown.map((c) => {
             const pct = safeDiskPercent(c.size, parentSize);
             const shownSize = Number.isFinite(c.size) && c.size >= 0 ? fmtSize(c.size) : "Unknown size";
-            const percentageLabel = pct > 0 && pct < 1
-              ? "<1%"
-              : Number.isFinite(c.size) && c.size >= 0 ? Math.round(pct) + "%" : "—";
+            const percentageLabel =
+              !Number.isFinite(c.size) || c.size < 0 ||
+              !Number.isFinite(parentSize) || parentSize <= 0
+                ? "—"
+                : pct > 0 && pct < 1 ? "<1%" : Math.round(pct) + "%";
             const isDir = c.kind === "directory";
             const matUrl =
               c.kind === "file" ? materialIconUrl(c.name) : undefined;

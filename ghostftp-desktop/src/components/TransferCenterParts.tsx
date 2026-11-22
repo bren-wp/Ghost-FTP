@@ -230,18 +230,19 @@ export function BandwidthChart({
   const latestUpload = graph.latest ? measuredRate(graph.latest.upload) : "—";
   const latestDownload = graph.latest ? measuredRate(graph.latest.download) : "—";
   const description = graph.hasData
-    ? "Transfer bandwidth over " + graph.count + " measured samples. Upload now " +
-      latestUpload + ", download now " + latestDownload +
+    ? "Transfer bandwidth over " + graph.count + " measured samples. " +
+      (active ? "Upload now " : "Last measured upload ") +
+      latestUpload + (active ? ", download now " : ", last measured download ") + latestDownload +
       ", maximum observed " + measuredRate(graph.peak) + "."
     : "No measured transfer bandwidth yet.";
 
   return (
     <section className="min-w-0" aria-label="Transfer bandwidth graph">
       <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-muted">
-        <span className="whitespace-nowrap" aria-label={"Current upload rate: " + latestUpload}>
+        <span className="whitespace-nowrap" aria-label={(active ? "Current" : "Last measured") + " upload rate: " + latestUpload}>
           <span className="font-semibold text-accent">↑ Upload</span> {latestUpload}
         </span>
-        <span className="whitespace-nowrap" aria-label={"Current download rate: " + latestDownload}>
+        <span className="whitespace-nowrap" aria-label={(active ? "Current" : "Last measured") + " download rate: " + latestDownload}>
           <span className="font-semibold text-success">↓ Download</span> {latestDownload}
         </span>
         <span className="whitespace-nowrap">Peak {graph.hasData ? measuredRate(graph.peak) : "—"}</span>
