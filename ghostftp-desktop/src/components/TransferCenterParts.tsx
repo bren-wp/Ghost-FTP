@@ -211,12 +211,15 @@ export function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: 
 }
 
 export function BandwidthChart({ history }: { history: BandwidthSample[] }) {
-  const data = (history.length > 1
+  // Ghost FTP by Brendigo: one genuine data point must remain visible.
+  // Previously the first second of an active transfer was incorrectly
+  // replaced with two zero samples, showing 0 B/s until a second tick.
+  const samples = history.length > 1
     ? history
-    : [
-        { upload: 0, download: 0 },
-        { upload: 0, download: 0 },
-      ]).map((sample) => ({
+    : history.length === 1
+      ? [history[0], history[0]]
+      : [{ upload: 0, download: 0 }, { upload: 0, download: 0 }];
+  const data = samples.map((sample) => ({
     upload: Number.isFinite(sample.upload) ? Math.max(0, sample.upload) : 0,
     download: Number.isFinite(sample.download) ? Math.max(0, sample.download) : 0,
   }));
