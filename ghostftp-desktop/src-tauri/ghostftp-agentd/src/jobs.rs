@@ -101,7 +101,10 @@ impl JobStore {
     fn admit(jobs: &mut HashMap<String, Job>, job_id: &str) -> std::io::Result<()> {
         use std::io::{Error, ErrorKind};
         if jobs.contains_key(job_id) {
-            return Err(Error::new(ErrorKind::AlreadyExists, "job id is already tracked"));
+            return Err(Error::new(
+                ErrorKind::AlreadyExists,
+                "job id is already tracked",
+            ));
         }
         fn namespace(id: &str) -> &str {
             id.split_once(':').map_or("", |(peer, _)| peer)
@@ -119,7 +122,10 @@ impl JobStore {
             })
             .count();
         if active_for_peer >= MAX_JOBS_PER_PEER {
-            return Err(Error::new(ErrorKind::WouldBlock, "controller's active job quota reached"));
+            return Err(Error::new(
+                ErrorKind::WouldBlock,
+                "controller's active job quota reached",
+            ));
         }
         if jobs.len() >= MAX_JOBS {
             // A completed job may be retired early to make room; never evict
@@ -151,7 +157,10 @@ impl JobStore {
     /// to `max_bytes` of each stream. Returns the spawn error if the child can't
     /// start; otherwise the job runs to completion in the background.
     pub fn start(&self, job_id: &str, command: &str, max_bytes: usize) -> std::io::Result<()> {
-        let mut jobs = self.jobs.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut jobs = self
+            .jobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         Self::prune(&mut jobs);
         Self::admit(&mut jobs, job_id)?;
         // Keep the admission lock through spawn and insertion. If spawn fails,
@@ -476,7 +485,9 @@ mod tests {
             jobs.insert(format!("peer-{n}:job"), placeholder_job(true, None));
         }
         assert_eq!(
-            JobStore::admit(&mut jobs, "new-peer:new").unwrap_err().kind(),
+            JobStore::admit(&mut jobs, "new-peer:new")
+                .unwrap_err()
+                .kind(),
             std::io::ErrorKind::WouldBlock
         );
         assert_eq!(jobs.len(), MAX_JOBS);
@@ -517,4 +528,3 @@ mod tests {
         store.kill("peer:one-id");
     }
 }
-
