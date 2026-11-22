@@ -234,6 +234,9 @@ export function TransferCenterDialog({ onClose }: Props) {
   useEffect(() => {
     if (!hasLiveTransfer) return;
 
+    // A new active period must not silently stitch an older idle session
+    // into its time axis; the most recent measurements start fresh.
+    setBandwidthHistory([]);
     const sample = () => {
       const state = useTransfers.getState();
       const now = Date.now();
@@ -652,7 +655,7 @@ export function TransferCenterDialog({ onClose }: Props) {
                 Live native transfer sampling
               </span>
             </div>
-            <BandwidthChart history={bandwidthHistory} />
+            <BandwidthChart history={bandwidthHistory} active={hasLiveTransfer} />
           </div>
 
           <div className="rounded-lg border border-border bg-[#071f35] p-4">

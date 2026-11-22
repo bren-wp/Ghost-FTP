@@ -66,22 +66,20 @@ test("paths preserve both Windows and POSIX basename behavior", () => {
   assert.equal(baseName(""), "transfer");
 });
 
-test("the first genuine bandwidth tick is never replaced with fake zeros", () => {
-  assert.ok(source.includes("history.length === 1"),
-    "one genuine sample needs a separate non-empty graph path");
-  assert.ok(source.includes("[history[0], history[0]]"),
-    "the first upload/download sample must remain visible as a flat line");
-  assert.ok(!source.includes("const data = (history.length > 1"),
-    "the old fallback silently replaced the first nonzero tick with zero");
-});
-
-test("bandwidth presentation sanitizes invalid or negative samples", () => {
-  assert.ok(source.includes("Number.isFinite(sample.upload)"));
-  assert.ok(source.includes("Number.isFinite(sample.download)"));
-  assert.ok(source.includes("Math.max(0, sample.upload)"));
-  assert.ok(source.includes("Math.max(0, sample.download)"));
-  assert.ok(source.includes("data.reduce((highest, sample)"),
-    "peak calculation should not create a duplicate large history array");
+test("bandwidth graph preserves real measurements and uses clear empty state", () => {
+  const begin = source.indexOf("export function BandwidthChart(");
+  const end = source.indexOf("export function transferProgressPercent(", begin);
+  assert.ok(begin >= 0 && end > begin);
+  const chart = source.slice(begin, end);
+  assert.ok(chart.includes("prepareBandwidthGraph(history)"));
+  assert.ok(chart.includes("graph.hasData"));
+  assert.ok(chart.includes("No bandwidth measurements yet."));
+  assert.ok(chart.includes("graph.uploadPoints"));
+  assert.ok(chart.includes("graph.downloadPoints"));
+  assert.ok(chart.includes("graph.average.upload"));
+  assert.ok(chart.includes("aria-label={description}"));
+  assert.ok(!chart.includes("[{ upload: 0, download: 0 }, { upload: 0, download: 0 }]"),
+    "missing readings must not render as fabricated zero throughput");
 });
 
 test("keyboard actions inside transfer rows are not stolen by row selection", () => {
