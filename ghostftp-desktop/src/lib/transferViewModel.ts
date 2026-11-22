@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import type { Transfer } from "./types";
 
 /**
