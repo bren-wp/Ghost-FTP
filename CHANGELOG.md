@@ -6,6 +6,10 @@
 - Quote Windows Scheduled Task arguments with the Windows backslash/quote parsing rules instead of joining raw arguments.
 - Reject control characters to prevent service-definition newline injection.
 - Add Linux/Windows quoting and injection regression tests; retain separate native service installation acceptance.
+- Add read-only service-status inspection and fail-closed Remote Agent installation/uninstallation feedback without generating an identity during help/status/cleanup.
+- Upgrade live transfer bandwidth charts with real 48-sample telemetry, no fabricated values, peak/average metrics, high-contrast axes and screen-reader descriptions.
+- Improve Disk Usage treemap high-DPI rendering, keyboard navigation, strict geometry for oversized or malformed file sizes, responsive map/list layout and exact utilization bars.
+- Add production graph-math and real treemap-layout regression suites to the mandatory frontend QA workflow; native Windows/Linux screenshot acceptance remains pending.
 
 ## 0.99.78 Preview — published 22 November 2026
 
