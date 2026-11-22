@@ -27,15 +27,20 @@ test("very long server filenames cannot expand the overwrite dialog", () => {
 });
 
 test("all four decisions are explicit buttons, preserving safe cancel", () => {
+  // The backdrop also uses onClick={cancel}; only the footer action buttons
+  // must declare type="button", not the non-interactive modal backdrop.
+  const footerStart = source.indexOf('className="flex items-center justify-between gap-2 border-t');
+  assert.ok(footerStart >= 0, "modal action footer must exist");
+  const footer = source.slice(footerStart);
   for (const handler of [
     "onClick={cancel}",
     'onClick={() => pick("skip")}',
     'onClick={() => pick("rename")}',
     'onClick={() => pick("overwrite")}',
   ]) {
-    const pos = source.indexOf(handler);
+    const pos = footer.indexOf(handler);
     assert.ok(pos >= 0, "missing overwrite decision: " + handler);
-    assert.ok(source.slice(Math.max(0, pos - 85), pos).includes('type="button"'),
+    assert.ok(footer.slice(Math.max(0, pos - 85), pos).includes('type="button"'),
       "button must not implicitly submit an enclosing form: " + handler);
   }
   assert.ok(source.includes("key={pending.promptId}"),
