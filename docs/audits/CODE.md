@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.77 Preview development. Previous public release: v0.99.76. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
+> **Ghost FTP v0.99.78 Preview development. Previous public release: v0.99.77. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 See [v0.99.71 Windows code/performance audit](WINDOWS_SECURITY_PERFORMANCE_0.99.71.md); static dead-code candidates are advisory until proven unused by the native builds.
 
@@ -99,4 +99,4 @@ TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and An
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.77. Previous canonical release: 0.99.76. The previous canonical Preview is v0.99.76; consult GitHub Releases and `docs/releases/0.99.76.md` for its actual acceptance limits.
+Current development line: 0.99.78. Previous canonical release: 0.99.77. The previous canonical Preview is v0.99.77; consult GitHub Releases and `docs/releases/0.99.77.md` for its actual acceptance limits.
