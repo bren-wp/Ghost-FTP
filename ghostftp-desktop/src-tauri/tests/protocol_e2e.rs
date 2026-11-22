@@ -1595,9 +1595,15 @@ async fn real_concurrent_protocol_roundtrips() -> Result<()> {
         // 16 MiB + tail, bounded-memory streaming through real data sockets.
         // Physical >4-GiB stress remains a separate dedicated-host opt-in.
         run_concurrent_protocol_matrix(
-            protocol, host, port, &username, &password,
-            &[1], 16 * 1024 * 1024 + 17,
-        ).await?;
+            protocol,
+            host,
+            port,
+            &username,
+            &password,
+            &[1],
+            16 * 1024 * 1024 + 17,
+        )
+        .await?;
     }
     Ok(())
 }
@@ -1652,11 +1658,21 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     .await?;
 
     lifecycle::verify_ftp_reconnect_and_disconnect(
-        "ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?, &username, &password,
-    ).await?;
+        "ftp",
+        "127.0.0.1",
+        port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+    )
+    .await?;
     lifecycle::verify_staged_upload_source_fault(
-        "ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?, &username, &password,
-    ).await?;
+        "ftp",
+        "127.0.0.1",
+        port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+    )
+    .await?;
 
     ftp_dos_listing_roundtrip(port("GHOSTFTP_E2E_DOS_PORT")?, &username, &password, false).await?;
     ftp_dos_listing_roundtrip(
@@ -1676,11 +1692,21 @@ async fn real_ftp_ftps_sftp_roundtrips() -> Result<()> {
     let ftps_port = port("GHOSTFTP_E2E_FTPS_PORT")?;
     ftp_roundtrip("ftps", "localhost", ftps_port, &username, &password).await?;
     lifecycle::verify_ftp_reconnect_and_disconnect(
-        "ftps", "localhost", ftps_port, &username, &password,
-    ).await?;
+        "ftps",
+        "localhost",
+        ftps_port,
+        &username,
+        &password,
+    )
+    .await?;
     lifecycle::verify_staged_upload_source_fault(
-        "ftps", "localhost", ftps_port, &username, &password,
-    ).await?;
+        "ftps",
+        "localhost",
+        ftps_port,
+        &username,
+        &password,
+    )
+    .await?;
 
     // The local FTPS certificate is trusted for DNS:localhost only. Connecting by
     // IP must fail, proving hostname/certificate verification is not bypassed.
@@ -1740,8 +1766,13 @@ async fn real_windows_ftp_roundtrip() -> Result<()> {
         "ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?, &username, &password,
     ).await?;
     lifecycle::verify_staged_upload_source_fault(
-        "ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?, &username, &password,
-    ).await
+        "ftp",
+        "127.0.0.1",
+        port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+    )
+    .await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
@@ -1771,7 +1802,13 @@ async fn real_windows_concurrent_ftp_roundtrips() -> Result<()> {
     )
     .await?;
     run_concurrent_protocol_matrix(
-        "ftp", "127.0.0.1", port("GHOSTFTP_E2E_FTP_PORT")?,
-        &username, &password, &[1], 16 * 1024 * 1024 + 17,
-    ).await
+        "ftp",
+        "127.0.0.1",
+        port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+        &[1],
+        16 * 1024 * 1024 + 17,
+    )
+    .await
 }
