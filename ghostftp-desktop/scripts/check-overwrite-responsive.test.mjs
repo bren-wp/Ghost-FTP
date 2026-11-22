@@ -61,3 +61,13 @@ test("optional destination-path copy is explicit, accessible, and reports failur
   assert.ok(source.includes('toast.error("Couldn\'t copy destination path")'),
     "clipboard denial must be reported instead of showing false success");
 });
+
+
+test("remember-default warning exposes silent future overwrite semantics", () => {
+  assert.ok(source.includes("{remember && ("),
+    "warning should appear when the persistent default is selected");
+  assert.ok(source.includes('role="status" aria-live="polite"'),
+    "dynamic safety text must be exposed to assistive technologies");
+  assert.ok(source.includes("future filename conflicts without another prompt, including the rest of this batch"),
+    "users must understand that Remember also changes decisions later in this batch");
+});
