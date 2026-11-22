@@ -38,6 +38,10 @@ test("progress is always finite and within 0–100 percent", () => {
   assert.equal(transferProgressPercent({ size: 100, transferred: 25 }), 25);
   assert.equal(transferProgressPercent({ size: 100, transferred: 999 }), 100);
   assert.equal(transferProgressPercent({ size: 0, transferred: 0 }), 0);
+  assert.equal(transferProgressPercent({ size: 0, transferred: 0, status: "done" }), 100,
+    "a confirmed empty-file transfer must display 100% completion");
+  assert.equal(transferProgressPercent({ size: 0, transferred: 0, status: "error" }), 0);
+  assert.equal(transferProgressPercent({ size: 0, transferred: 0, status: "paused" }), 0);
   assert.equal(transferProgressPercent({ size: NaN, transferred: 20 }), 0);
   assert.equal(transferProgressPercent({ size: 100, transferred: Infinity }), 0);
   assert.equal(transferProgressPercent({ size: 100, transferred: -3 }), 0);
