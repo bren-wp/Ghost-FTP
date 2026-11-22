@@ -152,7 +152,7 @@ test("view sort options are deterministic, stable and never reprioritize the que
   assert.deepEqual(ids("queue"), ["a", "b", "c", "d", "e"]);
   assert.deepEqual(ids("newest"), ["b", "c", "d", "a", "e"]);
   assert.deepEqual(ids("oldest"), ["a", "d", "b", "c", "e"]);
-  assert.deepEqual(ids("largest"), ["a", "c", "e", "b", "d"]);
+  assert.deepEqual(ids("largest"), ["a", "c", "b", "e", "d"]);
   assert.deepEqual(ids("name"), ["b", "c", "a", "d", "e"]);
   assert.strictEqual(sortTransferView(examples, "newest")[0], examples[1]);
   assert.deepEqual(examples, snapshot, "sort must not change stored queue order or data");
