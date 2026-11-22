@@ -1,6 +1,13 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.75 Preview — 22 November 2026 (development candidate; not yet published)
+## 0.99.76 Preview — 22 November 2026 (development candidate; not yet published)
+
+- Make the actual real-network parallel FTP/FTPS/SFTP integrity test runner drain all started transfers after any independent worker fails, rather than dropping a JoinSet and aborting sibling sessions.
+- Preserve the first worker failure and its cause after all started workers finish, with a new deterministic Tokio regression proving this behavior.
+- Retain actual FTP/FTPS/SFTP and Windows SHA-256/length checks, 1/4/8 parallel-worker matrix and the explicitly opted-in >4-GiB stress scenario.
+- Real external cloud providers, physical >4-GiB fault injection, Windows/Linux vault reconnection and native pixel-perfect UI acceptance remain separately unverified.
+
+## 0.99.75 Preview — published 22 November 2026
 
 - Make overwrite prompts responsive at the native 480 px minimum window width without changing wide-screen layout.
 - Wrap long or bidirectional filenames so untrusted names do not overflow the confirmation dialog.
