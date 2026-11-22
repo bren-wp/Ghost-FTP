@@ -57,6 +57,12 @@ The workflow validates explicit FTPS because that is the FTPS mode implemented b
 The protocol job runs on changes to the native Rust source and can also be started manually. Normal unit tests remain hermetic: `tests/protocol_e2e.rs` exits successfully without touching the network unless `GHOSTFTP_PROTOCOL_E2E=1` is explicitly set by the dedicated workflow.
 
 
+## Expanded real-socket coverage for v0.99.77 Preview
+
+The real local FTP and explicit FTPS E2E now exercise an unchanged session identity across two authenticated reconnects; explicit Disconnect must permanently reject reconnect and further FTP commands. Opening the same profile anew creates a new session ID and verifies the original remote binary bytes, without asserting native OS keyring persistence. A separate disposable fixture forces source I/O failure after 96 KiB during a 2 MiB+ staged sibling upload, reconnects, checks the original existing destination remains identical, and verifies removal of any partial staging sibling. This does **not** simulate a physical network outage or process crash.
+
+The bounded-memory SHA-256 upload/download matrix is additionally run for a single stream of **16 MiB + 17 B** on Linux FTP, explicit FTPS and SFTP, plus Windows FTP. Existing 1/4/8 worker coverage remains at 1 MiB + 17 B; physical >4-GiB testing stays a dedicated-host opt-in. No cloud-provider endpoint is exercised by these local tests.
+
 ## Release gate
 
 A Ghost FTP release must not be published unless the real FTP, explicit FTPS and SFTP workflow completes successfully for the exact release source commit.

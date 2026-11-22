@@ -20,6 +20,8 @@
 | Reliability | Concurrent operations, cancellation isolation, retries, crash recovery and staging cleanup |
 | Native UX | Actual Windows/Linux keyring, dialogs, responsive error states and accessibility |
 
+Do not treat mock HTTP tests, emulator results, localhost FTP E2E or successful desktop builds as authenticated external-provider acceptance. Provider secrets and disposable account access were not supplied for this development cycle, so external live-cloud rows stay **unverified**. Release notes must identify the boundary explicitly.
+
 Capture provider/region, permissions, operating system, exact commit, job or test report, file sizes/hashes, timestamp and redacted result. Secrets must remain in private CI storage; do not publish live tokens or signed URLs. Cloud adapters remain **unverified** until all applicable cases have recorded live evidence. Supported operations may vary by backend.
 
 See [provider source inventory](../cloud/PROVIDERS.md), [protocol QA](PROTOCOL_E2E.md) and [Stable requirements](../release/STABLE_RELEASE_POLICY.md).
