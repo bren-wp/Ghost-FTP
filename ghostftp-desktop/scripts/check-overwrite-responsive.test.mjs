@@ -41,3 +41,18 @@ test("all four decisions are explicit buttons, preserving safe cancel", () => {
   assert.ok(source.includes("key={pending.promptId}"),
     "responsive layout must retain exact conflict prompt identity");
 });
+
+
+test("optional destination-path copy is explicit, accessible, and reports failure", () => {
+  assert.ok(source.includes('aria-label="Copy destination directory path"'));
+  assert.ok(source.includes('title="Copy destination directory path"'));
+  assert.ok(source.includes("navigator.clipboard?.writeText"),
+    "clipboard API must be feature-detected before use");
+  assert.ok(source.includes("await navigator.clipboard.writeText(info.destDir)"),
+    "only the user-selected destination is copied after an explicit click");
+  assert.ok(source.includes("onClick={() => { void copyDestination(); }}"),
+    "copy must not happen automatically when a prompt opens");
+  assert.ok(source.includes('toast.success("Destination path copied")'));
+  assert.ok(source.includes('toast.error("Couldn\'t copy destination path")'),
+    "clipboard denial must be reported instead of showing false success");
+});
