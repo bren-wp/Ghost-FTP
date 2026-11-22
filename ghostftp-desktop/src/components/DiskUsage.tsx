@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   HardDrive,
   X,
@@ -349,7 +349,7 @@ function RankedList({
 }) {
   const children = node?.children ?? [];
   const parentSize = node?.size ?? 0;
-  const shown = rankDiskItems(children).slice(0, MAX_ROWS);
+  const shown = useMemo(() => rankDiskItems(children).slice(0, MAX_ROWS), [node]);
 
   return (
     <div className="flex w-80 shrink-0 flex-col bg-bg-panel">

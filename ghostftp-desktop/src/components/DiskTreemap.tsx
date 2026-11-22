@@ -84,6 +84,7 @@ function buildCells(
   depth: number,
   cells: Cell[]
 ) {
+  if (![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0) return;
   cells.push({ node, x, y, w, h, depth });
   if (depth >= MAX_DEPTH) return;
   const kids = (node.children ?? []).filter((c) => Number.isFinite(c.size) && c.size > 0);
