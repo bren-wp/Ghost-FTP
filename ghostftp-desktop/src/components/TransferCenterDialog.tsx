@@ -63,6 +63,14 @@ export function TransferCenterDialog({ onClose }: Props) {
   const [query, setQuery] = useState("");
   const [directionFilter, setDirectionFilter] = useState<TransferDirectionFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TransferTimeFilter>("all");
+  const [historyClock, setHistoryClock] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    if (timeFilter === "all") return;
+    setHistoryClock(Date.now() / 1000);
+    // Rolling history must expire even when the transfer queue is idle.
+    const timer = window.setInterval(() => setHistoryClock(Date.now() / 1000), 60_000);
+    return () => window.clearInterval(timer);
+  }, [timeFilter]);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
@@ -168,9 +176,9 @@ export function TransferCenterDialog({ onClose }: Props) {
       query,
       direction: directionFilter,
       time: timeFilter,
-      nowSeconds: Date.now() / 1000,
+      nowSeconds: historyClock,
     }),
-    [transfers, tab, query, directionFilter, timeFilter]
+    [transfers, tab, query, directionFilter, timeFilter, historyClock]
   );
 
 
@@ -518,6 +526,8 @@ export function TransferCenterDialog({ onClose }: Props) {
             <option value="all">Any Time</option>
             <option value="hour">Last Hour</option>
             <option value="day">Last 24h</option>
+            <option value="week">Last 7 days</option>
+            <option value="month">Last 30 days</option>
           </select>
         </div>
 
