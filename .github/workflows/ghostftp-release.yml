@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
           MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.protected')"
           if [ "$MAIN_PROTECTED" != "true" ]; then
-            echo "::error::Refusing automatic Ghost FTP release: main is unprotected (issue #302)." >&2
+            echo "::error::Refusing automatic Ghost FTP release: main is unprotected (issue #320). Repository owner must configure and verify strict protection: https://github.com/$GITHUB_REPOSITORY/issues/320" >&2
             exit 1
           fi
       - id: latest
