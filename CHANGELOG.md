@@ -1,6 +1,15 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.74 Preview — 21 November 2026 (development candidate; not yet published)
+## 0.99.75 Preview — 22 November 2026 (development candidate; not yet published)
+
+- Make overwrite prompts responsive at the native 480 px minimum window width without changing wide-screen layout.
+- Wrap long or bidirectional filenames so untrusted names do not overflow the confirmation dialog.
+- Add an explicit, accessible Copy destination directory path control with truthful success/error notifications.
+- Explain when remembered conflict actions silently affect future file collisions; preserve safe cancel and unique queued dialog identities.
+- Add automated regressions for compact layout, accessibility, clipboard behavior and safety messaging.
+- Publication requires all exact-head Windows/Linux native, FTP/FTPS/SFTP, security and immutable release gates.
+
+## 0.99.74 Preview — published 22 November 2026
 
 - Prevent repeat destructive confirmation and file prompt actions through synchronous guards that remain held until successful dismissal; release guards safely after a failed action.
 - Reuse the shared file-ui confirmation component and accessible dialog focus hook from the desktop shell instead of maintaining duplicate implementations.

@@ -5,6 +5,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { useConflicts, type ConflictInfo } from "@/stores/conflictStore";
 import { fmtSize, fmtMtime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { toast } from "@/stores/toastStore";
 
 // FileZilla-style overwrite prompt. Always mounted; renders whenever the
 // conflict store has a pending question (the head of its queue). Escape / click
@@ -46,6 +47,19 @@ function OverwriteModal({
   const pick = (action: "overwrite" | "rename" | "skip") =>
     onResolve({ action, applyToAll, remember });
 
+  // Ghost FTP by Brendigo: a path-copy action is useful when checking the
+  // exact conflict target with a colleague or server administrator. No path
+  // is copied, logged or transmitted without a deliberate user click.
+  const copyDestination = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(info.destDir);
+      toast.success("Destination path copied");
+    } catch {
+      toast.error("Couldn't copy destination path");
+    }
+  };
+
   const where = info.side === "local" ? "on this computer" : "on the server";
   const hasMeta =
     info.existingSize != null ||
@@ -76,14 +90,26 @@ function OverwriteModal({
         <div className="px-5 py-4">
           <div className="text-sm text-text-muted">
             A {info.kind === "directory" ? "folder" : "file"} named{" "}
-            <span className="font-medium text-text">{info.name}</span> already
+            <span className="font-medium text-text break-all" dir="auto">{info.name}</span> already
             exists {where} in:
           </div>
-          <div
-            className="mt-1 truncate font-mono text-xs text-text-dim"
-            title={info.destDir}
-          >
-            {info.destDir}
+          <div className="mt-1 flex min-w-0 items-center gap-2">
+            <div
+              className="min-w-0 flex-1 truncate font-mono text-xs text-text-dim"
+              title={info.destDir}
+              dir="auto"
+            >
+              {info.destDir}
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-border p-1.5 text-text-muted hover:bg-bg-hover hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              title="Copy destination directory path"
+              aria-label="Copy destination directory path"
+              onClick={() => { void copyDestination(); }}
+            >
+              <Copy size={13} aria-hidden="true" />
+            </button>
           </div>
 
           {hasMeta && (
@@ -110,32 +136,41 @@ function OverwriteModal({
             <Check checked={remember} onChange={setRemember}>
               Remember my choice as the default
             </Check>
+            {remember && (
+              <p role="status" aria-live="polite" className="pl-6 text-xs text-warning">
+                Your selected action will apply to future filename conflicts without another prompt, including the rest of this batch.
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
+        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3 max-[620px]:flex-col-reverse max-[620px]:items-stretch">
           <button
+            type="button"
             onClick={cancel}
-            className="rounded-md px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text"
+            className="rounded-md px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text max-[620px]:w-full max-[620px]:justify-center"
           >
             Cancel transfer
           </button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-[620px]:grid max-[620px]:w-full max-[620px]:grid-cols-3">
             <button
+              type="button"
               onClick={() => pick("skip")}
-              className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text"
+              className="flex items-center justify-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text max-[620px]:min-w-0 max-[620px]:px-2"
             >
               <SkipForward size={13} /> Skip
             </button>
             <button
+              type="button"
               onClick={() => pick("rename")}
               className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-bg-hover hover:text-text"
             >
               <Copy size={13} /> Keep both
             </button>
             <button
+              type="button"
               onClick={() => pick("overwrite")}
-              className="btn-accent flex items-center gap-1 rounded-md px-3.5 py-1.5 text-sm font-medium text-white"
+              className="btn-accent flex items-center justify-center gap-1 rounded-md px-3.5 py-1.5 text-sm font-medium text-white max-[620px]:min-w-0 max-[620px]:px-2"
             >
               <FolderSync size={14} /> Overwrite
             </button>
