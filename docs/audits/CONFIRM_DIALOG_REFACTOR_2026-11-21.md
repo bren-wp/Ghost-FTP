@@ -19,7 +19,7 @@
 - Removed unused JS dependencies are reflected in `package-lock.json`; `npm ci`, Rust/TypeScript/Go and Windows/Linux build gates must validate this tree. Remaining dependency upgrades require regenerated lockfiles and compatibility checks, not blanket version bumps.
 - Verify Tauri/React build, mandatory CI, destructive operations, double-click and Enter behavior, Escape cancellation, failure toast/inline error, focus restoration and screen-reader announcement on **actual** native runtimes. CI runs and native screenshots are pending until externally reported.
 - Reference pixel parity and screenshot freshness remain **unverified**. See [current visual acceptance](../qa/CURRENT_VISUAL_ACCEPTANCE.md).
-- GitHub issue [#302](https://github.com/bren-wp/Ghost-FTP/issues/302) remains blocked while `main.protected=false`; only repository-admin branch/ruleset configuration and positive/negative merge acceptance can close it.
+- Historical issue #302 was later deleted; active replacement [#320](https://github.com/bren-wp/Ghost-FTP/issues/320) remains blocked while `main.protected=false`; only repository-admin branch/ruleset configuration and positive/negative merge acceptance can close it.
 
 ## Acceptance
 

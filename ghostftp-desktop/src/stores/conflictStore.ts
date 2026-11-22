@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { create } from "zustand";
 
 // A FileZilla-style "this file already exists" prompt, modelled as a queue of
@@ -34,6 +35,8 @@ export interface ConflictDecision {
 }
 
 interface Pending extends ConflictInfo {
+  /** Unique identity of this prompt, even for identical filenames and counts. */
+  promptId: number;
   resolve: (d: ConflictDecision) => void;
 }
 
@@ -41,20 +44,25 @@ interface ConflictState {
   /** FIFO of pending prompts; the host renders `queue[0]`. */
   queue: Pending[];
   ask: (info: ConflictInfo) => Promise<ConflictDecision>;
-  respond: (decision: ConflictDecision) => void;
+  respond: (promptId: number, decision: ConflictDecision) => void;
 }
+
+let nextPromptId = 0;
 
 export const useConflicts = create<ConflictState>((set, get) => ({
   queue: [],
 
   ask: (info) =>
     new Promise<ConflictDecision>((resolve) => {
-      set((s) => ({ queue: [...s.queue, { ...info, resolve }] }));
+      const promptId = ++nextPromptId;
+      set((s) => ({ queue: [...s.queue, { ...info, promptId, resolve }] }));
     }),
 
-  respond: (decision) => {
+  respond: (promptId, decision) => {
     const head = get().queue[0];
-    if (!head) return;
+    // Ignore delayed double-clicks, Escape or stale handlers from a previous
+    // dialog. Never apply its decision to another queued file collision.
+    if (!head || head.promptId !== promptId) return;
     set((s) => ({ queue: s.queue.slice(1) }));
     head.resolve(decision);
   },

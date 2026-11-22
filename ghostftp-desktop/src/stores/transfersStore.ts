@@ -136,7 +136,7 @@ async function runBatch(
   start: (item: TransferItem, policy: OverwritePolicy) => Promise<unknown>
 ): Promise<void> {
   const settings = useSettings.getState();
-  const defaultPolicy = settings.overwritePolicy;
+  let defaultPolicy = settings.overwritePolicy;
 
   // "Don't ask" mode (the user ticked "remember" before, or turned prompts off
   // in Settings): apply the saved default silently — the original behaviour.
@@ -160,8 +160,8 @@ async function runBatch(
     return;
   }
 
-  // Snapshot the destination's names so we can spot collisions. If it can't be
-  // listed (e.g. doesn't exist yet), assume no conflicts.
+  // Snapshot destination names before enqueueing. If listing fails, stop
+  // rather than risk silently overwriting an unknown existing target.
   const existing = new Map<string, { size: number; modified?: number }>();
   try {
     const list = await ipc.listDirectory(destSessionId, destDir);
@@ -182,6 +182,7 @@ async function runBatch(
     let policy = defaultPolicy;
 
     if (hit) {
+      const needsPrompt = remembered === null;
       const decision: ConflictDecision =
         remembered ??
         (await useConflicts.getState().ask({
@@ -196,12 +197,19 @@ async function runBatch(
           sourceModified: item.modified,
         }));
 
-      if (decision.applyToAll) remembered = decision;
-      if (decision.remember && decision.action !== "cancel") {
-        // Persist as the default AND stop asking from now on.
-        settings.setOverwritePolicy(
-          decision.action === "skip" ? "skip" : actionToPolicy(decision.action)
-        );
+      // "Remember my choice" disables future prompts in settings. Apply it
+      // immediately to later collisions in THIS batch as well, even when the
+      // separate "Apply to all" checkbox was not selected. Otherwise the user
+      // receives repeated prompts after explicitly disabling them.
+      if (decision.applyToAll || (decision.remember && decision.action !== "cancel")) {
+        remembered = decision;
+      }
+      if (needsPrompt && decision.remember && decision.action !== "cancel") {
+        // Persist exactly once; preserve skip/rename/overwrite for every
+        // remaining item, including concurrent destination collisions.
+        defaultPolicy =
+          decision.action === "skip" ? "skip" : actionToPolicy(decision.action);
+        settings.setOverwritePolicy(defaultPolicy);
         settings.setPromptOnOverwrite(false);
       }
       if (decision.action === "cancel") break;

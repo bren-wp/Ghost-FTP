@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { useId, useRef, useState } from "react";
 import { FileWarning, FolderSync, Copy, SkipForward } from "lucide-react";
 import { useDialog } from "@/hooks/useDialog";
@@ -12,13 +13,13 @@ export function OverwriteDialogHost() {
   const pending = useConflicts((s) => s.queue[0]);
   const respond = useConflicts((s) => s.respond);
   if (!pending) return null;
-  // Key on the resolver so each queued conflict gets a fresh dialog (resetting
-  // the checkboxes) instead of reusing the previous one's component state.
+  // Unique per-prompt key resets checkboxes even when successive batches
+  // collide on identical paths and have the same remaining item count.
   return (
     <OverwriteModal
-      key={pending.remaining + pending.name + pending.destDir}
+      key={pending.promptId}
       info={pending}
-      onResolve={respond}
+      onResolve={(decision) => respond(pending.promptId, decision)}
     />
   );
 }

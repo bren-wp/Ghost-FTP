@@ -31,7 +31,7 @@ verify() {
   local protected check
   protected="$(gh api "repos/$REPO/branches/$BRANCH" --jq '.protected')"
   if [[ "$protected" != "true" ]]; then
-    echo "UNPROTECTED: $REPO/$BRANCH. Issue #302 remains open." >&2
+    echo "UNPROTECTED: $REPO/$BRANCH. Issue #320 remains open." >&2
     return 1
   fi
   local payload
@@ -88,4 +88,4 @@ jq -n --argjson checks "$checks_json" '{
 gh api --method PUT "repos/$REPO/branches/$BRANCH/protection" \
   -H "Accept: application/vnd.github+json" --input "$payload" >/dev/null
 verify
-echo "Next: verify a deliberately failing PR cannot merge, while an exact-head green PR can merge. Close issue #302 only after both are evidenced."
+echo "Next: verify a deliberately failing PR cannot merge, while an exact-head green PR can merge. Close issue #320 only after both are evidenced."

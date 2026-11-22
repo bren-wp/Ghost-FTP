@@ -4,9 +4,22 @@
 
 The single source of truth is `version.json`. A new version requires synchronized desktop metadata, a matching `docs/releases/<version>.md` file and exact-source CI evidence. If the source version has merged but is **not** yet published, the release-repair path may reuse that unpublished version only under the repository's immutable-lineage checks.
 
+## Automatic Preview releases without changing repository settings
+
+The last published `v0.99.73` workflow allowed a successful main build to release without checking GitHub's server-side main protection. An additional protection-only gate was later introduced and unintentionally blocked publication even when all exact-head CI checks passed, although repository settings had not changed.
+
+To restore the previous user workflow **without accepting unreviewed direct pushes**, the release trigger now permits one of two source-provenance conditions:
+
+- GitHub confirms `main.protected=true`, **or**
+- GitHub's commit-to-pull-request API returns **exactly one merged pull request** into `bren-wp/Ghost-FTP/main` with a `merge_commit_sha` exactly equal to the triggering current-main build SHA.
+
+The unprotected branch alternative rejects direct pushes, stale builds, unmerged or cross-repository PR associations, and ambiguous commit provenance. Both alternatives still require same-commit successful Windows/Linux builds, source-quality and dependency tests, live FTP/FTPS/SFTP security tests, Windows hardening, immutable Preview metadata checks, signed-updater coherence where configured, and independently verified artifact SHA-256 checksums. No earlier failed workflow run or nonexistent release may be counted as published.
+
+Applying strict repository protection remains **recommended**, tracked separately by [issue #320](https://github.com/bren-wp/Ghost-FTP/issues/320), but is no longer required for the verified merged-PR release path.
+
 ## Protect the main branch (repository owner)
 
-Production source is not protected by CI alone. The owner must configure GitHub branch protection under issue [#302](https://github.com/bren-wp/Ghost-FTP/issues/302). Run `bash .github/scripts/enable-main-protection.sh --check` to verify the live rules; the owner-only `--apply` variant requires GitHub repository Administration:write permission. See [the operational acceptance procedure](BRANCH_PROTECTION_302.md). A successful CI run never substitutes for `main.protected: true`.
+The owner is encouraged to configure GitHub branch protection under [issue #320](https://github.com/bren-wp/Ghost-FTP/issues/320) for server-side prevention of direct pushes. Run `bash .github/scripts/enable-main-protection.sh --check` to verify live rules; owner-only `--apply` requires GitHub Administration:write. See the [operational protection procedure](BRANCH_PROTECTION_302.md). The verified merged-PR release path above enforces exact provenance and CI without claiming the repository itself is protected.
 
 ## Required exact-source gates
 

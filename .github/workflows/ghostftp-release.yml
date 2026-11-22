@@ -1,7 +1,8 @@
 name: Ghost FTP release
 
-# Every successfully built main commit triggers automatic release promotion.
-# The workflow is never authorized by builds from pull requests or forks.
+# Every successfully built, verified main commit can trigger automatic Preview promotion.
+# A protected main or exact merged-PR provenance is required; unreviewed direct
+# pushes on unprotected main cannot publish. Only main push builds can trigger.
 on:
   workflow_run:
     workflows: ["Ghost FTP native build"]
@@ -10,6 +11,7 @@ on:
 permissions:
   contents: write
   actions: read
+  pull-requests: read
 
 # PR completion events cannot cancel in-progress main publishing.
 concurrency:
@@ -24,15 +26,37 @@ jobs:
       should_publish: ${{ steps.latest.outputs.should_publish }}
       native_run_id: ${{ steps.latest.outputs.native_run_id }}
     steps:
-      - name: Require protected main before automatic release promotion
+      - name: Require protected main or exact merged-PR provenance
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Invalid automatic release source SHA." >&2
+            exit 1
+          }
           MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.protected')"
-          if [ "$MAIN_PROTECTED" != "true" ]; then
-            echo "::error::Refusing automatic Ghost FTP release: main is unprotected (issue #302)." >&2
+          if [ "$MAIN_PROTECTED" = "true" ]; then
+            echo "Protected main: release source is subject to repository-side merge rules."
+          elif [ "$MAIN_PROTECTED" = "false" ]; then
+            # Compatibility with earlier Preview releases: the owner did not
+            # change GitHub settings between v0.99.73 and v0.99.74, but a new
+            # hard protection-only gate unintentionally stopped all releases.
+            # Never authorize arbitrary direct pushes on an unprotected main:
+            # require the exact main commit to be GitHub's recorded merge SHA
+            # for a merged PR into THIS repository's main branch.
+            MATCH_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA/pulls" |
+              jq --arg sha "$SOURCE_SHA" --arg repo "$GITHUB_REPOSITORY" \
+                '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == "main" and .base.repo.full_name == $repo)] | length')"
+            if [ "$MATCH_COUNT" != "1" ]; then
+              echo "::error::Refusing unprotected-main release: source is not the exact merge commit of one merged PR into $GITHUB_REPOSITORY/main (issue #320)." >&2
+              exit 1
+            fi
+            echo "::notice::Verified exact merged-PR provenance for unprotected main; strict current-SHA quality, protocol, hardening, metadata and package gates remain mandatory. Enable branch protection per issue #320."
+          else
+            echo "::error::Unable to determine main branch protection state safely." >&2
             exit 1
           fi
       - id: latest
