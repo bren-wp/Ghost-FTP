@@ -19,7 +19,7 @@ Applying strict repository protection remains **recommended**, tracked separatel
 
 ## Protect the main branch (repository owner)
 
-Production source is not protected by CI alone. The owner must configure GitHub branch protection under issue [#320](https://github.com/bren-wp/Ghost-FTP/issues/320). Run `bash .github/scripts/enable-main-protection.sh --check` to verify the live rules; the owner-only `--apply` variant requires GitHub repository Administration:write permission. See [the operational acceptance procedure](BRANCH_PROTECTION_302.md). A successful CI run never substitutes for `main.protected: true`.
+The owner is encouraged to configure GitHub branch protection under [issue #320](https://github.com/bren-wp/Ghost-FTP/issues/320) for server-side prevention of direct pushes. Run `bash .github/scripts/enable-main-protection.sh --check` to verify live rules; owner-only `--apply` requires GitHub Administration:write. See the [operational protection procedure](BRANCH_PROTECTION_302.md). The verified merged-PR release path above enforces exact provenance and CI without claiming the repository itself is protected.
 
 ## Required exact-source gates
 
