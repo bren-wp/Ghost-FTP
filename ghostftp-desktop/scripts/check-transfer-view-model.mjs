@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -53,6 +54,33 @@ test("hour/day inclusive boundaries come from a single supplied clock", () => {
   assert.deepEqual(filterTransferView(transfers, opts({ tab: "active", time: "day" })).map(t => t.id), ["a", "b", "c"]);
   assert.deepEqual(filterTransferView(transfers, opts({ tab: "completed", time: "day" })).map(t => t.id), ["d", "e"]);
   assert.deepEqual(filterTransferView(transfers, opts({ tab: "failed", time: "hour" })).map(t => t.id), ["f"]);
+});
+
+test("seven and thirty day windows preserve inclusive boundaries, filters and original records", () => {
+  const entries = [
+    make("recent", "done", "upload", 60),
+    make("weeklyBoundary", "error", "download", 7 * 86_400),
+    make("justOlder", "error", "download", 7 * 86_400 + 1),
+    make("monthlyBoundary", "done", "upload", 30 * 86_400),
+    make("tooOld", "done", "upload", 30 * 86_400 + 1),
+    { ...make("future", "done", "upload"), startedAt: epoch + 1 },
+  ];
+  const snapshot = structuredClone(entries);
+  const last7 = filterTransferView(entries, opts({ time: "week" }));
+  assert.deepEqual(last7.map(t => t.id), ["recent", "weeklyBoundary"]);
+  assert.strictEqual(last7[1], entries[1]);
+  assert.deepEqual(
+    filterTransferView(entries, opts({ time: "week", tab: "failed", direction: "download" })).map(t => t.id),
+    ["weeklyBoundary"],
+  );
+  assert.deepEqual(
+    filterTransferView(entries, opts({ time: "month" })).map(t => t.id),
+    ["recent", "weeklyBoundary", "justOlder", "monthlyBoundary"],
+  );
+  assert.deepEqual(
+    filterTransferView(entries, opts({ time: "month", nowSeconds: Number.NaN })), [],
+  );
+  assert.deepEqual(entries, snapshot, "time filtering is strictly read-only");
 });
 
 test("time filters reject future, malformed and imported invalid timestamps", () => {

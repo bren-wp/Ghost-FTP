@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import fs from "node:fs";
 import ts from "typescript";
 
@@ -894,6 +895,12 @@ for (const required of [
   'active={tab === "active"}',
   'aria-label="Transfer direction filter"',
   'aria-label="Transfer time filter"',
+  '<option value="week">Last 7 days</option>',
+  '<option value="month">Last 30 days</option>',
+  'if (timeFilter === "all") return;',
+  'window.setInterval(() => setHistoryClock(Date.now() / 1000), 60_000)',
+  'window.clearInterval(timer)',
+  '[transfers, tab, query, directionFilter, timeFilter, historyClock]',
 ]) {
   if (!transferCenter.includes(required)) failures.push(`Transfer Center missing action/filter contract: ${required}`);
 }
