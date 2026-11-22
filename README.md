@@ -23,7 +23,7 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ## Ghost FTP 0.99.78 Preview — development candidate
 
-This source follows the previously published v0.99.77 ([Preview release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.77)). It hardens Remote Agent job admission by rejecting duplicate IDs, limiting simultaneous processes per controller and denying new work at total capacity *before* spawning. New regressions cover quota limits and concurrent requests. This source is **not yet a published v0.99.78 download**.
+This source follows the previously published v0.99.78 ([Preview release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.78)). It hardens Remote Agent service installation argument handling for Linux systemd and Windows Scheduled Tasks, protecting config directories with spaces and special characters and rejecting newline injection. Platform-specific regression tests are included. This source is **not yet a published v0.99.79 download**.
 
 ## Built for the way you work
 
@@ -114,7 +114,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
-For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.73 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
+For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.78 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
 
 ## Your trust matters
 

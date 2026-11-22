@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.78 Preview development. Previous public release: v0.99.77. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
+> **Ghost FTP v0.99.79 Preview development. Previous public release: v0.99.78. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 See [v0.99.71 Windows code/performance audit](WINDOWS_SECURITY_PERFORMANCE_0.99.71.md); static dead-code candidates are advisory until proven unused by the native builds.
 
@@ -37,7 +37,7 @@ Current comprehensive 0.95.50 source inventory: [Windows/Linux, Android, macOS a
 
 0.91.0 incremental review: the saved-sites identity-matching code reads protocol, normalized host, port and username without accessing auth secrets or modifying persisted profile data. The feature is Windows/Linux-only; cross-platform UI acceptance and a new full dead-code audit are not claimed.
 
-Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.77**.
+Historical 0.93.0 findings here covered the Ghost FTP source line: Windows/Linux desktop, Android, CLI, Agent/agentd/protocol crates, Go compatibility tools, updater/release tooling and shared file UI. Previous canonical release: **0.99.78**.
 
 These findings build on the previously reviewed 0.30.15 code-audit baseline; the 0.30.16 changes are limited to live premium color surfaces and their CI contract. A complete new dead-code audit has not been claimed.
 
@@ -99,4 +99,4 @@ TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and An
 **Trenutačna razvojna verzija:** 0.99.5 (Preview). Prethodni nalazi ostaju povijesni; validacija nove verzije provodi se kroz obvezni CI.
 
 
-Current development line: 0.99.78. Previous canonical release: 0.99.77. The previous canonical Preview is v0.99.77; consult GitHub Releases and `docs/releases/0.99.77.md` for its actual acceptance limits.
+Current development line: 0.99.79. Previous canonical release: 0.99.78. The previous canonical Preview is v0.99.78; consult GitHub Releases and `docs/releases/0.99.78.md` for its actual acceptance limits.
