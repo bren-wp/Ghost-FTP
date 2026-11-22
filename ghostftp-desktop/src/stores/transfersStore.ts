@@ -137,6 +137,15 @@ async function runBatch(
 ): Promise<void> {
   const settings = useSettings.getState();
   let defaultPolicy = settings.overwritePolicy;
+  // Local Windows directories normally compare filenames without case;
+  // remote servers may be case-sensitive even when the client is on Windows.
+  // Normalize only destination-local names to avoid two queue entries racing
+  // to overwrite the same local file (e.g. Report.TXT and report.txt).
+  const localWindows = side === "local" &&
+    typeof navigator !== "undefined" &&
+    navigator.userAgent.includes("Windows");
+  const destinationKey = (name: string) =>
+    localWindows ? name.toLocaleLowerCase("en-US") : name;
 
   // "Don't ask" mode (the user ticked "remember" before, or turned prompts off
   // in Settings): apply the saved default silently — the original behaviour.
@@ -144,7 +153,7 @@ async function runBatch(
     const reservedNames = new Set<string>();
     for (const item of items) {
       const name = baseName(item.path);
-      if (reservedNames.has(name)) {
+      if (reservedNames.has(destinationKey(name))) {
         toast.warning("Duplicate transfer name", `Skipped another item named ${name} to avoid overwriting a file from the same batch.`);
         continue;
       }
@@ -152,7 +161,7 @@ async function runBatch(
         await start(item, defaultPolicy);
         // Reserve only after the backend accepts this enqueue. If it fails,
         // the user can still queue a later source with the same basename.
-        reservedNames.add(name);
+        reservedNames.add(destinationKey(name));
       } catch (error) {
         toastError(error, `Couldn't queue ${name}`);
       }
@@ -166,7 +175,7 @@ async function runBatch(
   try {
     const list = await ipc.listDirectory(destSessionId, destDir);
     for (const e of list) {
-      existing.set(e.name, { size: e.size, modified: e.modified ?? undefined });
+      existing.set(destinationKey(e.name), { size: e.size, modified: e.modified ?? undefined });
     }
   } catch (error) {
     toastError(error, "Couldn't inspect the destination for existing files");
@@ -178,7 +187,7 @@ async function runBatch(
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const name = baseName(item.path);
-    const hit = existing.get(name);
+    const hit = existing.get(destinationKey(name));
     let policy = defaultPolicy;
 
     if (hit) {
@@ -223,7 +232,7 @@ async function runBatch(
       // Otherwise two source entries with the same basename in one batch can
       // both observe the initial destination snapshot as free and race to the
       // same target.
-      existing.set(name, {
+      existing.set(destinationKey(name), {
         size: item.size ?? 0,
         modified: item.modified,
       });
