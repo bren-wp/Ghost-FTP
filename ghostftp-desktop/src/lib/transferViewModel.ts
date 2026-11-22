@@ -107,13 +107,13 @@ export function recentTransferLog(
 }
 
 /** View-only sorting: never reprioritize persisted/native transfer work. */
-export type TransferSortOrder = "queue" | "newest" | "oldest" | "largest" | "name";
+export type TransferSortOrder = "original" | "newest" | "oldest" | "largest" | "name";
 
 export function sortTransferView(
   transfers: readonly Transfer[],
   order: TransferSortOrder,
 ): Transfer[] {
-  if (order === "queue") return [...transfers];
+  if (order === "original") return [...transfers];
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   const sortable = transfers.map((transfer, index) => ({ transfer, index }));
   const valid = (value: number): number | null =>

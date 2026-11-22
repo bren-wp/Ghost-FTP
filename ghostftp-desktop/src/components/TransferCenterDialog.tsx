@@ -64,7 +64,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const [query, setQuery] = useState("");
   const [directionFilter, setDirectionFilter] = useState<TransferDirectionFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TransferTimeFilter>("all");
-  const [sortOrder, setSortOrder] = useState<TransferSortOrder>("queue");
+  const [sortOrder, setSortOrder] = useState<TransferSortOrder>("original");
   const [historyClock, setHistoryClock] = useState(() => Date.now() / 1000);
   useEffect(() => {
     if (timeFilter === "all") return;
@@ -542,7 +542,7 @@ export function TransferCenterDialog({ onClose }: Props) {
             value={sortOrder}
             onChange={(event) => setSortOrder(event.target.value as TransferSortOrder)}
           >
-            <option value="queue">Queue order</option>
+            <option value="original">Original order</option>
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
             <option value="largest">Largest first</option>
