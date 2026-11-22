@@ -21,7 +21,7 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ---
 
-## Ghost FTP 0.99.78 Preview — development candidate
+## Ghost FTP 0.99.79 Preview — development candidate
 
 This source follows the previously published v0.99.78 ([Preview release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.78)). It hardens Remote Agent service installation argument handling for Linux systemd and Windows Scheduled Tasks, protecting config directories with spaces and special characters and rejecting newline injection. Platform-specific regression tests are included. This source is **not yet a published v0.99.79 download**.
 
