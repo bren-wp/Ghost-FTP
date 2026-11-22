@@ -34,7 +34,7 @@ Do not require skipped release-publishing jobs, schedule-only metadata jobs or m
 
 ## Automatic release fail-closed check
 
-The `Ghost FTP release` workflow now reads the GitHub branch API and **refuses automatic publication while `main.protected` is not `true`**. This is a source-level safeguard only, not a substitute for repository-side rules and review enforcement. It intentionally prevents an unprotected direct push from producing an automatic release. Admins must still verify all exact-head mandatory contexts, the negative failing-PR merge case and a successful passing merge before closing issue #320.
+The `Ghost FTP release` workflow reads the live branch API and permits either protected `main` **or verified exact merged-PR provenance** for the current-main SHA. On an unprotected branch it rejects direct pushes and unmerged/wrong-base or ambiguous PR associations. It still waits for all exact-source mandatory gates and validates signed-updater and artifact integrity before publication. This restores the previously working Preview release workflow without treating source-only controls as a substitute for repository-admin protection. Admins should still verify exact-head mandatory checks, a blocked failing-PR merge and a successful green merge before closing #320.
 
 ## Acceptance evidence (not yet completed)
 
