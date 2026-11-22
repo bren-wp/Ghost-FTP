@@ -80,7 +80,7 @@ pub(super) async fn verify_ftp_reconnect_and_disconnect(
     );
     anyhow::ensure!(
         ftp.with_stream(|stream| {
-            let _ = stream.pwd()?;
+            stream.noop()?;
             Ok(())
         })
         .await
