@@ -199,7 +199,10 @@ pub(super) async fn verify_staged_upload_source_fault(
     );
 
     let listing = fs.list_dir(&base).await?;
-    if listing.iter().any(|entry| entry.name == ".ghostftp-upload-fault.part") {
+    if listing
+        .iter()
+        .any(|entry| entry.name == ".ghostftp-upload-fault.part")
+    {
         fs.delete(&staging, false)
             .await
             .with_context(|| format!("{protocol} clean partial staging sibling"))?;
