@@ -5,8 +5,9 @@ import type { ReactNode } from "react";
 import { Activity, Pause, Play, RotateCcw, XCircle } from "lucide-react";
 import type { Transfer } from "@/lib/types";
 import { messageOf } from "@/lib/errors";
+import { prepareBandwidthGraph, type BandwidthSample } from "@/lib/visualizationMath";
 
-export type BandwidthSample = { upload: number; download: number };
+export type { BandwidthSample } from "@/lib/visualizationMath";
 
 export function Tab({
   label,
@@ -191,7 +192,14 @@ export function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: 
       <div className="truncate font-semibold text-text" title={transfer.source} dir="auto">
         {baseName(transfer.source)}
       </div>
-      <div className="h-3 overflow-hidden rounded border border-border bg-[#03111d]">
+      <div
+        role="progressbar"
+        aria-label={"Progress for " + baseName(transfer.source)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Number(pct.toFixed(0))}
+        className="h-3 overflow-hidden rounded border border-border bg-[#03111d]"
+      >
         <div
           className="h-full bg-accent-strong"
           style={{ width: `${pct}%` }}
@@ -210,69 +218,92 @@ export function TransferDetails({ transfer, rate }: { transfer: Transfer; rate: 
   );
 }
 
-export function BandwidthChart({ history }: { history: BandwidthSample[] }) {
-  // Ghost FTP by Brendigo: one genuine data point must remain visible.
-  // Previously the first second of an active transfer was incorrectly
-  // replaced with two zero samples, showing 0 B/s until a second tick.
-  const samples = history.length > 1
-    ? history
-    : history.length === 1
-      ? [history[0], history[0]]
-      : [{ upload: 0, download: 0 }, { upload: 0, download: 0 }];
-  const data = samples.map((sample) => ({
-    upload: Number.isFinite(sample.upload) ? Math.max(0, sample.upload) : 0,
-    download: Number.isFinite(sample.download) ? Math.max(0, sample.download) : 0,
-  }));
-  // Keep the graph finite even if a bad source rate reaches presentation.
-  const peak = data.reduce((highest, sample) => Math.max(highest, sample.upload, sample.download), 0);
-  const scaleMax = Math.max(1, peak);
-  const points = (key: keyof BandwidthSample) =>
-    data
-      .map((sample, index) => {
-        const x = data.length === 1 ? 0 : (index / (data.length - 1)) * 600;
-        const y = 110 - (sample[key] / scaleMax) * 92;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(" ");
+export function BandwidthChart({
+  history,
+  active = false,
+}: {
+  history: BandwidthSample[];
+  active?: boolean;
+}) {
+  const graph = prepareBandwidthGraph(history);
+  const measuredRate = (value: number) => value === 0 ? "0 B/s" : formatRate(value);
+  const latestUpload = graph.latest ? measuredRate(graph.latest.upload) : "—";
+  const latestDownload = graph.latest ? measuredRate(graph.latest.download) : "—";
+  const description = graph.hasData
+    ? "Transfer bandwidth over " + graph.count + " measured samples. " +
+      (active ? "Upload now " : "Last measured upload ") +
+      latestUpload + (active ? ", download now " : ", last measured download ") + latestDownload +
+      ", maximum observed " + measuredRate(graph.peak) + "."
+    : "No measured transfer bandwidth yet.";
 
-  const latest = data[data.length - 1];
   return (
-    <div>
-      <div className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-[10.5px] text-text-muted">
-        <span>
-          <span className="text-accent">↑</span> Upload {formatRate(latest.upload)}
+    <section className="min-w-0" aria-label="Transfer bandwidth graph">
+      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-text-muted">
+        <span className="whitespace-nowrap" aria-label={(active ? "Current" : "Last measured") + " upload rate: " + latestUpload}>
+          <span className="font-semibold text-accent">↑ Upload</span> {latestUpload}
         </span>
-        <span>
-          <span className="text-success">↓</span> Download {formatRate(latest.download)}
+        <span className="whitespace-nowrap" aria-label={(active ? "Current" : "Last measured") + " download rate: " + latestDownload}>
+          <span className="font-semibold text-success">↓ Download</span> {latestDownload}
         </span>
-        <span className="ml-auto">Peak {formatRate(peak)}</span>
+        <span className="whitespace-nowrap">Peak {graph.hasData ? measuredRate(graph.peak) : "—"}</span>
+        <span className="whitespace-nowrap">
+          Average ↑ {graph.hasData ? measuredRate(graph.average.upload) : "—"} ·
+          {" "}↓ {graph.hasData ? measuredRate(graph.average.download) : "—"}
+        </span>
       </div>
-      <div className="relative h-24 overflow-hidden rounded border border-border-subtle bg-[#041522]">
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent_0_27px,rgba(31,80,115,.36)_28px)]" />
-        <svg
-          viewBox="0 0 600 120"
-          preserveAspectRatio="none"
-          className="absolute inset-0 h-full w-full"
-          aria-label="Live upload and download bandwidth history"
-          role="img"
-        >
-          <polyline
-            fill="none"
-            stroke="rgb(42 170 255)"
-            strokeWidth="2.4"
-            points={points("upload")}
-          />
-          <polyline
-            fill="none"
-            stroke="rgb(36 218 139)"
-            strokeWidth="2.2"
-            points={points("download")}
-          />
-        </svg>
+      <div className="relative h-24 w-full min-w-0 overflow-hidden rounded-md border border-border-subtle bg-[#041522]">
+        {graph.hasData ? (
+          <svg
+            viewBox="0 0 600 120"
+            preserveAspectRatio="none"
+            className="h-full w-full"
+            role="img"
+            aria-label={description}
+          >
+            <title>{description}</title>
+            <g stroke="rgb(104 151 189)" strokeOpacity="0.22" strokeWidth="1" vectorEffect="non-scaling-stroke">
+              <line x1="0" x2="600" y1="14" y2="14" />
+              <line x1="0" x2="600" y1="60" y2="60" />
+              <line x1="0" x2="600" y1="106" y2="106" />
+              <line x1="150" x2="150" y1="14" y2="106" />
+              <line x1="300" x2="300" y1="14" y2="106" />
+              <line x1="450" x2="450" y1="14" y2="106" />
+            </g>
+            <polyline
+              fill="none"
+              stroke="rgb(56 171 255)"
+              strokeWidth="2.6"
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points={graph.uploadPoints}
+            />
+            <polyline
+              fill="none"
+              stroke="rgb(36 218 139)"
+              strokeWidth="2.5"
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points={graph.downloadPoints}
+            />
+            <circle cx="598" cy={graph.lastUploadY} r="3" fill="rgb(56 171 255)" />
+            <circle cx="598" cy={graph.lastDownloadY} r="3" fill="rgb(36 218 139)" />
+          </svg>
+        ) : (
+          <div className="flex h-full items-center justify-center px-3 text-center text-xs text-text-muted" role="status">
+            No bandwidth measurements yet. Start a transfer to display real upload and download rates.
+          </div>
+        )}
       </div>
-    </div>
+      <div className="mt-1.5 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[10px] text-text-dim">
+        <span>{graph.count} measured sample{graph.count === 1 ? "" : "s"} · newest on right</span>
+        <span>{active ? "Live" : graph.hasData ? "Last recorded activity" : "Waiting for activity"}</span>
+      </div>
+    </section>
   );
 }
+
 
 export function transferProgressPercent(
   transfer: Pick<Transfer, "size" | "transferred"> & Partial<Pick<Transfer, "status">>,

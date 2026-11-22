@@ -21,6 +21,8 @@ import { useConnections } from "@/stores/connectionsStore";
 import {
   countTransferStatuses,
   filterTransferView,
+  sortTransferView,
+  type TransferSortOrder,
   recentTransferLog,
   type TransferStatusTab,
   type TransferDirectionFilter,
@@ -62,6 +64,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   const [query, setQuery] = useState("");
   const [directionFilter, setDirectionFilter] = useState<TransferDirectionFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TransferTimeFilter>("all");
+  const [sortOrder, setSortOrder] = useState<TransferSortOrder>("original");
   const [historyClock, setHistoryClock] = useState(() => Date.now() / 1000);
   useEffect(() => {
     if (timeFilter === "all") return;
@@ -181,6 +184,11 @@ export function TransferCenterDialog({ onClose }: Props) {
   );
 
 
+  const sortedTransfers = useMemo(
+    () => sortTransferView(filtered, sortOrder),
+    [filtered, sortOrder]
+  );
+
   // Review the latest real backend failure in one action, regardless of
   // previous text/direction/time filters. This never retries automatically.
   const reviewLatestFailure = () => {
@@ -226,6 +234,9 @@ export function TransferCenterDialog({ onClose }: Props) {
   useEffect(() => {
     if (!hasLiveTransfer) return;
 
+    // A new active period must not silently stitch an older idle session
+    // into its time axis; the most recent measurements start fresh.
+    setBandwidthHistory([]);
     const sample = () => {
       const state = useTransfers.getState();
       const now = Date.now();
@@ -528,6 +539,18 @@ export function TransferCenterDialog({ onClose }: Props) {
             <option value="week">Last 7 days</option>
             <option value="month">Last 30 days</option>
           </select>
+          <select
+            className="ghost-ref-input h-8 w-36"
+            aria-label="Transfer sort order"
+            value={sortOrder}
+            onChange={(event) => setSortOrder(event.target.value as TransferSortOrder)}
+          >
+            <option value="original">Original order</option>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="largest">Largest first</option>
+            <option value="name">File name (A–Z)</option>
+          </select>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
@@ -555,7 +578,7 @@ export function TransferCenterDialog({ onClose }: Props) {
                 <span className="text-right">Actions</span>
               </div>
               <div className="min-w-[920px]">
-                {filtered.map((transfer, index) => (
+                {sortedTransfers.map((transfer, index) => (
                   <div
                     key={transfer.id}
                     ref={selected?.id === transfer.id && transfer.status === "error" ? focusedFailureRowRef : undefined}
@@ -632,7 +655,7 @@ export function TransferCenterDialog({ onClose }: Props) {
                 Live native transfer sampling
               </span>
             </div>
-            <BandwidthChart history={bandwidthHistory} />
+            <BandwidthChart history={bandwidthHistory} active={hasLiveTransfer} />
           </div>
 
           <div className="rounded-lg border border-border bg-[#071f35] p-4">

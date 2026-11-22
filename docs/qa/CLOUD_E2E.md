@@ -1,9 +1,9 @@
-> **Active development source:** Ghost FTP 0.99.78 Preview (Windows/Linux). Publication is determined by GitHub Releases.
-> **Previous canonical release:** v0.99.77 (published 22 November 2026).
+> **Active development source:** Ghost FTP 0.99.79 Preview (Windows/Linux). Publication is determined by GitHub Releases.
+> **Previous canonical release:** v0.99.78 (published 22 November 2026).
 
 # Ghost FTP — live cloud-provider acceptance
 
-> **Active source:** Ghost FTP 0.99.78 Preview candidate. **Previous canonical release:** v0.99.77. Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP 0.99.79 Preview candidate. **Previous canonical release:** v0.99.78. Supported platforms: Windows and Linux.
 
 **Evidence, not certification.** The native client includes source-level cloud adapters, but compiling them and running real localhost FTP/FTPS/SFTP tests does not verify a third-party cloud account. Historical discontinued-platform QA evidence is preserved in [the archived plan](../audits/ARCHIVED_MOBILE_CLOUD_E2E_0.95.md), not presented as active desktop coverage.
 

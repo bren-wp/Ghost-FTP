@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   HardDrive,
   X,
@@ -19,6 +19,7 @@ import { useLayout } from "@/stores/layoutStore";
 import { toast } from "@/stores/toastStore";
 import type { DuNode, ScanStrategy } from "@/lib/types";
 import { fmtSize } from "@/lib/format";
+import { rankDiskItems, safeDiskPercent } from "@/lib/visualizationMath";
 import {
   materialIconUrl,
   ContextMenu,
@@ -141,12 +142,12 @@ function DiskUsage() {
   return createPortal(
     <div className="anim-modal fixed inset-0 z-modal flex flex-col bg-bg">
       {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-bg-panel px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-bg-panel px-3 py-2">
         <HardDrive size={15} className="shrink-0 text-accent" />
         <span className="shrink-0 text-sm font-semibold">Disk Usage</span>
 
         {/* Breadcrumb into the tree */}
-        <div className="flex min-w-0 flex-1 items-center overflow-x-auto whitespace-nowrap text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="order-last flex w-full min-w-0 items-center overflow-x-auto whitespace-nowrap text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:order-none md:w-auto md:flex-1">
           <button
             onClick={() => navigateTo(-1)}
             className={cn(
@@ -258,9 +259,9 @@ function DiskUsage() {
           </div>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* Treemap */}
-          <div className="relative flex min-w-0 flex-1 flex-col border-r border-border">
+          <div className="relative flex min-h-[180px] min-w-0 flex-1 flex-col border-b border-border md:min-h-0 md:border-b-0 md:border-r">
             <div className="min-h-0 flex-1 p-2">
               {current && !scanning ? (
                 <DiskTreemap
@@ -290,7 +291,7 @@ function DiskUsage() {
               ) : current ? (
                 <span className="truncate">
                   {current.name} · {fmtSize(current.size)} ·{" "}
-                  {(current.children?.length ?? 0).toLocaleString()} items — click a box to drill in
+                  {(current.children?.length ?? 0).toLocaleString()} items — select a folder using arrows or click to open
                 </span>
               ) : null}
             </div>
@@ -348,10 +349,10 @@ function RankedList({
 }) {
   const children = node?.children ?? [];
   const parentSize = node?.size ?? 0;
-  const shown = children.slice(0, MAX_ROWS);
+  const shown = useMemo(() => rankDiskItems(children).slice(0, MAX_ROWS), [node]);
 
   return (
-    <div className="flex w-80 shrink-0 flex-col bg-bg-panel">
+    <div className="flex max-h-[36vh] w-full shrink-0 flex-col bg-bg-panel md:max-h-none md:w-80">
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-bg-subtle px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
         <span>Biggest items</span>
         <span>{children.length.toLocaleString()}</span>
@@ -363,19 +364,39 @@ function RankedList({
           </div>
         ) : (
           shown.map((c) => {
-            const pct = parentSize > 0 ? (c.size / parentSize) * 100 : 0;
+            const pct = safeDiskPercent(c.size, parentSize);
+            const shownSize = Number.isFinite(c.size) && c.size >= 0 ? fmtSize(c.size) : "Unknown size";
+            const percentageLabel =
+              !Number.isFinite(c.size) || c.size < 0 ||
+              !Number.isFinite(parentSize) || parentSize <= 0
+                ? "—"
+                : pct > 0 && pct < 1 ? "<1%" : Math.round(pct) + "%";
             const isDir = c.kind === "directory";
             const matUrl =
               c.kind === "file" ? materialIconUrl(c.name) : undefined;
             return (
               <button
                 key={c.path}
-                onClick={() => isDir && onDrill(c)}
+                onClick={(event) => {
+                  if (isDir) onDrill(c);
+                  else {
+                    const box = event.currentTarget.getBoundingClientRect();
+                    onContext(c, box.left + 12, box.bottom);
+                  }
+                }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   onContext(c, e.clientX, e.clientY);
                 }}
-                title={c.path}
+                title={isDir ? "Open folder: " + c.path : "File actions: " + c.path}
+                aria-label={c.name + ", " + shownSize + ", " + percentageLabel + " of folder"}
+                onKeyDown={(event) => {
+                  if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                    event.preventDefault();
+                    const box = event.currentTarget.getBoundingClientRect();
+                    onContext(c, box.left + 12, box.bottom);
+                  }
+                }}
                 className={cn(
                   "flex w-full items-center gap-2 border-b border-border-subtle px-3 py-1.5 text-left text-xs",
                   isDir
@@ -399,19 +420,19 @@ function RankedList({
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="min-w-0 truncate">{c.name}</span>
                     <span className="shrink-0 tabular-nums text-text-dim">
-                      {fmtSize(c.size)}
+                      {shownSize}
                     </span>
                   </div>
                   {/* Percentage-of-parent bar */}
                   <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-bg-subtle">
                     <div
                       className="h-full rounded-full bg-accent"
-                      style={{ width: `${Math.max(1, pct)}%` }}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
                 <span className="w-10 shrink-0 text-right tabular-nums text-[10px] text-text-dim">
-                  {pct >= 0.1 ? `${pct.toFixed(0)}%` : "<1%"}
+                  {percentageLabel}
                 </span>
               </button>
             );

@@ -10,7 +10,7 @@ const { outputText, diagnostics } = ts.transpileModule(raw, {
   reportDiagnostics: true,
 });
 assert.deepEqual(diagnostics ?? [], []);
-const { countTransferStatuses, filterTransferView, recentTransferLog } = await import(
+const { countTransferStatuses, filterTransferView, recentTransferLog, sortTransferView } = await import(
   "data:text/javascript;base64," + Buffer.from(outputText).toString("base64")
 );
 
@@ -136,4 +136,25 @@ test("10k-entry synthetic history is stable and memory bounded", () => {
   assert.equal(filtered.length, Array.from({ length: 3601 }, (_, i) => i).filter(i => i % 7 === 0).length);
   assert.ok(filtered.every(t => t.status === "error" && t.startedAt >= epoch - 3600));
   assert.equal(recentTransferLog(history, 0).length, 12);
+});
+
+
+test("view sort options are deterministic, stable and never reprioritize the queue", () => {
+  const examples = [
+    { ...make("a", "done", "upload", 100, "/work/file10.txt"), size: 500 },
+    { ...make("b", "done", "upload", 10, "/work/File2.txt"), size: 100 },
+    { ...make("c", "done", "upload", 10, "/work/file02.txt"), size: 500 },
+    { ...make("d", "done", "upload", 20, "/work/last.txt"), size: Number.NaN },
+    { ...make("e", "done", "upload", 30, "/work/unknown.txt"), startedAt: Number.NaN },
+  ];
+  const snapshot = structuredClone(examples);
+  const ids = (order) => sortTransferView(examples, order).map(x => x.id);
+  assert.deepEqual(ids("original"), ["a", "b", "c", "d", "e"]);
+  assert.deepEqual(ids("newest"), ["b", "c", "d", "a", "e"]);
+  assert.deepEqual(ids("oldest"), ["a", "d", "b", "c", "e"]);
+  assert.deepEqual(ids("largest"), ["a", "c", "b", "e", "d"]);
+  assert.deepEqual(ids("name"), ["b", "c", "a", "d", "e"]);
+  assert.strictEqual(sortTransferView(examples, "newest")[0], examples[1]);
+  assert.deepEqual(examples, snapshot, "sort must not change stored queue order or data");
+  assert.notStrictEqual(sortTransferView(examples, "original"), examples);
 });
