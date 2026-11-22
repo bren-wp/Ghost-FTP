@@ -45,10 +45,21 @@ pub fn uninstall() -> Result<()> {
 }
 
 /// Build the `run …` argument line shared by every backend.
-fn run_args(extra_args: &[String]) -> String {
-    let mut parts = vec!["run".to_string()];
-    parts.extend(extra_args.iter().cloned());
-    parts.join(" ")
+fn validate_service_argument(value: &str) -> Result<()> {
+    // Unit files are line-based and Windows tasks are command-line based.
+    // Never let an argument inject a new service directive or control byte.
+    if value.chars().any(char::is_control) {
+        bail!("service arguments must not contain control characters");
+    }
+    Ok(())
+}
+
+fn run_args(extra_args: &[String], quote: fn(&str) -> Result<String>) -> Result<String> {
+    std::iter::once("run")
+        .chain(extra_args.iter().map(String::as_str))
+        .map(quote)
+        .collect::<Result<Vec<_>>>()
+        .map(|parts| parts.join(" "))
 }
 
 #[cfg(target_os = "linux")]
@@ -56,10 +67,44 @@ mod linux {
     use super::*;
     use std::process::Command;
 
+    fn quote_windows_argument(value: &str) -> Result<String> {
+        validate_service_argument(value)?;
+        // Match the Microsoft CRT / CommandLineToArgvW backslash-quote rules.
+        let mut quoted = String::from("\"");
+        let mut pending_backslashes = 0;
+        for c in value.chars() {
+            match c {
+                '\\' => pending_backslashes += 1,
+                '"' => {
+                    quoted.extend(std::iter::repeat('\\').take(2 * pending_backslashes + 1));
+                    quoted.push('"');
+                    pending_backslashes = 0;
+                }
+                _ => {
+                    quoted.extend(std::iter::repeat('\\').take(pending_backslashes));
+                    quoted.push(c);
+                    pending_backslashes = 0;
+                }
+            }
+        }
+        quoted.extend(std::iter::repeat('\\').take(2 * pending_backslashes));
+        quoted.push('"');
+        Ok(quoted)
+    }
+
+    fn task_run_command(exe: &std::path::Path, extra: &[String]) -> Result<String> {
+        let exe = exe.to_str().context("task executable path must be valid UTF-8")?;
+        Ok(format!(
+            "{} {}",
+            quote_windows_argument(exe)?,
+            run_args(extra, quote_windows_argument)?,
+        ))
+    }
+
     pub fn install(extra: &[String]) -> Result<()> {
         let exe = exe_path()?;
         let is_root = unsafe { libc_geteuid() } == 0;
-        let unit = unit_file(&exe, extra);
+        let unit = unit_file(&exe, extra)?;
         let (path, user_flag) = if is_root {
             (
                 PathBuf::from("/etc/systemd/system/ghostftp-agentd.service"),
@@ -139,8 +184,26 @@ mod linux {
         Ok(())
     }
 
-    fn unit_file(exe: &std::path::Path, extra: &[String]) -> String {
-        format!(
+    fn quote_systemd_argument(value: &str) -> Result<String> {
+        validate_service_argument(value)?;
+        let mut escaped = String::with_capacity(value.len() + 2);
+        escaped.push('"');
+        for c in value.chars() {
+            match c {
+                '\\' => escaped.push_str("\\\\"),
+                '"' => escaped.push_str("\\\""),
+                '%' => escaped.push_str("%%"),
+                '$' => escaped.push_str("$$"),
+                _ => escaped.push(c),
+            }
+        }
+        escaped.push('"');
+        Ok(escaped)
+    }
+
+    fn unit_file(exe: &std::path::Path, extra: &[String]) -> Result<String> {
+        let exe = exe.to_str().context("service executable path must be valid UTF-8")?;
+        Ok(format!(
             "[Unit]\n\
              Description=Ghost FTP Agent daemon (control this machine from Ghost FTP)\n\
              After=network-online.target\n\
@@ -152,9 +215,9 @@ mod linux {
              RestartSec=5\n\n\
              [Install]\n\
              WantedBy=default.target\n",
-            exe = exe.display(),
-            args = run_args(extra),
-        )
+            exe = quote_systemd_argument(exe)?,
+            args = run_args(extra, quote_systemd_argument)?,
+        ))
     }
 
     // Avoid a whole `libc` dependency for one call.
@@ -175,7 +238,7 @@ mod windows {
         let exe = exe_path()?;
         // A logon Scheduled Task: ghostftp-agentd is a console app, not an SCM
         // service, so `sc create` would be killed for not reporting to the SCM.
-        let tr = format!("\"{}\" {}", exe.display(), run_args(extra));
+        let tr = task_run_command(&exe, extra)?;
         let status = Command::new("schtasks")
             .args([
                 "/create", "/f", "/tn", TASK_NAME, "/sc", "onlogon", "/rl", "limited", "/tr", &tr,
@@ -213,13 +276,67 @@ mod windows {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
-    fn run_args_joins_extra() {
-        assert_eq!(run_args(&[]), "run");
+    fn run_args_keeps_each_argument_separate() {
+        let argv = vec![
+            "--config-dir".to_string(),
+            "dir with spaces".to_string(),
+        ];
+        let result = run_args(&argv, |value| {
+            validate_service_argument(value)?;
+            Ok(format!("<{value}>"))
+        })
+        .unwrap();
+        assert_eq!(result, "<run> <--config-dir> <dir with spaces>");
+        assert!(run_args(&["malicious\nExecStart=/bin/sh".into()], |value| {
+            validate_service_argument(value)?;
+            Ok(value.to_string())
+        })
+        .is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn systemd_unit_quotes_paths_and_rejects_directive_injection() {
+        let args = vec![
+            "--config-dir".to_string(),
+            "/home/test user/%p/$VAULT".to_string(),
+        ];
+        let unit = linux::unit_file(Path::new("/opt/Ghost FTP/agentd"), &args).unwrap();
+        assert!(unit.contains(
+            "ExecStart=\"/opt/Ghost FTP/agentd\" \"run\" \"--config-dir\" \"/home/test user/%%p/$$VAULT\""
+        ));
+        let special = linux::quote_systemd_argument("quote\" and \\ backslash").unwrap();
+        assert_eq!(special, "\"quote\\\" and \\\\ backslash\"");
+        assert!(linux::unit_file(
+            Path::new("/usr/bin/agentd"),
+            &["evil\n[Service]\nExecStart=/bin/sh".into()]
+        )
+        .is_err());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn task_quotes_executable_and_arguments() {
+        let args = vec![
+            "--config-dir".to_string(),
+            r"C:\Users\Test User\Ghost FTP".to_string(),
+        ];
+        let task = windows::task_run_command(
+            Path::new(r"C:\Program Files\Ghost FTP\agentd.exe"),
+            &args,
+        )
+        .unwrap();
         assert_eq!(
-            run_args(&["--read-only".into(), "--port".into(), "9000".into()]),
-            "run --read-only --port 9000"
+            task,
+            r#""C:\Program Files\Ghost FTP\agentd.exe" "run" "--config-dir" "C:\Users\Test User\Ghost FTP""#
         );
+        assert_eq!(
+            windows::quote_windows_argument("has \"quotes\"").unwrap(),
+            r#""has \"quotes\"""#
+        );
+        assert!(windows::quote_windows_argument("bad\r\nline").is_err());
     }
 }
