@@ -73,7 +73,9 @@ test("automatic release fails closed if main is not protected (issue #320)", () 
   assert.ok(protect >= 0 && protect < select, "Protection check must precede release authorization");
   assert.ok(workflow.includes('MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq \'.protected\')"'));
   assert.ok(workflow.includes('if [ "$MAIN_PROTECTED" != "true" ]; then'));
-  assert.ok(workflow.includes("Refusing automatic Ghost FTP release: main is unprotected"));\n  assert.ok(workflow.includes("issues/320"), "release diagnostics must link the active owner-action blocker");\n  assert.ok(read("docs/release/PROCESS.md").includes("issues/320"), "release procedure must refer to active issue 320");
+  assert.ok(workflow.includes("Refusing automatic Ghost FTP release: main is unprotected"));
+  assert.ok(workflow.includes("issues/320"), "release diagnostics must link the active owner-action blocker");
+  assert.ok(read("docs/release/PROCESS.md").includes("issues/320"), "release procedure must refer to active issue 320");
 });
 
 test("merged changes advance version, except exact unpublished release repairs with immutable lineage", () => {
