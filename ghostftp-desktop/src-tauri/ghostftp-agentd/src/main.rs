@@ -115,9 +115,21 @@ async fn main() -> Result<()> {
         .init();
 
     let args = parse_args();
-    // Status must be observational: no new device identity, key or config file.
-    if args.command == "service-status" {
-        return ghostftp_agentd::service::status();
+    // Inspection, help and uninstallation must not create a device identity
+    // or write config as a side-effect. Fail unknown commands before any I/O.
+    match args.command.as_str() {
+        "service-status" => return ghostftp_agentd::service::status(),
+        "uninstall" => return ghostftp_agentd::service::uninstall(),
+        "help" => {
+            print_help();
+            return Ok(());
+        }
+        "run" | "pair" | "info" | "unpair" | "permit" | "install" => {}
+        other => {
+            eprintln!("unknown command '{other}'\n");
+            print_help();
+            bail!("unknown command");
+        }
     }
     let dir = ghostftp_agentd::config_dir(args.config_dir.clone())?;
     let identity = Identity::load_or_create(&identity_path(&dir))?;
@@ -134,16 +146,7 @@ async fn main() -> Result<()> {
         "unpair" => unpair(dir, config, &args.positional),
         "permit" => permit(dir, config, &args.positional),
         "install" => ghostftp_agentd::service::install(&service_run_args(&args)),
-        "uninstall" => ghostftp_agentd::service::uninstall(),
-        "help" => {
-            print_help();
-            Ok(())
-        }
-        other => {
-            eprintln!("unknown command '{other}'\n");
-            print_help();
-            bail!("unknown command");
-        }
+        _ => bail!("unrecognized command after validation"),
     }
 }
 

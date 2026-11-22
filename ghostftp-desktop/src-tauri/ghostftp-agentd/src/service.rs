@@ -169,20 +169,33 @@ mod linux {
                 true,
             )
         };
+        if !path.is_file() {
+            bail!("Ghost FTP Agent systemd service is not installed at {}", path.display());
+        }
         let mut c = Command::new("systemctl");
         if user_flag {
             c.arg("--user");
         }
-        let _ = c
+        let stopped = c
             .args(["disable", "--now", "ghostftp-agentd.service"])
-            .status();
-        std::fs::remove_file(&path).ok();
+            .status()
+            .context("disable and stop Ghost FTP Agent systemd service")?;
+        if !stopped.success() {
+            bail!("systemctl failed to disable and stop Ghost FTP Agent; service file left intact");
+        }
+        std::fs::remove_file(&path).with_context(|| format!("remove {}", path.display()))?;
         let mut c = Command::new("systemctl");
         if user_flag {
             c.arg("--user");
         }
-        let _ = c.arg("daemon-reload").status();
-        println!("Removed ghostftp-agentd systemd service.");
+        let reload = c
+            .arg("daemon-reload")
+            .status()
+            .context("reload systemd after service removal")?;
+        if !reload.success() {
+            bail!("Ghost FTP Agent service removed but systemd daemon-reload failed");
+        }
+        println!("Removed and stopped ghostftp-agentd systemd service.");
         Ok(())
     }
 
