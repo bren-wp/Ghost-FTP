@@ -317,6 +317,39 @@ mod tests {
         .is_err());
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn systemd_analyze_accepts_generated_unit_when_installed() {
+        if std::process::Command::new("systemd-analyze")
+            .arg("--version")
+            .output()
+            .is_err()
+        {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ghostftp-agentd.service");
+        let args = vec![
+            "--config-dir".to_string(),
+            "/tmp/Ghost FTP/%p/$HOME".to_string(),
+        ];
+        std::fs::write(
+            &path,
+            linux::unit_file(Path::new("/usr/bin/true"), &args).unwrap(),
+        )
+        .unwrap();
+        let output = std::process::Command::new("systemd-analyze")
+            .arg("verify")
+            .arg(&path)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "systemd unit rejected: {}",
+            String::from_utf8_lossy(&output.stderr),
+        );
+    }
+
     #[cfg(target_os = "windows")]
     #[test]
     fn task_quotes_executable_and_arguments() {
@@ -336,6 +369,14 @@ mod tests {
         assert_eq!(
             windows::quote_windows_argument("has \"quotes\"").unwrap(),
             r#""has \"quotes\"""#
+        );
+        assert_eq!(
+            windows::quote_windows_argument("ends\\").unwrap(),
+            r#""ends\\""#,
+        );
+        assert_eq!(
+            windows::quote_windows_argument("München Ž").unwrap(),
+            r#""München Ž""#,
         );
         assert!(windows::quote_windows_argument("bad\r\nline").is_err());
     }
