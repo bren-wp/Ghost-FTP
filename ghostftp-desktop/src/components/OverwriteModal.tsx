@@ -5,6 +5,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { useConflicts, type ConflictInfo } from "@/stores/conflictStore";
 import { fmtSize, fmtMtime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { toast } from "@/stores/toastStore";
 
 // FileZilla-style overwrite prompt. Always mounted; renders whenever the
 // conflict store has a pending question (the head of its queue). Escape / click
@@ -46,6 +47,19 @@ function OverwriteModal({
   const pick = (action: "overwrite" | "rename" | "skip") =>
     onResolve({ action, applyToAll, remember });
 
+  // Ghost FTP by Brendigo: a path-copy action is useful when checking the
+  // exact conflict target with a colleague or server administrator. No path
+  // is copied, logged or transmitted without a deliberate user click.
+  const copyDestination = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(info.destDir);
+      toast.success("Destination path copied");
+    } catch {
+      toast.error("Couldn't copy destination path");
+    }
+  };
+
   const where = info.side === "local" ? "on this computer" : "on the server";
   const hasMeta =
     info.existingSize != null ||
@@ -79,11 +93,23 @@ function OverwriteModal({
             <span className="font-medium text-text break-all" dir="auto">{info.name}</span> already
             exists {where} in:
           </div>
-          <div
-            className="mt-1 truncate font-mono text-xs text-text-dim"
-            title={info.destDir}
-          >
-            {info.destDir}
+          <div className="mt-1 flex min-w-0 items-center gap-2">
+            <div
+              className="min-w-0 flex-1 truncate font-mono text-xs text-text-dim"
+              title={info.destDir}
+              dir="auto"
+            >
+              {info.destDir}
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-border p-1.5 text-text-muted hover:bg-bg-hover hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              title="Copy destination directory path"
+              aria-label="Copy destination directory path"
+              onClick={() => { void copyDestination(); }}
+            >
+              <Copy size={13} aria-hidden="true" />
+            </button>
           </div>
 
           {hasMeta && (
