@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { liveTransferRate, useTransfers } from "@/stores/transfersStore";
 import { useConnections } from "@/stores/connectionsStore";
-import type { Transfer } from "@/lib/types";
 import {
   countTransferStatuses,
   filterTransferView,
