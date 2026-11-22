@@ -1,6 +1,14 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.76 Preview — 22 November 2026 (development candidate; not yet published)
+## 0.99.77 Preview — 22 November 2026 (development candidate; not yet published)
+
+- Expand authentic FTP/explicit FTPS loopback tests to prove same-session reauthentication, terminal explicit Disconnect, and fresh authenticated connection with preserved binary content and distinct session identity.
+- Inject a real streaming source failure into a unique FTP/FTPS staging sibling, reauthenticate, assert existing remote target contents survive unmodified and clean partial staging data.
+- Add single-session streamed 16 MiB + 17 B full-file SHA-256 upload/download on Linux FTP/FTPS/SFTP and Windows FTP; retain existing 1/4/8 independent connection matrix and separate opt-in >4-GiB testing.
+- Improve strict 59-screen visual comparison: `--require-exact` fails on any RGB channel mismatch, including a one-unit pixel difference. Add focused Python regression tests to native Linux build CI.
+- Native device parity 0/59, physical >4-GiB network faults, real OS vault persistence, and authenticated external cloud providers remain separately unverified.
+
+## 0.99.76 Preview — published 22 November 2026
 
 - Make the actual real-network parallel FTP/FTPS/SFTP integrity test runner drain all started transfers after any independent worker fails, rather than dropping a JoinSet and aborting sibling sessions.
 - Preserve the first worker failure and its cause after all started workers finish, with a new deterministic Tokio regression proving this behavior.

@@ -1,9 +1,9 @@
-> **Active development source:** Ghost FTP 0.99.76 Preview (Windows/Linux). Publication is determined by GitHub Releases.
-> **Previous canonical release:** v0.99.75 (published 22 November 2026).
+> **Active development source:** Ghost FTP 0.99.77 Preview (Windows/Linux). Publication is determined by GitHub Releases.
+> **Previous canonical release:** v0.99.76 (published 22 November 2026).
 
 # Ghost FTP — live cloud-provider acceptance
 
-> **Active source:** Ghost FTP 0.99.75 Preview candidate. **Previous canonical release:** v0.99.73. Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP 0.99.77 Preview candidate. **Previous canonical release:** v0.99.76. Supported platforms: Windows and Linux.
 
 **Evidence, not certification.** The native client includes source-level cloud adapters, but compiling them and running real localhost FTP/FTPS/SFTP tests does not verify a third-party cloud account. Historical discontinued-platform QA evidence is preserved in [the archived plan](../audits/ARCHIVED_MOBILE_CLOUD_E2E_0.95.md), not presented as active desktop coverage.
 
@@ -19,6 +19,8 @@
 | Security | TLS, proxy, redirects, DNS rebinding, credential redaction and URL-safe logs |
 | Reliability | Concurrent operations, cancellation isolation, retries, crash recovery and staging cleanup |
 | Native UX | Actual Windows/Linux keyring, dialogs, responsive error states and accessibility |
+
+Do not treat mock HTTP tests, emulator results, localhost FTP E2E or successful desktop builds as authenticated external-provider acceptance. Provider secrets and disposable account access were not supplied for this development cycle, so external live-cloud rows stay **unverified**. Release notes must identify the boundary explicitly.
 
 Capture provider/region, permissions, operating system, exact commit, job or test report, file sizes/hashes, timestamp and redacted result. Secrets must remain in private CI storage; do not publish live tokens or signed URLs. Cloud adapters remain **unverified** until all applicable cases have recorded live evidence. Supported operations may vary by backend.
 

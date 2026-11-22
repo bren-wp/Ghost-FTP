@@ -21,9 +21,9 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ---
 
-## Ghost FTP 0.99.76 Preview — development candidate
+## Ghost FTP 0.99.77 Preview — development candidate
 
-This follows the previously published v0.99.75 ([GitHub Release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.75)), with real Windows Portable/Setup/MSI and Linux AppImage/DEB/RPM packages. The v0.99.76 source currently in review improves narrow-window transfer confirmations, adds an explicit copy-destination-path action, preserves keyboard access to transfer-row controls, separates Transfer Center rendering from transfer orchestration, and hardens progress, speed and ETA displays against invalid values. These improvements are **not yet a published download**.
+This follows the previously published v0.99.76 ([GitHub Release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.76)), with real Windows Portable/Setup/MSI and Linux AppImage/DEB/RPM packages. The v0.99.77 source currently in review improves narrow-window transfer confirmations, adds an explicit copy-destination-path action, preserves keyboard access to transfer-row controls, separates Transfer Center rendering from transfer orchestration, and hardens progress, speed and ETA displays against invalid values. These improvements are **not yet a published download**.
 
 ## Built for the way you work
 

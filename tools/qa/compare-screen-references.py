@@ -56,10 +56,11 @@ def compare(reference: Image.Image, actual: Image.Image, output: Path) -> dict:
     channel_sum = sum((index % 256) * count for index, count in enumerate(histogram))
     pixel_count = reference.width * reference.height
     mae = channel_sum / (pixel_count * 3)
-    changed = sum(
-        1 for pixel in delta.getdata()
-        if max(pixel) > 12
-    )
+    changed = sum(1 for pixel in delta.getdata() if max(pixel) > 12)
+    # The >12 visual threshold is for reviewing meaningful differences,
+    # never for asserting pixel-exact identity. Even a one-channel delta
+    # of 1 must fail an explicit --require-exact request.
+    exact_differences = sum(1 for pixel in delta.getdata() if max(pixel) != 0)
     bounds = delta.getbbox()
     output.mkdir(parents=True, exist_ok=True)
     ImageEnhance.Contrast(delta).enhance(3).save(output / "diff.png")
@@ -69,6 +70,8 @@ def compare(reference: Image.Image, actual: Image.Image, output: Path) -> dict:
     return {
         "mean_abs_error_0_255": round(mae, 4),
         "changed_pixels_over_12": changed,
+        "different_pixels_exact": exact_differences,
+        "pixel_exact": exact_differences == 0,
         "changed_ratio": round(changed / pixel_count, 6),
         "diff_bounds": bounds,
     }
@@ -84,6 +87,9 @@ def main() -> int:
                         help="Separate QA report directory; may contain screenshot differences")
     parser.add_argument("--platform", choices=("windows", "linux", "all"),
                         default="all")
+    parser.add_argument("--require-exact", action="store_true",
+                        help="Return failure if ANY compared screenshot differs by even one RGB channel unit. "
+                             "Concept references still are not approved runtime acceptance evidence.")
     args = parser.parse_args()
     if not args.references.is_file() or not args.captures.is_dir():
         parser.error("Reference ZIP and actual-capture directory must exist")
@@ -122,24 +128,31 @@ def main() -> int:
     (args.output / "results.json").write_text(json.dumps({
         "reference_kind": "illustrative design concepts, NOT actual app evidence",
         "pixel_exactness_certified": False,
+        "require_exact": args.require_exact,
         "criteria": "Fixed viewport, DPI, language, theme and real UI state required",
         "screens": reports,
     }, indent=2, ensure_ascii=False) + "\n", encoding="utf8")
     with (args.output / "results.csv").open("w", newline="", encoding="utf8") as output:
         writer = csv.DictWriter(output, fieldnames=[
             "platform", "screen", "status", "mean_abs_error_0_255", "changed_ratio",
-            "changed_pixels_over_12", "reference_size", "actual_size", "diff_bounds",
+            "changed_pixels_over_12", "different_pixels_exact", "pixel_exact",
+            "reference_size", "actual_size", "diff_bounds",
             "reason",
         ], extrasaction="ignore")
         writer.writeheader()
         for row in reports:
             writer.writerow(row)
     coverage = sum(x["status"] == "compared" for x in reports)
+    exact = sum(x["status"] == "compared" and x.get("pixel_exact") is True for x in reports)
     missing = sum(x["status"] == "missing" for x in reports)
     print(f"Ghost FTP visual audit: {coverage}/{len(reports)} comparable screenshots; "
-          f"{missing} missing. Report: {args.output / 'results.json'}")
-    # Incomplete/invalid evidence is never a passing visual-acceptance gate.
-    return 0 if coverage == len(reports) else 2
+          f"{exact} pixel-exact; {missing} missing. Report: {args.output / 'results.json'}")
+    # Never promote mere "compared" coverage into a 1:1 pixel acceptance.
+    if coverage != len(reports):
+        return 2
+    if args.require_exact and exact != len(reports):
+        return 3
+    return 0
 
 
 if __name__ == "__main__":
