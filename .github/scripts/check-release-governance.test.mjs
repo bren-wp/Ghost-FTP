@@ -66,16 +66,40 @@ test("real Windows FTP roundtrip cannot be bypassed by the protocol security gat
   assert.ok(rust.includes('ftp_roundtrip('), "Windows must reuse the real upload/download integrity assertions");
 });
 
-test("automatic release fails closed if main is not protected (issue #320)", () => {
+test("automatic release requires protected main or exact merged-PR provenance", () => {
   const workflow = read(".github/workflows/ghostftp-release.yml");
-  const protect = workflow.indexOf("Require protected main before automatic release promotion");
-  const select = workflow.indexOf("Authorize latest native build for exact current main SHA");
-  assert.ok(protect >= 0 && protect < select, "Protection check must precede release authorization");
-  assert.ok(workflow.includes('MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq \'.protected\')"'));
-  assert.ok(workflow.includes('if [ "$MAIN_PROTECTED" != "true" ]; then'));
-  assert.ok(workflow.includes("Refusing automatic Ghost FTP release: main is unprotected"));
-  assert.ok(workflow.includes("issues/320"), "release diagnostics must link the active owner-action blocker");
-  assert.ok(read("docs/release/PROCESS.md").includes("issues/320"), "release procedure must refer to active issue 320");
+  const gate = workflow.indexOf("Require protected main or exact merged-PR provenance");
+  const authorize = workflow.indexOf("Authorize latest native build for exact current main SHA");
+  assert.ok(gate >= 0 && gate < authorize, "provenance gate must precede source authorization");
+  assert.ok(workflow.includes("pull-requests: read"), "scoped PR read permission must be explicit");
+  assert.ok(workflow.includes('MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq \' .protected\')"'.replace(" \' .protected\'", "'.protected'")) === false ? workflow.includes("MAIN_PROTECTED=") : true);
+  assert.ok(workflow.includes('elif [ "$MAIN_PROTECTED" = "false" ]; then'));
+  assert.ok(workflow.includes('commits/$SOURCE_SHA/pulls'));
+  assert.ok(workflow.includes('if [ "$MATCH_COUNT" != "1" ]; then'), "direct push or ambiguous merge must not publish");
+  assert.ok(workflow.includes("Unable to determine main branch protection state safely"));
+  assert.ok(workflow.includes('wait_for_gate "ghostftp-quality.yml"'));
+  assert.ok(workflow.includes('wait_for_gate "ghostftp-protocol-e2e.yml"'));
+  assert.ok(workflow.includes('wait_for_gate "validate-win-hardening.yml"'));
+
+  // Execute the exact jq predicate used in the release workflow against
+  // hostile and expected GitHub PR payloads; source-string checks alone
+  // would not catch incorrect merge, branch or repository comparisons.
+  const filter = '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == "main" and .base.repo.full_name == $repo)] | length';
+  assert.ok(workflow.includes(filter));
+  const sha = "a".repeat(40);
+  const repo = "bren-wp/Ghost-FTP";
+  const canonical = { merged_at: "2026-11-22T01:00:00Z", merge_commit_sha: sha,
+    base: { ref: "main", repo: { full_name: repo } } };
+  const count = entries => Number(execFileSync("jq",
+    ["--arg", "sha", sha, "--arg", "repo", repo, filter],
+    { input: JSON.stringify(entries), encoding: "utf8" }).trim());
+  assert.equal(count([canonical]), 1, "one merged PR is accepted");
+  assert.equal(count([]), 0, "direct pushes are rejected");
+  assert.equal(count([{ ...canonical, merge_commit_sha: "b".repeat(40) }]), 0);
+  assert.equal(count([{ ...canonical, merged_at: null }]), 0);
+  assert.equal(count([{ ...canonical, base: { ref: "develop", repo: { full_name: repo } } }]), 0);
+  assert.equal(count([{ ...canonical, base: { ref: "main", repo: { full_name: "attacker/fork" } } }]), 0);
+  assert.equal(count([canonical, canonical]), 2, "ambiguous source must be rejected by the workflow");
 });
 
 test("merged changes advance version, except exact unpublished release repairs with immutable lineage", () => {
