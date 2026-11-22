@@ -66,6 +66,15 @@ test("paths preserve both Windows and POSIX basename behavior", () => {
   assert.equal(baseName(""), "transfer");
 });
 
+test("the first genuine bandwidth tick is never replaced with fake zeros", () => {
+  assert.ok(source.includes("history.length === 1"),
+    "one genuine sample needs a separate non-empty graph path");
+  assert.ok(source.includes("[history[0], history[0]]"),
+    "the first upload/download sample must remain visible as a flat line");
+  assert.ok(!source.includes("const data = (history.length > 1"),
+    "the old fallback silently replaced the first nonzero tick with zero");
+});
+
 test("bandwidth presentation sanitizes invalid or negative samples", () => {
   assert.ok(source.includes("Number.isFinite(sample.upload)"));
   assert.ok(source.includes("Number.isFinite(sample.download)"));
