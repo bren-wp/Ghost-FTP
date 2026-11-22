@@ -90,8 +90,7 @@ mod linux {
             let dir = dirs::config_dir()
                 .context("no user config dir")?
                 .join("systemd/user");
-            std::fs::create_dir_all(&dir)
-                .with_context(|| format!("create {}", dir.display()))?;
+            std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
             (dir.join("ghostftp-agentd.service"), true)
         };
         std::fs::write(&path, unit).with_context(|| format!("write {}", path.display()))?;
@@ -170,7 +169,10 @@ mod linux {
             )
         };
         if !path.is_file() {
-            bail!("Ghost FTP Agent systemd service is not installed at {}", path.display());
+            bail!(
+                "Ghost FTP Agent systemd service is not installed at {}",
+                path.display()
+            );
         }
         let mut c = Command::new("systemctl");
         if user_flag {
