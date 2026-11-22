@@ -271,7 +271,13 @@ export function BandwidthChart({ history }: { history: BandwidthSample[] }) {
   );
 }
 
-export function transferProgressPercent(transfer: Pick<Transfer, "size" | "transferred">): number {
+export function transferProgressPercent(
+  transfer: Pick<Transfer, "size" | "transferred"> & Partial<Pick<Transfer, "status">>,
+): number {
+  // A server-confirmed zero-byte transfer is complete even though there are
+  // no bytes from which to calculate a ratio. Never label an unfinished or
+  // failed transfer as 100% merely because its size is unknown.
+  if (transfer.status === "done") return 100;
   if (!Number.isFinite(transfer.size) || transfer.size <= 0 ||
       !Number.isFinite(transfer.transferred) || transfer.transferred < 0) return 0;
   return Math.max(0, Math.min(100, (transfer.transferred / transfer.size) * 100));
