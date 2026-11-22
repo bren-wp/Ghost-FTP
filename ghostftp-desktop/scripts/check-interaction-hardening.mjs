@@ -611,7 +611,7 @@ requireExcludes(
 
 
 requireIncludes(
-  "src/components/TransferCenterDialog.tsx",
+  "src/components/TransferCenterParts.tsx",
   [
     "event.stopPropagation(); onPauseResume();",
     "event.stopPropagation(); onRetry();",
@@ -619,20 +619,26 @@ requireIncludes(
     "disabled={!pausable || busy}",
     "disabled={!retryable || busy}",
     "disabled={!cancelable || busy}",
+    "aria-busy={busy}",
+  ],
+  "isolated transfer-row button safety contracts"
+);
+requireIncludes(
+  "src/components/TransferCenterDialog.tsx",
+  [
     "const backendActionInFlight = useRef(new Set<string>())",
     "if (backendActionInFlight.current.has(key)) return;",
     "backendActionInFlight.current.add(key);",
     "backendActionInFlight.current.delete(key);",
     'backendActionBusy.has("queue")',
     'backendActionBusy.has(`transfer:${transfer.id}`)',
-    "aria-busy={busy}",
     "role=\"menuitem\"",
     "disabled={scheduleMode === \"off\" || !selected}",
     "Export History…",
     "void exportTransferHistory();",
     "const count = await exportHistory(path);",
   ],
-  "serialized transfer-row, queue and scheduler button contracts"
+  "serialized queue and scheduler backend contracts"
 );
 
 requireIncludes(
