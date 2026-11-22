@@ -103,21 +103,36 @@ impl JobStore {
         if jobs.contains_key(job_id) {
             return Err(Error::new(ErrorKind::AlreadyExists, "job id is already tracked"));
         }
-        let namespace = |id: &str| id.split_once(':').map_or("", |(peer, _)| peer);
+        fn namespace(id: &str) -> &str {
+            id.split_once(':').map_or("", |(peer, _)| peer)
+        }
         let peer = namespace(job_id);
-        let active_for_peer = jobs.iter().filter(|(id, job)| {
-            namespace(id) == peer && job.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner).running
-        }).count();
+        let active_for_peer = jobs
+            .iter()
+            .filter(|(id, job)| {
+                namespace(id) == peer
+                    && job
+                        .state
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .running
+            })
+            .count();
         if active_for_peer >= MAX_JOBS_PER_PEER {
             return Err(Error::new(ErrorKind::WouldBlock, "controller's active job quota reached"));
         }
         if jobs.len() >= MAX_JOBS {
             // A completed job may be retired early to make room; never evict
             // or overwrite a running process, even when the store is full.
-            let oldest_finished = jobs.iter()
-                .filter_map(|(id, job)| job.state.lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .finished_at.map(|at| (id.clone(), at)))
+            let oldest_finished = jobs
+                .iter()
+                .filter_map(|(id, job)| {
+                    job.state
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .finished_at
+                        .map(|at| (id.clone(), at))
+                })
                 .min_by_key(|(_, at)| *at)
                 .map(|(id, _)| id);
             if let Some(id) = oldest_finished {
