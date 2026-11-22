@@ -1,4 +1,5 @@
 // Ghost FTP by Brendigo
+#[path = "protocol_e2e/lifecycle.rs"]
 mod lifecycle;
 
 use anyhow::{anyhow, Context, Result};
