@@ -7,7 +7,7 @@ import type { Transfer } from "./types";
  */
 export type TransferStatusTab = "all" | "active" | "completed" | "failed";
 export type TransferDirectionFilter = "all" | "upload" | "download";
-export type TransferTimeFilter = "all" | "hour" | "day";
+export type TransferTimeFilter = "all" | "hour" | "day" | "week" | "month";
 
 export interface TransferViewFilters {
   tab: TransferStatusTab;
@@ -47,7 +47,14 @@ export function filterTransferView(
   options: TransferViewFilters,
 ): Transfer[] {
   const normalized = options.query.trim().toLowerCase();
-  const windowSeconds = options.time === "hour" ? 3_600 : options.time === "day" ? 86_400 : null;
+  // Ghost FTP by Brendigo: fixed rolling windows, independent of locale/DST.
+  const windowSeconds = {
+    all: null,
+    hour: 3_600,
+    day: 86_400,
+    week: 7 * 86_400,
+    month: 30 * 86_400,
+  }[options.time];
 
   return transfers.filter((transfer) => {
     if (options.tab === "active" && !isActive(transfer.status)) return false;
@@ -57,7 +64,7 @@ export function filterTransferView(
     if (options.direction !== "all" && transfer.kind !== options.direction) return false;
     if (windowSeconds !== null) {
       // Server clocks, imported history and corrupt timestamps must never
-      // make future-dated transfers appear in "Last hour/day" filters.
+      // make future-dated transfers appear in rolling history filters.
       if (
         !Number.isFinite(options.nowSeconds) ||
         !Number.isFinite(transfer.startedAt) ||
