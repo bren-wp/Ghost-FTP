@@ -1,6 +1,8 @@
-# Ghost FTP by Brendigo — Protecting main (issue #302)
+# Ghost FTP by Brendigo — Protecting main (active issue #320)
 
-**Last observed:** `main.protected = false`, no active rulesets. Source CI cannot replace GitHub's server-side merge restrictions. This issue must remain **open** until protections are applied and verified by a repository administrator.
+> Legacy document filename retained for historical links. Original issue #302 is deleted (GitHub HTTP 410); active tracking and release blocker: [#320](https://github.com/bren-wp/Ghost-FTP/issues/320).
+
+**Last observed:** `main.protected = false`, no active rulesets. Source CI cannot replace GitHub's server-side merge restrictions. The active issue #320 must remain **open** until protections are applied and verified by a repository administrator.
 
 ## Owner-authorized setup
 
@@ -32,11 +34,11 @@ Do not require skipped release-publishing jobs, schedule-only metadata jobs or m
 
 ## Automatic release fail-closed check
 
-The `Ghost FTP release` workflow now reads the GitHub branch API and **refuses automatic publication while `main.protected` is not `true`**. This is a source-level safeguard only, not a substitute for repository-side rules and review enforcement. It intentionally prevents an unprotected direct push from producing an automatic release. Admins must still verify all exact-head mandatory contexts, the negative failing-PR merge case and a successful passing merge before closing issue #302.
+The `Ghost FTP release` workflow now reads the GitHub branch API and **refuses automatic publication while `main.protected` is not `true`**. This is a source-level safeguard only, not a substitute for repository-side rules and review enforcement. It intentionally prevents an unprotected direct push from producing an automatic release. Admins must still verify all exact-head mandatory contexts, the negative failing-PR merge case and a successful passing merge before closing issue #320.
 
 ## Acceptance evidence (not yet completed)
 
 1. GitHub API `GET /repos/bren-wp/Ghost-FTP/branches/main` reports `protected: true` and the protection endpoint confirms admin enforcement, strict required checks and conversations.
 2. A deliberate disposable failing PR is blocked from merging, including an admin's ordinary merge workflow.
 3. A current, fully green PR with all nine exact check contexts can merge, and main's post-merge checks complete.
-4. Record GitHub settings evidence and dates in issue #302 before closure. The presence of this document or script is **not** evidence that the protections have been enabled.
+4. Record GitHub settings evidence and dates in issue #320 before closure. The presence of this document or script is **not** evidence that the protections have been enabled.
