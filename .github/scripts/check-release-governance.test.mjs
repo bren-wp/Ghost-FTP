@@ -72,7 +72,7 @@ test("automatic release requires protected main or exact merged-PR provenance", 
   const authorize = workflow.indexOf("Authorize latest native build for exact current main SHA");
   assert.ok(gate >= 0 && gate < authorize, "provenance gate must precede source authorization");
   assert.ok(workflow.includes("pull-requests: read"), "scoped PR read permission must be explicit");
-  assert.ok(workflow.includes('MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq \' .protected\')"'.replace(" \' .protected\'", "'.protected'")) === false ? workflow.includes("MAIN_PROTECTED=") : true);
+  assert.ok(workflow.includes('MAIN_PROTECTED="$(gh api "repos/$GITHUB_REPOSITORY/branches/main"'), "live branch protection status must be checked");
   assert.ok(workflow.includes('elif [ "$MAIN_PROTECTED" = "false" ]; then'));
   assert.ok(workflow.includes('commits/$SOURCE_SHA/pulls'));
   assert.ok(workflow.includes('if [ "$MATCH_COUNT" != "1" ]; then'), "direct push or ambiguous merge must not publish");
