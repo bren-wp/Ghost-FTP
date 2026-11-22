@@ -1,3 +1,4 @@
+// Ghost FTP by Brendigo
 import { useEffect, useMemo, useRef, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import {
