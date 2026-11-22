@@ -48,11 +48,21 @@ test("real Windows FTP roundtrip cannot be bypassed by the protocol security gat
   assert.ok(workflow.includes("runs-on: windows-latest"));
   assert.ok(workflow.includes("GHOSTFTP_WINDOWS_FTP_E2E = '1'"));
   assert.ok(workflow.includes("cargo test -p ghostftp --test protocol_e2e --locked real_windows_ftp_roundtrip"));
+  assert.ok(workflow.includes("cargo test -p ghostftp --test protocol_e2e --locked real_windows_concurrent_ftp_roundtrips"),
+    "Windows release security gate must execute real parallel data-channel integrity tests");
+  assert.ok(workflow.includes("Windows FTP parallel integrity E2E failed in attempt"),
+    "a failed Windows parallel transfer must fail the native CI job");
+  assert.ok(workflow.includes("for ($attempt = 1; $attempt -le 2; $attempt++)"),
+    "parallel Windows FTP roundtrip must be repeated to catch intermittent failures");
   assert.ok(workflow.includes("needs: [real-protocol-roundtrip, windows-real-ftp-roundtrip, windows-file-integrity]"));
   assert.ok(workflow.includes('test "$WINDOWS_NETWORK_RESULT" = success'));
   assert.ok(fixture.includes('FTPServer(("127.0.0.1", port), LoopbackFTPHandler)'));
   assert.ok(fixture.includes('authorizer.override_perm(username, str(readonly), perm="elr")'));
   assert.ok(rust.includes('async fn real_windows_ftp_roundtrip() -> Result<()>'));
+  assert.ok(rust.includes('async fn real_windows_concurrent_ftp_roundtrips() -> Result<()>'),
+    "Windows parallel fixture must test actual Rust networking code");
+  assert.ok(rust.includes('run_concurrent_protocol_matrix(') && rust.includes('&[1, 4, 8]'),
+    "Windows parallel fixture must use the common SHA-256 1/4/8-worker matrix");
   assert.ok(rust.includes('ftp_roundtrip('), "Windows must reuse the real upload/download integrity assertions");
 });
 

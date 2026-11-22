@@ -1664,3 +1664,31 @@ async fn real_windows_ftp_roundtrip() -> Result<()> {
     )
     .await
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn real_windows_concurrent_ftp_roundtrips() -> Result<()> {
+    if std::env::var("GHOSTFTP_WINDOWS_FTP_E2E").as_deref() != Ok("1") {
+        eprintln!("Windows parallel FTP E2E skipped (explicit opt-in not set)");
+        return Ok(());
+    }
+    if !cfg!(windows) {
+        return Err(anyhow!("Windows parallel FTP E2E must run on Windows"));
+    }
+
+    let username = required("GHOSTFTP_E2E_USERNAME")?;
+    let password = required("GHOSTFTP_E2E_PASSWORD")?;
+
+    // Ghost FTP by Brendigo: prove 1/4/8 independent Windows data channels
+    // preserve exact payload length and full SHA-256 after upload/download.
+    // Each transfer spans multiple native 64-KiB chunks.
+    run_concurrent_protocol_matrix(
+        "ftp",
+        "127.0.0.1",
+        port("GHOSTFTP_E2E_FTP_PORT")?,
+        &username,
+        &password,
+        &[1, 4, 8],
+        1024 * 1024 + 17,
+    )
+    .await
+}
