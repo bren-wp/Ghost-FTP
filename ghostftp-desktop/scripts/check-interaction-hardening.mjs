@@ -213,7 +213,11 @@ requireIncludes(
   "src/stores/transfersStore.ts",
   [
     "await start(item, policy);",
-    "existing.set(name, {",
+    "existing.set(destinationKey(name), {",
+    "existing.get(destinationKey(name))",
+    "reservedNames.has(destinationKey(name))",
+    'side === "local"',
+    'navigator.userAgent.includes("Windows")',
     "same basename in one batch",
   ],
   "batch destination reservation"
