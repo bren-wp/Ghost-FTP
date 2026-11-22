@@ -255,6 +255,11 @@ export function liveTransferRate(
   if (
     transfer.status !== "transferring" ||
     !sample ||
+    !Number.isFinite(sample.bytesPerSecond) ||
+    sample.bytesPerSecond < 0 ||
+    !Number.isFinite(sample.sampledAt) ||
+    !Number.isFinite(now) ||
+    now < sample.sampledAt ||
     now - sample.sampledAt > RATE_STALE_AFTER_MS
   ) {
     return 0;
@@ -275,33 +280,51 @@ function rateFromEvent(
   }
 
   const baseline = transferRateBaselines.get(transfer.id);
-  transferRateBaselines.set(transfer.id, { bytes: transfer.transferred, at: now });
+  const reset = (): TransferRateSample => {
+    transferRateBaselines.set(transfer.id, { bytes: transfer.transferred, at: now });
+    return { bytesPerSecond: 0, sampledAt: now };
+  };
 
+  // Ghost FTP by Brendigo: reset on a new attempt, clock rollback, or an
+  // invalid native progress payload. Never calculate negative/NaN speeds.
   if (
     kind !== "progress" ||
+    !Number.isFinite(now) ||
+    !Number.isFinite(transfer.transferred) ||
+    transfer.transferred < 0 ||
     !baseline ||
-    transfer.transferred < baseline.bytes
+    !Number.isFinite(baseline.at) ||
+    !Number.isFinite(baseline.bytes) ||
+    transfer.transferred < baseline.bytes ||
+    now < baseline.at
   ) {
-    return { bytesPerSecond: 0, sampledAt: now };
+    return reset();
   }
 
   const elapsedMs = now - baseline.at;
   if (elapsedMs < 40) {
-    return previous
-      ? { ...previous, sampledAt: now }
-      : { bytesPerSecond: 0, sampledAt: now };
+    // Preserve the original byte/time baseline until an entire sampling
+    // window has elapsed. Otherwise frequent progress events repeatedly
+    // discard bytes and underestimate actual throughput. Do not refresh an
+    // old sample's timestamp: stalled transfer rates must expire naturally.
+    return previous ?? { bytesPerSecond: 0, sampledAt: now };
   }
 
+  transferRateBaselines.set(transfer.id, { bytes: transfer.transferred, at: now });
   const instant =
     ((transfer.transferred - baseline.bytes) * 1000) / elapsedMs;
-  const bytesPerSecond =
-    previous && previous.bytesPerSecond > 0
-      ? previous.bytesPerSecond * (1 - RATE_EMA_WEIGHT) +
-        instant * RATE_EMA_WEIGHT
-      : instant;
+  const previousRate =
+    previous && Number.isFinite(previous.bytesPerSecond) &&
+    previous.bytesPerSecond > 0 && now >= previous.sampledAt &&
+    now - previous.sampledAt <= RATE_STALE_AFTER_MS
+      ? previous.bytesPerSecond
+      : 0;
+  const bytesPerSecond = previousRate > 0
+    ? previousRate * (1 - RATE_EMA_WEIGHT) + instant * RATE_EMA_WEIGHT
+    : instant;
 
   return {
-    bytesPerSecond: Math.max(0, bytesPerSecond),
+    bytesPerSecond: Number.isFinite(bytesPerSecond) ? Math.max(0, bytesPerSecond) : 0,
     sampledAt: now,
   };
 }
