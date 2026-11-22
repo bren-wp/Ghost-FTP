@@ -67,40 +67,6 @@ mod linux {
     use super::*;
     use std::process::Command;
 
-    fn quote_windows_argument(value: &str) -> Result<String> {
-        validate_service_argument(value)?;
-        // Match the Microsoft CRT / CommandLineToArgvW backslash-quote rules.
-        let mut quoted = String::from("\"");
-        let mut pending_backslashes = 0;
-        for c in value.chars() {
-            match c {
-                '\\' => pending_backslashes += 1,
-                '"' => {
-                    quoted.extend(std::iter::repeat('\\').take(2 * pending_backslashes + 1));
-                    quoted.push('"');
-                    pending_backslashes = 0;
-                }
-                _ => {
-                    quoted.extend(std::iter::repeat('\\').take(pending_backslashes));
-                    quoted.push(c);
-                    pending_backslashes = 0;
-                }
-            }
-        }
-        quoted.extend(std::iter::repeat('\\').take(2 * pending_backslashes));
-        quoted.push('"');
-        Ok(quoted)
-    }
-
-    fn task_run_command(exe: &std::path::Path, extra: &[String]) -> Result<String> {
-        let exe = exe.to_str().context("task executable path must be valid UTF-8")?;
-        Ok(format!(
-            "{} {}",
-            quote_windows_argument(exe)?,
-            run_args(extra, quote_windows_argument)?,
-        ))
-    }
-
     pub fn install(extra: &[String]) -> Result<()> {
         let exe = exe_path()?;
         let is_root = unsafe { libc_geteuid() } == 0;
@@ -233,6 +199,41 @@ mod linux {
 mod windows {
     use super::*;
     use std::process::Command;
+
+    fn quote_windows_argument(value: &str) -> Result<String> {
+        validate_service_argument(value)?;
+        // Match the Microsoft CRT / CommandLineToArgvW backslash-quote rules.
+        let mut quoted = String::from("\"");
+        let mut pending_backslashes = 0;
+        for c in value.chars() {
+            match c {
+                '\\' => pending_backslashes += 1,
+                '"' => {
+                    quoted.extend(std::iter::repeat('\\').take(2 * pending_backslashes + 1));
+                    quoted.push('"');
+                    pending_backslashes = 0;
+                }
+                _ => {
+                    quoted.extend(std::iter::repeat('\\').take(pending_backslashes));
+                    quoted.push(c);
+                    pending_backslashes = 0;
+                }
+            }
+        }
+        quoted.extend(std::iter::repeat('\\').take(2 * pending_backslashes));
+        quoted.push('"');
+        Ok(quoted)
+    }
+
+    fn task_run_command(exe: &std::path::Path, extra: &[String]) -> Result<String> {
+        let exe = exe.to_str().context("task executable path must be valid UTF-8")?;
+        Ok(format!(
+            "{} {}",
+            quote_windows_argument(exe)?,
+            run_args(extra, quote_windows_argument)?,
+        ))
+    }
+
 
     pub fn install(extra: &[String]) -> Result<()> {
         let exe = exe_path()?;
