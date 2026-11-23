@@ -1,6 +1,13 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.79 Preview — 22 November 2026 (development candidate; not yet published)
+## 0.99.80 Preview — 23 November 2026 (development candidate; not yet published)
+
+- Refresh compatible npm dependencies with clean npm ci, UI/transfer regression tests, TypeScript type checks and frontend build, preserving the reviewed picomatch CVE-2026-112366 hardening.
+- Increase Dependabot checks to daily across npm, Cargo, GitHub Actions and both Go helper modules.
+- Keep Rust/npm/Go/release/install metadata synchronized to the next immutable Preview; new release requires exact-head Windows/Linux native and FTP/FTPS/SFTP gates.
+- Explicitly defer disruptive React 19, TypeScript 7 and Tauri 2.12 migrations pending reviewed lockfile updates and real cross-platform acceptance.
+
+## 0.99.79 Preview — published 22 November 2026
 
 - Quote Linux systemd Remote Agent service paths and each argument independently; escape systemd percent, dollar, quote, and backslash syntax.
 - Quote Windows Scheduled Task arguments with the Windows backslash/quote parsing rules instead of joining raw arguments.
