@@ -104,3 +104,25 @@ test("disk rank is descending and stable without editing the directory tree", ()
   assert.strictEqual(rankDiskItems(children)[0], children[1]);
   assert.notStrictEqual(rankDiskItems(children), children);
 });
+
+test("finite extreme bandwidth readings keep averages finite and bounded", () => {
+  const max = Number.MAX_VALUE;
+  const graph = prepareBandwidthGraph(Array.from({ length: 48 }, (_, i) => ({
+    upload: max,
+    download: i % 2 === 0 ? max : 0,
+  })));
+  assert.equal(graph.average.upload, max);
+  assert.ok(Number.isFinite(graph.average.download));
+  assert.ok(Math.abs(graph.average.download / max - 0.5) < 1e-12);
+  assert.equal(graph.peak, max);
+  assert.ok(!/Infinity|NaN/.test(graph.uploadPoints + graph.downloadPoints));
+});
+
+test("identical nonzero subnormal readings retain their measured average", () => {
+  const rate = Number.MIN_VALUE;
+  const graph = prepareBandwidthGraph(Array.from({ length: 48 }, () => ({
+    upload: rate, download: rate,
+  })));
+  assert.equal(graph.average.upload, rate);
+  assert.equal(graph.average.download, rate);
+});

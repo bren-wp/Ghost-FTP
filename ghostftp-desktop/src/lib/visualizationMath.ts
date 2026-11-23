@@ -18,15 +18,16 @@ export function prepareBandwidthGraph(history: readonly BandwidthSample[]) {
   const latest = count ? data[count - 1] : null;
   const peak = data.reduce((largest, item) => Math.max(largest, item.upload, item.download), 0);
   const scale = Math.max(1, peak);
-  const average = count
-    ? data.reduce(
-        (total, item) => ({
-          upload: total.upload + item.upload / count,
-          download: total.download + item.download / count,
-        }),
-        { upload: 0, download: 0 },
-      )
-    : { upload: 0, download: 0 };
+  // Incremental means stay within the non-negative sample range and avoid
+  // overflow from adding large finite readings. Do not divide each tiny
+  // sample up front, which can underflow an otherwise representable mean.
+  const average = { upload: 0, download: 0 };
+  for (let index = 0; index < count; index += 1) {
+    const sample = data[index];
+    const weight = index + 1;
+    average.upload += (sample.upload - average.upload) / weight;
+    average.download += (sample.download - average.download) / weight;
+  }
 
   const plotY = (value: number) =>
     BANDWIDTH_BOTTOM - (value / scale) * (BANDWIDTH_BOTTOM - BANDWIDTH_TOP);

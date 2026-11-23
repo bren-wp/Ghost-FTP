@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-const version = "0.99.80"
+const version = "0.99.81"
 const runtimeKind = "compatibility-fallback"
 
 //go:embed site/* site/assets/*
