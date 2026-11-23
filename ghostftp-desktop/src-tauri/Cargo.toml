@@ -97,7 +97,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dirs = "5"
 sha2 = "0.10"
-base64 = "0.22"
+base64 = "0.23"
 # `stream` powers ranged/streamed WebDAV GET+PUT bodies; `multipart` powers Box's
 # multipart/form-data uploads and Google Drive multipart create.
 reqwest = { version = "0.12", features = ["json", "stream", "multipart"] }

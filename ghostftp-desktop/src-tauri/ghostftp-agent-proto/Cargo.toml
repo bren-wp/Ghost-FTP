@@ -14,7 +14,7 @@ anyhow = "1"
 thiserror = "1"
 tokio = { version = "1", features = ["io-util", "net", "macros", "rt", "time"] }
 snow = "0.9"
-base64 = "0.22"
+base64 = "0.23"
 sha2 = "0.10"
 rand = "0.8"
 # Delta sync (block-level differential transfer): FastCDC v2020 content-defined

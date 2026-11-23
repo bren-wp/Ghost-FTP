@@ -2324,7 +2324,7 @@ dependencies = [
  "anyhow",
  "argon2 0.5.3",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "cloud-filter",
  "dirs 5.0.1",
@@ -2376,7 +2376,7 @@ name = "ghostftp-agent-proto"
 version = "0.99.80"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "fastcdc",
  "rand 0.8.8",
@@ -2393,7 +2393,7 @@ name = "ghostftp-agentd"
 version = "0.99.80"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "dirs 5.0.1",
  "gethostname",
  "ghostftp-agent-proto",
