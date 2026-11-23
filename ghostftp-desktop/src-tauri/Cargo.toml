@@ -118,7 +118,7 @@ image = { version = "0.25", default-features = false, features = [
 # Filesystem watcher — powers the right-click "Edit with…" flow that
 # downloads a remote file to a tempfile, opens it in the user's editor, and
 # uploads it back on every save.
-notify = "6"
+notify = "8"
 
 # Keychain and Linux keyutils (with our persistent Secret Service migration).
 # compile-target gated by keyring and does not alter Windows/Linux storage.
