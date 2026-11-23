@@ -13,7 +13,7 @@ serde_json = "1"
 anyhow = "1"
 thiserror = "1"
 tokio = { version = "1", features = ["io-util", "net", "macros", "rt", "time"] }
-snow = "0.9"
+snow = "0.10"
 base64 = "0.22"
 sha2 = "0.10"
 rand = "0.8"
