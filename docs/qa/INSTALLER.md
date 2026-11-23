@@ -1,9 +1,9 @@
-> **Active development source:** Ghost FTP 0.99.81 Preview (Windows/Linux). Publication is determined by GitHub Releases.
-> **Previous canonical release:** v0.99.80 (published 23 November 2026).
+> **Active development source:** Ghost FTP 0.99.82 Preview (Windows/Linux). Publication is determined by GitHub Releases.
+> **Previous canonical release:** v0.99.81 (published 23 November 2026).
 
 # Ghost FTP Installer QA — Windows/Linux
 
-> **Active source:** Ghost FTP 0.99.81 Preview. **Previous canonical release:** v0.99.80. Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP 0.99.82 Preview. **Previous canonical release:** v0.99.81. Supported platforms: Windows and Linux.
 
 The current distribution is the Windows/Linux **Ghost FTP desktop client** only. Historical standalone Server, CLI and Demo packages are retired; see the [current package matrix](../distribution/PLATFORM_PACKAGES.md). A build artifact is not considered a signed or independently verified production installer.
 ## Production packaging
