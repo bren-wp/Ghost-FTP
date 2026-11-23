@@ -5,7 +5,7 @@ updates:
     directory: /ghostftp-desktop
     schedule:
       interval: daily
-            time: "07:30"
+      time: "07:30"
       timezone: Europe/Zagreb
     open-pull-requests-limit: 8
     groups:
@@ -16,27 +16,27 @@ updates:
     directory: /ghostftp-desktop/src-tauri
     schedule:
       interval: daily
-            time: "07:30"
+      time: "07:30"
       timezone: Europe/Zagreb
     open-pull-requests-limit: 8
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: daily
-            time: "07:30"
+      time: "07:30"
       timezone: Europe/Zagreb
     open-pull-requests-limit: 6
   - package-ecosystem: gomod
     directory: /tools/ghostftp-runtime
     schedule:
       interval: daily
-            time: "07:30"
+      time: "07:30"
       timezone: Europe/Zagreb
     open-pull-requests-limit: 4
   - package-ecosystem: gomod
     directory: /tools/ghostftp-installer
     schedule:
       interval: daily
-            time: "07:30"
+      time: "07:30"
       timezone: Europe/Zagreb
     open-pull-requests-limit: 4
