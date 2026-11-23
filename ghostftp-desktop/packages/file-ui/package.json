@@ -21,18 +21,18 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "lucide-react": "^0.456.0",
     "material-icon-theme": "5.36.1",
-    "tailwind-merge": "^2.5.4"
+    "tailwind-merge": "^2.6.2"
   },
   "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "typescript": "^5.6.3"
   }
 }
