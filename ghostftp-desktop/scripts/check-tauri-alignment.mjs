@@ -2,12 +2,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertTauriPluginCompatibility } from "./tauri-plugin-compat.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
 const cargo = fs.readFileSync(path.join(root, "src-tauri", "Cargo.toml"), "utf8");
 const tauriConfig = JSON.parse(fs.readFileSync(path.join(root, "src-tauri", "tauri.conf.json"), "utf8"));
+const cargoLock = fs.readFileSync(path.join(root, "src-tauri", "Cargo.lock"), "utf8");
+const compatiblePlugins = assertTauriPluginCompatibility(pkg, lock, cargoLock);
 
 const rustMatch = cargo.match(/^tauri\s*=\s*\{\s*version\s*=\s*"([^"]+)"/m);
 if (!rustMatch) throw new Error("src-tauri/Cargo.toml: tauri version requirement not found");
@@ -111,4 +114,4 @@ if (!/IMPORTANT.+READ CAREFULLY/i.test(eula) || !/1\. ACCEPTANCE/.test(eula)) {
   throw new Error("EULA.txt must contain the installer acceptance terms");
 }
 
-console.log(`Tauri alignment OK: Rust ${rustReq}, API ${apiResolved}, CLI ${cliResolved}; branded NSIS/EULA contract OK`);
+console.log(`Tauri alignment OK: Rust ${rustReq}, API ${apiResolved}, CLI ${cliResolved}; ${compatiblePlugins.join("; ")}; branded NSIS/EULA contract OK`);

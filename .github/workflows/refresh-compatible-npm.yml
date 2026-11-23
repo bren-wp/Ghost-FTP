@@ -1,0 +1,92 @@
+name: Refresh compatible npm dependencies
+
+# One-shot dependency refresh for the current development branch. This job
+# cannot change main or any immutable published release. Major migrations stay
+# in reviewed, explicitly tested pull requests.
+on:
+  push:
+    branches: [maintenance/dependencies-win-linux-0.99.80]
+    paths:
+      - 'version.json'
+      - '.github/workflows/refresh-compatible-npm.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-compatible-npm-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ghostftp-desktop/package-lock.json
+      - name: Resolve compatible dependency updates and reinstall from lock
+        working-directory: ghostftp-desktop
+        run: |
+          set -euo pipefail
+          npm ci
+          # The app currently patches three precisely reviewed picomatch
+          # versions for CVE-2026-112366 at postinstall. Unbounded "npm
+          # update" changes that parser graph and correctly fails closed.
+          # Refresh safe direct/runtime packages while preserving the
+          # independently reviewed build-tool dependency graph.
+          npm update --save \
+            react react-dom @types/react @types/react-dom \
+            @iconify/react @iconify-json/logos @iconify-json/mdi \
+            @iconify-json/simple-icons @iconify/utils \
+            @xterm/addon-fit @xterm/addon-web-links @xterm/xterm \
+            clsx lucide-react tailwind-merge zustand
+          # Security invariant: no replacement of the three hardened
+          # picomatch versions without a separate reviewed mitigation.
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import {readFileSync} from "node:fs";
+            const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+            const expected = new Map([
+              ["node_modules/picomatch", "2.3.2"],
+              ["node_modules/tinyglobby/node_modules/picomatch", "4.0.4"],
+              ["node_modules/vite/node_modules/picomatch", "4.0.7"],
+            ]);
+            const actual = Object.entries(lock.packages || {})
+              .filter(([name]) => name.endsWith("/picomatch"));
+            assert.equal(actual.length, expected.size, "picomatch copy count changed");
+            for (const [path, version] of expected) {
+              assert.equal(lock.packages[path]?.version, version, "picomatch graph changed at " + path);
+            }
+          '
+          npm ci
+          node scripts/check-tauri-alignment.mjs
+      - name: Verify dependency and frontend regressions before proposing updates
+        working-directory: ghostftp-desktop
+        run: |
+          set -euo pipefail
+          npm ls --all
+          npm run check:i18n
+          npm run check:ui
+          npm run check
+          npm run build
+      - name: Commit dependency changes only after tests pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ghostftp-desktop/package.json ghostftp-desktop/package-lock.json ghostftp-desktop/packages/file-ui/package.json
+          if git diff --cached --quiet; then
+            echo "No compatible npm updates available within reviewed semver ranges."
+            exit 0
+          fi
+          git commit -m "deps(npm): refresh compatible locked dependencies"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
