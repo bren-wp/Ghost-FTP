@@ -158,7 +158,7 @@ windows-sys = { version = "0.59", features = [
 # `StorageProviderSyncRootManager` cloud-filter registers with requires package
 # identity, which unpackaged Ghost FTP doesn't have — the Win32 register API doesn't.
 cloud-filter = { version = "0.0.6", optional = true }
-windows = { version = "0.58", optional = true, features = [
+windows = { version = "0.62", optional = true, features = [
     "Win32_Foundation",
     "Win32_Storage_CloudFilters",
 ] }
