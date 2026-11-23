@@ -158,3 +158,35 @@ test("view sort options are deterministic, stable and never reprioritize the que
   assert.deepEqual(examples, snapshot, "sort must not change stored queue order or data");
   assert.notStrictEqual(sortTransferView(examples, "original"), examples);
 });
+
+test("recent history excludes invalid timestamps and invalid clear boundaries", () => {
+  const history = [
+    { ...make("nan", "done"), startedAt: NaN },
+    { ...make("infinite", "done"), startedAt: Infinity },
+    { ...make("negative", "done"), startedAt: -1 },
+    { ...make("cleared", "done"), startedAt: 100 },
+    { ...make("valid", "done"), startedAt: 200 },
+  ];
+  assert.deepEqual(recentTransferLog(history, 100).map(t => t.id), ["valid"]);
+  assert.deepEqual(recentTransferLog(history, -10).map(t => t.id), ["valid", "cleared"]);
+  for (const value of [NaN, Infinity, -Infinity]) {
+    assert.deepEqual(recentTransferLog(history, value), []);
+  }
+  assert.equal(filterTransferView(history, opts()).length, history.length);
+});
+
+test("filename sorting extracts each Windows/POSIX basename once across 10k items", () => {
+  let reads = 0;
+  const history = Array.from({ length: 10_000 }, (_, i) => {
+    const n = 10_000 - i;
+    const path = i % 2 ? "C:\\local\\file" + n + ".txt" : "/remote/file" + n + ".txt";
+    return { ...make(String(n), "done"), get source() { reads++; return path; } };
+  });
+  Object.freeze(history);
+  const ordered = sortTransferView(history, "name");
+  assert.equal(reads, history.length);
+  assert.equal(ordered[0].id, "1");
+  assert.equal(ordered.at(-1).id, "10000");
+  assert.strictEqual(ordered[0], history.at(-1));
+  assert.equal(history[0].id, "10000");
+});

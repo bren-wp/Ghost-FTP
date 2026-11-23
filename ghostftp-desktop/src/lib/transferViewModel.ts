@@ -93,10 +93,11 @@ export function recentTransferLog(
   const capacity = Number.isFinite(limit)
     ? Math.min(transfers.length, Math.max(0, Math.floor(limit)))
     : 0;
-  if (capacity === 0) return [];
+  if (capacity === 0 || !Number.isFinite(clearedAtSeconds)) return [];
   const newest: Transfer[] = [];
   for (const transfer of transfers) {
-    if (!(transfer.startedAt > clearedAtSeconds)) continue;
+    if (!Number.isFinite(transfer.startedAt) || transfer.startedAt < 0 ||
+        transfer.startedAt <= clearedAtSeconds) continue;
     let at = newest.findIndex((item) => item.startedAt < transfer.startedAt);
     if (at < 0) at = newest.length;
     if (at >= capacity) continue;
@@ -114,24 +115,28 @@ export function sortTransferView(
   order: TransferSortOrder,
 ): Transfer[] {
   if (order === "original") return [...transfers];
-  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   const sortable = transfers.map((transfer, index) => ({ transfer, index }));
-  const valid = (value: number): number | null =>
-    Number.isFinite(value) && value >= 0 ? value : null;
-  sortable.sort((a, b) => {
-    if (order === "name") {
-      const nameA = String(a.transfer.source ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "";
-      const nameB = String(b.transfer.source ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "";
-      const cmp = collator.compare(nameA, nameB);
-      return cmp || a.index - b.index;
-    }
-    const first = valid(order === "largest" ? a.transfer.size : a.transfer.startedAt);
-    const second = valid(order === "largest" ? b.transfer.size : b.transfer.startedAt);
-    if (first === null && second !== null) return 1;
-    if (second === null && first !== null) return -1;
-    if (first === null || second === null) return a.index - b.index;
-    const cmp = order === "oldest" ? first - second : second - first;
+  if (order === "name") {
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+    // Extract each basename once; sorting a large history must not repeatedly
+    // split both file paths on every comparator invocation.
+    const named = sortable.map((item) => ({
+      ...item,
+      name: String(item.transfer.source ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "",
+    }));
+    named.sort((a, b) => collator.compare(a.name, b.name) || a.index - b.index);
+    return named.map(({ transfer }) => transfer);
+  }
+  const ranked = sortable.map((item) => {
+    const value = order === "largest" ? item.transfer.size : item.transfer.startedAt;
+    return { ...item, value: Number.isFinite(value) && value >= 0 ? value : null };
+  });
+  ranked.sort((a, b) => {
+    if (a.value === null && b.value !== null) return 1;
+    if (b.value === null && a.value !== null) return -1;
+    if (a.value === null || b.value === null) return a.index - b.index;
+    const cmp = order === "oldest" ? a.value - b.value : b.value - a.value;
     return cmp || a.index - b.index;
   });
-  return sortable.map(({ transfer }) => transfer);
+  return ranked.map(({ transfer }) => transfer);
 }

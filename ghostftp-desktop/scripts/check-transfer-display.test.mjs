@@ -112,3 +112,15 @@ test("detail progress and bandwidth chart stay accessible in compact desktop pan
   assert.ok(chart.includes("Average ↑"));
   assert.ok(chart.includes("graph.hasData"));
 });
+
+test("native transfer dialogs handle picker failures and reject changed sessions", () => {
+  const dialog = readFileSync(new URL("../src/components/TransferCenterDialog.tsx", import.meta.url), "utf8");
+  const exporting = dialog.slice(dialog.indexOf("const exportTransferHistory"), dialog.indexOf("const transfers ="));
+  assert.ok(exporting.indexOf("try {") < exporting.indexOf("await save("));
+  assert.ok(exporting.includes("toastError(error,"));
+  const adding = dialog.slice(dialog.indexOf("const addTransfer ="), dialog.indexOf("// These counters"));
+  assert.ok(adding.indexOf("await open(") < adding.indexOf("useConnections.getState()"));
+  assert.ok(adding.includes("currentConnection.activeSessionId !== activeSessionId"));
+  assert.ok(adding.includes("currentConnection.activeProfileId !== activeProfileId"));
+  assert.ok(adding.indexOf("currentConnection.activeSessionId !== activeSessionId") < adding.indexOf("await enqueueUploads("));
+});

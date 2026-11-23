@@ -1,6 +1,14 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.81 Preview — 23 November 2026 (development candidate; not yet published)
+## 0.99.82 Preview — 23 November 2026 (development candidate; not yet published)
+
+- Prevent file/folder uploads from being enqueued onto a previously active server when a native file picker remains open during connection changes.
+- Handle native save-dialog errors during transfer-history export, including failures before the backend export begins.
+- Reject malformed timestamps and non-finite clear boundaries in the recent transfer log while keeping unfiltered history available for repair.
+- Precompute natural filename sort keys once per record, including Windows and POSIX paths; retain original record identities and stable tie order without changing the native queue.
+- Add regressions for invalid timestamps, a 10,000-entry history, and native transfer dialog/session handling. Preserve the manual dependency policy and all existing release gates.
+
+## 0.99.81 Preview — published 23 November 2026
 
 - Advance the source version after v0.99.80 was published concurrently with the dependency-bot removal PR. Preserve the published immutable tag and assets.
 - Retain removal of automatic Dependabot version-update PRs and the temporary npm auto-commit workflow. Preserve CI security checks, Tauri compatibility guards and reviewed dependency lockfiles.
