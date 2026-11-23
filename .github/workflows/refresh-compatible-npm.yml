@@ -37,7 +37,38 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
-          npm update --save
+          # The app currently patches three precisely reviewed picomatch
+          # versions for CVE-2026-112366 at postinstall. Unbounded "npm
+          # update" changes that parser graph and correctly fails closed.
+          # Refresh safe direct/runtime packages while preserving the
+          # independently reviewed build-tool dependency graph.
+          npm update --save \
+            react react-dom @types/react @types/react-dom \
+            @iconify/react @iconify-json/logos @iconify-json/mdi \
+            @iconify-json/simple-icons @iconify/utils \
+            @tauri-apps/api @tauri-apps/plugin-dialog \
+            @tauri-apps/plugin-notification @tauri-apps/plugin-process \
+            @tauri-apps/plugin-updater \
+            @xterm/addon-fit @xterm/addon-web-links @xterm/xterm \
+            clsx lucide-react tailwind-merge zustand
+          # Security invariant: no replacement of the three hardened
+          # picomatch versions without a separate reviewed mitigation.
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import {readFileSync} from "node:fs";
+            const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+            const expected = new Map([
+              ["node_modules/picomatch", "2.3.2"],
+              ["node_modules/tinyglobby/node_modules/picomatch", "4.0.4"],
+              ["node_modules/vite/node_modules/picomatch", "4.0.7"],
+            ]);
+            const actual = Object.entries(lock.packages || {})
+              .filter(([name]) => name.endsWith("/picomatch"));
+            assert.equal(actual.length, expected.size, "picomatch copy count changed");
+            for (const [path, version] of expected) {
+              assert.equal(lock.packages[path]?.version, version, "picomatch graph changed at " + path);
+            }
+          '
           npm ci
       - name: Verify dependency and frontend regressions before proposing updates
         working-directory: ghostftp-desktop
