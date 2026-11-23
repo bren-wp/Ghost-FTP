@@ -46,9 +46,6 @@ jobs:
             react react-dom @types/react @types/react-dom \
             @iconify/react @iconify-json/logos @iconify-json/mdi \
             @iconify-json/simple-icons @iconify/utils \
-            @tauri-apps/api @tauri-apps/plugin-dialog \
-            @tauri-apps/plugin-notification @tauri-apps/plugin-process \
-            @tauri-apps/plugin-updater \
             @xterm/addon-fit @xterm/addon-web-links @xterm/xterm \
             clsx lucide-react tailwind-merge zustand
           # Security invariant: no replacement of the three hardened
@@ -70,6 +67,7 @@ jobs:
             }
           '
           npm ci
+          node scripts/check-tauri-alignment.mjs
       - name: Verify dependency and frontend regressions before proposing updates
         working-directory: ghostftp-desktop
         run: |
