@@ -149,14 +149,13 @@ export function TransferCenterDialog({ onClose }: Props) {
   };
 
   const exportTransferHistory = async () => {
-    const path = await save({
-      title: "Export transfer history",
-      defaultPath: "GhostFTP-transfer-history.csv",
-      filters: [{ name: "CSV", extensions: ["csv"] }],
-    });
-    if (!path) return;
-
     try {
+      const path = await save({
+        title: "Export transfer history",
+        defaultPath: "GhostFTP-transfer-history.csv",
+        filters: [{ name: "CSV", extensions: ["csv"] }],
+      });
+      if (!path) return;
       const count = await exportHistory(path);
       toast.success(
         "Transfer history exported",
@@ -301,6 +300,14 @@ export function TransferCenterDialog({ onClose }: Props) {
       const paths = Array.isArray(picked) ? picked : [picked];
       if (paths.length === 0) return;
 
+      // A native picker can stay open while the active server changes.
+      // Never enqueue onto a previously selected connection after that change.
+      const currentConnection = useConnections.getState();
+      if (currentConnection.activeSessionId !== activeSessionId ||
+          currentConnection.activeProfileId !== activeProfileId) {
+        toastError(new Error("The active connection changed while selecting files."), "Couldn't add the transfer");
+        return;
+      }
       await enqueueUploads(
         activeSessionId,
         paths.map((path) => ({
