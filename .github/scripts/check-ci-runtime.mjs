@@ -21,6 +21,18 @@ const obsoleteActionRefs = [
   [/actions\/upload-artifact@v[1-6]\b/g, "actions/upload-artifact must use v7+"],
 ];
 
+// Prevent recurring bot-generated dependency PR storms from crowding out
+// native Windows/Linux and release jobs. Dependency upgrades remain manual.
+for (const retired of [
+  ".github/dependabot.yml",
+  ".github/dependabot.yaml",
+  ".github/workflows/refresh-compatible-npm.yml",
+]) {
+  if (fs.existsSync(path.join(root, retired))) {
+    failures.push(`${retired}: automatic dependency-update PR/bot workflow must remain removed`);
+  }
+}
+
 for (const name of files) {
   const rel = path.join(".github", "workflows", name).replaceAll("\\", "/");
   const source = fs.readFileSync(path.join(workflowDir, name), "utf8");

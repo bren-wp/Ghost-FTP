@@ -3,7 +3,8 @@
 ## 0.99.80 Preview — 23 November 2026 (development candidate; not yet published)
 
 - Refresh compatible npm dependencies with clean npm ci, UI/transfer regression tests, TypeScript type checks and frontend build, preserving the reviewed picomatch CVE-2026-112366 hardening.
-- Increase Dependabot checks to daily across npm, Cargo, GitHub Actions and both Go helper modules.
+- Remove automatic Dependabot dependency-update pull requests after unreviewed mass PR creation overwhelmed GitHub Actions; retain reviewed manual dependency upgrades and CI security gates.
+- Retire the one-time npm-refresh bot workflow; preserve the tested npm/Cargo lockfiles, native/JS Tauri plugin compatibility guard and automatic security, installer and FTP/FTPS/SFTP checks.
 - Keep Rust/npm/Go/release/install metadata synchronized to the next immutable Preview; new release requires exact-head Windows/Linux native and FTP/FTPS/SFTP gates.
 - Explicitly defer disruptive React 19, TypeScript 7 and Tauri 2.12 migrations pending reviewed lockfile updates and real cross-platform acceptance.
 

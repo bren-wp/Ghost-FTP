@@ -23,7 +23,7 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ## Ghost FTP 0.99.80 Preview — development candidate
 
-This source follows the previously published v0.99.79 ([Preview release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.79)). The 0.99.80 candidate refreshes compatible npm dependencies with lockfile verification, daily dependency update checks, and Windows/Linux acceptance gates. Major Rust/Tauri and React upgrades require separate migration tests. This source is **not yet a published v0.99.80 download**.
+This source follows the previously published v0.99.79 ([Preview release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.79)). The 0.99.80 candidate refreshes compatible npm dependencies with lockfile verification, manual dependency review, guarded native/JS Tauri compatibility, and Windows/Linux acceptance gates. Major Rust/Tauri and React upgrades require separate migration tests. This source is **not yet a published v0.99.80 download**.
 
 ## Built for the way you work
 
