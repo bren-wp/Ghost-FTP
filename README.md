@@ -21,9 +21,9 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ---
 
-## Ghost FTP 0.99.80 Preview — development candidate
+## Ghost FTP 0.99.81 Preview — development candidate
 
-This source follows the previously published v0.99.79 ([Preview release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.79)). The 0.99.80 candidate refreshes compatible npm dependencies with lockfile verification, manual dependency review, guarded native/JS Tauri compatibility, and Windows/Linux acceptance gates. Major Rust/Tauri and React upgrades require separate migration tests. This source is **not yet a published v0.99.80 download**.
+This source follows the previously published v0.99.80 ([Preview release](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.80)). The 0.99.81 candidate retains manually reviewed dependency updates, removes automatic dependency-update pull requests, and improves numerical stability of transfer bandwidth averages. This source is **not yet a published v0.99.81 download**.
 
 ## Built for the way you work
 
@@ -114,7 +114,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
-For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.79 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
+For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.80 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
 
 ## Your trust matters
 

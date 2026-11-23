@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.80 Preview candidate. Previous public release: v0.99.79. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Ghost FTP v0.99.81 Preview candidate. Previous public release: v0.99.80. Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
 
 # Ghost FTP — Recommended Next Work
 
@@ -6,7 +6,7 @@
 
 > Earlier 0.94.0/0.93.0 sections remain historical. Current source is **0.99.4** and latest public release **0.99.3**.
 
-This prioritized improvement backlog covers Ghost FTP **0.99.30**. Previous canonical release: **0.99.79**. Items here are recommendations, not claims of completed functionality.
+This prioritized improvement backlog covers Ghost FTP **0.99.30**. Previous canonical release: **0.99.80**. Items here are recommendations, not claims of completed functionality.
 
 ## Release blockers before FINAL
 
@@ -132,4 +132,4 @@ User-facing and release-facing names should use:
 Framework-specific words such as Tauri should be kept only where technically required by the build ecosystem. Renaming `src-tauri` purely for appearance is not recommended because it increases maintenance/build risk without improving the user experience.
 
 
-Current development line: 0.99.80. Previous canonical release: 0.99.79. The previous canonical Preview is v0.99.79; see GitHub Releases and `docs/releases/0.99.79.md` for its acceptance limits.
+Current development line: 0.99.81. Previous canonical release: 0.99.80. The previous canonical Preview is v0.99.80; see GitHub Releases and `docs/releases/0.99.80.md` for its acceptance limits.
