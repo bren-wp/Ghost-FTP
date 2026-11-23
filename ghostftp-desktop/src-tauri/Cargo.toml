@@ -128,7 +128,7 @@ keyring = { version = "3", features = ["windows-native", "linux-native"] }
 # over a user password, AES-256-GCM over a gzipped archive of profiles + ghostftp.db
 # + configs + all keychain credentials. All pure-Rust, no system crypto dep.
 # (aes-gcm / flate2 / rand were already in the tree transitively.)
-argon2 = "0.5"
+argon2 = "0.6"
 aes-gcm = "0.10"
 flate2 = "1"
 rand = "0.8"
