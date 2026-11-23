@@ -4,11 +4,10 @@ updates:
   - package-ecosystem: npm
     directory: /ghostftp-desktop
     schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
+      interval: daily
+            time: "07:30"
       timezone: Europe/Zagreb
-    open-pull-requests-limit: 4
+    open-pull-requests-limit: 8
     groups:
       npm-maintenance:
         dependency-type: development
@@ -16,32 +15,28 @@ updates:
   - package-ecosystem: cargo
     directory: /ghostftp-desktop/src-tauri
     schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
+      interval: daily
+            time: "07:30"
       timezone: Europe/Zagreb
-    open-pull-requests-limit: 4
+    open-pull-requests-limit: 8
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
+      interval: daily
+            time: "07:30"
       timezone: Europe/Zagreb
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 6
   - package-ecosystem: gomod
     directory: /tools/ghostftp-runtime
     schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
+      interval: daily
+            time: "07:30"
       timezone: Europe/Zagreb
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 4
   - package-ecosystem: gomod
     directory: /tools/ghostftp-installer
     schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
+      interval: daily
+            time: "07:30"
       timezone: Europe/Zagreb
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 4

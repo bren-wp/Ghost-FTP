@@ -1,0 +1,63 @@
+name: Refresh compatible npm dependencies
+
+# One-shot dependency refresh for the current development branch. This job
+# cannot change main or any immutable published release. Major migrations stay
+# in reviewed, explicitly tested pull requests.
+on:
+  push:
+    branches: [maintenance/dependencies-win-linux-0.99.80]
+    paths:
+      - 'version.json'
+      - '.github/workflows/refresh-compatible-npm.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-compatible-npm-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ghostftp-desktop/package-lock.json
+      - name: Resolve compatible dependency updates and reinstall from lock
+        working-directory: ghostftp-desktop
+        run: |
+          set -euo pipefail
+          npm ci
+          npm update --save
+          npm ci
+      - name: Verify dependency and frontend regressions before proposing updates
+        working-directory: ghostftp-desktop
+        run: |
+          set -euo pipefail
+          npm ls --all
+          npm run check:i18n
+          npm run check:ui
+          npm run check
+          npm run build
+      - name: Commit dependency changes only after tests pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ghostftp-desktop/package.json ghostftp-desktop/package-lock.json ghostftp-desktop/packages/file-ui/package.json
+          if git diff --cached --quiet; then
+            echo "No compatible npm updates available within reviewed semver ranges."
+            exit 0
+          fi
+          git commit -m "deps(npm): refresh compatible locked dependencies"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
