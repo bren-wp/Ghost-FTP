@@ -2359,7 +2359,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-util",
  "tracing",
@@ -2384,7 +2384,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "snow",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
  "tokio",
 ]
 

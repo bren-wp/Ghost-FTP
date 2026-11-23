@@ -89,7 +89,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 
 # Misc
 anyhow = "1"
-thiserror = "1"
+thiserror = "2"
 # Content-search matching (regex mode) + glob→regex compilation for fleet search.
 regex = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
