@@ -422,9 +422,10 @@ impl RecoveryInspectionRecord {
             && self.target != self.backup
             && (self.stage_identity.0, self.stage_identity.1)
                 != (self.original_identity.0, self.original_identity.1)
-            && !self.parent.components().any(|component| {
-                matches!(component, std::path::Component::ParentDir)
-            })
+            && !self
+                .parent
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir))
     }
 
     fn inspect_entry(&self, parent: &std::fs::File, path: &Path) -> EntryObservation {
@@ -1848,17 +1849,31 @@ mod tests {
             (Original, Missing, Missing, OriginalWithoutStage),
             (Missing, Missing, Original, BackupWithoutStage),
             (Other, Stage, Original, Ambiguous),
-            (Missing, Unavailable, Original, RecoveryObservation::Unavailable),
+            (
+                Missing,
+                Unavailable,
+                Original,
+                RecoveryObservation::Unavailable,
+            ),
         ] {
             assert_eq!(classify_recovery(target, stage, backup), expected);
         }
         assert!(observation_matches_phase("prepared", OriginalPresent));
         assert!(!observation_matches_phase("prepared", BackupPresent));
-        assert!(!observation_matches_phase("backup_saved", PublishedWithBackup));
+        assert!(!observation_matches_phase(
+            "backup_saved",
+            PublishedWithBackup
+        ));
         assert!(observation_matches_phase("rollback_pending", BackupPresent));
         assert!(observation_matches_phase("rolled_back", OriginalPresent));
-        assert!(observation_matches_phase("cleanup_pending", PublishedWithoutBackup));
-        assert!(!observation_matches_phase("legacy_unknown", OriginalPresent));
+        assert!(observation_matches_phase(
+            "cleanup_pending",
+            PublishedWithoutBackup
+        ));
+        assert!(!observation_matches_phase(
+            "legacy_unknown",
+            OriginalPresent
+        ));
     }
 
     #[cfg(any(target_os = "linux", windows))]
@@ -1919,7 +1934,10 @@ mod tests {
         assert_eq!(std::fs::read(&target).unwrap(), b"new");
         assert_eq!(std::fs::read(&backup).unwrap(), b"old");
         std::fs::remove_file(&backup).unwrap();
-        assert_eq!(record.inspect(), RecoveryObservation::PublishedWithoutBackup);
+        assert_eq!(
+            record.inspect(),
+            RecoveryObservation::PublishedWithoutBackup
+        );
         std::fs::rename(&target, root.join("moved")).unwrap();
         std::fs::write(&target, b"bad").unwrap();
         assert_eq!(record.inspect(), RecoveryObservation::Ambiguous);
