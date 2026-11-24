@@ -698,7 +698,11 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
     for row in rows.into_iter().take(128) {
         let signed = serde_json::from_str::<AuthenticatedRecovery>(&row.payload)
             .ok()
-            .filter(|record| record.authenticate(&row.id).is_ok());
+            .filter(|record| {
+                record
+                    .authenticate(&row.id)
+                    .is_ok_and(|phase| phase.as_str() == row.phase)
+            });
         let Some(signed) = signed else {
             // Legacy, tampered and inaccessible records never authorize even
             // an automatic filesystem inspection of their stored path hints.
@@ -760,14 +764,26 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
 
 const RECOVERY_VAULT_SERVICE: &str = "com.ghostftp.download-recovery.v1";
 
-/// Authenticates immutable intent bytes and the transfer ID. The mutable
-/// SQLite phase is not authenticated and neither is current file content.
+/// Authenticates immutable intent bytes and a chained sequence of phase
+/// proofs. The SQLite phase must match the authenticated chain tip.
+/// Whole-database rollback with the original vault key is still possible.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct AuthenticatedRecovery {
     key_id: Uuid,
     nonce: [u8; 12],
     tag: Vec<u8>,
     payload: String,
+    #[serde(default)]
+    phases: Vec<RecoveryPhaseProof>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct RecoveryPhaseProof {
+    phase: String,
+    sequence: u64,
+    previous_tag: Vec<u8>,
+    nonce: [u8; 12],
+    tag: Vec<u8>,
 }
 
 impl AuthenticatedRecovery {
@@ -794,6 +810,7 @@ impl AuthenticatedRecovery {
             nonce,
             tag,
             payload,
+            phases: Vec::new(),
         })
     }
 
@@ -816,6 +833,82 @@ impl AuthenticatedRecovery {
         Ok(())
     }
 
+    fn phase_payload(&self, phase: &str, sequence: u64, previous: &[u8]) -> Result<String> {
+        Ok(serde_json::to_string(&(
+            "ghostftp-recovery-phase-v1",
+            &self.tag,
+            phase,
+            sequence,
+            previous,
+        ))?)
+    }
+
+    fn append_phase(&mut self, id: &str, phase: RecoveryPhase, key: &[u8; 32]) -> Result<()> {
+        let previous = self
+            .phases
+            .last()
+            .map_or(self.tag.as_slice(), |proof| proof.tag.as_slice())
+            .to_vec();
+        let sequence = u64::try_from(self.phases.len())?;
+        let payload = self.phase_payload(phase.as_str(), sequence, &previous)?;
+        let signed = Self::seal(id, payload, self.key_id, key)?;
+        self.phases.push(RecoveryPhaseProof {
+            phase: phase.as_str().to_string(),
+            sequence,
+            previous_tag: previous,
+            nonce: signed.nonce,
+            tag: signed.tag,
+        });
+        Ok(())
+    }
+
+    fn verify_phases(&self, id: &str, key: &[u8; 32]) -> Result<RecoveryPhase> {
+        self.verify(id, key)?;
+        anyhow::ensure!(
+            !self.phases.is_empty() && self.phases.len() <= 4,
+            "missing or invalid recovery phase chain"
+        );
+        let mut previous_tag = self.tag.as_slice();
+        let mut previous_phase: Option<RecoveryPhase> = None;
+        for (index, proof) in self.phases.iter().enumerate() {
+            let phase = RecoveryPhase::parse(&proof.phase).context("unknown recovery phase")?;
+            anyhow::ensure!(
+                proof.sequence == u64::try_from(index)?
+                    && proof.previous_tag.as_slice() == previous_tag
+                    && previous_phase.map_or(phase == RecoveryPhase::Prepared, |from| {
+                        from.permits(phase)
+                    }),
+                "invalid recovery phase sequence"
+            );
+            let payload = self.phase_payload(&proof.phase, proof.sequence, previous_tag)?;
+            Self {
+                key_id: self.key_id,
+                nonce: proof.nonce,
+                tag: proof.tag.clone(),
+                payload,
+                phases: Vec::new(),
+            }
+            .verify(id, key)?;
+            previous_tag = &proof.tag;
+            previous_phase = Some(phase);
+        }
+        previous_phase.context("missing recovery phase")
+    }
+
+    fn advance_signed(
+        &mut self,
+        id: &str,
+        from: RecoveryPhase,
+        to: RecoveryPhase,
+        key: &[u8; 32],
+    ) -> Result<()> {
+        anyhow::ensure!(
+            self.verify_phases(id, key)? == from && from.permits(to),
+            "invalid authenticated recovery transition"
+        );
+        self.append_phase(id, to, key)
+    }
+
     fn create(id: &str, payload: String) -> Result<Self> {
         use base64::Engine;
         use rand::RngCore;
@@ -825,7 +918,8 @@ impl AuthenticatedRecovery {
         let mut key = [0u8; 32];
         rand::rngs::OsRng.try_fill_bytes(&mut key)?;
         let result = (|| {
-            let signed = Self::seal(id, payload, key_id, &key)?;
+            let mut signed = Self::seal(id, payload, key_id, &key)?;
+            signed.append_phase(id, RecoveryPhase::Prepared, &key)?;
             let encoded = base64::engine::general_purpose::STANDARD.encode(key);
             crate::credentials::vault_set(RECOVERY_VAULT_SERVICE, &account, &encoded)?;
             let readback = crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &account)?
@@ -837,21 +931,29 @@ impl AuthenticatedRecovery {
         result
     }
 
-    fn authenticate(&self, id: &str) -> Result<()> {
+    fn with_key<T>(key_id: Uuid, action: impl FnOnce(&[u8; 32]) -> Result<T>) -> Result<T> {
         use base64::Engine;
 
         let encoded =
-            crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &self.key_id.to_string())?
+            crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &key_id.to_string())?
                 .context("recovery authentication key is unavailable")?;
         let mut decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
         let result = match <&[u8; 32]>::try_from(decoded.as_slice()) {
-            Ok(key) => self.verify(id, key),
+            Ok(key) => action(key),
             Err(_) => Err(anyhow::anyhow!(
                 "invalid recovery authentication key length"
             )),
         };
         decoded.fill(0);
         result
+    }
+
+    fn authenticate(&self, id: &str) -> Result<RecoveryPhase> {
+        Self::with_key(self.key_id, |key| self.verify_phases(id, key))
+    }
+
+    fn advance(&mut self, id: &str, from: RecoveryPhase, to: RecoveryPhase) -> Result<()> {
+        Self::with_key(self.key_id, |key| self.advance_signed(id, from, to, key))
     }
 }
 
@@ -891,6 +993,7 @@ struct RecoveryJournal {
     target: PathBuf,
     backup: PathBuf,
     auth_key: std::sync::Mutex<Option<Uuid>>,
+    persisted: std::sync::Mutex<Option<(String, String)>>,
 }
 
 fn recovery_destination_key(parent_identity: (u64, u64), target: &Path) -> Result<String> {
@@ -956,17 +1059,61 @@ impl RecoveryJournal {
                 payload
             }
         };
+        let mut persisted = self
+            .persisted
+            .lock()
+            .map_err(|_| anyhow::anyhow!("recovery journal lock poisoned"))?;
         self.db
             .download_recovery_begin(&self.id, &stored, &destination_key)
-            .context("persist recovery intent before backup")
+            .context("persist recovery intent before backup")?;
+        *persisted = Some((destination_key, stored));
+        Ok(())
     }
 
     fn advance(&self, from: RecoveryPhase, to: RecoveryPhase) -> Result<()> {
-        self.db.download_recovery_transition(&self.id, from, to)
+        let mut persisted = self
+            .persisted
+            .lock()
+            .map_err(|_| anyhow::anyhow!("recovery journal lock poisoned"))?;
+        let (destination, previous) = persisted.as_mut().context("missing recovery intent")?;
+        let auth_key = self
+            .auth_key
+            .lock()
+            .map_err(|_| anyhow::anyhow!("recovery key lock poisoned"))?;
+        let next = if let Some(key_id) = *auth_key {
+            let mut signed: AuthenticatedRecovery = serde_json::from_str(previous)?;
+            anyhow::ensure!(signed.key_id == key_id, "recovery key changed");
+            signed.advance(&self.id, from, to)?;
+            serde_json::to_string(&signed)?
+        } else {
+            // An explicitly unsigned live transaction remains manual-only on
+            // restart. Never downgrade a signed transaction on vault failure.
+            previous.clone()
+        };
+        self.db.download_recovery_transition_checked(
+            &self.id,
+            from,
+            to,
+            destination,
+            previous,
+            &next,
+        )?;
+        *previous = next;
+        Ok(())
     }
 
     fn finish(&self) {
-        if self.db.download_recovery_finish(&self.id).is_err() {
+        let Ok(persisted) = self.persisted.lock() else {
+            return;
+        };
+        let Some((destination, payload)) = persisted.as_ref() else {
+            return;
+        };
+        if self
+            .db
+            .download_recovery_finish_checked(&self.id, destination, payload)
+            .is_err()
+        {
             tracing::warn!("completed download recovery intent could not be cleared");
             return;
         }
@@ -1025,6 +1172,7 @@ impl DownloadParentGuard {
             target: std::path::absolute(target)?,
             backup: std::path::absolute(download_backup_path(target, id))?,
             auth_key: std::sync::Mutex::new(None),
+            persisted: std::sync::Mutex::new(None),
         }))
     }
 
@@ -2276,6 +2424,70 @@ mod tests {
         record.nonce[0] ^= 1;
         record.key_id = Uuid::new_v4();
         assert!(record.verify("transfer-a", &key).is_err());
+    }
+
+    #[test]
+    fn phase_chain_rejects_mutation_reordering_and_cross_transaction_reuse() {
+        let key = [0x51; 32];
+        let mut record =
+            AuthenticatedRecovery::seal("id", "intent".into(), Uuid::new_v4(), &key).unwrap();
+        assert!(record.verify_phases("id", &key).is_err());
+        record
+            .append_phase("id", RecoveryPhase::Prepared, &key)
+            .unwrap();
+        assert!(record
+            .advance_signed(
+                "id",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::Promoted,
+                &key,
+            )
+            .is_err());
+        record
+            .advance_signed(
+                "id",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::BackupSaved,
+                &key,
+            )
+            .unwrap();
+        record
+            .advance_signed(
+                "id",
+                RecoveryPhase::BackupSaved,
+                RecoveryPhase::Promoted,
+                &key,
+            )
+            .unwrap();
+        record
+            .advance_signed(
+                "id",
+                RecoveryPhase::Promoted,
+                RecoveryPhase::CleanupPending,
+                &key,
+            )
+            .unwrap();
+        assert_eq!(
+            record.verify_phases("id", &key).unwrap(),
+            RecoveryPhase::CleanupPending
+        );
+        assert!(record.verify_phases("other", &key).is_err());
+        record.phases[1].phase = "promoted".into();
+        assert!(record.verify_phases("id", &key).is_err());
+        record.phases[1].phase = "backup_saved".into();
+        record.phases.swap(1, 2);
+        assert!(record.verify_phases("id", &key).is_err());
+        record.phases.swap(1, 2);
+        record.phases[3].tag[0] ^= 1;
+        assert!(record.verify_phases("id", &key).is_err());
+        record.phases[3].tag[0] ^= 1;
+        record.phases.pop();
+        // A valid earlier prefix remains cryptographically valid: the SQL
+        // phase comparison rejects partial rollback, not whole-store replay.
+        assert_eq!(
+            record.verify_phases("id", &key).unwrap(),
+            RecoveryPhase::Promoted
+        );
     }
 
     #[test]

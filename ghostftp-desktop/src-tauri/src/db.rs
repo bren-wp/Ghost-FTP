@@ -198,7 +198,7 @@ pub(crate) enum RecoveryPhase {
 }
 
 impl RecoveryPhase {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Prepared => "prepared",
             Self::BackupSaved => "backup_saved",
@@ -209,7 +209,19 @@ impl RecoveryPhase {
         }
     }
 
-    fn permits(self, next: Self) -> bool {
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        match value {
+            "prepared" => Some(Self::Prepared),
+            "backup_saved" => Some(Self::BackupSaved),
+            "promoted" => Some(Self::Promoted),
+            "rollback_pending" => Some(Self::RollbackPending),
+            "rolled_back" => Some(Self::RolledBack),
+            "cleanup_pending" => Some(Self::CleanupPending),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn permits(self, next: Self) -> bool {
         matches!(
             (self, next),
             (Self::Prepared, Self::BackupSaved)
@@ -687,7 +699,8 @@ impl Db {
         Ok(())
     }
 
-    /// Compare-and-set: stale or out-of-order workers cannot advance a phase.
+    /// Compare-and-set used by migration and state-machine tests.
+    #[cfg(test)]
     pub(crate) fn download_recovery_transition(
         &self,
         id: &str,
@@ -702,6 +715,40 @@ impl Db {
             rusqlite::params![id, from.as_str(), to.as_str(), now_ms()],
         )?;
         anyhow::ensure!(changed == 1, "download recovery phase changed");
+        Ok(())
+    }
+
+    /// Persist the signed phase chain and SQL phase together; reject a changed
+    /// reservation, stale phase or replaced envelope.
+    pub(crate) fn download_recovery_transition_checked(
+        &self,
+        id: &str,
+        from: RecoveryPhase,
+        to: RecoveryPhase,
+        destination: &str,
+        previous: &str,
+        next: &str,
+    ) -> Result<()> {
+        anyhow::ensure!(from.permits(to), "invalid download recovery transition");
+        anyhow::ensure!(
+            next.len() <= 65536,
+            "download recovery record exceeds size limit"
+        );
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "UPDATE download_recovery SET phase = ?3, updated_ms = ?4, payload = ?7
+             WHERE id = ?1 AND phase = ?2 AND destination_key = ?5 AND payload = ?6",
+            rusqlite::params![
+                id,
+                from.as_str(),
+                to.as_str(),
+                now_ms(),
+                destination,
+                previous,
+                next
+            ],
+        )?;
+        anyhow::ensure!(changed == 1, "download recovery state changed");
         Ok(())
     }
 
@@ -764,11 +811,31 @@ impl Db {
     }
 
     /// Only a conclusively finished transaction may remove its intent.
+    #[cfg(test)]
     pub fn download_recovery_finish(&self, id: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         let changed = conn.execute(
             "DELETE FROM download_recovery WHERE id = ?1 AND phase = 'cleanup_pending'",
             [id],
+        )?;
+        anyhow::ensure!(
+            changed == 1,
+            "download recovery is not ready for completion"
+        );
+        Ok(())
+    }
+
+    pub(crate) fn download_recovery_finish_checked(
+        &self,
+        id: &str,
+        destination: &str,
+        payload: &str,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "DELETE FROM download_recovery WHERE id = ?1 AND phase = 'cleanup_pending'
+             AND destination_key = ?2 AND payload = ?3",
+            rusqlite::params![id, destination, payload],
         )?;
         anyhow::ensure!(
             changed == 1,
@@ -1430,6 +1497,37 @@ mod tests {
         cleared.sort();
         assert_eq!(cleared, vec!["k1".to_string(), "k3".to_string()]);
         assert!(!db.thumb_touch("k1").unwrap());
+    }
+
+    #[test]
+    fn recovery_transition_cas_rejects_replaced_envelopes_and_reservations() {
+        let root = std::env::temp_dir().join(format!("ghostftp-phase-cas-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let db = Db::open(&root.join("ghostftp.db")).unwrap();
+        db.download_recovery_begin("id", "prepared-proof", "destination")
+            .unwrap();
+        let advance = |destination: &str, previous: &str| {
+            db.download_recovery_transition_checked(
+                "id",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::BackupSaved,
+                destination,
+                previous,
+                "backup-proof",
+            )
+        };
+        assert!(advance("other", "prepared-proof").is_err());
+        assert!(advance("destination", "forged").is_err());
+        advance("destination", "prepared-proof").unwrap();
+        assert!(advance("destination", "prepared-proof").is_err());
+        let rows = db.download_recovery_snapshot().unwrap();
+        assert_eq!(rows[0].phase, "backup_saved");
+        assert_eq!(rows[0].payload, "backup-proof");
+        assert!(db
+            .download_recovery_finish_checked("id", "destination", "backup-proof")
+            .is_err());
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
