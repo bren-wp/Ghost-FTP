@@ -109,13 +109,61 @@ pub(super) fn local_path_exists_sync_fail_closed(path: &Path) -> Result<bool> {
     }
 }
 
-/// Use the same atomic no-replace Windows/Linux operation as local File Manager
-/// rename. A preexisting (or concurrently created) backup/target must never
-/// be overwritten by a staged download promotion.
+/// Rename relative to a pinned directory handle so the kernel cannot resolve
+/// the source and destination through different versions of a replaced parent.
+#[cfg(target_os = "linux")]
+fn rename_pinned_siblings(
+    parent: &std::fs::File,
+    from: &std::ffi::OsStr,
+    to: &std::ffi::OsStr,
+) -> Result<()> {
+    use std::os::fd::AsRawFd;
+    use std::os::unix::ffi::OsStrExt;
+
+    let source = std::ffi::CString::new(from.as_bytes()).context("rename source contains NUL")?;
+    let target = std::ffi::CString::new(to.as_bytes()).context("rename target contains NUL")?;
+    // SAFETY: parent owns a live directory descriptor and both names are
+    // NUL-terminated basenames supplied by Path::file_name.
+    let result = unsafe {
+        libc::renameat2(
+            parent.as_raw_fd(),
+            source.as_ptr(),
+            parent.as_raw_fd(),
+            target.as_ptr(),
+            libc::RENAME_NOREPLACE,
+        )
+    };
+    if result != 0 {
+        return Err(std::io::Error::last_os_error()).context("rename pinned download siblings");
+    }
+    Ok(())
+}
+
+/// Use atomic no-replace operations. On Linux, sibling moves resolve the
+/// common parent only once. Other moves retain the existing platform helper.
 async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     let from = from.to_path_buf();
     let to = to.to_path_buf();
     tokio::task::spawn_blocking(move || {
+        #[cfg(target_os = "linux")]
+        if let (Some(parent), Some(other_parent), Some(source), Some(target)) =
+            (from.parent(), to.parent(), from.file_name(), to.file_name())
+        {
+            if parent == other_parent {
+                use std::os::unix::fs::OpenOptionsExt;
+                let directory = if parent.as_os_str().is_empty() {
+                    Path::new(".")
+                } else {
+                    parent
+                };
+                let pinned = std::fs::OpenOptions::new()
+                    .read(true)
+                    .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC)
+                    .open(directory)
+                    .context("pin common download parent directory")?;
+                return rename_pinned_siblings(&pinned, source, target);
+            }
+        }
         let src = from.to_str().context("download path is not valid UTF-8")?;
         let dest = to
             .to_str()
@@ -514,6 +562,39 @@ mod tests {
         assert_eq!(tokio::fs::read(&unrelated).await.unwrap(), b"unrelated");
         assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"unrelated");
         tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn pinned_sibling_rename_does_not_follow_replaced_parent() {
+        use std::ffi::OsStr;
+
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-pinned-parent-{}", Uuid::new_v4()));
+        let parent = root.join("parent");
+        let moved = root.join("moved");
+        std::fs::create_dir_all(&parent).unwrap();
+        std::fs::write(parent.join("stage.part"), b"verified").unwrap();
+        let pinned = std::fs::File::open(&parent).unwrap();
+        std::fs::rename(&parent, &moved).unwrap();
+        std::fs::create_dir(&parent).unwrap();
+        std::fs::write(parent.join("stage.part"), b"unrelated").unwrap();
+
+        rename_pinned_siblings(&pinned, OsStr::new("stage.part"), OsStr::new("final.bin"))
+            .unwrap();
+        assert_eq!(std::fs::read(moved.join("final.bin")).unwrap(), b"verified");
+        assert_eq!(
+            std::fs::read(parent.join("stage.part")).unwrap(),
+            b"unrelated"
+        );
+        assert!(!parent.join("final.bin").exists());
+        std::fs::write(moved.join("stage.part"), b"second").unwrap();
+        assert!(
+            rename_pinned_siblings(&pinned, OsStr::new("stage.part"), OsStr::new("final.bin"))
+                .is_err()
+        );
+        assert_eq!(std::fs::read(moved.join("final.bin")).unwrap(), b"verified");
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]
