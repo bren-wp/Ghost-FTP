@@ -139,6 +139,14 @@ const MIGRATIONS: &[&str] = &[
         payload    TEXT    NOT NULL,
         updated_ms INTEGER NOT NULL
     ) WITHOUT ROWID;",
+    // v10 — explicit filesystem transaction phases. A v9 intent has unknown
+    // progress and must never be treated as a newly prepared transaction.
+    "ALTER TABLE download_recovery ADD COLUMN phase TEXT NOT NULL DEFAULT 'legacy_unknown'
+        CHECK (phase IN ('legacy_unknown', 'prepared', 'backup_saved', 'promoted',
+                         'rollback_pending', 'rolled_back', 'cleanup_pending'));
+     ALTER TABLE download_recovery ADD COLUMN destination_key TEXT;
+     CREATE UNIQUE INDEX download_recovery_destination_idx
+        ON download_recovery(destination_key) WHERE destination_key IS NOT NULL;",
 ];
 
 /// A persisted per-file sync record — what the source looked like the last time
@@ -169,6 +177,40 @@ pub struct Snippet {
     pub created_ms: i64,
     #[serde(default)]
     pub updated_ms: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RecoveryPhase {
+    Prepared,
+    BackupSaved,
+    Promoted,
+    RollbackPending,
+    RolledBack,
+    CleanupPending,
+}
+
+impl RecoveryPhase {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Prepared => "prepared",
+            Self::BackupSaved => "backup_saved",
+            Self::Promoted => "promoted",
+            Self::RollbackPending => "rollback_pending",
+            Self::RolledBack => "rolled_back",
+            Self::CleanupPending => "cleanup_pending",
+        }
+    }
+
+    fn permits(self, next: Self) -> bool {
+        matches!(
+            (self, next),
+            (Self::Prepared, Self::BackupSaved)
+                | (Self::BackupSaved, Self::Promoted)
+                | (Self::BackupSaved, Self::RollbackPending)
+                | (Self::RollbackPending, Self::RolledBack)
+                | (Self::Promoted, Self::CleanupPending)
+        )
+    }
 }
 
 pub struct Db {
@@ -608,17 +650,59 @@ impl Db {
     // ---- Durable filesystem recovery intents ----
 
     /// Insert once: an unresolved transaction must not be overwritten by Retry.
-    pub fn download_recovery_begin(&self, id: &str, payload: &str) -> Result<()> {
+    pub(crate) fn download_recovery_begin(
+        &self,
+        id: &str,
+        payload: &str,
+        destination_key: &str,
+    ) -> Result<()> {
         anyhow::ensure!(
             payload.len() <= 65536,
             "download recovery record exceeds size limit"
         );
         let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO download_recovery (id, payload, updated_ms) VALUES (?1, ?2, ?3)",
-            rusqlite::params![id, payload, now_ms()],
+        anyhow::ensure!(!destination_key.is_empty(), "missing recovery destination key");
+        // A legacy record has no reliable reservation key. Preserve it and
+        // stop new backup transactions until it can be reviewed.
+        let changed = conn.execute(
+            "INSERT INTO download_recovery (id, payload, updated_ms, phase, destination_key)
+             SELECT ?1, ?2, ?3, 'prepared', ?4
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM download_recovery WHERE destination_key IS NULL
+             )",
+            rusqlite::params![id, payload, now_ms(), destination_key],
         )?;
+        anyhow::ensure!(changed == 1, "legacy recovery intent requires review");
         Ok(())
+    }
+
+    /// Compare-and-set: stale or out-of-order workers cannot advance a phase.
+    pub(crate) fn download_recovery_transition(
+        &self,
+        id: &str,
+        from: RecoveryPhase,
+        to: RecoveryPhase,
+    ) -> Result<()> {
+        anyhow::ensure!(from.permits(to), "invalid download recovery transition");
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "UPDATE download_recovery SET phase = ?3, updated_ms = ?4
+             WHERE id = ?1 AND phase = ?2",
+            rusqlite::params![id, from.as_str(), to.as_str(), now_ms()],
+        )?;
+        anyhow::ensure!(changed == 1, "download recovery phase changed");
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn download_recovery_phase(&self, id: &str) -> Result<String> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT phase FROM download_recovery WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(Into::into)
     }
 
     /// Never use transfer-history pruning for recovery intents.
@@ -635,7 +719,11 @@ impl Db {
     /// Only a conclusively finished transaction may remove its intent.
     pub fn download_recovery_finish(&self, id: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM download_recovery WHERE id = ?1", [id])?;
+        let changed = conn.execute(
+            "DELETE FROM download_recovery WHERE id = ?1 AND phase = 'cleanup_pending'",
+            [id],
+        )?;
+        anyhow::ensure!(changed == 1, "download recovery is not ready for completion");
         Ok(())
     }
 
@@ -1301,8 +1389,26 @@ mod tests {
         let path = root.join("ghostftp.db");
         {
             let db = Db::open(&path).unwrap();
-            db.download_recovery_begin("pending", "original").unwrap();
-            assert!(db.download_recovery_begin("pending", "replacement").is_err());
+            db.download_recovery_begin("pending", "original", "destination")
+                .unwrap();
+            assert!(db
+                .download_recovery_begin("pending", "replacement", "other")
+                .is_err());
+            assert!(db
+                .download_recovery_begin("different", "replacement", "destination")
+                .is_err());
+            assert!(db.download_recovery_finish("pending").is_err());
+            assert!(db
+                .download_recovery_transition(
+                    "pending", RecoveryPhase::Prepared, RecoveryPhase::Promoted,
+                )
+                .is_err());
+            db.download_recovery_transition(
+                "pending",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::BackupSaved,
+            )
+            .unwrap();
             db.transfer_ledger_upsert("old", "{}").unwrap();
             db.transfer_ledger_prune(0).unwrap();
         }
@@ -1312,6 +1418,24 @@ mod tests {
                 db.download_recovery_list().unwrap(),
                 vec![("pending".to_string(), "original".to_string())]
             );
+            assert_eq!(db.download_recovery_phase("pending").unwrap(), "backup_saved");
+            assert!(db
+                .download_recovery_transition(
+                    "pending", RecoveryPhase::Prepared, RecoveryPhase::BackupSaved,
+                )
+                .is_err());
+            db.download_recovery_transition(
+                "pending",
+                RecoveryPhase::BackupSaved,
+                RecoveryPhase::Promoted,
+            )
+            .unwrap();
+            db.download_recovery_transition(
+                "pending",
+                RecoveryPhase::Promoted,
+                RecoveryPhase::CleanupPending,
+            )
+            .unwrap();
             db.download_recovery_finish("pending").unwrap();
             assert!(db.download_recovery_list().unwrap().is_empty());
         }
