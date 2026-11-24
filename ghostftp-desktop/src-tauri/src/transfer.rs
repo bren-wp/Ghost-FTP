@@ -619,11 +619,12 @@ use download_staging::{
     commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
     download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
     local_path_exists_sync_fail_closed, open_resumable_download_staging,
-    verify_staged_download_bytes, DownloadParentGuard, DownloadStagingOpenFailure,
+    DownloadParentGuard, DownloadStagingOpenFailure,
 };
 #[cfg(test)]
 use download_staging::{
     download_backup_path, promote_staged_download, promote_staged_download_noreplace,
+    verify_staged_download_bytes,
 };
 use remote_upload_staging::{
     capture_local_upload_snapshot, fresh_remote_upload_staging_path, preflight_ftp_upload_staging,
@@ -1754,7 +1755,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
@@ -1848,7 +1849,7 @@ impl TransferManager {
             "SFTP source changed size during download"
         );
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(local_file)
     }
 
     pub async fn start_upload(
@@ -2957,7 +2958,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
         self.checkpoint(id, 0).await?;
@@ -2978,7 +2979,7 @@ impl TransferManager {
         let final_path = local_path.to_path_buf();
         let path = remote_path.to_string();
 
-        let outcome = match session
+        let (outcome, file) = match session
             .with_stream(move |stream| {
                 let remote_len = stream.size(&path).ok().map(|size| size as u64);
                 let offset = if candidate_offset > 0
@@ -3053,7 +3054,7 @@ impl TransferManager {
                         "FTP download persisted fewer bytes than received"
                     );
                 }
-                Ok(outcome)
+                Ok((outcome, writer.into_inner().context("finish FTP staging writer")?))
             })
             .await
         {
@@ -3075,7 +3076,7 @@ impl TransferManager {
         }
 
         match outcome.control {
-            FtpTransferControl::Continue => Ok(()),
+            FtpTransferControl::Continue => Ok(tokio::fs::File::from_std(file)),
             FtpTransferControl::Pause => {
                 self.checkpoint(id, 0).await?;
                 session
@@ -3302,7 +3303,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
         use tokio::io::AsyncWriteExt;
 
@@ -3355,7 +3356,7 @@ impl TransferManager {
             on_disk,
         )?;
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(file)
     }
 
     async fn run_object_upload(
@@ -3471,7 +3472,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
         self.update(id, |t| t.status = TransferStatus::Transferring)
@@ -3515,7 +3516,7 @@ impl TransferManager {
             .len();
         verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload via WebDAV `PUT`, streaming the file body straight off disk (no
@@ -3570,7 +3571,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
         self.update(id, |t| t.status = TransferStatus::Transferring)
@@ -3614,7 +3615,7 @@ impl TransferManager {
             .len();
         verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Stream a Dropbox download: POST `/2/files/download` (path in the
@@ -3626,7 +3627,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
         self.update(id, |t| t.status = TransferStatus::Transferring)
@@ -3667,7 +3668,7 @@ impl TransferManager {
             .len();
         verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload a file to Dropbox via `/2/files/upload` (overwrite mode). Simple
@@ -3755,7 +3756,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
         let _ = app; // single-shot API: progress is reported at completion.
@@ -3766,7 +3767,7 @@ impl TransferManager {
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload a file as a Shopify theme asset (create and update are the same
@@ -3804,7 +3805,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
         let _ = app; // single-shot API: progress is reported at completion.
@@ -3815,7 +3816,7 @@ impl TransferManager {
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload a file to the HubSpot Design Manager (create and update are the
@@ -3854,7 +3855,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
         let _ = app; // single-shot API: progress is reported at completion.
@@ -3865,7 +3866,7 @@ impl TransferManager {
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload a file as a Dataverse web resource (create or update by name
@@ -3902,7 +3903,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
         self.update(id, |t| t.status = TransferStatus::Transferring)
@@ -3942,7 +3943,7 @@ impl TransferManager {
             .len();
         verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload to OneDrive: a single `PUT …/content` for small files, or a
@@ -4109,7 +4110,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
         self.update(id, |t| t.status = TransferStatus::Transferring)
@@ -4154,7 +4155,7 @@ impl TransferManager {
             .len();
         verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload to Google Drive: update the existing file's media if a same-named
@@ -4247,7 +4248,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
         self.update(id, |t| t.status = TransferStatus::Transferring)
@@ -4292,7 +4293,7 @@ impl TransferManager {
             .len();
         verify_plain_http_download_length(expected_length, transferred, on_disk)?;
         self.update(id, |t| t.transferred = transferred).await;
-        Ok(())
+        Ok(file)
     }
 
     /// Upload to Box via multipart/form-data: a new file (`/files/content` with
@@ -5019,17 +5020,15 @@ async fn run_download_task(
     };
     let res = if staged_download {
         match res {
-            Ok(()) => {
+            Ok(Some(writer)) => {
                 let checked = match mgr.get(&id).await {
-                    Some(record) => {
-                        verify_staged_download_bytes(&working_path, record.transferred).await
-                    }
+                    Some(record) => verify_download_writer(&writer, record.transferred).await,
                     None => Err(anyhow::anyhow!("completed download record disappeared")),
                 };
                 match checked {
-                    Ok(verified) => {
+                    Ok(()) => {
                         parent_guard
-                            .promote(&working_path, &final_path, &id, allow_replace, &verified)
+                            .promote(&working_path, &final_path, &id, allow_replace, &writer)
                             .await
                     }
                     // A failed durability/identity check cannot establish
@@ -5037,6 +5036,7 @@ async fn run_download_task(
                     Err(error) => Err(error),
                 }
             }
+            Ok(None) => Err(anyhow::anyhow!("download adapter did not return its staging writer")),
             Err(error) => {
                 if parent_guard.verify().is_ok() {
                     cleanup_failed_download_staging(&working_path, &error).await;
@@ -5045,7 +5045,7 @@ async fn run_download_task(
             }
         }
     } else {
-        res
+        res.map(|_| ())
     };
     finalize(&mgr, &id, &app, res).await;
     mgr.bump_queue(&app).await;
@@ -5148,6 +5148,24 @@ async fn run_upload_task(
     mgr.bump_queue(&app).await;
 }
 
+/// Verify the bytes on the original writer, without reopening its pathname.
+/// The parent guard checks the live writer's identity against the destination
+/// directory entry immediately before promotion.
+async fn verify_download_writer(file: &tokio::fs::File, transferred: u64) -> Result<()> {
+    let metadata = file.metadata().await?;
+    anyhow::ensure!(
+        metadata.is_file() && metadata.len() == transferred,
+        "download writer type or byte count changed"
+    );
+    file.sync_all().await.context("sync original download writer")?;
+    let synced = file.metadata().await?;
+    anyhow::ensure!(
+        synced.is_file() && synced.len() == transferred,
+        "download writer changed during synchronization"
+    );
+    Ok(())
+}
+
 /// Backend dispatch for a single-file download. Extracted so the runner (and
 /// manual retry) can re-invoke it.
 async fn dispatch_download(
@@ -5158,61 +5176,74 @@ async fn dispatch_download(
     final_path: &Path,
     allow_replace: bool,
     app: &AppHandle,
-) -> Result<()> {
+) -> Result<Option<tokio::fs::File>> {
     match &**session {
         Session::Ssh(ssh) => {
             mgr.run_ssh_download(id, ssh.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Ftp(ftp) => {
             mgr.run_ftp_download(id, ftp.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Object(obj) => {
             mgr.run_object_download(id, obj.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Webdav(dav) => {
             mgr.run_webdav_download(id, dav.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Http(http) => {
             mgr.run_http_download(id, http.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Dropbox(dbx) => {
             mgr.run_dropbox_download(id, dbx.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::OneDrive(od) => {
             mgr.run_onedrive_download(id, od.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::GDrive(gd) => {
             mgr.run_gdrive_download(id, gd.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Box(bx) => {
             mgr.run_box_download(id, bx.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Shopify(sh) => {
             mgr.run_shopify_download(id, sh.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::HubSpot(hs) => {
             mgr.run_hubspot_download(id, hs.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Dynamics(dynm) => {
             mgr.run_dynamics_download(id, dynm.clone(), remote_path, final_path, app)
                 .await
+                .map(Some)
         }
         Session::Agent(agent) => {
             debug_assert!(supports_delta(session));
             if allow_replace {
                 mgr.run_agent_download_with_delta(id, agent.clone(), remote_path, final_path, app)
                     .await
+                    .map(|()| None)
             } else {
                 // Agent delta mode reconstructs/updates an existing destination.
                 // For Skip/Rename use a staged full copy + atomic no-replace.
@@ -5225,6 +5256,7 @@ async fn dispatch_download(
                     false,
                 )
                 .await
+                    .map(|()| None)
             }
         }
     }
