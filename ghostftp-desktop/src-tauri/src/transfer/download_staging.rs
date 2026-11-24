@@ -1510,6 +1510,40 @@ mod tests {
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
+    #[cfg(any(target_os = "linux", windows))]
+    #[tokio::test]
+    async fn overwrite_recovery_intent_preserves_conflicting_backup() {
+        let root = std::env::temp_dir().join(format!("ghostftp-recovery-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
+        let stage = root.join("stage");
+        let target = root.join("target");
+        let backup = download_backup_path(&target, "recovery");
+        let guard = DownloadParentGuard::with_db(&target, Some(db.clone())).unwrap();
+        tokio::fs::write(&stage, b"new").await.unwrap();
+        tokio::fs::write(&target, b"old").await.unwrap();
+        tokio::fs::write(&backup, b"keep").await.unwrap();
+        let verified = verify_staged_download_bytes(&stage, 3).await.unwrap();
+
+        assert!(guard
+            .promote(&stage, &target, "recovery", true, &verified)
+            .await
+            .is_err());
+        let rows = db.download_recovery_list().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0, "recovery");
+        let record: serde_json::Value = serde_json::from_str(&rows[0].1).unwrap();
+        assert_eq!(record["schema"], 1);
+        assert!(record["original_identity"].is_array());
+        assert_eq!(tokio::fs::read(&target).await.unwrap(), b"old");
+        assert_eq!(tokio::fs::read(&backup).await.unwrap(), b"keep");
+        assert_eq!(tokio::fs::read(&stage).await.unwrap(), b"new");
+        drop(verified);
+        drop(guard);
+        drop(db);
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn owned_creation_uses_initial_directory_after_path_replacement() {
