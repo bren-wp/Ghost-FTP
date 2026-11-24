@@ -1520,7 +1520,8 @@ mod tests {
 
     #[test]
     fn recovery_transition_cas_rejects_replaced_envelopes_and_reservations() {
-        let root = std::env::temp_dir().join(format!("ghostftp-phase-cas-{}", uuid::Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-phase-cas-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
         let db = Db::open(&root.join("ghostftp.db")).unwrap();
         db.download_recovery_begin("id", "prepared-proof", "destination")
@@ -1617,10 +1618,7 @@ mod tests {
             assert_eq!(snapshot[0].id, "pending");
             assert_eq!(snapshot[0].phase, "backup_saved");
             assert_eq!(snapshot[0].payload, "original");
-            assert_eq!(
-                snapshot[0].destination_key.as_deref(),
-                Some("destination")
-            );
+            assert_eq!(snapshot[0].destination_key.as_deref(), Some("destination"));
             assert!(db
                 .download_recovery_transition(
                     "pending",

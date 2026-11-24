@@ -966,9 +966,8 @@ impl AuthenticatedRecovery {
     fn with_key<T>(key_id: Uuid, action: impl FnOnce(&[u8; 32]) -> Result<T>) -> Result<T> {
         use base64::Engine;
 
-        let encoded =
-            crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &key_id.to_string())?
-                .context("recovery authentication key is unavailable")?;
+        let encoded = crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &key_id.to_string())?
+            .context("recovery authentication key is unavailable")?;
         let mut decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
         let result = match <&[u8; 32]>::try_from(decoded.as_slice()) {
             Ok(key) => action(key),
@@ -1205,6 +1204,21 @@ impl RecoveryJournal {
             record.matches_reservation(Some(destination.as_str())),
             "recovery reservation mismatch"
         );
+        #[cfg(target_os = "linux")]
+        let parent_identity = {
+            use std::os::unix::fs::MetadataExt;
+            let metadata = parent.metadata()?;
+            (metadata.dev(), metadata.ino())
+        };
+        #[cfg(windows)]
+        let parent_identity = {
+            let (volume, index) = windows_file_identity(parent)?;
+            (u64::from(volume), index)
+        };
+        anyhow::ensure!(
+            parent_identity == record.parent_identity,
+            "recovery parent identity changed"
+        );
         if published {
             anyhow::ensure!(
                 record.inspect_entry(parent, &record.target) == EntryObservation::Stage,
@@ -1215,6 +1229,14 @@ impl RecoveryJournal {
             record.inspect_entry(parent, &record.backup) == EntryObservation::Original,
             "recovery backup content changed or is unavailable"
         );
+        // Content reads may be long; do not act on an outdated SQL/vault
+        // observation. These checks still do not lock external writers.
+        anyhow::ensure!(
+            signed.authenticate(&self.id, envelope)? == phase,
+            "recovery anchor phase mismatch"
+        );
+        self.db
+            .download_recovery_check_current(&self.id, phase, destination, envelope)?;
         Ok(())
     }
 
@@ -2634,12 +2656,7 @@ mod tests {
             .append_phase("id", RecoveryPhase::Prepared, &key)
             .unwrap();
         assert!(record
-            .advance_signed(
-                "id",
-                RecoveryPhase::Prepared,
-                RecoveryPhase::Promoted,
-                &key,
-            )
+            .advance_signed("id", RecoveryPhase::Prepared, RecoveryPhase::Promoted, &key,)
             .is_err());
         record
             .advance_signed(
