@@ -147,16 +147,20 @@ impl Config {
             // Close our handle before replacing the destination on Windows.
             drop(out);
             std::fs::rename(&tmp, path).context("atomically replace agent config")?;
-            #[cfg(unix)]
-            std::fs::File::open(parent)?
-                .sync_all()
-                .context("sync agent config directory")?;
             Ok(())
         })();
-        if result.is_err() {
+        if let Err(error) = result {
             let _ = std::fs::remove_file(&tmp);
+            return Err(error);
         }
-        result
+        // After rename the staging path no longer belongs to this writer.
+        // In particular, a directory sync failure must not unlink a new
+        // staging file created by another save after our successful rename.
+        #[cfg(unix)]
+        std::fs::File::open(parent)?
+            .sync_all()
+            .context("sync agent config directory")?;
+        Ok(())
     }
 
     /// True if `public_key` (base64) belongs to a pinned peer.
