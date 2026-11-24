@@ -10,6 +10,7 @@ struct RecoveryTestVault {
     root: std::path::PathBuf,
     checkpoint: Option<String>,
     hits: usize,
+    native: bool,
 }
 
 #[cfg(test)]
@@ -26,8 +27,88 @@ pub(crate) fn configure_recovery_test_vault(root: std::path::PathBuf, checkpoint
             root,
             checkpoint,
             hits: 0,
+            native: false,
         });
     });
+}
+
+#[cfg(test)]
+pub(crate) fn configure_native_recovery_test_vault(
+    root: std::path::PathBuf,
+    checkpoint: Option<String>,
+) {
+    configure_recovery_test_vault(root, checkpoint);
+    RECOVERY_TEST_VAULT.with(|state| {
+        state.borrow_mut().as_mut().unwrap().native = true;
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn recovery_test_force_rollback() -> bool {
+    RECOVERY_TEST_VAULT.with(|state| {
+        state.borrow().as_ref().is_some_and(|vault| {
+            vault
+                .checkpoint
+                .as_deref()
+                .is_some_and(|point| point.starts_with("rollback:"))
+        })
+    })
+}
+
+// Record only test-created recovery credentials before native writes. The
+// registry survives a killed child and is never used by production code.
+#[cfg(test)]
+fn register_native_test_credential(service: &str, account: &str) -> Result<()> {
+    use sha2::{Digest, Sha256};
+    use std::io::Write;
+
+    if !service.starts_with("com.ghostftp.download-recovery") {
+        return Ok(());
+    }
+    RECOVERY_TEST_VAULT.with(|state| {
+        let state = state.borrow();
+        let Some(vault) = state.as_ref().filter(|vault| vault.native) else {
+            return Ok(());
+        };
+        let registry = vault.root.join("native-accounts");
+        std::fs::create_dir_all(&registry)?;
+        let bytes = serde_json::to_vec(&(service, account))?;
+        let digest = Sha256::digest(&bytes);
+        let path = registry.join(format!("{digest:x}"));
+        match std::fs::read(&path) {
+            Ok(existing) => anyhow::ensure!(existing == bytes, "native test registry collision"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let mut file = std::fs::OpenOptions::new()
+                    .create_new(true)
+                    .write(true)
+                    .open(path)?;
+                file.write_all(&bytes)?;
+                file.sync_all()?;
+            }
+            Err(error) => return Err(error.into()),
+        }
+        Ok(())
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn cleanup_native_recovery_test_vault(root: &std::path::Path) -> Result<()> {
+    let registry = root.join("native-accounts");
+    if !registry.exists() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(registry)? {
+        let entry = entry?;
+        let (service, account): (String, String) =
+            serde_json::from_slice(&std::fs::read(entry.path())?)?;
+        anyhow::ensure!(
+            service.starts_with("com.ghostftp.download-recovery"),
+            "invalid native test credential service"
+        );
+        vault_delete_strict(&service, &account)?;
+        std::fs::remove_file(entry.path())?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -43,7 +124,7 @@ fn test_recovery_path(service: &str, account: &str) -> Option<std::path::PathBuf
         return None;
     }
     RECOVERY_TEST_VAULT.with(|state| {
-        state.borrow().as_ref().map(|vault| {
+        state.borrow().as_ref().filter(|vault| !vault.native).map(|vault| {
             let digest = Sha256::digest(
                 serde_json::to_vec(&(service, account)).expect("serialize test vault account"),
             );
@@ -62,7 +143,8 @@ pub(crate) fn recovery_test_checkpoint(point: &str) {
         let Some(checkpoint) = vault.checkpoint.as_deref() else {
             return;
         };
-        let (name, occurrence) = checkpoint.split_once('@').unwrap_or((checkpoint, "1"));
+        let selected = checkpoint.strip_prefix("rollback:").unwrap_or(checkpoint);
+        let (name, occurrence) = selected.split_once('@').unwrap_or((selected, "1"));
         if name != point {
             return;
         }
@@ -159,6 +241,8 @@ pub(crate) fn vault_get_strict(service: &str, account: &str) -> Result<Option<St
 /// New Linux writes are persistent-only and must verify their destination.
 /// No fallback to kernel keyutils: it loses data on reboot.
 pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
+    #[cfg(test)]
+    register_native_test_credential(service, account)?;
     #[cfg(test)]
     if let Some(path) = test_recovery_path(service, account) {
         use std::io::Write;
