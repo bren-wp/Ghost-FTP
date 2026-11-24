@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 import uuid
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
 SPEC = importlib.util.spec_from_file_location(
@@ -58,6 +58,27 @@ class SafetyTests(unittest.TestCase):
             self.assertEqual(command.call_count, 4)
             self.assertTrue(all("destroy" not in call.args[0]
                                 for call in command.call_args_list))
+
+    def test_reset_requires_live_probe_and_original_boot(self):
+        for exit_states, boot, point, error in [
+            ([0], "boot-a", "backup_removed", "probe exited"),
+            ([None], "boot-b", "backup_removed", "boot identity changed"),
+            ([None], "boot-a", "stage_published", "checkpoint changed"),
+            ([None, 1], "boot-a", "backup_removed", "probe exited"),
+        ]:
+            with self.subTest(exit_states=exit_states, boot=boot, point=point):
+                child = Mock()
+                child.poll.side_effect = exit_states
+                with self.assertRaisesRegex(RuntimeError, error):
+                    suite.ensure_reset_ready(child, lambda: boot, "boot-a",
+                                             lambda: point, "backup_removed")
+
+    def test_reset_accepts_revalidated_live_checkpoint(self):
+        child = Mock()
+        child.poll.return_value = None
+        suite.ensure_reset_ready(child, lambda: "boot-a", "boot-a",
+                                 lambda: "backup_removed", "backup_removed")
+        self.assertEqual(child.poll.call_count, 2)
 
     def test_identity_mismatch_never_reaches_destroy(self):
         identity = str(uuid.uuid4())
