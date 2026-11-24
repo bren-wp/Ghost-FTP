@@ -180,9 +180,10 @@ fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration)
                         progressed = true;
                     }
                     Err(error)
-                        if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::Interrupted) =>
-                    {
-                    }
+                        if matches!(
+                            error.kind(),
+                            ErrorKind::WouldBlock | ErrorKind::Interrupted
+                        ) => {}
                     Err(_) => return Err(anyhow!("Linux Secret Service refused credential input")),
                 }
             }
