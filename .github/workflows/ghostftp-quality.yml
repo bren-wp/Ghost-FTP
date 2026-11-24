@@ -32,6 +32,9 @@ jobs:
           cache: npm
           cache-dependency-path: ghostftp-desktop/package-lock.json
 
+      - name: VM hard-reset harness safety unit tests
+        run: python3 -m unittest discover -s tools/recovery-vm -p 'test_*.py'
+
       - name: Verify version train transition regression matrix
         run: node .github/scripts/check-version-policy.mjs
 
@@ -470,6 +473,7 @@ jobs:
             printf "%s" "isolated-ci-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
             cargo test --locked -p ghostftp --lib native_vault_recovery_survives_killed_process -- --ignored --nocapture
             cargo test --locked -p ghostftp --lib native_vault_manifest_benchmark -- --ignored --nocapture
+            cargo test --locked -p ghostftp --lib native_vault_end_to_end_benchmark -- --ignored --nocapture
             bash ../../.github/scripts/test-native-vault-restart.sh
           '
 
