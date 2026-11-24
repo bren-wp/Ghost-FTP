@@ -15,7 +15,7 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 **Windows 10/11 x64 · Linux x86_64 · Portable and installable**
 
-[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore features](#built-for-the-way-you-work) · [See the app](#ghost-ftp-in-action) · [Installation](docs/guides/INSTALLATION.md)
+[**Download Ghost FTP for Windows & Linux**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore features](#built-for-the-way-you-work) · [See the app](#ghost-ftp-in-action) · [Installation](docs/guides/INSTALLATION.md)
 
 </div>
 
@@ -23,7 +23,9 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ## Download Ghost FTP
 
-**[Get v0.99.82 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.82)** — choose your Windows or Linux package and start managing your files.
+**[Get v0.99.82 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.82)** — choose a portable or installable edition for your desktop.
+
+[Windows & Linux package options](#choose-your-platform) · [All published releases](https://github.com/bren-wp/Ghost-FTP/releases)
 
 See the [0.99.83 Preview release notes](docs/releases/0.99.83.md) for the upcoming version (not yet published).
 
