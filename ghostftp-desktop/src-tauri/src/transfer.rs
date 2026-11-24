@@ -141,12 +141,22 @@ async fn agent_remote_prefix_matches(
     local_path: &Path,
     bytes: u64,
 ) -> Result<bool> {
-    use base64::Engine as _;
-    use ghostftp_agent_proto::msg::{Request, Response};
-
     let mut local = tokio::fs::File::open(local_path)
         .await
         .context("open Agent resume source")?;
+    agent_remote_prefix_matches_file(session, path, &mut local, bytes).await
+}
+
+async fn agent_remote_prefix_matches_file(
+    session: &Arc<crate::session::AgentSession>,
+    path: &str,
+    local: &mut tokio::fs::File,
+    bytes: u64,
+) -> Result<bool> {
+    use base64::Engine as _;
+    use ghostftp_agent_proto::msg::{Request, Response};
+
+    local.seek(SeekFrom::Start(0)).await?;
     let mut offset = 0u64;
     let mut buffer = [0u8; 64 * 1024];
     while offset < bytes {
@@ -604,16 +614,16 @@ use self::integrity::{
 
 mod download_staging;
 mod remote_upload_staging;
-#[cfg(test)]
-use download_staging::{
-    download_backup_path, promote_staged_download, promote_staged_download_noreplace,
-};
 use download_staging::{
     cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
     commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
     download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
-    local_path_exists_sync_fail_closed, verify_staged_download_bytes, DownloadParentGuard,
-    DownloadStagingOpenFailure,
+    local_path_exists_sync_fail_closed, open_resumable_download_staging, verify_staged_download_bytes,
+    DownloadParentGuard, DownloadStagingOpenFailure,
+};
+#[cfg(test)]
+use download_staging::{
+    download_backup_path, promote_staged_download, promote_staged_download_noreplace,
 };
 use remote_upload_staging::{
     capture_local_upload_snapshot, fresh_remote_upload_staging_path, preflight_ftp_upload_staging,
@@ -1653,33 +1663,25 @@ impl TransferManager {
         let (expected_remote_len, remote_exists) = agent_stat(session, remote_path).await?;
         anyhow::ensure!(remote_exists, "Agent download source does not exist");
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
-        let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
-        let mut offset =
-            if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
-                requested_offset
-            } else {
-                0
-            };
+        let mut local_file = open_resumable_download_staging(local_path).await?;
+        let local_len = local_file.metadata().await?.len();
+        let mut offset = if requested_offset > 0 && local_len >= requested_offset {
+            requested_offset
+        } else {
+            0
+        };
         if offset > 0
             && (expected_remote_len < offset
-                || !agent_remote_prefix_matches(session, remote_path, local_path, offset).await?)
+                || !agent_remote_prefix_matches_file(session, remote_path, &mut local_file, offset)
+                    .await?)
         {
             offset = 0;
         }
         if offset != requested_offset {
             self.update(id, |t| t.transferred = offset).await;
         }
-        let mut local_file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(offset == 0)
-            .open(local_path)
-            .await
-            .with_context(|| format!("open {}", local_path.display()))?;
-        if offset > 0 {
-            local_file.set_len(offset).await?;
-            local_file.seek(SeekFrom::Start(offset)).await?;
-        }
+        local_file.set_len(offset).await?;
+        local_file.seek(SeekFrom::Start(offset)).await?;
         let mut last_emit = Instant::now();
         loop {
             let resp = session
@@ -1757,13 +1759,13 @@ impl TransferManager {
             .await;
 
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
-        let local_len = tokio::fs::metadata(local_path).await.ok().map(|m| m.len());
-        let resume_offset =
-            if requested_offset > 0 && local_len.is_some_and(|len| len >= requested_offset) {
-                requested_offset
-            } else {
-                0
-            };
+        let mut prior = open_resumable_download_staging(local_path).await?;
+        let local_len = prior.metadata().await?.len();
+        let resume_offset = if requested_offset > 0 && local_len >= requested_offset {
+            requested_offset
+        } else {
+            0
+        };
         let sftp_cell = session.ensure_sftp().await?;
         // SFTP servers expose source file size. Read it before the stream
         // rather than trusting EOF: a broken connection or shortened response
@@ -1788,30 +1790,19 @@ impl TransferManager {
                 .await
                 .with_context(|| format!("open remote {remote_path}"))?
         };
-        if resume_offset > 0 {
-            let mut prior = tokio::fs::File::open(local_path)
-                .await
-                .context("open SFTP staged prefix for verification")?;
-            if !byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await? {
-                resume_offset = 0;
-            }
+        if resume_offset > 0
+            && !byte_equal_prefix(&mut prior, &mut remote_file, resume_offset).await?
+        {
+            resume_offset = 0;
         }
         if resume_offset != requested_offset {
             self.update(id, |t| t.transferred = resume_offset).await;
         }
         remote_file.seek(SeekFrom::Start(resume_offset)).await?;
 
-        let mut local_file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(resume_offset == 0)
-            .open(local_path)
-            .await
-            .with_context(|| format!("open {}", local_path.display()))?;
-        if resume_offset > 0 {
-            local_file.set_len(resume_offset).await?;
-            local_file.seek(SeekFrom::Start(resume_offset)).await?;
-        }
+        let mut local_file = prior;
+        local_file.set_len(resume_offset).await?;
+        local_file.seek(SeekFrom::Start(resume_offset)).await?;
 
         let mut buf = vec![0u8; 64 * 1024];
         let mut transferred: u64 = resume_offset;
