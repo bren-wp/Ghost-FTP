@@ -21,9 +21,9 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ---
 
-## Ghost FTP 0.99.82 Preview — development candidate
+## Ghost FTP 0.99.83 Preview — development candidate
 
-The new candidate improves transfer history sorting and invalid timestamp handling, protects against a changed connection while the native file picker is open, and handles native export-dialog errors. The previously published [v0.99.81 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.81) remains available. This source is **not yet a published v0.99.82 download**.
+The new candidate improves Sites with live connected-server filtering, natural filename-style site sorting, search reset, safe profile editing, masked credentials when switching sites and responsive controls. The previously published [v0.99.82 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.82) remains available. This source is **not yet a published v0.99.83 download**.
 
 ## Built for the way you work
 
@@ -114,7 +114,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
-For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.81 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
+For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.82 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
 
 ## Your trust matters
 
