@@ -773,6 +773,33 @@ impl Db {
         Ok(())
     }
 
+    /// Restore an absent, independently authenticated recovery record only.
+    /// Caller validates the manifest, phase chain and vault anchor under the
+    /// recovery lock. A conflicting ID or destination is never overwritten.
+    pub(crate) fn download_recovery_restore_missing(
+        &self,
+        id: &str,
+        phase: RecoveryPhase,
+        destination: &str,
+        payload: &str,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            !id.is_empty() && !destination.is_empty() && payload.len() <= 65536,
+            "invalid redundant recovery record"
+        );
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "INSERT INTO download_recovery (id, payload, updated_ms, phase, destination_key)
+             SELECT ?1, ?2, ?3, ?4, ?5
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM download_recovery WHERE destination_key IS NULL
+             )",
+            rusqlite::params![id, payload, now_ms(), phase.as_str(), destination],
+        )?;
+        anyhow::ensure!(changed == 1, "recovery restore requires manual review");
+        Ok(())
+    }
+
     /// Compare-and-set used by migration and state-machine tests.
     #[cfg(test)]
     pub(crate) fn download_recovery_transition(
@@ -1647,6 +1674,38 @@ mod tests {
         assert!(db.recovery_lock().is_ok());
         drop(db);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_restore_missing_never_overwrites_existing_reservations() {
+        let db = Db::open_in_memory().unwrap();
+        db.download_recovery_restore_missing(
+            "id",
+            RecoveryPhase::BackupSaved,
+            "destination",
+            "signed",
+        )
+        .unwrap();
+        assert!(db
+            .download_recovery_restore_missing(
+                "id",
+                RecoveryPhase::Prepared,
+                "other",
+                "stale",
+            )
+            .is_err());
+        assert!(db
+            .download_recovery_restore_missing(
+                "other",
+                RecoveryPhase::Prepared,
+                "destination",
+                "stale",
+            )
+            .is_err());
+        let rows = db.download_recovery_snapshot().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].phase, "backup_saved");
+        assert_eq!(rows[0].payload, "signed");
     }
 
     #[test]

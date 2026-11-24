@@ -683,7 +683,7 @@ impl RecoveryInspectionRecord {
     }
 }
 
-/// Startup diagnostics only. No journal writes or filesystem mutations.
+/// Startup reconciliation repairs authenticated metadata only; no filesystem mutations.
 /// Full content reads are bounded; larger records require manual review.
 /// Concurrent operations can invalidate observations.
 pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
@@ -694,14 +694,15 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
             return Ok(());
         }
     };
-    let ledger = match GlobalRecoveryLedger::load(db, false) {
+    let mut ledger = match GlobalRecoveryLedger::load(db, false) {
         Ok(ledger) => ledger,
         Err(_) => {
             tracing::warn!("global recovery index unavailable; manual review required");
             return Ok(());
         }
     };
-    if ledger.check_rows(db).is_err() {
+    if ledger.reconcile_metadata(db).is_err() || ledger.check_rows(db).is_err() {
+        tracing::warn!("recovery metadata reconciliation requires manual review");
         return Ok(());
     }
     let rows = db.download_recovery_snapshot()?;
@@ -1063,6 +1064,92 @@ impl GlobalRecoveryLedger {
         Ok(difference)
     }
 
+    // Only authenticated metadata is repaired. No recorded filesystem path
+    // is opened or changed by this method. Caller owns the interprocess lock.
+    fn reconcile_metadata(&mut self, db: &crate::db::Db) -> Result<()> {
+        if !self.sharded {
+            return self.check_rows(db);
+        }
+        let rows = db.download_recovery_snapshot()?;
+        let difference = self.differences(&rows)?;
+        anyhow::ensure!(
+            difference.unindexed == 0,
+            "unindexed SQLite recovery record requires review"
+        );
+        let scope = db.recovery_scope()?;
+        for (identity, proof) in self.entries.clone() {
+            let bytes = get_recovery_blob(&scope, &proof)?;
+            let (id, phase, destination, envelope): (String, String, Option<String>, String) =
+                serde_json::from_slice(&bytes)?;
+            let destination = destination.context("redundant reservation missing")?;
+            let (record_id, record_proof) =
+                recovery_index_entry(&id, &phase, Some(&destination), &envelope)?;
+            anyhow::ensure!(
+                record_id == identity && record_proof == proof,
+                "redundant recovery commitment mismatch"
+            );
+            let signed: AuthenticatedRecovery = serde_json::from_str(&envelope)?;
+            let record: RecoveryInspectionRecord = serde_json::from_str(&signed.payload)?;
+            anyhow::ensure!(
+                record.matches_reservation(Some(&destination)),
+                "redundant recovery reservation mismatch"
+            );
+            let phase = RecoveryPhase::parse(&phase).context("invalid redundant recovery phase")?;
+            let row = rows.iter().find(|row| row.id == id);
+            let exact = row.is_some_and(|row| {
+                row.phase == phase.as_str()
+                    && row.payload == envelope
+                    && row.destination_key.as_deref() == Some(destination.as_str())
+            });
+            let previous = signed.previous_envelope(&id)?;
+            if let Some(row) = row.filter(|_| !exact) {
+                anyhow::ensure!(
+                    previous.as_ref().is_some_and(|(from, old)| {
+                        row.phase == from.as_str()
+                            && row.payload == *old
+                            && row.destination_key.as_deref() == Some(destination.as_str())
+                    }),
+                    "divergent recovery record is not the immediate signed predecessor"
+                );
+            }
+            let anchor = signed.reconciliation_anchor(&id, &envelope, phase, previous.as_ref())?;
+            if anchor == RecoveryAnchorState::Terminal {
+                anyhow::ensure!(
+                    phase == RecoveryPhase::CleanupPending && (row.is_none() || exact),
+                    "unexpected terminal recovery record"
+                );
+                if exact {
+                    db.download_recovery_finish_checked(&id, &destination, &envelope)?;
+                }
+                self.update(
+                    db,
+                    &id,
+                    Some((phase.as_str(), &destination, &envelope)),
+                    None,
+                )?;
+                // Keep terminal credentials for separate verified orphan cleanup.
+                continue;
+            }
+            if anchor == RecoveryAnchorState::NeedsAdvance {
+                signed.store_anchor(&id, &envelope, false)?;
+            }
+            if row.is_none() {
+                db.download_recovery_restore_missing(&id, phase, &destination, &envelope)?;
+            } else if !exact {
+                let (from, old) = previous.context("missing signed predecessor")?;
+                db.download_recovery_transition_checked(
+                    &id,
+                    from,
+                    phase,
+                    &destination,
+                    &old,
+                    &envelope,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
     fn check_rows(&self, db: &crate::db::Db) -> Result<()> {
         let difference = self.differences(&db.download_recovery_snapshot()?)?;
         if difference != RecoveryIndexDifference::default() {
@@ -1276,6 +1363,13 @@ struct RecoveryPhaseProof {
     tag: Vec<u8>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum RecoveryAnchorState {
+    Current,
+    NeedsAdvance,
+    Terminal,
+}
+
 impl AuthenticatedRecovery {
     fn seal(id: &str, payload: String, key_id: Uuid, key: &[u8; 32]) -> Result<Self> {
         use aes_gcm::aead::{Aead, KeyInit, Payload};
@@ -1447,6 +1541,82 @@ impl AuthenticatedRecovery {
             let anchor: Self = serde_json::from_str(&stored)?;
             verify_recovery_anchor(&anchor, id, self.key_id, envelope, key)?;
             Ok(phase)
+        })
+    }
+
+    fn previous_envelope(&self, id: &str) -> Result<Option<(RecoveryPhase, String)>> {
+        Self::with_key(self.key_id, |key| {
+            self.verify_phases(id, key)?;
+            if self.phases.len() <= 1 {
+                return Ok(None);
+            }
+            let mut previous: Self = serde_json::from_str(&serde_json::to_string(self)?)?;
+            previous.phases.pop();
+            let phase = previous.verify_phases(id, key)?;
+            Ok(Some((phase, serde_json::to_string(&previous)?)))
+        })
+    }
+
+    fn classify_anchor(
+        &self,
+        id: &str,
+        envelope: &str,
+        phase: RecoveryPhase,
+        previous: Option<&(RecoveryPhase, String)>,
+        anchor: Option<&Self>,
+        key: &[u8; 32],
+    ) -> Result<RecoveryAnchorState> {
+        anyhow::ensure!(
+            self.verify_phases(id, key)? == phase,
+            "redundant signed phase mismatch"
+        );
+        let Some(anchor) = anchor else {
+            anyhow::ensure!(
+                phase == RecoveryPhase::Prepared,
+                "missing non-initial recovery anchor"
+            );
+            return Ok(RecoveryAnchorState::NeedsAdvance);
+        };
+        anchor.verify(id, key)?;
+        anyhow::ensure!(
+            anchor.key_id == self.key_id && anchor.phases.is_empty(),
+            "invalid recovery anchor"
+        );
+        if anchor.payload == recovery_anchor_payload(envelope, true) {
+            anyhow::ensure!(
+                phase == RecoveryPhase::CleanupPending,
+                "invalid terminal recovery phase"
+            );
+            return Ok(RecoveryAnchorState::Terminal);
+        }
+        if verify_recovery_anchor(anchor, id, self.key_id, envelope, key).is_ok() {
+            return Ok(RecoveryAnchorState::Current);
+        }
+        if let Some((from, old)) = previous {
+            anyhow::ensure!(from.permits(phase), "invalid recovery predecessor");
+            verify_recovery_anchor(anchor, id, self.key_id, old, key)?;
+            return Ok(RecoveryAnchorState::NeedsAdvance);
+        }
+        anyhow::bail!("recovery anchor cannot be reconciled")
+    }
+
+    fn reconciliation_anchor(
+        &self,
+        id: &str,
+        envelope: &str,
+        phase: RecoveryPhase,
+        previous: Option<&(RecoveryPhase, String)>,
+    ) -> Result<RecoveryAnchorState> {
+        Self::with_key(self.key_id, |key| {
+            let stored = crate::credentials::vault_get_strict(
+                RECOVERY_ANCHOR_SERVICE,
+                &self.key_id.to_string(),
+            )?;
+            let anchor = stored
+                .as_deref()
+                .map(serde_json::from_str::<Self>)
+                .transpose()?;
+            self.classify_anchor(id, envelope, phase, previous, anchor.as_ref(), key)
         })
     }
 
@@ -1825,7 +1995,11 @@ impl DownloadParentGuard {
             return Ok(None);
         };
         let lock = db.recovery_lock()?;
-        GlobalRecoveryLedger::load(db, false)?.check_rows(db)?;
+        let mut ledger = GlobalRecoveryLedger::load(db, false)?;
+        if ledger.check_rows(db).is_err() {
+            ledger.reconcile_metadata(db)?;
+            ledger.check_rows(db)?;
+        }
         #[cfg(unix)]
         let identity = {
             use std::os::unix::fs::MetadataExt;
@@ -3191,6 +3365,60 @@ mod tests {
         assert!(GlobalRecoveryLedger::from_shards(generation, duplicated).is_err());
         let signed = AuthenticatedRecovery::seal("scope", manifest, Uuid::nil(), &[7; 32]).unwrap();
         assert!(serde_json::to_string(&signed).unwrap().len() <= 1200);
+    }
+
+    #[test]
+    fn recovery_anchor_reconciliation_advances_only_one_authenticated_phase() {
+        let key = [3; 32];
+        let key_id = Uuid::new_v4();
+        let mut signed = AuthenticatedRecovery::seal("id", "intent".into(), key_id, &key).unwrap();
+        signed
+            .append_phase("id", RecoveryPhase::Prepared, &key)
+            .unwrap();
+        let old = serde_json::to_string(&signed).unwrap();
+        let anchor = AuthenticatedRecovery::seal(
+            "id",
+            recovery_anchor_payload(&old, false),
+            key_id,
+            &key,
+        )
+        .unwrap();
+        signed
+            .advance_signed(
+                "id",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::BackupSaved,
+                &key,
+            )
+            .unwrap();
+        let current = serde_json::to_string(&signed).unwrap();
+        let previous = (RecoveryPhase::Prepared, old);
+        assert_eq!(
+            signed
+                .classify_anchor(
+                    "id",
+                    &current,
+                    RecoveryPhase::BackupSaved,
+                    Some(&previous),
+                    Some(&anchor),
+                    &key,
+                )
+                .unwrap(),
+            RecoveryAnchorState::NeedsAdvance
+        );
+        assert!(signed
+            .classify_anchor(
+                "id",
+                &current,
+                RecoveryPhase::BackupSaved,
+                None,
+                Some(&anchor),
+                &key,
+            )
+            .is_err());
+        assert!(signed
+            .classify_anchor("id", &current, RecoveryPhase::BackupSaved, None, None, &key)
+            .is_err());
     }
 
     #[test]
