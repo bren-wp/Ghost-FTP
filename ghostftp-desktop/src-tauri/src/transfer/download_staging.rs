@@ -350,6 +350,33 @@ struct RecoveryJournal {
     backup: PathBuf,
 }
 
+fn recovery_destination_key(parent_identity: (u64, u64), target: &Path) -> Result<String> {
+    let leaf = target
+        .file_name()
+        .context("recovery target has no basename")?;
+    // Case folding is conservative on Windows; aliases and filesystem-specific
+    // Unicode case equivalence still need native validation.
+    #[cfg(unix)]
+    let name = {
+        use std::os::unix::ffi::OsStrExt;
+        leaf.as_bytes()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>()
+    };
+    #[cfg(windows)]
+    let name = leaf
+        .to_str()
+        .context("unsupported recovery filename encoding")?
+        .to_uppercase();
+    #[cfg(not(any(unix, windows)))]
+    let name = leaf.to_string_lossy().into_owned();
+    Ok(format!(
+        "{:016x}:{:016x}:{name}",
+        parent_identity.0, parent_identity.1
+    ))
+}
+
 impl RecoveryJournal {
     fn begin(
         &self,
@@ -367,21 +394,13 @@ impl RecoveryJournal {
             stage_identity,
             original_identity,
         };
-        let leaf = self.target.file_name().context("recovery target has no basename")?;
-        // Use a lossless native name key. On Windows, fold case conservatively;
-        // filesystem aliases and Unicode case equivalence still need review.
-        #[cfg(unix)]
-        let name = {
-            use std::os::unix::ffi::OsStrExt;
-            leaf.as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>()
-        };
-        #[cfg(windows)]
-        let name = leaf.to_str().context("unsupported recovery filename encoding")?.to_uppercase();
-        #[cfg(not(any(unix, windows)))]
-        let name = leaf.to_string_lossy().into_owned();
-        let destination_key = format!("{:016x}:{:016x}:{name}", parent_identity.0, parent_identity.1);
+        let destination_key = recovery_destination_key(parent_identity, &self.target)?;
         self.db
-            .download_recovery_begin(&self.id, &serde_json::to_string(&record)?, &destination_key)
+            .download_recovery_begin(
+                &self.id,
+                &serde_json::to_string(&record)?,
+                &destination_key,
+            )
             .context("persist recovery intent before backup")
     }
 
@@ -438,6 +457,26 @@ impl DownloadParentGuard {
         }))
     }
 
+    fn check_recovery_destination(&self, target: &Path) -> Result<()> {
+        let Some(db) = &self.recovery_db else {
+            return Ok(());
+        };
+        #[cfg(unix)]
+        let identity = {
+            use std::os::unix::fs::MetadataExt;
+            let metadata = self.handle.metadata()?;
+            (metadata.dev(), metadata.ino())
+        };
+        #[cfg(windows)]
+        let identity = {
+            let (volume, index) = windows_file_identity(&*self.handle)?;
+            (u64::from(volume), index)
+        };
+        #[cfg(not(any(unix, windows)))]
+        let identity = (0, 0);
+        db.download_recovery_check_destination(&recovery_destination_key(identity, target)?)
+    }
+
     pub(super) fn verify(&self) -> Result<()> {
         let current = open_download_directory(&self.path)?;
         anyhow::ensure!(
@@ -455,6 +494,7 @@ impl DownloadParentGuard {
         verified: &tokio::fs::File,
     ) -> Result<()> {
         self.verify()?;
+        self.check_recovery_destination(target)?;
         #[cfg(target_os = "linux")]
         {
             anyhow::ensure!(
@@ -607,6 +647,7 @@ impl DownloadParentGuard {
         verified: &tokio::fs::File,
     ) -> Result<()> {
         self.verify()?;
+        self.check_recovery_destination(target)?;
         let journal = if allow_replace {
             self.recovery_journal(staging, target, id)?
         } else {
@@ -1594,6 +1635,11 @@ mod tests {
         let record: serde_json::Value = serde_json::from_str(&rows[0].1).unwrap();
         assert_eq!(record["schema"], 1);
         assert!(record["original_identity"].is_array());
+        assert!(guard
+            .promote(&stage, &target, "different-id", false, &verified)
+            .await
+            .is_err());
+        assert!(guard.promote_delta(&stage, &target, &verified).await.is_err());
         assert_eq!(tokio::fs::read(&target).await.unwrap(), b"old");
         assert_eq!(tokio::fs::read(&backup).await.unwrap(), b"keep");
         assert_eq!(tokio::fs::read(&stage).await.unwrap(), b"new");
