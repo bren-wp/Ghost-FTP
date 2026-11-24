@@ -1467,6 +1467,14 @@ impl GlobalRecoveryLedger {
     }
 
     fn save(&self, db: &crate::db::Db) -> Result<()> {
+        self.save_with_reuse(db, &std::collections::BTreeSet::new())
+    }
+
+    fn save_with_reuse(
+        &self,
+        db: &crate::db::Db,
+        reusable: &std::collections::BTreeSet<[u8; 32]>,
+    ) -> Result<()> {
         let scope = db.recovery_scope()?;
         let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?
             .context("recovery index key unavailable")?;
@@ -1474,7 +1482,17 @@ impl GlobalRecoveryLedger {
             let shards = self
                 .shard_bytes()
                 .iter()
-                .map(|bytes| put_recovery_blob(&scope, bytes))
+                .map(|bytes| {
+                    let digest = recovery_digest(bytes);
+                    if reusable.contains(&digest) {
+                        anyhow::ensure!(
+                            get_recovery_blob(&scope, &digest)? == *bytes,
+                            "reused recovery shard changed"
+                        );
+                        return Ok(digest);
+                    }
+                    put_recovery_blob(&scope, bytes)
+                })
                 .collect::<Result<Vec<_>>>()?;
             let manifest = Self::manifest(self.generation, &shards)?;
             let signed = AuthenticatedRecovery::seal(&scope, manifest, Uuid::nil(), key)?;
@@ -1587,12 +1605,12 @@ impl GlobalRecoveryLedger {
             "stale global recovery index entry"
         );
         let scope = db.recovery_scope()?;
+        let previous_shards = if self.sharded {
+            self.shard_bytes()
+        } else {
+            Vec::new()
+        };
         if self.sharded {
-            // Preserve all previous root references until a verified new
-            // root and matching SQLite snapshot make them unreachable.
-            for shard in self.shard_bytes() {
-                register_recovery_gc(&scope, recovery_digest(&shard), shard.len())?;
-            }
             if let Some(proof) = expected {
                 let bytes = get_recovery_blob(&scope, &proof)?;
                 register_recovery_gc(&scope, proof, bytes.len())?;
@@ -1610,11 +1628,26 @@ impl GlobalRecoveryLedger {
         } else {
             self.entries.remove(&identity);
         }
+        let current: std::collections::BTreeSet<_> = self
+            .shard_bytes()
+            .iter()
+            .map(|shard| recovery_digest(shard))
+            .collect();
+        let mut reusable = std::collections::BTreeSet::new();
+        for shard in previous_shards {
+            let digest = recovery_digest(&shard);
+            if current.contains(&digest) {
+                reusable.insert(digest);
+            } else {
+                // Register superseded root references before publication.
+                register_recovery_gc(&scope, digest, shard.len())?;
+            }
+        }
         self.generation = self
             .generation
             .checked_add(1)
             .context("recovery index overflow")?;
-        self.save(db)
+        self.save_with_reuse(db, &reusable)
     }
 }
 

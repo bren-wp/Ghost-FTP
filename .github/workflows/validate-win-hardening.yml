@@ -98,3 +98,11 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --workspace --locked
+
+      - name: Native Windows Credential Manager recovery crash matrix
+        timeout-minutes: 30
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked -p ghostftp --lib native_vault_recovery_survives_killed_process -- --ignored --nocapture
