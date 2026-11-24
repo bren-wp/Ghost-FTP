@@ -1023,10 +1023,13 @@ fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
     register_recovery_gc(scope, digest, bytes.len())?;
     let put = |part: &str, value: &str| -> Result<()> {
         let account = recovery_blob_account(scope, &digest, part);
-        match crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)? {
-            Some(existing) => anyhow::ensure!(existing == value, "recovery blob collision"),
-            None => crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &account, value)?,
+        if let Some(existing) =
+            crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?
+        {
+            anyhow::ensure!(existing == value, "recovery blob collision");
+            return Ok(());
         }
+        crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &account, value)?;
         anyhow::ensure!(
             crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?.as_deref()
                 == Some(value),
@@ -2779,6 +2782,11 @@ fn promote_pinned_download(
     }
 
     let promotion = (|| -> Result<()> {
+        #[cfg(test)]
+        anyhow::ensure!(
+            !crate::credentials::recovery_test_force_rollback(),
+            "injected promotion failure"
+        );
         let current = pinned_entry(parent, staging)?.context("download staging disappeared")?;
         anyhow::ensure!(
             pinned_same_file(&staged, &current) && current.st_nlink == 1,
@@ -2804,6 +2812,7 @@ fn promote_pinned_download(
             }
             return match rename_pinned_siblings(parent, backup, target) {
                 Ok(()) => {
+                    recovery_fault_checkpoint("rollback_restored");
                     if let Some(journal) = journal {
                         journal.advance(RecoveryPhase::RollbackPending, RecoveryPhase::RolledBack)?;
                     }
@@ -3049,13 +3058,22 @@ fn windows_promote_with_backup(
     if let Some(journal) = journal {
         journal.advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)?;
     }
-    if let Err(error) = windows_rename_handle(source, parent, target, false) {
+    let promotion = (|| -> Result<()> {
+        #[cfg(test)]
+        anyhow::ensure!(
+            !crate::credentials::recovery_test_force_rollback(),
+            "injected promotion failure"
+        );
+        windows_rename_handle(source, parent, target, false)
+    })();
+    if let Err(error) = promotion {
         if let Some(journal) = journal {
             journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::RollbackPending)?;
             journal.verify_before_mutation(parent, RecoveryPhase::RollbackPending, false)?;
         }
         return match windows_rename_handle(&original, parent, target, false) {
             Ok(()) => {
+                recovery_fault_checkpoint("rollback_restored");
                 if let Some(journal) = journal {
                     journal.advance(RecoveryPhase::RollbackPending, RecoveryPhase::RolledBack)?;
                 }
@@ -3572,13 +3590,32 @@ mod tests {
     #[cfg(any(target_os = "linux", windows))]
     #[test]
     fn recovery_protocol_survives_killed_process_at_durable_boundaries() {
+        run_recovery_crash_matrix(false);
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    #[ignore = "requires an unlocked native credential vault; run explicitly in native CI"]
+    fn native_vault_recovery_survives_killed_process() {
+        run_recovery_crash_matrix(true);
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    fn run_recovery_crash_matrix(native: bool) {
         const ROOT: &str = "GHOSTFTP_RECOVERY_PROTOCOL_TEST_ROOT";
         const POINT: &str = "GHOSTFTP_RECOVERY_PROTOCOL_TEST_POINT";
 
         if let Some(root) = std::env::var_os(ROOT) {
             let root = PathBuf::from(root);
             let point = std::env::var(POINT).unwrap();
-            crate::credentials::configure_recovery_test_vault(root.join("vault"), Some(point));
+            if native {
+                crate::credentials::configure_native_recovery_test_vault(
+                    root.join("vault"),
+                    Some(point),
+                );
+            } else {
+                crate::credentials::configure_recovery_test_vault(root.join("vault"), Some(point));
+            }
             let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
             let stage = root.join("stage");
             let target = root.join("target");
@@ -3619,7 +3656,7 @@ mod tests {
             panic!("selected recovery checkpoint was not reached");
         }
 
-        let points = [
+        let isolated_points = [
             "key_registered",
             "transaction_key_written",
             "gc_registered",
@@ -3650,8 +3687,29 @@ mod tests {
             "terminal_manifest_written",
             "gc_key_removed",
             "gc_anchor_removed",
+            "rollback:phase_manifest_committed@2",
+            "rollback:phase_anchor_written@2",
+            "rollback:phase_sql_committed@2",
+            "rollback:rollback_restored",
+            "rollback:phase_manifest_committed@3",
+            "rollback:phase_anchor_written@3",
+            "rollback:phase_sql_committed@3",
         ];
-        for point in points {
+        // The native smoke matrix is bounded independently of the exhaustive
+        // isolated-backend matrix because Linux invokes a credential helper.
+        let native_points = [
+            "transaction_key_written",
+            "prepared_manifest_committed",
+            "phase_sql_committed",
+            "terminal_anchor_written",
+            "gc_key_removed",
+            "rollback:phase_anchor_written@2",
+            "rollback:rollback_restored",
+            "rollback:phase_sql_committed@3",
+        ];
+        let points: &[&str] = if native { &native_points } else { &isolated_points };
+        for &point in points {
+            let started = std::time::Instant::now();
             let root = std::env::temp_dir().join(format!("ghostftp-crash-{}", Uuid::new_v4()));
             std::fs::create_dir_all(&root).unwrap();
             let root = root.canonicalize().unwrap();
@@ -3661,20 +3719,26 @@ mod tests {
             std::fs::write(&stage, b"new").unwrap();
             std::fs::write(&target, b"old").unwrap();
             std::fs::write(root.join("unrelated"), b"keep").unwrap();
-            crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+            if native {
+                crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
+            } else {
+                crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+            }
             {
                 let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
                 let _lock = db.recovery_lock().unwrap();
                 GlobalRecoveryLedger::load(&db, true).unwrap();
             }
-            let mut child = std::process::Command::new(std::env::current_exe().unwrap())
-                .arg("recovery_protocol_survives_killed_process_at_durable_boundaries")
-                .env(ROOT, &root)
-                .env(POINT, point)
-                .spawn()
-                .unwrap();
+            let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+            if native {
+                command.arg("native_vault_recovery_survives_killed_process").arg("--ignored");
+            } else {
+                command.arg("recovery_protocol_survives_killed_process_at_durable_boundaries");
+            }
+            let mut child = command.env(ROOT, &root).env(POINT, point).spawn().unwrap();
             let mut reached = false;
-            for _ in 0..200 {
+            let attempts = if native { 2400 } else { 200 };
+            for _ in 0..attempts {
                 if std::fs::read_to_string(root.join("vault/checkpoint"))
                     .is_ok_and(|value| value == point)
                 {
@@ -3791,6 +3855,23 @@ mod tests {
                 );
                 let rows = db.download_recovery_snapshot().unwrap();
                 assert_eq!(rows.len(), if early || terminal { 0 } else { 1 }, "{point}");
+                if point.starts_with("rollback:") {
+                    let row = rows.first().unwrap();
+                    let expected = if point.ends_with("@3") {
+                        "rolled_back"
+                    } else {
+                        "rollback_pending"
+                    };
+                    assert_eq!(row.phase, expected, "{point}");
+                    if point.ends_with("@3") || point.ends_with("rollback_restored") {
+                        assert_eq!(std::fs::read(&target).unwrap(), b"old");
+                        assert!(!backup.exists());
+                    } else {
+                        assert_eq!(std::fs::read(&backup).unwrap(), b"old");
+                        assert!(!target.exists());
+                    }
+                    assert_eq!(std::fs::read(&stage).unwrap(), b"new");
+                }
                 if let Some(row) = rows.first() {
                     let (_, digest) = recovery_index_entry(
                         &row.id,
@@ -3819,8 +3900,13 @@ mod tests {
                     "original bytes lost at {point}"
                 );
             }
+            if native {
+                crate::credentials::cleanup_native_recovery_test_vault(&root.join("vault"))
+                    .unwrap();
+            }
             crate::credentials::clear_recovery_test_vault();
             std::fs::remove_dir_all(root).unwrap();
+            eprintln!("recovery checkpoint {point} (native={native}): {:?}", started.elapsed());
         }
     }
 
