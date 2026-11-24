@@ -185,6 +185,54 @@ impl DownloadParentGuard {
         );
         Ok(())
     }
+
+    pub(super) async fn promote(
+        &self,
+        staging: &Path,
+        target: &Path,
+        id: &str,
+        allow_replace: bool,
+    ) -> Result<()> {
+        self.verify()?;
+        #[cfg(target_os = "linux")]
+        if staging.parent() == target.parent() {
+            let staging = staging
+                .file_name()
+                .context("staging has no basename")?
+                .to_owned();
+            let target_name = target
+                .file_name()
+                .context("target has no basename")?
+                .to_owned();
+            let backup = download_backup_path(target, id);
+            let backup = backup
+                .file_name()
+                .context("backup has no basename")?
+                .to_owned();
+            let pinned = self.handle.try_clone()?;
+            return tokio::task::spawn_blocking(move || {
+                if allow_replace {
+                    promote_pinned_download(&pinned, &staging, &target_name, &backup)
+                } else {
+                    let entry = pinned_entry(&pinned, &staging)?
+                        .context("download staging is missing")?;
+                    anyhow::ensure!(
+                        pinned_regular_file(&entry) && entry.st_nlink == 1,
+                        "non-overwrite promotion requires a regular staging file without hard links"
+                    );
+                    rename_pinned_siblings(&pinned, &staging, &target_name)
+                }
+            })
+            .await
+            .context("join guarded download promotion")?;
+        }
+
+        if allow_replace {
+            promote_staged_download(staging, target, id).await
+        } else {
+            promote_staged_download_noreplace(staging, target).await
+        }
+    }
 }
 
 fn open_download_directory(path: &Path) -> Result<std::fs::File> {
