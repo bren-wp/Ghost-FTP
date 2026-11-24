@@ -341,6 +341,229 @@ struct RecoveryRecord<'a> {
     original_identity: (u64, u64, u64),
 }
 
+/// Persisted paths are hints, not proof of ownership. Observations never
+/// authorize rename, deletion or advancing the durable journal.
+#[derive(serde::Deserialize)]
+struct RecoveryInspectionRecord {
+    schema: u32,
+    parent: PathBuf,
+    stage: PathBuf,
+    target: PathBuf,
+    backup: PathBuf,
+    parent_identity: (u64, u64),
+    stage_identity: (u64, u64, u64),
+    original_identity: (u64, u64, u64),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntryObservation {
+    Missing,
+    Original,
+    Stage,
+    Other,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecoveryObservation {
+    OriginalPresent,
+    BackupPresent,
+    PublishedWithBackup,
+    PublishedWithoutBackup,
+    OriginalWithoutStage,
+    BackupWithoutStage,
+    Ambiguous,
+    Unavailable,
+}
+
+fn classify_recovery(
+    target: EntryObservation,
+    stage: EntryObservation,
+    backup: EntryObservation,
+) -> RecoveryObservation {
+    use EntryObservation::{Missing, Original, Stage, Unavailable};
+    match (target, stage, backup) {
+        (Unavailable, _, _) | (_, Unavailable, _) | (_, _, Unavailable) => {
+            RecoveryObservation::Unavailable
+        }
+        (Original, Stage, Missing) => RecoveryObservation::OriginalPresent,
+        (Missing, Stage, Original) => RecoveryObservation::BackupPresent,
+        (Stage, Missing, Original) => RecoveryObservation::PublishedWithBackup,
+        (Stage, Missing, Missing) => RecoveryObservation::PublishedWithoutBackup,
+        (Original, Missing, Missing) => RecoveryObservation::OriginalWithoutStage,
+        (Missing, Missing, Original) => RecoveryObservation::BackupWithoutStage,
+        _ => RecoveryObservation::Ambiguous,
+    }
+}
+
+fn observation_matches_phase(phase: &str, observed: RecoveryObservation) -> bool {
+    use RecoveryObservation::*;
+    matches!(
+        (phase, observed),
+        ("prepared" | "rolled_back", OriginalPresent)
+            | ("backup_saved" | "rollback_pending", BackupPresent)
+            | ("promoted" | "cleanup_pending", PublishedWithBackup)
+            | ("cleanup_pending", PublishedWithoutBackup)
+    )
+}
+
+impl RecoveryInspectionRecord {
+    fn valid_layout(&self) -> bool {
+        self.schema == 1
+            && self.parent.is_absolute()
+            && self.stage.parent() == Some(self.parent.as_path())
+            && self.target.parent() == Some(self.parent.as_path())
+            && self.backup.parent() == Some(self.parent.as_path())
+            && self.stage.file_name().is_some()
+            && self.target.file_name().is_some()
+            && self.backup.file_name().is_some()
+            && self.stage != self.target
+            && self.stage != self.backup
+            && self.target != self.backup
+            && self.stage_identity != self.original_identity
+            && !self.parent.components().any(|component| {
+                matches!(component, std::path::Component::ParentDir)
+            })
+    }
+
+    fn inspect_entry(&self, parent: &std::fs::File, path: &Path) -> EntryObservation {
+        let Some(name) = path.file_name() else {
+            return EntryObservation::Unavailable;
+        };
+        #[cfg(target_os = "linux")]
+        let identity = match pinned_entry(parent, name) {
+            Ok(None) => return EntryObservation::Missing,
+            Ok(Some(stat)) if pinned_regular_file(&stat) && stat.st_nlink == 1 => {
+                let Ok(size) = u64::try_from(stat.st_size) else {
+                    return EntryObservation::Other;
+                };
+                (stat.st_dev, stat.st_ino, size)
+            }
+            Ok(Some(_)) => return EntryObservation::Other,
+            Err(_) => return EntryObservation::Unavailable,
+        };
+        #[cfg(windows)]
+        let identity = match windows_open_relative(parent, name, 0x80) {
+            Ok(file) => {
+                let Ok((volume, index)) = windows_staging_identity(&file) else {
+                    return EntryObservation::Other;
+                };
+                let Ok(metadata) = file.metadata() else {
+                    return EntryObservation::Unavailable;
+                };
+                if !metadata.is_file() {
+                    return EntryObservation::Other;
+                }
+                (u64::from(volume), index, metadata.len())
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return EntryObservation::Missing;
+            }
+            Err(_) => return EntryObservation::Unavailable,
+        };
+        #[cfg(not(any(target_os = "linux", windows)))]
+        let identity = {
+            let _ = (parent, name);
+            (0u64, 0u64, 0u64)
+        };
+        if identity == self.original_identity {
+            EntryObservation::Original
+        } else if identity == self.stage_identity {
+            EntryObservation::Stage
+        } else {
+            EntryObservation::Other
+        }
+    }
+
+    fn inspect(&self) -> RecoveryObservation {
+        if !self.valid_layout() {
+            return RecoveryObservation::Ambiguous;
+        }
+        // Avoid initiating access to UNC or device namespaces during startup.
+        #[cfg(windows)]
+        if !matches!(
+            self.parent.components().next(),
+            Some(std::path::Component::Prefix(prefix))
+                if matches!(
+                    prefix.kind(),
+                    std::path::Prefix::Disk(_) | std::path::Prefix::VerbatimDisk(_)
+                )
+        ) {
+            return RecoveryObservation::Unavailable;
+        }
+        let Ok(parent) = open_download_directory(&self.parent) else {
+            return RecoveryObservation::Unavailable;
+        };
+        #[cfg(unix)]
+        let identity = {
+            use std::os::unix::fs::MetadataExt;
+            let Ok(metadata) = parent.metadata() else {
+                return RecoveryObservation::Unavailable;
+            };
+            (metadata.dev(), metadata.ino())
+        };
+        #[cfg(windows)]
+        let identity = {
+            let Ok((volume, index)) = windows_file_identity(&parent) else {
+                return RecoveryObservation::Unavailable;
+            };
+            (u64::from(volume), index)
+        };
+        #[cfg(not(any(unix, windows)))]
+        let identity = (0u64, 0u64);
+        if identity != self.parent_identity {
+            return RecoveryObservation::Ambiguous;
+        }
+        let inspect = || {
+            (
+                self.inspect_entry(&parent, &self.target),
+                self.inspect_entry(&parent, &self.stage),
+                self.inspect_entry(&parent, &self.backup),
+            )
+        };
+        let first = inspect();
+        if first != inspect() {
+            return RecoveryObservation::Ambiguous;
+        }
+        classify_recovery(first.0, first.1, first.2)
+    }
+}
+
+/// Startup diagnostics only. No journal writes, file-content reads or
+/// filesystem mutations. Concurrent operations can invalidate observations.
+pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
+    let rows = db.download_recovery_snapshot()?;
+    let truncated = rows.len() > 128;
+    let mut matching = 0usize;
+    let mut divergent = 0usize;
+    let mut uncertain = 0usize;
+    for (phase, payload) in rows.into_iter().take(128) {
+        let observed = serde_json::from_str::<RecoveryInspectionRecord>(&payload)
+            .map(|record| record.inspect())
+            .unwrap_or(RecoveryObservation::Ambiguous);
+        if matches!(
+            observed,
+            RecoveryObservation::Ambiguous | RecoveryObservation::Unavailable
+        ) {
+            uncertain += 1;
+        } else if observation_matches_phase(&phase, observed) {
+            matching += 1;
+        } else {
+            divergent += 1;
+        }
+    }
+    if matching + divergent + uncertain > 0 {
+        tracing::warn!(
+            matching,
+            divergent,
+            uncertain,
+            truncated,
+            "download recovery observations require review"
+        );
+    }
+    Ok(())
+}
+
 struct RecoveryJournal {
     db: std::sync::Arc<crate::db::Db>,
     id: String,
