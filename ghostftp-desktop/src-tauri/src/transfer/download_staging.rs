@@ -687,6 +687,23 @@ impl RecoveryInspectionRecord {
 /// Full content reads are bounded; larger records require manual review.
 /// Concurrent operations can invalidate observations.
 pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
+    let _lock = match db.recovery_lock() {
+        Ok(lock) => lock,
+        Err(_) => {
+            tracing::warn!("recovery index lock unavailable; inspection deferred");
+            return Ok(());
+        }
+    };
+    let ledger = match GlobalRecoveryLedger::load(db, false) {
+        Ok(ledger) => ledger,
+        Err(_) => {
+            tracing::warn!("global recovery index unavailable; manual review required");
+            return Ok(());
+        }
+    };
+    if ledger.check_rows(db).is_err() {
+        return Ok(());
+    }
     let rows = db.download_recovery_snapshot()?;
     let truncated = rows.len() > 128;
     let mut matching = 0usize;
@@ -764,6 +781,212 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
 
 const RECOVERY_VAULT_SERVICE: &str = "com.ghostftp.download-recovery.v1";
 const RECOVERY_ANCHOR_SERVICE: &str = "com.ghostftp.download-recovery-anchor.v1";
+const RECOVERY_INDEX_SERVICE: &str = "com.ghostftp.download-recovery-index.v1";
+const RECOVERY_INDEX_KEY_SERVICE: &str = "com.ghostftp.download-recovery-index-key.v1";
+// A compact binary index keeps the entire authenticated entry within a
+// conservative Windows Credential Manager size budget.
+const RECOVERY_INDEX_LIMIT: usize = 8;
+
+#[derive(Default)]
+struct GlobalRecoveryLedger {
+    generation: u64,
+    entries: std::collections::BTreeMap<[u8; 32], [u8; 32]>,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct RecoveryIndexDifference {
+    missing: usize,
+    unindexed: usize,
+    divergent: usize,
+}
+
+fn recovery_index_entry(
+    id: &str,
+    phase: &str,
+    destination: Option<&str>,
+    envelope: &str,
+) -> Result<([u8; 32], [u8; 32])> {
+    use sha2::{Digest, Sha256};
+
+    let identity = Sha256::digest(id.as_bytes()).into();
+    let bytes = serde_json::to_vec(&(id, phase, destination, envelope))?;
+    Ok((identity, Sha256::digest(bytes).into()))
+}
+
+impl GlobalRecoveryLedger {
+    fn encode(&self) -> String {
+        use base64::Engine;
+
+        let mut bytes = self.generation.to_be_bytes().to_vec();
+        for (id, proof) in &self.entries {
+            bytes.extend_from_slice(id);
+            bytes.extend_from_slice(proof);
+        }
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    }
+
+    fn decode(payload: &str) -> Result<Self> {
+        use base64::Engine;
+
+        anyhow::ensure!(payload.len() <= 704, "recovery index exceeds size limit");
+        let bytes = base64::engine::general_purpose::STANDARD.decode(payload)?;
+        anyhow::ensure!(
+            bytes.len() >= 8 && (bytes.len() - 8) % 64 == 0,
+            "invalid recovery index format"
+        );
+        let generation = u64::from_be_bytes(bytes[..8].try_into()?);
+        let mut entries = std::collections::BTreeMap::new();
+        for entry in bytes[8..].chunks_exact(64) {
+            let id: [u8; 32] = entry[..32].try_into()?;
+            let proof: [u8; 32] = entry[32..].try_into()?;
+            anyhow::ensure!(entries.insert(id, proof).is_none(), "duplicate recovery index ID");
+        }
+        anyhow::ensure!(entries.len() <= RECOVERY_INDEX_LIMIT, "recovery index capacity exceeded");
+        Ok(Self { generation, entries })
+    }
+
+    fn differences(&self, rows: &[crate::db::DownloadRecoverySnapshot]) -> Result<RecoveryIndexDifference> {
+        let mut actual = std::collections::BTreeMap::new();
+        for row in rows {
+            let (id, proof) = recovery_index_entry(
+                &row.id,
+                &row.phase,
+                row.destination_key.as_deref(),
+                &row.payload,
+            )?;
+            anyhow::ensure!(actual.insert(id, proof).is_none(), "duplicate recovery row");
+        }
+        let mut difference = RecoveryIndexDifference::default();
+        for (id, proof) in &self.entries {
+            match actual.get(id) {
+                None => difference.missing += 1,
+                Some(current) if current != proof => difference.divergent += 1,
+                Some(_) => {}
+            }
+        }
+        difference.unindexed = actual.keys().filter(|id| !self.entries.contains_key(*id)).count();
+        Ok(difference)
+    }
+
+    fn check_rows(&self, db: &crate::db::Db) -> Result<()> {
+        let difference = self.differences(&db.download_recovery_snapshot()?)?;
+        if difference != RecoveryIndexDifference::default() {
+            tracing::warn!(
+                missing = difference.missing,
+                unindexed = difference.unindexed,
+                divergent = difference.divergent,
+                "global recovery index requires manual review"
+            );
+            anyhow::bail!("global recovery index does not match SQLite");
+        }
+        Ok(())
+    }
+
+    fn with_key<T>(encoded: &str, action: impl FnOnce(&[u8; 32]) -> Result<T>) -> Result<T> {
+        use base64::Engine;
+
+        let mut decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
+        let result = match <&[u8; 32]>::try_from(decoded.as_slice()) {
+            Ok(key) => action(key),
+            Err(_) => Err(anyhow::anyhow!("invalid recovery index key")),
+        };
+        decoded.fill(0);
+        result
+    }
+
+    // Caller holds the application data directory's interprocess lock.
+    fn load(db: &crate::db::Db, initialize: bool) -> Result<Self> {
+        use base64::Engine;
+        use rand::RngCore;
+
+        let scope = db.recovery_scope()?;
+        let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?;
+        let stored = crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)?;
+        match (key, stored) {
+            (Some(key), Some(stored)) => Self::with_key(&key, |key| {
+                anyhow::ensure!(stored.len() <= 1200, "recovery index envelope too large");
+                let signed: AuthenticatedRecovery = serde_json::from_str(&stored)?;
+                signed.verify(&scope, key)?;
+                anyhow::ensure!(
+                    signed.key_id == Uuid::nil() && signed.phases.is_empty(),
+                    "invalid global recovery index envelope"
+                );
+                Self::decode(&signed.payload)
+            }),
+            (None, None) => {
+                let ledger = Self::default();
+                ledger.check_rows(db)?;
+                if initialize {
+                    let mut key = [0u8; 32];
+                    rand::rngs::OsRng.try_fill_bytes(&mut key)?;
+                    let encoded = base64::engine::general_purpose::STANDARD.encode(key);
+                    key.fill(0);
+                    crate::credentials::vault_set(RECOVERY_INDEX_KEY_SERVICE, &scope, &encoded)?;
+                    let readback =
+                        crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?;
+                    anyhow::ensure!(
+                        readback.as_deref() == Some(encoded.as_str()),
+                        "recovery index key readback mismatch"
+                    );
+                    ledger.save(db)?;
+                }
+                Ok(ledger)
+            }
+            _ => anyhow::bail!("incomplete global recovery index; manual review required"),
+        }
+    }
+
+    fn save(&self, db: &crate::db::Db) -> Result<()> {
+        let scope = db.recovery_scope()?;
+        let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?
+            .context("recovery index key unavailable")?;
+        Self::with_key(&key, |key| {
+            let signed = AuthenticatedRecovery::seal(&scope, self.encode(), Uuid::nil(), key)?;
+            let encoded = serde_json::to_string(&signed)?;
+            anyhow::ensure!(encoded.len() <= 1200, "recovery index envelope too large");
+            crate::credentials::vault_set(RECOVERY_INDEX_SERVICE, &scope, &encoded)?;
+            let readback = crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)?;
+            anyhow::ensure!(
+                readback.as_deref() == Some(encoded.as_str()),
+                "recovery index readback mismatch"
+            );
+            Ok(())
+        })
+    }
+
+    fn update(
+        &mut self,
+        db: &crate::db::Db,
+        id: &str,
+        old: Option<(&str, &str, &str)>,
+        next: Option<(&str, &str, &str)>,
+    ) -> Result<()> {
+        use sha2::{Digest, Sha256};
+
+        let identity: [u8; 32] = Sha256::digest(id.as_bytes()).into();
+        let expected = old
+            .map(|(phase, destination, payload)| {
+                recovery_index_entry(id, phase, Some(destination), payload).map(|(_, proof)| proof)
+            })
+            .transpose()?;
+        anyhow::ensure!(
+            self.entries.get(&identity).copied() == expected,
+            "stale global recovery index entry"
+        );
+        if let Some((phase, destination, payload)) = next {
+            let (_, proof) = recovery_index_entry(id, phase, Some(destination), payload)?;
+            anyhow::ensure!(
+                expected.is_some() || self.entries.len() < RECOVERY_INDEX_LIMIT,
+                "global recovery index capacity reached"
+            );
+            self.entries.insert(identity, proof);
+        } else {
+            self.entries.remove(&identity);
+        }
+        self.generation = self.generation.checked_add(1).context("recovery index overflow")?;
+        self.save(db)
+    }
+}
 
 /// Compact commitment to the exact SQLite envelope, including its phase chain.
 /// A terminal commitment cannot match any live envelope.
@@ -954,7 +1177,7 @@ impl AuthenticatedRecovery {
             signed.append_phase(id, RecoveryPhase::Prepared, &key)?;
             let encoded = base64::engine::general_purpose::STANDARD.encode(key);
             crate::credentials::vault_set(RECOVERY_VAULT_SERVICE, &account, &encoded)?;
-            let readback = crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &account)?
+            let readback = crate::credentials::vault_get_strict(RECOVERY_VAULT_SERVICE, &account)?
                 .context("recovery authentication key is missing after creation")?;
             anyhow::ensure!(readback == encoded, "recovery key readback mismatch");
             Ok(signed)
@@ -966,7 +1189,7 @@ impl AuthenticatedRecovery {
     fn with_key<T>(key_id: Uuid, action: impl FnOnce(&[u8; 32]) -> Result<T>) -> Result<T> {
         use base64::Engine;
 
-        let encoded = crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &key_id.to_string())?
+        let encoded = crate::credentials::vault_get_strict(RECOVERY_VAULT_SERVICE, &key_id.to_string())?
             .context("recovery authentication key is unavailable")?;
         let mut decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
         let result = match <&[u8; 32]>::try_from(decoded.as_slice()) {
@@ -982,7 +1205,7 @@ impl AuthenticatedRecovery {
     fn authenticate(&self, id: &str, envelope: &str) -> Result<RecoveryPhase> {
         Self::with_key(self.key_id, |key| {
             let phase = self.verify_phases(id, key)?;
-            let stored = crate::credentials::vault_get(
+            let stored = crate::credentials::vault_get_strict(
                 RECOVERY_ANCHOR_SERVICE,
                 &self.key_id.to_string(),
             )?
@@ -1005,7 +1228,7 @@ impl AuthenticatedRecovery {
             let encoded = serde_json::to_string(&anchor)?;
             let account = self.key_id.to_string();
             crate::credentials::vault_set(RECOVERY_ANCHOR_SERVICE, &account, &encoded)?;
-            let readback = crate::credentials::vault_get(RECOVERY_ANCHOR_SERVICE, &account)?;
+            let readback = crate::credentials::vault_get_strict(RECOVERY_ANCHOR_SERVICE, &account)?;
             anyhow::ensure!(
                 readback.as_deref() == Some(encoded.as_str()),
                 "recovery anchor readback mismatch"
@@ -1108,22 +1331,20 @@ impl RecoveryJournal {
         };
         let destination_key = recovery_destination_key(parent_identity, &self.target)?;
         let payload = serde_json::to_string(&record)?;
-        // An unavailable credential vault must not silently grant recovery
-        // authority or disable ordinary downloads on headless installations.
-        let stored = match AuthenticatedRecovery::create(&self.id, payload.clone()) {
-            Ok(signed) => {
-                let encoded = serde_json::to_string(&signed)?;
-                // Commit the independent anchor before the SQL row. A crash
-                // between the stores never authorizes a stale envelope.
-                signed.store_anchor(&self.id, &encoded, false)?;
-                *self.auth_key.lock().unwrap_or_else(|e| e.into_inner()) = Some(signed.key_id);
-                encoded
-            }
-            Err(_) => {
-                tracing::warn!("recovery intent is unauthenticated; manual review required");
-                payload
-            }
-        };
+        let mut ledger = GlobalRecoveryLedger::load(&self.db, true)?;
+        ledger.check_rows(&self.db)?;
+        let signed = AuthenticatedRecovery::create(&self.id, payload)?;
+        let stored = serde_json::to_string(&signed)?;
+        // Index first, transaction anchor second, SQLite third. Any interrupted
+        // write leaves a detectable mismatch before filesystem mutation.
+        ledger.update(
+            &self.db,
+            &self.id,
+            None,
+            Some((RecoveryPhase::Prepared.as_str(), &destination_key, &stored)),
+        )?;
+        signed.store_anchor(&self.id, &stored, false)?;
+        *self.auth_key.lock().unwrap_or_else(|e| e.into_inner()) = Some(signed.key_id);
         let mut persisted = self
             .persisted
             .lock()
@@ -1147,6 +1368,8 @@ impl RecoveryJournal {
             .map_err(|_| anyhow::anyhow!("recovery key lock poisoned"))?;
         self.db
             .download_recovery_check_current(&self.id, from, destination, previous)?;
+        let mut ledger = GlobalRecoveryLedger::load(&self.db, false)?;
+        ledger.check_rows(&self.db)?;
         let next = if let Some(key_id) = *auth_key {
             let mut signed: AuthenticatedRecovery = serde_json::from_str(previous)?;
             anyhow::ensure!(signed.key_id == key_id, "recovery key changed");
@@ -1158,12 +1381,16 @@ impl RecoveryJournal {
             let next = serde_json::to_string(&signed)?;
             // Vault first, SQL CAS second. A failed CAS leaves an intentional
             // mismatch for manual review; never move the anchor backward.
+            ledger.update(
+                &self.db,
+                &self.id,
+                Some((from.as_str(), destination, previous)),
+                Some((to.as_str(), destination, &next)),
+            )?;
             signed.store_anchor(&self.id, &next, false)?;
             next
         } else {
-            // An explicitly unsigned live transaction remains manual-only on
-            // restart. Never downgrade a signed transaction on vault failure.
-            previous.clone()
+            anyhow::bail!("unsigned recovery requires manual review");
         };
         self.db.download_recovery_transition_checked(
             &self.id,
@@ -1199,6 +1426,7 @@ impl RecoveryJournal {
         );
         self.db
             .download_recovery_check_current(&self.id, phase, destination, envelope)?;
+        GlobalRecoveryLedger::load(&self.db, false)?.check_rows(&self.db)?;
         let record: RecoveryInspectionRecord = serde_json::from_str(&signed.payload)?;
         anyhow::ensure!(
             record.matches_reservation(Some(destination.as_str())),
@@ -1237,6 +1465,7 @@ impl RecoveryJournal {
         );
         self.db
             .download_recovery_check_current(&self.id, phase, destination, envelope)?;
+        GlobalRecoveryLedger::load(&self.db, false)?.check_rows(&self.db)?;
         Ok(())
     }
 
@@ -1247,6 +1476,12 @@ impl RecoveryJournal {
         let Some((destination, payload)) = persisted.as_ref() else {
             return;
         };
+        let Ok(mut ledger) = GlobalRecoveryLedger::load(&self.db, false) else {
+            return;
+        };
+        if ledger.check_rows(&self.db).is_err() {
+            return;
+        }
         // Tombstone first: replay of a completed row must fail even if
         // credential deletion is interrupted or the SQL commit fails.
         let terminal = (|| -> Result<()> {
@@ -1273,6 +1508,18 @@ impl RecoveryJournal {
             .is_err()
         {
             tracing::warn!("completed download recovery intent could not be cleared");
+            return;
+        }
+        if ledger
+            .update(
+                &self.db,
+                &self.id,
+                Some((RecoveryPhase::CleanupPending.as_str(), destination, payload)),
+                None,
+            )
+            .is_err()
+        {
+            tracing::warn!("completed transaction remains in global recovery index");
             return;
         }
         let key_id = self
@@ -1338,10 +1585,12 @@ impl DownloadParentGuard {
         }))
     }
 
-    fn check_recovery_destination(&self, target: &Path) -> Result<()> {
+    fn check_recovery_destination(&self, target: &Path) -> Result<Option<std::fs::File>> {
         let Some(db) = &self.recovery_db else {
-            return Ok(());
+            return Ok(None);
         };
+        let lock = db.recovery_lock()?;
+        GlobalRecoveryLedger::load(db, false)?.check_rows(db)?;
         #[cfg(unix)]
         let identity = {
             use std::os::unix::fs::MetadataExt;
@@ -1355,7 +1604,8 @@ impl DownloadParentGuard {
         };
         #[cfg(not(any(unix, windows)))]
         let identity = (0, 0);
-        db.download_recovery_check_destination(&recovery_destination_key(identity, target)?)
+        db.download_recovery_check_destination(&recovery_destination_key(identity, target)?)?;
+        Ok(Some(lock))
     }
 
     pub(super) fn verify(&self) -> Result<()> {
@@ -1375,7 +1625,7 @@ impl DownloadParentGuard {
         verified: &tokio::fs::File,
     ) -> Result<()> {
         self.verify()?;
-        self.check_recovery_destination(target)?;
+        let _recovery_lock = self.check_recovery_destination(target)?;
         #[cfg(target_os = "linux")]
         {
             anyhow::ensure!(
@@ -1393,6 +1643,7 @@ impl DownloadParentGuard {
             let parent = self.handle.try_clone()?;
             let verified = verified.try_clone().await?.into_std().await;
             return tokio::task::spawn_blocking(move || {
+                let _lock = _recovery_lock;
                 use std::os::fd::AsRawFd;
                 use std::os::unix::ffi::OsStrExt;
 
@@ -1528,7 +1779,7 @@ impl DownloadParentGuard {
         verified: &tokio::fs::File,
     ) -> Result<()> {
         self.verify()?;
-        self.check_recovery_destination(target)?;
+        let _recovery_lock = self.check_recovery_destination(target)?;
         let journal = if allow_replace {
             self.recovery_journal(staging, target, id)?
         } else {
@@ -1552,6 +1803,7 @@ impl DownloadParentGuard {
             let pinned = self.handle.try_clone()?;
             let verified = verified.try_clone().await?.into_std().await;
             return tokio::task::spawn_blocking(move || {
+                let _lock = _recovery_lock;
                 let expected = verified.metadata()?;
                 if allow_replace {
                     promote_pinned_download(
@@ -1589,6 +1841,7 @@ impl DownloadParentGuard {
                 let name = name.to_owned();
                 let backup = backup.to_owned();
                 tokio::task::spawn_blocking(move || {
+                    let _lock = _recovery_lock;
                     windows_promote_with_backup(&parent, &delete, &name, &backup, journal.as_ref())
                 })
                 .await
@@ -2609,6 +2862,46 @@ mod tests {
     }
 
     #[test]
+    fn global_index_detects_missing_unindexed_and_replayed_rows() {
+        use crate::db::DownloadRecoverySnapshot;
+
+        let row = |id: &str, phase: &str, payload: &str| DownloadRecoverySnapshot {
+            id: id.into(),
+            phase: phase.into(),
+            payload: payload.into(),
+            destination_key: Some("destination".into()),
+        };
+        let mut ledger = GlobalRecoveryLedger::default();
+        let (id, proof) = recovery_index_entry(
+            "id",
+            "backup_saved",
+            Some("destination"),
+            "current",
+        )
+        .unwrap();
+        ledger.entries.insert(id, proof);
+        let ledger = GlobalRecoveryLedger::decode(&ledger.encode()).unwrap();
+        assert_eq!(
+            ledger.differences(&[row("id", "backup_saved", "current")]).unwrap(),
+            RecoveryIndexDifference::default()
+        );
+        assert_eq!(ledger.differences(&[]).unwrap().missing, 1);
+        assert_eq!(
+            ledger.differences(&[row("id", "prepared", "old")]).unwrap().divergent,
+            1
+        );
+        assert_eq!(
+            ledger.differences(&[row("other", "prepared", "other")]).unwrap(),
+            RecoveryIndexDifference {
+                missing: 1,
+                unindexed: 1,
+                divergent: 0,
+            }
+        );
+        assert!(GlobalRecoveryLedger::decode("invalid").is_err());
+    }
+
+    #[test]
     fn independent_anchor_rejects_old_envelope_and_terminal_replay() {
         let key = [0x23; 32];
         let key_id = Uuid::new_v4();
@@ -2913,12 +3206,29 @@ mod tests {
         tokio::fs::write(&target, b"old").await.unwrap();
         tokio::fs::write(&backup, b"keep").await.unwrap();
         let verified = verify_staged_download_bytes(&stage, 3).await.unwrap();
+        let vault_ready = {
+            let _lock = db.recovery_lock().unwrap();
+            GlobalRecoveryLedger::load(&db, false).is_ok()
+        };
 
         assert!(guard
             .promote(&stage, &target, "recovery", true, &verified)
             .await
             .is_err());
         let rows = db.download_recovery_list().unwrap();
+        if rows.is_empty() {
+            // A headless or locked vault must now refuse journal-backed
+            // overwrite before moving the original. Do not claim collision QA.
+            assert!(!vault_ready || GlobalRecoveryLedger::load(&db, false).is_err());
+            assert_eq!(tokio::fs::read(&target).await.unwrap(), b"old");
+            assert_eq!(tokio::fs::read(&backup).await.unwrap(), b"keep");
+            assert_eq!(tokio::fs::read(&stage).await.unwrap(), b"new");
+            drop(verified);
+            drop(guard);
+            drop(db);
+            tokio::fs::remove_dir_all(root).await.unwrap();
+            return;
+        }
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].0, "recovery");
         assert_eq!(db.download_recovery_phase("recovery").unwrap(), "prepared");

@@ -235,6 +235,7 @@ impl RecoveryPhase {
 
 pub struct Db {
     conn: Mutex<Connection>,
+    recovery_root: Option<std::path::PathBuf>,
 }
 
 /// SQLite is not encryption: keep secrets in the Windows/Linux keyring.
@@ -334,8 +335,14 @@ impl Db {
         conn.pragma_update(None, "secure_delete", "ON")
             .context("enable SQLite secure delete")?;
         migrate(&conn).context("running ghostftp.db migrations")?;
+        let recovery_root = path
+            .canonicalize()?
+            .parent()
+            .context("database has no parent directory")?
+            .to_path_buf();
         Ok(Self {
             conn: Mutex::new(conn),
+            recovery_root: Some(recovery_root),
         })
     }
 
@@ -346,7 +353,61 @@ impl Db {
         migrate(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
+            recovery_root: None,
         })
+    }
+
+    /// Scope the independent ledger to the canonical application data directory.
+    pub(crate) fn recovery_scope(&self) -> Result<String> {
+        use sha2::{Digest, Sha256};
+
+        let root = self.recovery_root.as_ref().context("missing recovery root")?;
+        #[cfg(windows)]
+        let bytes = root.to_string_lossy().to_uppercase().into_bytes();
+        #[cfg(not(windows))]
+        let bytes = root.as_os_str().as_encoded_bytes();
+        Ok(format!("{:x}", Sha256::digest(bytes)))
+    }
+
+    /// Keep this file open through the entire promotion, including blocking
+    /// workers. Never unlink the lock file on release.
+    pub(crate) fn recovery_lock(&self) -> Result<std::fs::File> {
+        let root = self.recovery_root.as_ref().context("missing recovery root")?;
+        let path = root.join("ghostftp.recovery.lock");
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true).write(true).create(true).truncate(false);
+        #[cfg(unix)]
+        options
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+            options.share_mode(3).custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+        }
+        let file = options.open(&path).context("open recovery lock")?;
+        let metadata = file.metadata()?;
+        anyhow::ensure!(metadata.is_file(), "recovery lock is not a regular file");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            anyhow::ensure!(
+                metadata.nlink() == 1 && metadata.mode() & 0o077 == 0,
+                "recovery lock has unsafe links or permissions"
+            );
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+            anyhow::ensure!(
+                metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+                "recovery lock is a reparse point"
+            );
+        }
+        file.try_lock().context("another recovery operation is active")?;
+        Ok(file)
     }
 
     /// SQLite is the authoritative persisted configuration for watched
@@ -1516,6 +1577,22 @@ mod tests {
         cleared.sort();
         assert_eq!(cleared, vec!["k1".to_string(), "k3".to_string()]);
         assert!(!db.thumb_touch("k1").unwrap());
+    }
+
+    #[test]
+    fn recovery_lock_rejects_concurrent_handles_and_releases_on_drop() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-recovery-lock-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let first = Db::open(&root.join("ghostftp.db")).unwrap();
+        let second = Db::open(&root.join("ghostftp.db")).unwrap();
+        let lock = first.recovery_lock().unwrap();
+        assert!(second.recovery_lock().is_err());
+        drop(lock);
+        assert!(second.recovery_lock().is_ok());
+        drop(first);
+        drop(second);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

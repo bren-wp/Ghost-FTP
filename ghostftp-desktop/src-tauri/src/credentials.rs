@@ -59,6 +59,21 @@ pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
     }
 }
 
+/// Recovery anchors must never fall back to volatile legacy keyutils.
+pub(crate) fn vault_get_strict(service: &str, account: &str) -> Result<Option<String>> {
+    let _guard = VAULT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    #[cfg(target_os = "linux")]
+    {
+        linux_secret_service::lookup(service, account)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        legacy_get(service, account)
+    }
+}
+
 /// New Linux writes are persistent-only and must verify their destination.
 /// No fallback to kernel keyutils: it loses data on reboot.
 pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
