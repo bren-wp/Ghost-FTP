@@ -661,7 +661,10 @@ impl Db {
             "download recovery record exceeds size limit"
         );
         let conn = self.conn.lock().unwrap();
-        anyhow::ensure!(!destination_key.is_empty(), "missing recovery destination key");
+        anyhow::ensure!(
+            !destination_key.is_empty(),
+            "missing recovery destination key"
+        );
         // A legacy record has no reliable reservation key. Preserve it and
         // stop new backup transactions until it can be reviewed.
         let changed = conn.execute(
@@ -722,9 +725,8 @@ impl Db {
     /// Never use transfer-history pruning for recovery intents.
     pub fn download_recovery_list(&self) -> Result<Vec<(String, String)>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT id, payload FROM download_recovery ORDER BY updated_ms, id",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT id, payload FROM download_recovery ORDER BY updated_ms, id")?;
         let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
@@ -737,7 +739,10 @@ impl Db {
             "DELETE FROM download_recovery WHERE id = ?1 AND phase = 'cleanup_pending'",
             [id],
         )?;
-        anyhow::ensure!(changed == 1, "download recovery is not ready for completion");
+        anyhow::ensure!(
+            changed == 1,
+            "download recovery is not ready for completion"
+        );
         Ok(())
     }
 
@@ -1398,7 +1403,8 @@ mod tests {
 
     #[test]
     fn download_recovery_intents_survive_reopen_and_history_pruning() {
-        let root = std::env::temp_dir().join(format!("ghostftp-recovery-db-{}", uuid::Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-recovery-db-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).unwrap();
         let path = root.join("ghostftp.db");
         {
@@ -1411,12 +1417,16 @@ mod tests {
             assert!(db
                 .download_recovery_begin("different", "replacement", "destination")
                 .is_err());
-            assert!(db.download_recovery_check_destination("destination").is_err());
+            assert!(db
+                .download_recovery_check_destination("destination")
+                .is_err());
             assert!(db.download_recovery_check_destination("other").is_ok());
             assert!(db.download_recovery_finish("pending").is_err());
             assert!(db
                 .download_recovery_transition(
-                    "pending", RecoveryPhase::Prepared, RecoveryPhase::Promoted,
+                    "pending",
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::Promoted,
                 )
                 .is_err());
             db.download_recovery_transition(
@@ -1434,10 +1444,15 @@ mod tests {
                 db.download_recovery_list().unwrap(),
                 vec![("pending".to_string(), "original".to_string())]
             );
-            assert_eq!(db.download_recovery_phase("pending").unwrap(), "backup_saved");
+            assert_eq!(
+                db.download_recovery_phase("pending").unwrap(),
+                "backup_saved"
+            );
             assert!(db
                 .download_recovery_transition(
-                    "pending", RecoveryPhase::Prepared, RecoveryPhase::BackupSaved,
+                    "pending",
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::BackupSaved,
                 )
                 .is_err());
             db.download_recovery_transition(
@@ -1473,7 +1488,10 @@ mod tests {
         let db = Db {
             conn: Mutex::new(conn),
         };
-        assert_eq!(db.download_recovery_phase("legacy").unwrap(), "legacy_unknown");
+        assert_eq!(
+            db.download_recovery_phase("legacy").unwrap(),
+            "legacy_unknown"
+        );
         assert!(db.download_recovery_begin("new", "data", "target").is_err());
         assert!(db.download_recovery_finish("legacy").is_err());
         assert_eq!(
@@ -1522,7 +1540,10 @@ mod tests {
         let db = Db::open(&path).unwrap();
         assert!(db.download_recovery_finish("rollback").is_err());
         db.download_recovery_finish("success").unwrap();
-        assert_eq!(db.download_recovery_phase("rollback").unwrap(), "rolled_back");
+        assert_eq!(
+            db.download_recovery_phase("rollback").unwrap(),
+            "rolled_back"
+        );
         drop(db);
         std::fs::remove_dir_all(root).unwrap();
     }
