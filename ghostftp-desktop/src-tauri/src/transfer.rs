@@ -759,6 +759,13 @@ fn checked_agent_delta_chunk_length(remaining: u64, next_bytes: usize) -> Result
     Ok(count)
 }
 
+/// Run bounded read-only recovery diagnostics off the desktop startup thread.
+pub(crate) fn reconcile_download_recovery(db: &crate::db::Db) {
+    if download_staging::reconcile_pending_recovery(db).is_err() {
+        tracing::warn!("download recovery reconciliation could not be completed");
+    }
+}
+
 impl TransferManager {
     pub fn new() -> Self {
         Self::from_db(None)
