@@ -176,8 +176,23 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
     }
     #[cfg(windows)]
     {
-        use std::os::windows::fs::MetadataExt;
-        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+        use std::os::windows::{fs::MetadataExt, io::AsRawHandle};
+        use windows_sys::Win32::Storage::FileSystem::{
+            GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT,
+        };
+        let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::uninit();
+        // SAFETY: the file owns a live handle and the output buffer is writable.
+        let result = unsafe { GetFileInformationByHandle(file.as_raw_handle(), info.as_mut_ptr()) };
+        if result == 0 {
+            return Err(std::io::Error::last_os_error())
+                .context("query download staging file identity and link count");
+        }
+        // SAFETY: a successful call initialized the information structure.
+        let info = unsafe { info.assume_init() };
+        anyhow::ensure!(
+            info.nNumberOfLinks == 1,
+            "download staging must not have additional hard links"
+        );
         anyhow::ensure!(
             opened.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
             "download staging must not be a reparse point"
@@ -191,6 +206,34 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
     file.sync_all()
         .await
         .context("sync completed download staging before promotion")?;
+    let current = tokio::fs::symlink_metadata(staging)
+        .await
+        .context("recheck synced download staging pathname")?;
+    anyhow::ensure!(
+        current.file_type().is_file() && current.len() == transferred,
+        "download staging changed after durability check"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        anyhow::ensure!(
+            current.dev() == opened.dev()
+                && current.ino() == opened.ino()
+                && current.nlink() == 1,
+            "download staging identity changed after durability check"
+        );
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+        anyhow::ensure!(
+            current.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0
+                && current.creation_time() == opened.creation_time()
+                && current.last_write_time() == opened.last_write_time(),
+            "download staging metadata changed after durability check"
+        );
+    }
     Ok(())
 }
 
@@ -451,7 +494,7 @@ mod tests {
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[tokio::test]
     async fn hard_linked_staging_must_not_replace_existing_destination() {
         let root =
