@@ -345,7 +345,9 @@ fn sync_recovery_directory(parent: &std::fs::File) -> Result<()> {
         same_download_directory(parent, &directory)?,
         "recovery directory sync identity mismatch"
     );
-    directory.sync_all().context("persist recovery directory entries")
+    directory
+        .sync_all()
+        .context("persist recovery directory entries")
 }
 
 /// Hold the initially resolved directory for the lifetime of a download.
@@ -2839,7 +2841,9 @@ fn promote_pinned_download(
             // Persist the existing file data and initial namespace before
             // recording any intent that permits moving the original.
             writer.sync_all().context("persist recovery staging data")?;
-            original_reader.sync_all().context("persist original recovery data")?;
+            original_reader
+                .sync_all()
+                .context("persist original recovery data")?;
             sync_recovery_directory(parent)?;
             journal.begin(
                 (directory.dev(), directory.ino()),
@@ -2911,7 +2915,9 @@ fn promote_pinned_download(
     if let Some(original) = original {
         if let Some(journal) = journal {
             if sync_recovery_directory(parent).is_err() {
-                tracing::warn!("download published; directory durability uncertain; backup retained");
+                tracing::warn!(
+                    "download published; directory durability uncertain; backup retained"
+                );
                 return Ok(());
             }
             recovery_fault_checkpoint("published_directory_synced");
@@ -2948,7 +2954,9 @@ fn promote_pinned_download(
                     recovery_fault_checkpoint("backup_removed");
                     if let Some(journal) = journal {
                         if sync_recovery_directory(parent).is_err() {
-                            tracing::warn!("backup removal durability uncertain; recovery intent retained");
+                            tracing::warn!(
+                                "backup removal durability uncertain; recovery intent retained"
+                            );
                             return Ok(());
                         }
                         recovery_fault_checkpoint("cleanup_directory_synced");
@@ -3134,6 +3142,8 @@ fn windows_promote_with_backup(
             original.metadata()?.len(),
         );
         let reader = windows_reopen_recovery_read(source)?;
+        windows_flush_recovery_file(source)?;
+        windows_flush_recovery_file(&original)?;
         journal.begin(
             (u64::from(volume), index),
             stage_identity,
@@ -3146,6 +3156,8 @@ fn windows_promote_with_backup(
         .context("preserve original destination without replacing backup")?;
     recovery_fault_checkpoint("backup_renamed");
     if let Some(journal) = journal {
+        windows_flush_recovery_file(&original)?;
+        recovery_fault_checkpoint("backup_file_flushed");
         journal.advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)?;
     }
     let promotion = (|| -> Result<()> {
@@ -3165,6 +3177,8 @@ fn windows_promote_with_backup(
             Ok(()) => {
                 recovery_fault_checkpoint("rollback_restored");
                 if let Some(journal) = journal {
+                    windows_flush_recovery_file(&original)?;
+                    recovery_fault_checkpoint("rollback_file_flushed");
                     journal.advance(RecoveryPhase::RollbackPending, RecoveryPhase::RolledBack)?;
                 }
                 Err(error).context("promotion failed; original restored")
@@ -3176,6 +3190,11 @@ fn windows_promote_with_backup(
     }
     recovery_fault_checkpoint("stage_published");
     if let Some(journal) = journal {
+        if windows_flush_recovery_file(source).is_err() {
+            tracing::warn!("download published; Windows file flush failed; backup retained");
+            return Ok(());
+        }
+        recovery_fault_checkpoint("published_file_flushed");
         if journal
             .advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted)
             .is_err()
@@ -3190,6 +3209,10 @@ fn windows_promote_with_backup(
     // The original handle now identifies the backup, not the new target.
     // Cleanup failure leaves the backup intact; publication already succeeded.
     if let Some(journal) = journal {
+        if windows_flush_recovery_file(source).is_err() {
+            tracing::warn!("download published; Windows file flush failed; backup retained");
+            return Ok(());
+        }
         if journal
             .verify_before_mutation(parent, RecoveryPhase::CleanupPending, true)
             .is_err()
@@ -3206,6 +3229,11 @@ fn windows_promote_with_backup(
             if windows_open_relative(parent, backup, 0x80)
                 .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
             {
+                if windows_flush_recovery_file(source).is_err() {
+                    tracing::warn!("Windows cleanup flush uncertain; recovery intent retained");
+                    return Ok(());
+                }
+                recovery_fault_checkpoint("cleanup_file_flushed");
                 journal.finish();
             }
         }
@@ -3278,6 +3306,46 @@ fn windows_reopen_recovery_read(file: &std::fs::File) -> Result<std::fs::File> {
     }
     // SAFETY: successful ReOpenFile returns an independently owned handle.
     Ok(unsafe { std::fs::File::from_raw_handle(handle) })
+}
+
+/// Request a write-capable handle to the same object and flush its buffers.
+/// This is a file-level durability barrier, not a documented volume or
+/// directory-entry power-loss guarantee. Never resolve the original pathname.
+#[cfg(windows)]
+fn windows_flush_recovery_file(file: &std::fs::File) -> Result<()> {
+    use std::os::windows::io::{AsRawHandle, FromRawHandle};
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::Storage::FileSystem::{
+        ReOpenFile, FILE_FLAG_OPEN_REPARSE_POINT, FILE_SHARE_DELETE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE,
+    };
+
+    const GENERIC_WRITE_ACCESS: u32 = 0x4000_0000;
+    let identity = windows_staging_identity(file)?;
+    // SAFETY: the original handle remains live; success returns an owned handle.
+    let handle = unsafe {
+        ReOpenFile(
+            file.as_raw_handle(),
+            GENERIC_WRITE_ACCESS,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_FLAG_OPEN_REPARSE_POINT,
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE {
+        return Err(std::io::Error::last_os_error()).context("reopen recovery file for flush");
+    }
+    // SAFETY: successful ReOpenFile transfers ownership of the new handle.
+    let writer = unsafe { std::fs::File::from_raw_handle(handle) };
+    anyhow::ensure!(
+        windows_staging_identity(&writer)? == identity,
+        "recovery flush handle identity mismatch"
+    );
+    writer.sync_all().context("flush verified Windows recovery file")?;
+    anyhow::ensure!(
+        windows_staging_identity(&writer)? == identity,
+        "recovery flush identity changed"
+    );
+    Ok(())
 }
 
 /// Obtain DELETE access to the already opened object, not a new pathname.
@@ -3792,6 +3860,14 @@ mod tests {
             "cleanup_directory_synced",
             #[cfg(target_os = "linux")]
             "rollback:rollback_directory_synced",
+            #[cfg(windows)]
+            "backup_file_flushed",
+            #[cfg(windows)]
+            "published_file_flushed",
+            #[cfg(windows)]
+            "cleanup_file_flushed",
+            #[cfg(windows)]
+            "rollback:rollback_file_flushed",
         ];
         // The native smoke matrix is bounded independently of the exhaustive
         // isolated-backend matrix because Linux invokes a credential helper.
@@ -3977,7 +4053,9 @@ mod tests {
                     assert_eq!(row.phase, expected, "{point}");
                     if point.ends_with("@3")
                         || point.ends_with("rollback_restored")
-                        || point.ends_with("rollback_directory_synced") {
+                        || point.ends_with("rollback_directory_synced")
+                        || point.ends_with("rollback_file_flushed")
+                    {
                         assert_eq!(std::fs::read(&target).unwrap(), b"old");
                         assert!(!backup.exists());
                     } else {
@@ -4007,6 +4085,7 @@ mod tests {
                 point,
                 "backup_removed"
                     | "cleanup_directory_synced"
+                    | "cleanup_file_flushed"
                     | "terminal_anchor_written"
                     | "terminal_sql_removed"
                     | "terminal_manifest_written"
@@ -4099,7 +4178,10 @@ mod tests {
                 // not the full record, filesystem or GC workload.
                 for i in 0..count {
                     let bytes = i.to_be_bytes();
-                    ledger.entries.insert(recovery_digest(&bytes), recovery_digest(&[&bytes[..], b"proof"].concat()));
+                    ledger.entries.insert(
+                        recovery_digest(&bytes),
+                        recovery_digest(&[&bytes[..], b"proof"].concat()),
+                    );
                 }
                 let started = std::time::Instant::now();
                 ledger.save(&db).unwrap();
@@ -4141,9 +4223,11 @@ mod tests {
             crate::credentials::vault_delete_strict(RECOVERY_INDEX_KEY_SERVICE, &scope).unwrap();
             assert!(GlobalRecoveryLedger::load(&db, false).is_err());
             assert!(GlobalRecoveryLedger::load(&db, true).is_err());
-            assert!(crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)
-                .unwrap()
-                .is_none());
+            assert!(
+                crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)
+                    .unwrap()
+                    .is_none()
+            );
         }
         crate::credentials::clear_recovery_test_vault();
         std::fs::remove_dir_all(root).unwrap();
