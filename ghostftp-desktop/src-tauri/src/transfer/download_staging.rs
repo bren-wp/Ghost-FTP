@@ -607,7 +607,13 @@ impl AuthenticatedRecovery {
         let aad = serde_json::to_vec(&(RECOVERY_VAULT_SERVICE, id, key_id, &payload))?;
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
         let tag = cipher
-            .encrypt(Nonce::from_slice(&nonce), Payload { msg: &[], aad: &aad })
+            .encrypt(
+                Nonce::from_slice(&nonce),
+                Payload {
+                    msg: &[],
+                    aad: &aad,
+                },
+            )
             .map_err(|_| anyhow::anyhow!("recovery authentication failed"))?;
         Ok(Self {
             key_id,
@@ -788,7 +794,9 @@ impl RecoveryJournal {
         }
         let key_id = self.auth_key.lock().unwrap_or_else(|e| e.into_inner()).take();
         if let Some(key_id) = key_id {
-            if crate::credentials::vault_delete(RECOVERY_VAULT_SERVICE, &key_id.to_string()).is_err() {
+            if crate::credentials::vault_delete(RECOVERY_VAULT_SERVICE, &key_id.to_string())
+                .is_err()
+            {
                 tracing::warn!("completed recovery key requires credential vault cleanup");
             }
         }
@@ -1993,6 +2001,71 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn authenticated_recovery_rejects_modified_payload_id_key_and_tag() {
+        let key = [0x51; 32];
+        let mut record = AuthenticatedRecovery::seal(
+            "transfer-a",
+            "original intent".to_string(),
+            Uuid::new_v4(),
+            &key,
+        )
+        .unwrap();
+        assert!(record.verify("transfer-a", &key).is_ok());
+        assert!(record.verify("transfer-b", &key).is_err());
+        assert!(record.verify("transfer-a", &[0x52; 32]).is_err());
+
+        record.payload.push('!');
+        assert!(record.verify("transfer-a", &key).is_err());
+        record.payload.pop();
+        assert!(record.verify("transfer-a", &key).is_ok());
+        record.tag[0] ^= 1;
+        assert!(record.verify("transfer-a", &key).is_err());
+        record.tag[0] ^= 1;
+        record.nonce[0] ^= 1;
+        assert!(record.verify("transfer-a", &key).is_err());
+        record.nonce[0] ^= 1;
+        record.key_id = Uuid::new_v4();
+        assert!(record.verify("transfer-a", &key).is_err());
+    }
+
+    #[test]
+    fn recovery_decisions_never_authorize_untrusted_observations() {
+        use RecoveryObservation::*;
+
+        for observed in [
+            OriginalPresent,
+            BackupPresent,
+            PublishedWithBackup,
+            PublishedWithoutBackup,
+            OriginalWithoutStage,
+            BackupWithoutStage,
+            Ambiguous,
+            Unavailable,
+        ] {
+            assert_eq!(
+                recovery_decision(false, observed),
+                RecoveryDecision::ManualReview
+            );
+        }
+        assert_eq!(
+            recovery_decision(true, BackupPresent),
+            RecoveryDecision::RollbackCandidate
+        );
+        assert_eq!(
+            recovery_decision(true, PublishedWithBackup),
+            RecoveryDecision::CleanupCandidate
+        );
+        assert_eq!(
+            recovery_decision(true, PublishedWithoutBackup),
+            RecoveryDecision::InspectOnly
+        );
+        assert_eq!(
+            recovery_decision(true, Ambiguous),
+            RecoveryDecision::ManualReview
+        );
+    }
 
     #[test]
     fn recovery_classifies_layout_independently_of_last_recorded_phase() {
