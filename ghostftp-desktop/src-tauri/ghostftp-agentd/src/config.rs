@@ -71,6 +71,26 @@ pub struct Config {
     pub peers: Vec<Peer>,
 }
 
+/// Open the final path component without following links on Unix. Nonblocking
+/// open also prevents a substituted FIFO from hanging configuration loading.
+fn open_config_file(path: &Path) -> Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    let file = options
+        .open(path)
+        .with_context(|| format!("open config {path:?}"))?;
+    anyhow::ensure!(
+        file.metadata()?.is_file(),
+        "opened agent config must be a regular file"
+    );
+    Ok(file)
+}
+
 impl Config {
     pub fn load(path: &Path) -> Result<Self> {
         let metadata = match std::fs::symlink_metadata(path) {
@@ -88,11 +108,7 @@ impl Config {
             metadata.len() <= MAX_CONFIG_BYTES,
             "agent config exceeds safe maximum"
         );
-        let file = std::fs::File::open(path).with_context(|| format!("open config {path:?}"))?;
-        anyhow::ensure!(
-            file.metadata()?.is_file(),
-            "opened agent config must be a regular file"
-        );
+        let file = open_config_file(path)?;
         // The file may grow after inspection. Bound the actual read as well.
         let mut bytes = Vec::new();
         file.take(MAX_CONFIG_BYTES + 1)
@@ -358,12 +374,35 @@ mod security_tests {
         assert!(Config::load(&path).is_err());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn config_open_rejects_symlink_even_without_preflight_check() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("target.json");
+        Config::default().save(&target).unwrap();
+        let path = dir.path().join("agentd.json");
+        std::os::unix::fs::symlink(&target, &path).unwrap();
+        assert!(open_config_file(&path).is_err());
+        assert!(open_config_file(&target).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn config_open_rejects_fifo_without_waiting_for_writer() {
+        use std::os::unix::ffi::OsStrExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
+        let raw_path = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
+        // SAFETY: raw_path is a live, NUL-terminated pathname in a private directory.
+        assert_eq!(unsafe { libc::mkfifo(raw_path.as_ptr(), 0o600) }, 0);
+        assert!(open_config_file(&path).is_err());
+    }
+
     #[test]
     fn legacy_migration_preserves_previous_grants_and_is_idempotent() {
-        let path = std::env::temp_dir().join(format!(
-            "ghostftp-agent-security-{}.json",
-            std::process::id()
-        ));
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
         std::fs::write(&path, r#"{"policy":{"allowExec":true,"allowWrite":true},"peers":[{"name":"old","publicKey":"legacy","pairedAt":1}]}"#).unwrap();
         let migrated = Config::load(&path).unwrap();
         assert_eq!(
