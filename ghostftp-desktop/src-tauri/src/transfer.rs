@@ -611,7 +611,7 @@ use download_staging::{
     commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
     download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
     local_path_exists_sync_fail_closed, promote_staged_download, promote_staged_download_noreplace,
-    verify_staged_download_bytes, DownloadStagingOpenFailure,
+    verify_staged_download_bytes, DownloadParentGuard, DownloadStagingOpenFailure,
 };
 use remote_upload_staging::{
     capture_local_upload_snapshot, fresh_remote_upload_staging_path, preflight_ftp_upload_staging,
@@ -2373,27 +2373,29 @@ impl TransferManager {
         app: Option<&AppHandle>,
         allow_replace: bool,
     ) -> Result<()> {
+        let parent_guard = DownloadParentGuard::open(local_path)?;
         let staging = download_staging_path(local_path, id);
         let result = self
             .agent_download_core(id, session, remote_path, &staging, app)
             .await;
+        parent_guard.verify()?;
         match result {
             Ok(()) => {
-                let result = if allow_replace {
-                    promote_staged_download(&staging, local_path, id).await
-                } else {
-                    promote_staged_download_noreplace(&staging, local_path).await
-                };
+                let result = parent_guard
+                    .promote(&staging, local_path, id, allow_replace)
+                    .await;
                 // A Skip/Rename collision must never strand an Agent staging
                 // file, nor touch the destination owned by another process.
-                if !allow_replace && result.is_err() {
-                    let _ = tokio::fs::remove_file(&staging).await;
+                if !allow_replace && result.is_err() && parent_guard.verify().is_ok() {
+                    cleanup_owned_regular_staging_file(&staging).await;
                 }
                 result
             }
             Err(error) => {
-                if error.downcast_ref::<RestartFromPause>().is_none() {
-                    let _ = tokio::fs::remove_file(&staging).await;
+                if error.downcast_ref::<RestartFromPause>().is_none()
+                    && parent_guard.verify().is_ok()
+                {
+                    cleanup_failed_download_staging(&staging, &error).await;
                 }
                 Err(error)
             }
@@ -2424,6 +2426,7 @@ impl TransferManager {
         local_path: &Path,
         app: Option<&AppHandle>,
     ) -> Result<()> {
+        let parent_guard = DownloadParentGuard::open(local_path)?;
         // Continue an interrupted whole-file download from the verified local
         // prefix. Delta mode is reserved for complete prior-file bases.
         if self.get(id).await.is_some_and(|t| t.transferred > 0) {
@@ -2433,6 +2436,7 @@ impl TransferManager {
         }
 
         let (size, remote_exists) = agent_stat(session, remote_path).await?;
+        parent_guard.verify()?;
         let basis_exists = tokio::fs::metadata(local_path).await.is_ok();
         if remote_exists
             && self.delta_enabled()
@@ -2449,6 +2453,7 @@ impl TransferManager {
                 }
             }
         }
+        parent_guard.verify()?;
         self.run_agent_full_download_staged(id, session, remote_path, local_path, app, true)
             .await
     }
@@ -2471,6 +2476,7 @@ impl TransferManager {
         use ghostftp_agent_proto::delta;
         use ghostftp_agent_proto::msg::{Request, Response};
         let started = Instant::now();
+        let parent_guard = DownloadParentGuard::open(local_path)?;
 
         // 1. The remote (new) file's chunk signature.
         let target_sig = match session
@@ -2506,6 +2512,7 @@ impl TransferManager {
 
         // 2. Chunk the local basis (the old file). A missing basis is fine —
         // an empty signature makes every remote chunk a literal.
+        parent_guard.verify()?;
         let mut has_basis = false;
         let basis_sig = match tokio::fs::metadata(local_path).await {
             Ok(_) => {
@@ -2552,6 +2559,7 @@ impl TransferManager {
         let mut owns_patch = false;
         let mut owns_delta_output = false;
         let result: Result<()> = async {
+            parent_guard.verify()?;
             let mut patch_file = create_new_download_staging(&patch_path).await?;
             owns_patch = true;
             let mut fetched: u64 = 0;
@@ -2610,6 +2618,7 @@ impl TransferManager {
                 plan.whole_hash.clone(),
             );
             let recipe = plan.recipe.clone();
+            parent_guard.verify()?;
             tokio::task::spawn_blocking(move || {
                 delta::apply_delta(
                     basis_owned.as_deref(),
@@ -2623,6 +2632,7 @@ impl TransferManager {
             .map_err(|e| anyhow::anyhow!("apply delta task: {e}"))?
             .context("apply delta")?;
             owns_delta_output = true;
+            parent_guard.verify()?;
             commit_verified_delta_output(&out_path, local_path, size)
                 .await
                 .with_context(|| {
@@ -2631,11 +2641,13 @@ impl TransferManager {
             Ok(())
         }
         .await;
-        if owns_patch {
-            let _ = tokio::fs::remove_file(&patch_path).await;
-        }
-        if result.is_err() && owns_delta_output {
-            let _ = tokio::fs::remove_file(&out_path).await;
+        if parent_guard.verify().is_ok() {
+            if owns_patch {
+                cleanup_owned_regular_staging_file(&patch_path).await;
+            }
+            if result.is_err() && owns_delta_output {
+                cleanup_owned_regular_staging_file(&out_path).await;
+            }
         }
         result?;
 
@@ -4919,6 +4931,14 @@ async fn run_download_task(
     // other backend writes a whole-file stream, so route it through a sibling
     // staging file and promote only after the complete backend operation succeeds.
     let staged_download = !matches!(&*session, Session::Agent(_));
+    let parent_guard = match DownloadParentGuard::open(&final_path) {
+        Ok(guard) => guard,
+        Err(error) => {
+            finalize(&mgr, &id, &app, Err(error)).await;
+            mgr.bump_queue(&app).await;
+            return;
+        }
+    };
     let byte_resume = supports_byte_resume(&session);
     // Only verified-prefix resumable SFTP needs to retain a staging name
     // across pauses. Whole-file adapters use a new exclusive file each retry.
@@ -4928,6 +4948,11 @@ async fn run_download_task(
         final_path.clone()
     };
     let res = loop {
+        if let Err(error) = parent_guard.verify() {
+            finalize(&mgr, &id, &app, Err(error)).await;
+            mgr.bump_queue(&app).await;
+            return;
+        }
         if staged_download && !byte_resume {
             working_path = fresh_download_staging_path(&final_path, &id);
         }
@@ -4941,6 +4966,12 @@ async fn run_download_task(
             &app,
         )
         .await;
+        if let Err(error) = parent_guard.verify() {
+            // Never clean up through a replaced parent pathname.
+            finalize(&mgr, &id, &app, Err(error)).await;
+            mgr.bump_queue(&app).await;
+            return;
+        }
         if staged_download && !byte_resume {
             if let Err(error) = &attempt {
                 // A create_new failure proves the path is NOT ours. Cleanup
@@ -5004,20 +5035,22 @@ async fn run_download_task(
                 };
                 match checked {
                     Ok(()) => {
-                        if allow_replace {
-                            promote_staged_download(&working_path, &final_path, &id).await
-                        } else {
-                            promote_staged_download_noreplace(&working_path, &final_path).await
-                        }
+                        parent_guard
+                            .promote(&working_path, &final_path, &id, allow_replace)
+                            .await
                     }
                     Err(error) => {
-                        cleanup_failed_download_staging(&working_path, &error).await;
+                        if parent_guard.verify().is_ok() {
+                            cleanup_failed_download_staging(&working_path, &error).await;
+                        }
                         Err(error)
                     }
                 }
             }
             Err(error) => {
-                cleanup_failed_download_staging(&working_path, &error).await;
+                if parent_guard.verify().is_ok() {
+                    cleanup_failed_download_staging(&working_path, &error).await;
+                }
                 Err(error)
             }
         }
