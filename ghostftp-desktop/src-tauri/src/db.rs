@@ -131,7 +131,8 @@ const MIGRATIONS: &[&str] = &[
         id         INTEGER PRIMARY KEY CHECK (id = 1),
         payload    TEXT    NOT NULL,
         updated_ms INTEGER NOT NULL
-    );",    // v9 — filesystem recovery intents, separate from prunable transfer history.
+    );",
+    // v9 — filesystem recovery intents, separate from prunable transfer history.
     // Pending entries are never deleted by the history retention policy.
     "CREATE TABLE download_recovery (
         id         TEXT PRIMARY KEY,
@@ -1291,6 +1292,30 @@ mod tests {
         cleared.sort();
         assert_eq!(cleared, vec!["k1".to_string(), "k3".to_string()]);
         assert!(!db.thumb_touch("k1").unwrap());
+    }
+
+    #[test]
+    fn download_recovery_intents_survive_reopen_and_history_pruning() {
+        let root = std::env::temp_dir().join(format!("ghostftp-recovery-db-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("ghostftp.db");
+        {
+            let db = Db::open(&path).unwrap();
+            db.download_recovery_begin("pending", "original").unwrap();
+            assert!(db.download_recovery_begin("pending", "replacement").is_err());
+            db.transfer_ledger_upsert("old", "{}").unwrap();
+            db.transfer_ledger_prune(0).unwrap();
+        }
+        {
+            let db = Db::open(&path).unwrap();
+            assert_eq!(
+                db.download_recovery_list().unwrap(),
+                vec![("pending".to_string(), "original".to_string())]
+            );
+            db.download_recovery_finish("pending").unwrap();
+            assert!(db.download_recovery_list().unwrap().is_empty());
+        }
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
