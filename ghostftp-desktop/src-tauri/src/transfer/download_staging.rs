@@ -4613,7 +4613,10 @@ mod tests {
             assert_eq!(ids.len(), 128);
             ledger.check_rows(&db).unwrap();
             assert_eq!(db.download_recovery_snapshot().unwrap().len(), 128);
-            for (phase, samples) in [("admission", &mut admissions), ("inspection", &mut inspections)] {
+            for (phase, samples) in [
+                ("admission", &mut admissions),
+                ("inspection", &mut inspections),
+            ] {
                 samples.sort_unstable();
                 let count = samples.len();
                 eprintln!(

@@ -1,0 +1,103 @@
+name: Native active recovery benchmark (candidate)
+
+on:
+  push:
+    branches: [test/native-active-recovery-128-candidate]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-active-recovery-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    name: Linux isolated native vault — 128 active journals
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ghostftp-desktop/src-tauri
+
+      - name: Linux desktop prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          apt_retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "APT attempt $attempt/3: $*"
+              if sudo env DEBIAN_FRONTEND=noninteractive \
+                timeout --signal=TERM --kill-after=30s 8m \
+                apt-get -o Acquire::Retries=3 \
+                  -o Acquire::http::Timeout=30 \
+                  -o Acquire::https::Timeout=30 \
+                  -o Dpkg::Use-Pty=0 "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 10))
+              fi
+            done
+            echo "::error::APT prerequisites failed after 3 bounded attempts."
+            return 1
+          }
+
+          apt_retry update
+          apt_retry install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf dbus gnome-keyring libsecret-tools
+
+      - name: Prepare desktop frontendDist for Rust checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ghostftp-desktop/dist
+          printf '<!doctype html><html><body></body></html>\n' > ghostftp-desktop/dist/index.html
+
+      - name: Rust formatting
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Verify committed Rust dependency graph
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s Cargo.lock
+          cargo metadata --locked --format-version 1 >/dev/null
+
+      - name: Rust workspace check
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo check --workspace --all-targets --locked
+
+      - name: Clippy
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Native service category profiling and 128 persisted prepared journals
+        timeout-minutes: 120
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          export XDG_DATA_HOME="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          trap 'rm -rf -- "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"' EXIT
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-ci-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            cargo test --locked -p ghostftp --lib helper_profile_counts_only_fixed_categories_and_operations -- --nocapture
+            cargo test --locked -p ghostftp --lib native_vault_end_to_end_benchmark -- --ignored --nocapture
+            GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN=disposable-fixtures cargo test --locked -p ghostftp --lib native_vault_active_recovery_benchmark -- --ignored --nocapture
+          '
