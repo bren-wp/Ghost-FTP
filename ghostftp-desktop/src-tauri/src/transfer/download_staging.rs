@@ -1424,7 +1424,11 @@ impl GlobalRecoveryLedger {
                 return Ok(());
             }
             let ledger = Self::load(db, false)?;
-            anyhow::ensure!(ledger.sharded, "legacy recovery manifest requires migration");
+            if !ledger.sharded {
+                // Interrupted v1 migration may have staged candidates. Do
+                // not delete them until v2 is published and authenticated.
+                return Ok(());
+            }
             ledger.check_rows(db)?;
             let mut live = std::collections::BTreeSet::new();
             for shard in ledger.shard_bytes() {
@@ -1957,6 +1961,7 @@ impl RecoveryJournal {
             None,
             Some((RecoveryPhase::Prepared.as_str(), &destination_key, &stored)),
         )?;
+        recovery_fault_checkpoint("prepared_manifest_committed");
         signed.store_anchor(&self.id, &stored, false)?;
         recovery_fault_checkpoint("prepared_anchor_written");
         *self.auth_key.lock().unwrap_or_else(|e| e.into_inner()) = Some(signed.key_id);
@@ -2006,6 +2011,7 @@ impl RecoveryJournal {
                 Some((from.as_str(), destination, previous)),
                 Some((to.as_str(), destination, &next)),
             )?;
+            recovery_fault_checkpoint("phase_manifest_committed");
             signed.store_anchor(&self.id, &next, false)?;
             recovery_fault_checkpoint("phase_anchor_written");
             next
@@ -2158,11 +2164,11 @@ impl RecoveryJournal {
             .unwrap_or_else(|e| e.into_inner())
             .take();
         if let Some(key_id) = key_id {
-            if crate::credentials::vault_delete(RECOVERY_VAULT_SERVICE, &key_id.to_string())
+            if crate::credentials::vault_delete_strict(RECOVERY_VAULT_SERVICE, &key_id.to_string())
                 .is_err()
             {
                 tracing::warn!("completed recovery key requires credential vault cleanup");
-            } else if crate::credentials::vault_delete(RECOVERY_ANCHOR_SERVICE, &key_id.to_string())
+            } else if crate::credentials::vault_delete_strict(RECOVERY_ANCHOR_SERVICE, &key_id.to_string())
                 .is_err()
             {
                 tracing::warn!("completed recovery anchor requires credential vault cleanup");
@@ -2677,6 +2683,7 @@ fn promote_pinned_download(
         }
         rename_pinned_siblings(parent, target, backup)
             .context("preserve existing local download target without overwriting a backup")?;
+        recovery_fault_checkpoint("backup_renamed");
         if let Some(journal) = journal {
             journal.advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)?;
         }
@@ -2722,6 +2729,7 @@ fn promote_pinned_download(
         return Err(error);
     }
 
+    recovery_fault_checkpoint("stage_published");
     if let Some(original) = original {
         if let Some(journal) = journal {
             if journal
@@ -2754,6 +2762,7 @@ fn promote_pinned_download(
                 // SAFETY: parent is live; name is a NUL-terminated sibling basename.
                 let removed = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
                 if removed == 0 {
+                    recovery_fault_checkpoint("backup_removed");
                     if let Some(journal) = journal {
                         journal.finish();
                     }
@@ -2947,6 +2956,7 @@ fn windows_promote_with_backup(
     }
     windows_rename_handle(&original, parent, backup, false)
         .context("preserve original destination without replacing backup")?;
+    recovery_fault_checkpoint("backup_renamed");
     if let Some(journal) = journal {
         journal.advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)?;
     }
@@ -2967,6 +2977,7 @@ fn windows_promote_with_backup(
             )),
         };
     }
+    recovery_fault_checkpoint("stage_published");
     if let Some(journal) = journal {
         if journal
             .advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted)
@@ -2993,6 +3004,7 @@ fn windows_promote_with_backup(
     let removed = windows_delete_handle(&original).is_ok();
     drop(original);
     if removed {
+        recovery_fault_checkpoint("backup_removed");
         if let Some(journal) = journal {
             if windows_open_relative(parent, backup, 0x80)
                 .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
@@ -3467,6 +3479,181 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn recovery_protocol_survives_killed_process_at_durable_boundaries() {
+        const ROOT: &str = "GHOSTFTP_RECOVERY_PROTOCOL_TEST_ROOT";
+        const POINT: &str = "GHOSTFTP_RECOVERY_PROTOCOL_TEST_POINT";
+
+        if let Some(root) = std::env::var_os(ROOT) {
+            let root = PathBuf::from(root);
+            let point = std::env::var(POINT).unwrap();
+            crate::credentials::configure_recovery_test_vault(root.join("vault"), Some(point));
+            let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
+            let stage = root.join("stage");
+            let target = root.join("target");
+            let backup = download_backup_path(&target, "fault");
+            let guard = DownloadParentGuard::with_db(&target, Some(db.clone())).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            let journal = guard.recovery_journal(&stage, &target, "fault").unwrap().unwrap();
+            #[cfg(target_os = "linux")]
+            {
+                let writer = std::fs::File::open(&stage).unwrap();
+                promote_pinned_download(
+                    &guard.handle,
+                    stage.file_name().unwrap(),
+                    target.file_name().unwrap(),
+                    backup.file_name().unwrap(),
+                    Some(&writer),
+                    Some(&journal),
+                )
+                .unwrap();
+            }
+            #[cfg(windows)]
+            {
+                let writer = windows_open_relative(
+                    &guard.handle,
+                    stage.file_name().unwrap(),
+                    0x0001_0081,
+                )
+                .unwrap();
+                windows_promote_with_backup(
+                    &guard.handle,
+                    &writer,
+                    target.file_name().unwrap(),
+                    backup.file_name().unwrap(),
+                    Some(&journal),
+                )
+                .unwrap();
+            }
+            panic!("selected recovery checkpoint was not reached");
+        }
+
+        let points = [
+            "gc_registered",
+            "blob_chunk_written",
+            "blob_length_written",
+            "prepared_manifest_committed",
+            "prepared_anchor_written",
+            "prepared_sql_committed",
+            "gc_page_cleared",
+            "backup_renamed",
+            "phase_manifest_committed",
+            "phase_anchor_written",
+            "phase_sql_committed",
+            "gc_length_removed",
+            "gc_chunk_removed",
+            "stage_published",
+            "phase_manifest_committed@2",
+            "phase_anchor_written@2",
+            "phase_sql_committed@2",
+            "phase_manifest_committed@3",
+            "phase_anchor_written@3",
+            "phase_sql_committed@3",
+            "backup_removed",
+            "terminal_anchor_written",
+            "terminal_sql_removed",
+            "terminal_manifest_written",
+        ];
+        for point in points {
+            let root = std::env::temp_dir().join(format!("ghostftp-crash-{}", Uuid::new_v4()));
+            std::fs::create_dir_all(&root).unwrap();
+            let root = root.canonicalize().unwrap();
+            let stage = root.join("stage");
+            let target = root.join("target");
+            let backup = download_backup_path(&target, "fault");
+            std::fs::write(&stage, b"new").unwrap();
+            std::fs::write(&target, b"old").unwrap();
+            std::fs::write(root.join("unrelated"), b"keep").unwrap();
+            crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+            {
+                let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+                let _lock = db.recovery_lock().unwrap();
+                GlobalRecoveryLedger::load(&db, true).unwrap();
+            }
+            let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+                .arg("recovery_protocol_survives_killed_process_at_durable_boundaries")
+                .env(ROOT, &root)
+                .env(POINT, point)
+                .spawn()
+                .unwrap();
+            let mut reached = false;
+            for _ in 0..200 {
+                if std::fs::read_to_string(root.join("vault/checkpoint"))
+                    .is_ok_and(|value| value == point)
+                {
+                    reached = true;
+                    break;
+                }
+                if child.try_wait().unwrap().is_some() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            let killed = child.kill().is_ok();
+            let status = child.wait().unwrap();
+            assert!(reached && killed && !status.success(), "checkpoint {point}");
+            let before = [&stage, &target, &backup].map(|path| std::fs::read(path).ok());
+            {
+                let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+                let _lock = db.recovery_lock().unwrap();
+                let mut ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
+                ledger.reconcile_metadata(&db).unwrap();
+                ledger.check_rows(&db).unwrap();
+                GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+                // Recovery can be retried without changing the outcome.
+                let mut ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
+                ledger.reconcile_metadata(&db).unwrap();
+                GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+                ledger.check_rows(&db).unwrap();
+                assert_eq!(
+                    before,
+                    [&stage, &target, &backup].map(|path| std::fs::read(path).ok()),
+                    "metadata recovery changed user files at {point}"
+                );
+                let early = matches!(
+                    point,
+                    "gc_registered" | "blob_chunk_written" | "blob_length_written"
+                );
+                let terminal = matches!(
+                    point,
+                    "terminal_anchor_written" | "terminal_sql_removed" | "terminal_manifest_written"
+                );
+                let rows = db.download_recovery_snapshot().unwrap();
+                assert_eq!(rows.len(), usize::from(!early && !terminal), "{point}");
+                if let Some(row) = rows.first() {
+                    let (_, digest) = recovery_index_entry(
+                        &row.id,
+                        &row.phase,
+                        row.destination_key.as_deref(),
+                        &row.payload,
+                    )
+                    .unwrap();
+                    get_recovery_blob(&db.recovery_scope().unwrap(), &digest).unwrap();
+                }
+            }
+            assert_eq!(std::fs::read(root.join("unrelated")).unwrap(), b"keep");
+            assert!(
+                std::fs::read(&stage).is_ok_and(|bytes| bytes == b"new")
+                    || std::fs::read(&target).is_ok_and(|bytes| bytes == b"new"),
+                "new bytes lost at {point}"
+            );
+            if !matches!(
+                point,
+                "backup_removed" | "terminal_anchor_written" | "terminal_sql_removed"
+                    | "terminal_manifest_written"
+            ) {
+                assert!(
+                    std::fs::read(&target).is_ok_and(|bytes| bytes == b"old")
+                        || std::fs::read(&backup).is_ok_and(|bytes| bytes == b"old"),
+                    "original bytes lost at {point}"
+                );
+            }
+            crate::credentials::clear_recovery_test_vault();
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
 
     #[test]
     fn authenticated_recovery_rejects_modified_payload_id_key_and_tag() {

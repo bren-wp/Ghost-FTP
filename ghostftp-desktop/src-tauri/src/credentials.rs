@@ -9,6 +9,7 @@ static VAULT_LOCK: Mutex<()> = Mutex::new(());
 struct RecoveryTestVault {
     root: std::path::PathBuf,
     checkpoint: Option<String>,
+    hits: usize,
 }
 
 #[cfg(test)]
@@ -18,13 +19,14 @@ std::thread_local! {
 }
 
 #[cfg(test)]
-pub(crate) fn configure_recovery_test_vault(
-    root: std::path::PathBuf,
-    checkpoint: Option<String>,
-) {
+pub(crate) fn configure_recovery_test_vault(root: std::path::PathBuf, checkpoint: Option<String>) {
     std::fs::create_dir_all(&root).unwrap();
     RECOVERY_TEST_VAULT.with(|state| {
-        *state.borrow_mut() = Some(RecoveryTestVault { root, checkpoint });
+        *state.borrow_mut() = Some(RecoveryTestVault {
+            root,
+            checkpoint,
+            hits: 0,
+        });
     });
 }
 
@@ -53,12 +55,20 @@ fn test_recovery_path(service: &str, account: &str) -> Option<std::path::PathBuf
 #[cfg(test)]
 pub(crate) fn recovery_test_checkpoint(point: &str) {
     RECOVERY_TEST_VAULT.with(|state| {
-        let state = state.borrow();
-        let Some(vault) = state.as_ref() else {
+        let mut state = state.borrow_mut();
+        let Some(vault) = state.as_mut() else {
             return;
         };
-        if vault.checkpoint.as_deref() == Some(point) {
-            std::fs::write(vault.root.join("checkpoint"), point).unwrap();
+        let Some(checkpoint) = vault.checkpoint.as_deref() else {
+            return;
+        };
+        let (name, occurrence) = checkpoint.split_once('@').unwrap_or((checkpoint, "1"));
+        if name != point {
+            return;
+        }
+        vault.hits += 1;
+        if vault.hits == occurrence.parse::<usize>().unwrap() {
+            std::fs::write(vault.root.join("checkpoint"), checkpoint).unwrap();
             // Parent kills this process while the real recovery lock is held.
             loop {
                 std::thread::sleep(std::time::Duration::from_secs(1));
