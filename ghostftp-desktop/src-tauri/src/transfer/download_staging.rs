@@ -3989,7 +3989,9 @@ mod tests {
     #[ignore = "requires disposable disk with at least 10 GiB free and unlocked native vault"]
     fn native_vault_large_file_benchmark() {
         assert_eq!(
-            std::env::var("GHOSTFTP_LARGE_RECOVERY_BENCH_OPT_IN").ok().as_deref(),
+            std::env::var("GHOSTFTP_LARGE_RECOVERY_BENCH_OPT_IN")
+                .ok()
+                .as_deref(),
             Some("disposable-fixtures")
         );
         let parent = PathBuf::from(
@@ -3998,7 +4000,11 @@ mod tests {
         );
         assert!(parent.is_absolute() && parent.is_dir());
         run_native_vault_file_benchmark(
-            &[100 * 1024 * 1024, 1024 * 1024 * 1024, 4 * 1024 * 1024 * 1024 + 1],
+            &[
+                100 * 1024 * 1024,
+                1024 * 1024 * 1024,
+                4 * 1024 * 1024 * 1024 + 1,
+            ],
             &parent,
         );
     }
