@@ -1,5 +1,6 @@
 //! Durable, exclusive download staging and lossless local promotion.
 //! Includes guards common to FTP, FTPS, SFTP, HTTP, cloud and Agent delta.
+use crate::db::RecoveryPhase;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -366,9 +367,26 @@ impl RecoveryJournal {
             stage_identity,
             original_identity,
         };
+        let leaf = self.target.file_name().context("recovery target has no basename")?;
+        // Use a lossless native name key. On Windows, fold case conservatively;
+        // filesystem aliases and Unicode case equivalence still need review.
+        #[cfg(unix)]
+        let name = {
+            use std::os::unix::ffi::OsStrExt;
+            leaf.as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>()
+        };
+        #[cfg(windows)]
+        let name = leaf.to_str().context("unsupported recovery filename encoding")?.to_uppercase();
+        #[cfg(not(any(unix, windows)))]
+        let name = leaf.to_string_lossy().into_owned();
+        let destination_key = format!("{:016x}:{:016x}:{name}", parent_identity.0, parent_identity.1);
         self.db
-            .download_recovery_begin(&self.id, &serde_json::to_string(&record)?)
+            .download_recovery_begin(&self.id, &serde_json::to_string(&record)?, &destination_key)
             .context("persist recovery intent before backup")
+    }
+
+    fn advance(&self, from: RecoveryPhase, to: RecoveryPhase) -> Result<()> {
+        self.db.download_recovery_transition(&self.id, from, to)
     }
 
     fn finish(&self) {
@@ -815,6 +833,9 @@ fn promote_pinned_download(
         }
         rename_pinned_siblings(parent, target, backup)
             .context("preserve existing local download target without overwriting a backup")?;
+        if let Some(journal) = journal {
+            journal.advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)?;
+        }
     }
 
     let promotion = (|| -> Result<()> {
@@ -837,8 +858,16 @@ fn promote_pinned_download(
                 return Err(error)
                     .context("download promotion failed; backup identity is uncertain");
             }
+            if let Some(journal) = journal {
+                journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::RollbackPending)?;
+            }
             return match rename_pinned_siblings(parent, backup, target) {
-                Ok(()) => Err(error).context("download promotion failed; original target restored"),
+                Ok(()) => {
+                    if let Some(journal) = journal {
+                        journal.advance(RecoveryPhase::RollbackPending, RecoveryPhase::RolledBack)?;
+                    }
+                    Err(error).context("download promotion failed; original target restored")
+                }
                 Err(restore) => Err(anyhow::anyhow!(
                     "download promotion failed; recovery backup {:?} remains in pinned directory: {error:#}; rollback: {restore:#}",
                     backup
@@ -849,6 +878,16 @@ fn promote_pinned_download(
     }
 
     if let Some(original) = original {
+        if let Some(journal) = journal {
+            if journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted).is_err()
+                || journal.advance(RecoveryPhase::Promoted, RecoveryPhase::CleanupPending).is_err()
+            {
+                // The new file is already published. Preserve the original
+                // backup and recovery evidence if phase persistence fails.
+                tracing::warn!("download published; recovery phase could not be persisted");
+                return Ok(());
+            }
+        }
         // Never knowingly delete a different file substituted at the backup name.
         let owned = pinned_entry(parent, backup)
             .is_ok_and(|entry| entry.is_some_and(|current| pinned_same_file(&original, &current)));
@@ -1032,13 +1071,32 @@ fn windows_promote_with_backup(
     }
     windows_rename_handle(&original, parent, backup, false)
         .context("preserve original destination without replacing backup")?;
+    if let Some(journal) = journal {
+        journal.advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)?;
+    }
     if let Err(error) = windows_rename_handle(source, parent, target, false) {
+        if let Some(journal) = journal {
+            journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::RollbackPending)?;
+        }
         return match windows_rename_handle(&original, parent, target, false) {
-            Ok(()) => Err(error).context("promotion failed; original restored"),
+            Ok(()) => {
+                if let Some(journal) = journal {
+                    journal.advance(RecoveryPhase::RollbackPending, RecoveryPhase::RolledBack)?;
+                }
+                Err(error).context("promotion failed; original restored")
+            }
             Err(rollback) => Err(anyhow::anyhow!(
                 "promotion failed; recovery backup remains: {error:#}; rollback: {rollback:#}"
             )),
         };
+    }
+    if let Some(journal) = journal {
+        if journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted).is_err()
+            || journal.advance(RecoveryPhase::Promoted, RecoveryPhase::CleanupPending).is_err()
+        {
+            tracing::warn!("download published; recovery phase could not be persisted");
+            return Ok(());
+        }
     }
     // The original handle now identifies the backup, not the new target.
     // Cleanup failure leaves the backup intact; publication already succeeded.
@@ -1532,6 +1590,7 @@ mod tests {
         let rows = db.download_recovery_list().unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].0, "recovery");
+        assert_eq!(db.download_recovery_phase("recovery").unwrap(), "prepared");
         let record: serde_json::Value = serde_json::from_str(&rows[0].1).unwrap();
         assert_eq!(record["schema"], 1);
         assert!(record["original_identity"].is_array());
