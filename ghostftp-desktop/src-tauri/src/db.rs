@@ -1443,6 +1443,75 @@ mod tests {
     }
 
     #[test]
+    fn recovery_v9_migration_preserves_unknown_phase_and_blocks_new_backup() {
+        let conn = Connection::open_in_memory().unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(9).enumerate() {
+            apply_migration(&conn, (index + 1) as i64, sql).unwrap();
+        }
+        conn.execute(
+            "INSERT INTO download_recovery (id, payload, updated_ms) VALUES ('legacy', 'old', 1)",
+            [],
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        let db = Db {
+            conn: Mutex::new(conn),
+        };
+        assert_eq!(db.download_recovery_phase("legacy").unwrap(), "legacy_unknown");
+        assert!(db.download_recovery_begin("new", "data", "target").is_err());
+        assert!(db.download_recovery_finish("legacy").is_err());
+        assert_eq!(
+            db.download_recovery_list().unwrap(),
+            vec![("legacy".to_string(), "old".to_string())]
+        );
+    }
+
+    #[test]
+    fn recovery_phases_survive_each_database_reopen() {
+        let root = std::env::temp_dir().join(format!("ghostftp-phases-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("ghostftp.db");
+        for (id, sequence) in [
+            (
+                "success",
+                vec![
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::BackupSaved,
+                    RecoveryPhase::Promoted,
+                    RecoveryPhase::CleanupPending,
+                ],
+            ),
+            (
+                "rollback",
+                vec![
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::BackupSaved,
+                    RecoveryPhase::RollbackPending,
+                    RecoveryPhase::RolledBack,
+                ],
+            ),
+        ] {
+            {
+                let db = Db::open(&path).unwrap();
+                db.download_recovery_begin(id, "payload", id).unwrap();
+            }
+            for (i, phase) in sequence.iter().copied().enumerate() {
+                let db = Db::open(&path).unwrap();
+                assert_eq!(db.download_recovery_phase(id).unwrap(), phase.as_str());
+                if let Some(next) = sequence.get(i + 1) {
+                    db.download_recovery_transition(id, phase, *next).unwrap();
+                }
+            }
+        }
+        let db = Db::open(&path).unwrap();
+        assert!(db.download_recovery_finish("rollback").is_err());
+        db.download_recovery_finish("success").unwrap();
+        assert_eq!(db.download_recovery_phase("rollback").unwrap(), "rolled_back");
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn transfer_ledger_round_trips_updates_and_prunes() {
         let db = Db::open_in_memory().unwrap();
         assert!(db.transfer_ledger_list().unwrap().is_empty());
