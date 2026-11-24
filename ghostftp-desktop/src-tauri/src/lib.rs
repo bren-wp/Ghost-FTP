@@ -360,6 +360,13 @@ original user data and staged restore were preserved for repair"
             };
             app.manage(state);
 
+            // Inspect unfinished filesystem intents without delaying the main
+            // window or authorizing any post-crash filesystem mutations.
+            let recovery_db = app.state::<AppState>().db.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                transfer::reconcile_download_recovery(&recovery_db);
+            });
+
             // Apply persisted transfer-queue settings (Plan 17, Plan 23). The
             // frontend writes `transferConcurrency`/`transferThrottleKbps`/
             // `deltaSync` via the settings table; the manager starts from
