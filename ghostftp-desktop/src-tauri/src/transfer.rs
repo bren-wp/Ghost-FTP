@@ -774,6 +774,15 @@ impl TransferManager {
         let mut recovered_retry = HashSet::new();
 
         if let Some(store) = db.as_ref() {
+            // A recovery intent is evidence, never authorization to delete or
+            // restore a path after the process has lost its original handles.
+            match store.download_recovery_list() {
+                Ok(rows) if !rows.is_empty() => {
+                    tracing::warn!(count = rows.len(), "unresolved download recovery intents");
+                }
+                Err(_) => tracing::warn!("download recovery intents could not be loaded"),
+                _ => {}
+            }
             if let Ok(rows) = store.transfer_ledger_list() {
                 let mut terminal_kept = 0usize;
                 for (row_id, payload, _) in rows {
@@ -2368,7 +2377,7 @@ impl TransferManager {
         app: Option<&AppHandle>,
         allow_replace: bool,
     ) -> Result<()> {
-        let parent_guard = DownloadParentGuard::open(local_path)?;
+        let parent_guard = DownloadParentGuard::with_db(local_path, self.db.clone())?;
         let staging = download_staging_path(local_path, id);
         let owner = DownloadStageOwner::for_parent(&parent_guard);
         let result = self
@@ -2420,7 +2429,7 @@ impl TransferManager {
         local_path: &Path,
         app: Option<&AppHandle>,
     ) -> Result<()> {
-        let parent_guard = DownloadParentGuard::open(local_path)?;
+        let parent_guard = DownloadParentGuard::with_db(local_path, self.db.clone())?;
         // Continue an interrupted whole-file download from the verified local
         // prefix. Delta mode is reserved for complete prior-file bases.
         if self.get(id).await.is_some_and(|t| t.transferred > 0) {
@@ -2470,7 +2479,7 @@ impl TransferManager {
         use ghostftp_agent_proto::delta;
         use ghostftp_agent_proto::msg::{Request, Response};
         let started = Instant::now();
-        let parent_guard = DownloadParentGuard::open(local_path)?;
+        let parent_guard = DownloadParentGuard::with_db(local_path, self.db.clone())?;
 
         // 1. The remote (new) file's chunk signature.
         let target_sig = match session
@@ -4926,7 +4935,7 @@ async fn run_download_task(
     // other backend writes a whole-file stream, so route it through a sibling
     // staging file and promote only after the complete backend operation succeeds.
     let staged_download = !matches!(&*session, Session::Agent(_));
-    let parent_guard = match DownloadParentGuard::open(&final_path) {
+    let parent_guard = match DownloadParentGuard::with_db(&final_path, mgr.db.clone()) {
         Ok(guard) => guard,
         Err(error) => {
             finalize(&mgr, &id, &app, Err(error)).await;
@@ -4934,6 +4943,20 @@ async fn run_download_task(
             return;
         }
     };
+    if let Some(db) = &mgr.db {
+        let recovery = db.download_recovery_list().and_then(|rows| {
+            anyhow::ensure!(
+                !rows.iter().any(|(pending, _)| pending == &id),
+                "download has an unresolved recovery intent"
+            );
+            Ok(())
+        });
+        if let Err(error) = recovery {
+            finalize(&mgr, &id, &app, Err(error)).await;
+            mgr.bump_queue(&app).await;
+            return;
+        }
+    }
     let byte_resume = supports_byte_resume(&session);
     // Only verified-prefix resumable SFTP needs to retain a staging name
     // across pauses. Whole-file adapters use a new exclusive file each retry.
