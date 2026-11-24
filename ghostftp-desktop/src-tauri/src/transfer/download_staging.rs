@@ -472,10 +472,12 @@ fn open_download_directory(path: &Path) -> Result<std::fs::File> {
     #[cfg(windows)]
     let file = {
         use std::os::windows::fs::OpenOptionsExt;
-        use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_FLAG_BACKUP_SEMANTICS, FILE_READ_ATTRIBUTES, FILE_TRAVERSE,
+        };
 
         std::fs::OpenOptions::new()
-            .access_mode(0)
+            .access_mode(FILE_READ_ATTRIBUTES | FILE_TRAVERSE)
             .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
             .open(path)
             .context("open download parent directory handle")?
@@ -750,7 +752,11 @@ fn windows_rename_handle(
         (*info).Anonymous.ReplaceIfExists = u8::from(replace);
         (*info).RootDirectory = parent.as_raw_handle();
         (*info).FileNameLength = name_len;
-        std::ptr::copy_nonoverlapping(wide.as_ptr(), (*info).FileName.as_mut_ptr(), wide.len());
+        std::ptr::copy_nonoverlapping(
+            wide.as_ptr(),
+            buffer.as_mut_ptr().cast::<u8>().add(offset).cast::<u16>(),
+            wide.len(),
+        );
         SetFileInformationByHandle(
             source.as_raw_handle(),
             FileRenameInfo,
@@ -1071,6 +1077,43 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn native_windows_no_replace_and_disposition_preserve_other_files() {
+        let root = std::env::temp_dir().join(format!("ghostftp-win-handle-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let staging = root.join("stage");
+        let target = root.join("target");
+        let guard = DownloadParentGuard::open(&target).unwrap();
+        tokio::fs::write(&staging, b"good").await.unwrap();
+        tokio::fs::write(&target, b"keep").await.unwrap();
+        let verified = verify_staged_download_bytes(&staging, 4).await.unwrap();
+
+        assert!(guard
+            .promote(&staging, &target, "collision", false, &verified)
+            .await
+            .is_err());
+        assert_eq!(tokio::fs::read(&target).await.unwrap(), b"keep");
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"good");
+        guard.cleanup_verified(&staging, &verified).await;
+        drop(verified);
+        assert!(!staging.exists());
+        assert_eq!(tokio::fs::read(&target).await.unwrap(), b"keep");
+
+        tokio::fs::write(&staging, b"new").await.unwrap();
+        let destination = root.join("new-target");
+        let verified = verify_staged_download_bytes(&staging, 3).await.unwrap();
+        guard
+            .promote(&staging, &destination, "new", false, &verified)
+            .await
+            .unwrap();
+        drop(verified);
+        assert!(!staging.exists());
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"new");
+        drop(guard);
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
 
     #[cfg(target_os = "linux")]
     #[tokio::test]
