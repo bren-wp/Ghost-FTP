@@ -666,15 +666,15 @@ impl AuthenticatedRecovery {
     fn authenticate(&self, id: &str) -> Result<()> {
         use base64::Engine;
 
-        let encoded = crate::credentials::vault_get(
-            RECOVERY_VAULT_SERVICE,
-            &self.key_id.to_string(),
-        )?
-        .context("recovery authentication key is unavailable")?;
+        let encoded =
+            crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &self.key_id.to_string())?
+                .context("recovery authentication key is unavailable")?;
         let mut decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
         let result = match <&[u8; 32]>::try_from(decoded.as_slice()) {
             Ok(key) => self.verify(id, key),
-            Err(_) => Err(anyhow::anyhow!("invalid recovery authentication key length")),
+            Err(_) => Err(anyhow::anyhow!(
+                "invalid recovery authentication key length"
+            )),
         };
         decoded.fill(0);
         result
@@ -792,7 +792,11 @@ impl RecoveryJournal {
             tracing::warn!("completed download recovery intent could not be cleared");
             return;
         }
-        let key_id = self.auth_key.lock().unwrap_or_else(|e| e.into_inner()).take();
+        let key_id = self
+            .auth_key
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
         if let Some(key_id) = key_id {
             if crate::credentials::vault_delete(RECOVERY_VAULT_SERVICE, &key_id.to_string())
                 .is_err()
