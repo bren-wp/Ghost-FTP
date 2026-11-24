@@ -326,6 +326,10 @@ impl Db {
         );
         conn.pragma_update(None, "synchronous", "FULL")
             .context("enable durable SQLite commits")?;
+        let synchronous: i64 = conn
+            .pragma_query_value(None, "synchronous", |row| row.get(0))
+            .context("verify SQLite durability mode")?;
+        anyhow::ensure!(synchronous >= 2, "SQLite FULL durability is unavailable");
         conn.pragma_update(None, "foreign_keys", "ON")
             .context("enable SQLite foreign keys")?;
         let foreign: i64 = conn
@@ -370,6 +374,73 @@ impl Db {
         #[cfg(not(windows))]
         let bytes = root.as_os_str().as_encoded_bytes();
         Ok(format!("{:x}", Sha256::digest(bytes)))
+    }
+
+    /// A conservative bootstrap sentinel, independent of SQLite and vault.
+    /// It never authorizes recovery; it only prevents reinitialization after
+    /// a previously initialized vault disappears. Caller holds recovery_lock.
+    pub(crate) fn recovery_vault_initialized(&self, create: bool) -> Result<bool> {
+        use std::io::{Read, Write};
+
+        const MARKER: &[u8] = b"ghostftp-recovery-vault-initialized-v1";
+        let root = self
+            .recovery_root
+            .as_ref()
+            .context("missing recovery root")?;
+        let path = root.join("ghostftp.recovery.initialized");
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(unix)]
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+            options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+        }
+        match options.open(&path) {
+            Ok(file) => {
+                let metadata = file.metadata()?;
+                anyhow::ensure!(
+                    metadata.is_file() && metadata.len() == MARKER.len() as u64,
+                    "invalid recovery initialization marker"
+                );
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    anyhow::ensure!(
+                        metadata.nlink() == 1 && metadata.mode() & 0o077 == 0,
+                        "unsafe recovery initialization marker"
+                    );
+                }
+                #[cfg(windows)]
+                {
+                    use std::os::windows::fs::MetadataExt;
+                    use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+                    anyhow::ensure!(
+                        metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+                        "reparse recovery initialization marker"
+                    );
+                }
+                let mut bytes = Vec::new();
+                file.take(MARKER.len() as u64 + 1).read_to_end(&mut bytes)?;
+                anyhow::ensure!(bytes == MARKER, "invalid recovery initialization marker");
+                Ok(true)
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && !create => Ok(false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                options.write(true).create_new(true);
+                #[cfg(unix)]
+                options.mode(0o600);
+                let mut file = options.open(&path)?;
+                file.write_all(MARKER)?;
+                file.sync_all()?;
+                #[cfg(unix)]
+                std::fs::File::open(root)?.sync_all()?;
+                Ok(true)
+            }
+            Err(error) => Err(error).context("open recovery initialization marker"),
+        }
     }
 
     /// Keep this file open through the entire promotion, including blocking

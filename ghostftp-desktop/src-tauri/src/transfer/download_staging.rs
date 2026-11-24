@@ -322,6 +322,32 @@ fn pin_download_parent(parent: &Path) -> Result<std::fs::File> {
         .context("pin common download parent directory")
 }
 
+// O_PATH handles cannot be fsynced. Open the same pinned directory via
+// openat(".") rather than resolving its original, potentially replaced path.
+#[cfg(target_os = "linux")]
+fn sync_recovery_directory(parent: &std::fs::File) -> Result<()> {
+    use std::os::fd::{AsRawFd, FromRawFd};
+
+    // SAFETY: parent is live; the relative name is a constant C string.
+    let fd = unsafe {
+        libc::openat(
+            parent.as_raw_fd(),
+            c".".as_ptr(),
+            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC,
+        )
+    };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error()).context("open recovery directory for sync");
+    }
+    // SAFETY: successful openat transfers ownership of this descriptor.
+    let directory = unsafe { std::fs::File::from_raw_fd(fd) };
+    anyhow::ensure!(
+        same_download_directory(parent, &directory)?,
+        "recovery directory sync identity mismatch"
+    );
+    directory.sync_all().context("persist recovery directory entries")
+}
+
 /// Hold the initially resolved directory for the lifetime of a download.
 /// Existing path-based backend I/O still needs identity checks at boundaries.
 pub(super) struct DownloadParentGuard {
@@ -1421,6 +1447,7 @@ impl GlobalRecoveryLedger {
                         Self::decode(&signed.payload)
                     }
                 })?;
+                db.recovery_vault_initialized(true)?;
                 if initialize && !ledger.sharded {
                     ledger.check_rows(db)?;
                     for row in db.download_recovery_snapshot()? {
@@ -1441,12 +1468,20 @@ impl GlobalRecoveryLedger {
                 Ok(ledger)
             }
             (None, None) => {
+                anyhow::ensure!(
+                    !db.recovery_vault_initialized(false)?,
+                    "initialized recovery vault is missing; refusing reinitialization"
+                );
                 let ledger = Self {
                     sharded: true,
                     ..Self::default()
                 };
                 ledger.check_rows(db)?;
                 if initialize {
+                    // Persist the denial marker before creating any vault state.
+                    // Interrupted bootstrap is intentionally manual-review only.
+                    db.recovery_vault_initialized(true)?;
+                    recovery_fault_checkpoint("vault_bootstrap_marked");
                     let mut key = [0u8; 32];
                     rand::rngs::OsRng.try_fill_bytes(&mut key)?;
                     let encoded = base64::engine::general_purpose::STANDARD.encode(key);
@@ -2798,6 +2833,11 @@ fn promote_pinned_download(
             };
             let original_reader = open_recovery_read(parent, target)?;
             let original_hash = recovery_file_hash(&original_reader, original_identity)?;
+            // Persist the existing file data and initial namespace before
+            // recording any intent that permits moving the original.
+            writer.sync_all().context("persist recovery staging data")?;
+            original_reader.sync_all().context("persist original recovery data")?;
+            sync_recovery_directory(parent)?;
             journal.begin(
                 (directory.dev(), directory.ino()),
                 stage_identity,
@@ -2810,6 +2850,8 @@ fn promote_pinned_download(
             .context("preserve existing local download target without overwriting a backup")?;
         recovery_fault_checkpoint("backup_renamed");
         if let Some(journal) = journal {
+            sync_recovery_directory(parent)?;
+            recovery_fault_checkpoint("backup_directory_synced");
             journal.advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)?;
         }
     }
@@ -2847,6 +2889,8 @@ fn promote_pinned_download(
                 Ok(()) => {
                     recovery_fault_checkpoint("rollback_restored");
                     if let Some(journal) = journal {
+                        sync_recovery_directory(parent)?;
+                        recovery_fault_checkpoint("rollback_directory_synced");
                         journal.advance(RecoveryPhase::RollbackPending, RecoveryPhase::RolledBack)?;
                     }
                     Err(error).context("download promotion failed; original target restored")
@@ -2863,6 +2907,11 @@ fn promote_pinned_download(
     recovery_fault_checkpoint("stage_published");
     if let Some(original) = original {
         if let Some(journal) = journal {
+            if sync_recovery_directory(parent).is_err() {
+                tracing::warn!("download published; directory durability uncertain; backup retained");
+                return Ok(());
+            }
+            recovery_fault_checkpoint("published_directory_synced");
             if journal
                 .advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted)
                 .is_err()
@@ -2895,6 +2944,11 @@ fn promote_pinned_download(
                 if removed == 0 {
                     recovery_fault_checkpoint("backup_removed");
                     if let Some(journal) = journal {
+                        if sync_recovery_directory(parent).is_err() {
+                            tracing::warn!("backup removal durability uncertain; recovery intent retained");
+                            return Ok(());
+                        }
+                        recovery_fault_checkpoint("cleanup_directory_synced");
                         journal.finish();
                     }
                 }
@@ -3941,6 +3995,29 @@ mod tests {
             std::fs::remove_dir_all(root).unwrap();
             eprintln!("recovery checkpoint {point} (native={native}): {:?}", started.elapsed());
         }
+    }
+
+    #[test]
+    fn initialized_vault_cannot_silently_bootstrap_after_complete_loss() {
+        let root = std::env::temp_dir().join(format!("ghostftp-vault-loss-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+        {
+            let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            GlobalRecoveryLedger::load(&db, true).unwrap();
+            let scope = db.recovery_scope().unwrap();
+            assert!(db.recovery_vault_initialized(false).unwrap());
+            crate::credentials::vault_delete_strict(RECOVERY_INDEX_SERVICE, &scope).unwrap();
+            crate::credentials::vault_delete_strict(RECOVERY_INDEX_KEY_SERVICE, &scope).unwrap();
+            assert!(GlobalRecoveryLedger::load(&db, false).is_err());
+            assert!(GlobalRecoveryLedger::load(&db, true).is_err());
+            assert!(crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)
+                .unwrap()
+                .is_none());
+        }
+        crate::credentials::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
