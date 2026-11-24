@@ -8,6 +8,7 @@
 - Serialize Site Manager profile actions, restrict conflicting edits, mask passwords on site changes and revalidate live sessions before deleting a profile.
 - Improve responsive header controls, keyboard focus indicators and accessible sorting and metadata controls.
 - Extend saved-site model, privacy and UI wiring regression coverage. Retain cross-platform build, security and real protocol gates.
+- Fix Agent configuration staging ownership on exclusive-open failure; preserve the original configuration and another writer's file. Guard Sites against mismatched selected/draft details and edits during save. Update the native Linux source contract for the extracted selector.
 
 ## 0.99.82 Preview — published 23 November 2026
 

@@ -108,7 +108,13 @@ test("Windows/Linux Sites shows real saved-profile cards with separate keyboard 
   assert.ok(sites.includes("const deletionTarget = confirmDeleteId"), "deletion must pin the originally confirmed profile");
   assert.ok(sites.includes("await deleteProfile(deletionTarget.id)"), "delete must await the pinned original profile, not a newly selected row");
   assert.ok(sites.includes('onConfirm={remove}'), "confirmation must use the guarded async remove callback");
-  assert.ok(sites.includes("profiles.filter("));
+  // The production selector now lives in a shared, separately exercised module.
+  const siteViewModel = read("ghostftp-desktop/src/lib/siteViewModel.ts");
+  assert.ok(sites.includes("filterAndSortSites(profiles, query, view, sortField, sortDirection, duplicateIds, connectedIds)"));
+  assert.ok(sites.includes("filtered.map((profile) => ("));
+  assert.ok(siteViewModel.includes("profiles.filter((profile) =>"));
+  assert.ok(siteViewModel.includes('view === "connected" && !connectedIds.has(profile.id)'));
+  assert.ok(sites.includes("connected={connectedIds.has(profile.id)}"));
   assert.ok(styles.includes(".ghost-site-row.is-selected"));
   assert.ok(styles.includes(".ghost-site-row-main:focus-visible"));
 });

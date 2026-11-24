@@ -88,3 +88,8 @@ assert.ok(ui.includes('revealedPasswordId === draft.id'));
 assert.ok(ui.includes('Disconnect this site before deleting it.'));
 assert.ok(ui.includes('aria-label="Clear site search"'));
 console.log("Sites connected filter, stable sorting, credential privacy and action guard regressions passed.");
+
+assert.ok(ui.includes("selected?.id === draft.id && revealedPasswordId === draft.id"), "password visibility must match both selected profile and draft");
+assert.ok(ui.includes("selected && draft && selected.id === draft.id ? ("), "never render an old profile's fields beside a newly selected site's actions");
+assert.ok(ui.includes('if (!draft || selected?.id !== draft.id || !editing || actionRef.current) return;'), "save must target the current editable draft");
+assert.ok(ui.includes('<fieldset disabled={Boolean(action)}'), "profile fields must not change during an in-flight save");

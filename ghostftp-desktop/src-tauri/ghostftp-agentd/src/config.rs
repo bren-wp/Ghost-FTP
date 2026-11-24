@@ -136,12 +136,16 @@ impl Config {
             use std::os::unix::fs::OpenOptionsExt;
             opts.mode(0o600);
         }
+        // A failed exclusive open means we do not own this path. Never
+        // unlink a concurrent writer's staging file (or a stale foreign file).
+        let mut out = opts
+            .open(&tmp)
+            .context("create private agent config staging")?;
         let result = (|| -> Result<()> {
-            let mut out = opts
-                .open(&tmp)
-                .context("create private agent config staging")?;
             out.write_all(&bytes).context("write staged agent config")?;
             out.sync_all().context("sync staged agent config")?;
+            // Close our handle before replacing the destination on Windows.
+            drop(out);
             std::fs::rename(&tmp, path).context("atomically replace agent config")?;
             #[cfg(unix)]
             std::fs::File::open(parent)?
@@ -253,6 +257,32 @@ mod security_tests {
         let grants = cfg.peer_permissions("public-A").unwrap();
         assert!(grants.read);
         assert!(!grants.write && !grants.delete && !grants.terminal);
+    }
+
+    #[test]
+    fn exclusive_staging_collision_preserves_config_and_foreign_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
+        let original = Config::default();
+        original.save(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let staged = path.with_extension(format!("json.{}.tmp", std::process::id()));
+        std::fs::write(&staged, b"another writer owns this file").unwrap();
+
+        let mut changed = Config::default();
+        changed.upsert_peer("new controller", "public-B");
+        assert!(changed.save(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        assert_eq!(
+            std::fs::read(&staged).unwrap(),
+            b"another writer owns this file"
+        );
+        assert!(Config::load(&path).unwrap().peers.is_empty());
+
+        std::fs::remove_file(&staged).unwrap();
+        changed.save(&path).unwrap();
+        assert!(Config::load(&path).unwrap().is_paired("public-B"));
+        assert!(!staged.exists());
     }
 
     #[test]

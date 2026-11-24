@@ -100,7 +100,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   };
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [revealedPasswordId, setRevealedPasswordId] = useState<string | null>(null);
-  const showPassword = draft !== null && revealedPasswordId === draft.id;
+
   const [addingMeta, setAddingMeta] = useState<"tag" | "folder" | null>(null);
   const [metaValue, setMetaValue] = useState("");
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
@@ -156,6 +156,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     : filtered.find((profile) => profile.id === selectedId) ?? filtered[0] ?? null;
   // Pin destructive confirmation to the originally chosen profile ID. A live
   // profile reload or filter change must never redirect deletion to another row.
+  const showPassword = draft !== null && selected?.id === draft.id && revealedPasswordId === draft.id;
   const deletionTarget = confirmDeleteId
     ? profiles.find((profile) => profile.id === confirmDeleteId) ?? null
     : null;
@@ -191,6 +192,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       return;
     }
     const profile = profiles.find((item) => item.id === id) ?? null;
+    setRevealedPasswordId(null);
+    setAddingMeta(null);
+    setMetaValue("");
     setSelectedId(id);
     setDraft(profile ? { ...profile } : null);
     setEditing(false);
@@ -205,7 +209,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   };
 
   const save = async () => {
-    if (!draft || action) return;
+    if (!draft || selected?.id !== draft.id || !editing || actionRef.current) return;
     const name = draft.name.trim();
     const host = draft.host.trim();
     const username = draft.username.trim();
@@ -508,7 +512,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           </section>
 
           <aside className="ghost-site-manager-details border-l border-border bg-[#071f35] p-4 overflow-y-auto">
-            {selected && draft ? (
+            {selected && draft && selected.id === draft.id ? (
               <>
                 <div className="ghost-site-details-title mb-3 flex min-h-9 items-center border-b border-border pb-2">
                   <strong className="text-[14px] text-accent">Connection Details</strong>
@@ -598,7 +602,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                   </div>
                 </div>
 
-                <div className="space-y-3 border-t border-border pt-4">
+                <fieldset disabled={Boolean(action)} className="min-w-0 space-y-3 border-t border-border pt-4">
                   <EditField label="Site Name" editing={editing}>
                     <input value={draft.name} readOnly={!editing} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
                   </EditField>
@@ -728,7 +732,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                       readOnly
                     />
                   </EditField>
-                </div>
+                </fieldset>
 
                 <div className="mt-5 flex gap-2">
                   <button
