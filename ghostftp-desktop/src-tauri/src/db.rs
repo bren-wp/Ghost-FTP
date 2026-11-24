@@ -705,6 +705,20 @@ impl Db {
         .map_err(Into::into)
     }
 
+    /// Prevent a different transfer from knowingly publishing into an
+    /// unresolved backup transaction's destination. This is a preflight
+    /// check; the unique index separately serializes journal insertion.
+    pub(crate) fn download_recovery_check_destination(&self, key: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let pending: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM download_recovery WHERE destination_key = ?1)",
+            [key],
+            |row| row.get(0),
+        )?;
+        anyhow::ensure!(!pending, "destination has an unresolved recovery intent");
+        Ok(())
+    }
+
     /// Never use transfer-history pruning for recovery intents.
     pub fn download_recovery_list(&self) -> Result<Vec<(String, String)>> {
         let conn = self.conn.lock().unwrap();
@@ -1397,6 +1411,8 @@ mod tests {
             assert!(db
                 .download_recovery_begin("different", "replacement", "destination")
                 .is_err());
+            assert!(db.download_recovery_check_destination("destination").is_err());
+            assert!(db.download_recovery_check_destination("other").is_ok());
             assert!(db.download_recovery_finish("pending").is_err());
             assert!(db
                 .download_recovery_transition(
