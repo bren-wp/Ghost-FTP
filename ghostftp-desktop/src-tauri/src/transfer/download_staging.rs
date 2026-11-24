@@ -940,32 +940,9 @@ pub(super) async fn commit_verified_delta_output(
     final_path: &Path,
     expected_bytes: u64,
 ) -> Result<()> {
-    verify_staged_download_bytes(staging, expected_bytes).await?;
-    match tokio::fs::symlink_metadata(final_path).await {
-        Ok(metadata) => {
-            anyhow::ensure!(
-                metadata.file_type().is_file(),
-                "delta download destination must be a real file"
-            );
-            tokio::fs::rename(staging, final_path)
-                .await
-                .with_context(|| {
-                    format!(
-                        "atomically replace verified delta target {}",
-                        final_path.display()
-                    )
-                })
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            promote_staged_download_noreplace(staging, final_path).await
-        }
-        Err(error) => Err(error).with_context(|| {
-            format!(
-                "inspect delta download destination {}",
-                final_path.display()
-            )
-        }),
-    }
+    let guard = DownloadParentGuard::open(final_path)?;
+    let verified = verify_staged_download_bytes(staging, expected_bytes).await?;
+    guard.promote_delta(staging, final_path, &verified).await
 }
 
 #[cfg(test)]
@@ -997,6 +974,34 @@ mod tests {
         assert_eq!(tokio::fs::read(&moved).await.unwrap(), b"good");
         assert!(!download_backup_path(&target, "test").exists());
         drop(verified);
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[tokio::test]
+    async fn delta_promotion_rejects_replaced_verified_output() {
+        let root = std::env::temp_dir().join(format!("ghostftp-delta-identity-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let target = root.join("target");
+        let staging = root.join("stage");
+        let moved = root.join("verified");
+        tokio::fs::write(&target, b"original").await.unwrap();
+        tokio::fs::write(&staging, b"good").await.unwrap();
+        let guard = DownloadParentGuard::open(&target).unwrap();
+        let verified = verify_staged_download_bytes(&staging, 4).await.unwrap();
+        tokio::fs::rename(&staging, &moved).await.unwrap();
+        tokio::fs::write(&staging, b"fake").await.unwrap();
+
+        assert!(guard
+            .promote_delta(&staging, &target, &verified)
+            .await
+            .is_err());
+        guard.cleanup_verified(&staging, &verified).await;
+        assert_eq!(tokio::fs::read(&target).await.unwrap(), b"original");
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"fake");
+        assert_eq!(tokio::fs::read(&moved).await.unwrap(), b"good");
+        drop(verified);
+        drop(guard);
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
