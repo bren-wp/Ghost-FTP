@@ -1697,12 +1697,7 @@ mod tests {
         )
         .unwrap();
         assert!(db
-            .download_recovery_restore_missing(
-                "id",
-                RecoveryPhase::Prepared,
-                "other",
-                "stale",
-            )
+            .download_recovery_restore_missing("id", RecoveryPhase::Prepared, "other", "stale",)
             .is_err());
         assert!(db
             .download_recovery_restore_missing(

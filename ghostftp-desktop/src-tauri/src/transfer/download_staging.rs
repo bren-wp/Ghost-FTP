@@ -831,8 +831,14 @@ fn read_gc_keys(scope: &str, key: &[u8; 32]) -> Result<RecoveryGcKeys> {
 fn write_gc_keys(scope: &str, key: &[u8; 32], keys: &RecoveryGcKeys) -> Result<()> {
     use base64::Engine;
 
-    anyhow::ensure!(keys.len() <= RECOVERY_GC_KEY_LIMIT, "recovery key GC queue full");
-    let bytes: Vec<u8> = keys.iter().flat_map(|id| id.as_bytes().iter().copied()).collect();
+    anyhow::ensure!(
+        keys.len() <= RECOVERY_GC_KEY_LIMIT,
+        "recovery key GC queue full"
+    );
+    let bytes: Vec<u8> = keys
+        .iter()
+        .flat_map(|id| id.as_bytes().iter().copied())
+        .collect();
     let account = format!("{scope}:keys");
     let payload = base64::engine::general_purpose::STANDARD.encode(bytes);
     let signed = AuthenticatedRecovery::seal(&account, payload, Uuid::nil(), key)?;
@@ -903,7 +909,10 @@ fn read_gc_page(scope: &str, page: usize, key: &[u8; 32]) -> Result<RecoveryGcPa
 fn write_gc_page(scope: &str, page: usize, key: &[u8; 32], entries: &RecoveryGcPage) -> Result<()> {
     use base64::Engine;
 
-    anyhow::ensure!(entries.len() <= RECOVERY_GC_PAGE_SIZE, "recovery GC page full");
+    anyhow::ensure!(
+        entries.len() <= RECOVERY_GC_PAGE_SIZE,
+        "recovery GC page full"
+    );
     let mut bytes = Vec::new();
     for (digest, length) in entries {
         bytes.extend_from_slice(digest);
@@ -926,7 +935,10 @@ fn write_gc_page(scope: &str, page: usize, key: &[u8; 32], entries: &RecoveryGcP
 // Register ownership before writing any chunk. A bounded authenticated queue
 // retains interrupted writes and superseded objects, even after process death.
 fn register_recovery_gc(scope: &str, digest: [u8; 32], length: usize) -> Result<()> {
-    anyhow::ensure!(length > 0 && length <= RECOVERY_BLOB_LIMIT, "invalid GC length");
+    anyhow::ensure!(
+        length > 0 && length <= RECOVERY_BLOB_LIMIT,
+        "invalid GC length"
+    );
     let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, scope)?
         .context("recovery index key unavailable")?;
     GlobalRecoveryLedger::with_key(&key, |key| {
@@ -956,7 +968,10 @@ fn delete_recovery_blob(scope: &str, digest: &[u8; 32], length: usize) -> Result
     if let Some(marker) =
         crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &length_account)?
     {
-        anyhow::ensure!(marker.parse::<usize>()? == length, "recovery GC length mismatch");
+        anyhow::ensure!(
+            marker.parse::<usize>()? == length,
+            "recovery GC length mismatch"
+        );
         anyhow::ensure!(
             get_recovery_blob(scope, digest)?.len() == length,
             "recovery GC blob verification failed"
@@ -1013,8 +1028,7 @@ fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
             None => crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &account, value)?,
         }
         anyhow::ensure!(
-            crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?
-                .as_deref()
+            crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?.as_deref()
                 == Some(value),
             "recovery blob readback mismatch"
         );
@@ -1588,10 +1602,7 @@ impl GlobalRecoveryLedger {
                 "global recovery index capacity reached"
             );
             let stored = Self::store_record(db, id, phase, destination, payload)?;
-            anyhow::ensure!(
-                stored == proof,
-                "redundant recovery record digest mismatch"
-            );
+            anyhow::ensure!(stored == proof, "redundant recovery record digest mismatch");
             self.entries.insert(identity, proof);
         } else {
             self.entries.remove(&identity);
@@ -2303,7 +2314,13 @@ impl DownloadParentGuard {
             ledger.reconcile_metadata(db)?;
             ledger.check_rows(db)?;
         }
-        GlobalRecoveryLedger::collect_garbage(db)?;
+        if GlobalRecoveryLedger::collect_garbage(db).is_err() {
+            // An exact SQL row can still have a terminal anchor after a
+            // crash. Retry authenticated metadata reconciliation first.
+            ledger.reconcile_metadata(db)?;
+            ledger.check_rows(db)?;
+            GlobalRecoveryLedger::collect_garbage(db)?;
+        }
         #[cfg(unix)]
         let identity = {
             use std::os::unix::fs::MetadataExt;
@@ -3676,6 +3693,22 @@ mod tests {
             {
                 let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
                 let _lock = db.recovery_lock().unwrap();
+                let scope = db.recovery_scope().unwrap();
+                let encoded = crate::credentials::vault_get_strict(
+                    RECOVERY_INDEX_KEY_SERVICE,
+                    &scope,
+                )
+                .unwrap()
+                .unwrap();
+                let (candidates, key_candidates) =
+                    GlobalRecoveryLedger::with_key(&encoded, |key| {
+                        let mut candidates = RecoveryGcPage::new();
+                        for page in 0..RECOVERY_GC_PAGES {
+                            candidates.extend(read_gc_page(&scope, page, key)?);
+                        }
+                        Ok((candidates, read_gc_keys(&scope, key)?))
+                    })
+                    .unwrap();
                 let mut ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
                 ledger.reconcile_metadata(&db).unwrap();
                 ledger.check_rows(&db).unwrap();
@@ -3685,6 +3718,55 @@ mod tests {
                 ledger.reconcile_metadata(&db).unwrap();
                 GlobalRecoveryLedger::collect_garbage(&db).unwrap();
                 ledger.check_rows(&db).unwrap();
+                let mut live: std::collections::BTreeSet<_> =
+                    ledger.entries.values().copied().collect();
+                live.extend(ledger.shard_bytes().iter().map(|bytes| recovery_digest(bytes)));
+                for (digest, length) in candidates {
+                    if live.contains(&digest) {
+                        get_recovery_blob(&scope, &digest).unwrap();
+                        continue;
+                    }
+                    let length_account = recovery_blob_account(&scope, &digest, "length");
+                    assert!(crate::credentials::vault_get_strict(
+                        RECOVERY_BLOB_SERVICE,
+                        &length_account,
+                    )
+                    .unwrap()
+                    .is_none());
+                    for part in 0..length.div_ceil(RECOVERY_BLOB_CHUNK) {
+                        let account = recovery_blob_account(&scope, &digest, &part.to_string());
+                        assert!(crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)
+                            .unwrap()
+                            .is_none());
+                    }
+                }
+                let live_keys: RecoveryGcKeys = db
+                    .download_recovery_snapshot()
+                    .unwrap()
+                    .iter()
+                    .map(|row| {
+                        serde_json::from_str::<AuthenticatedRecovery>(&row.payload)
+                            .unwrap()
+                            .key_id
+                    })
+                    .collect();
+                for id in key_candidates {
+                    if !live_keys.contains(&id) {
+                        for service in [RECOVERY_VAULT_SERVICE, RECOVERY_ANCHOR_SERVICE] {
+                            assert!(crate::credentials::vault_get_strict(service, &id.to_string())
+                                .unwrap()
+                                .is_none());
+                        }
+                    }
+                }
+                GlobalRecoveryLedger::with_key(&encoded, |key| {
+                    for page in 0..RECOVERY_GC_PAGES {
+                        assert!(read_gc_page(&scope, page, key)?.is_empty());
+                    }
+                    assert!(read_gc_keys(&scope, key)?.is_empty());
+                    Ok(())
+                })
+                .unwrap();
                 assert_eq!(
                     before,
                     [&stage, &target, &backup].map(|path| std::fs::read(path).ok()),
@@ -3740,6 +3822,47 @@ mod tests {
             crate::credentials::clear_recovery_test_vault();
             std::fs::remove_dir_all(root).unwrap();
         }
+    }
+
+    #[test]
+    fn recovery_gc_rejects_tampered_candidates_without_deleting_objects() {
+        let root = std::env::temp_dir().join(format!("ghostftp-gc-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+        {
+            let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            GlobalRecoveryLedger::load(&db, true).unwrap();
+            let scope = db.recovery_scope().unwrap();
+            let bytes = b"unreachable registered object";
+            let digest = put_recovery_blob(&scope, bytes).unwrap();
+            let account = gc_page_account(&scope, 0);
+            let stored = crate::credentials::vault_get_strict(RECOVERY_GC_SERVICE, &account)
+                .unwrap()
+                .unwrap();
+            let mut signed: AuthenticatedRecovery = serde_json::from_str(&stored).unwrap();
+            signed.tag[0] ^= 1;
+            crate::credentials::vault_set(
+                RECOVERY_GC_SERVICE,
+                &account,
+                &serde_json::to_string(&signed).unwrap(),
+            )
+            .unwrap();
+            assert!(GlobalRecoveryLedger::collect_garbage(&db).is_err());
+            assert_eq!(get_recovery_blob(&scope, &digest).unwrap(), bytes);
+            crate::credentials::vault_set(RECOVERY_GC_SERVICE, &account, &stored).unwrap();
+            crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, "foreign-account", "keep").unwrap();
+            GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+            assert!(get_recovery_blob(&scope, &digest).is_err());
+            assert_eq!(
+                crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, "foreign-account")
+                    .unwrap()
+                    .as_deref(),
+                Some("keep")
+            );
+        }
+        crate::credentials::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -3881,13 +4004,9 @@ mod tests {
             .append_phase("id", RecoveryPhase::Prepared, &key)
             .unwrap();
         let old = serde_json::to_string(&signed).unwrap();
-        let anchor = AuthenticatedRecovery::seal(
-            "id",
-            recovery_anchor_payload(&old, false),
-            key_id,
-            &key,
-        )
-        .unwrap();
+        let anchor =
+            AuthenticatedRecovery::seal("id", recovery_anchor_payload(&old, false), key_id, &key)
+                .unwrap();
         signed
             .advance_signed(
                 "id",
