@@ -19,7 +19,65 @@ const MAX_SECRET_BYTES: usize = 8191;
 // A locked/unresponsive Secret Service must not indefinitely park a desktop
 // command or leave a dangling credential helper on Windows/Linux clients.
 const SECRET_TOOL_TIMEOUT: Duration = Duration::from_secs(30);
-const CHILD_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const CHILD_POLL_MIN_INTERVAL: Duration = Duration::from_millis(1);
+const CHILD_POLL_MAX_INTERVAL: Duration = Duration::from_millis(20);
+
+fn poll_delay(interval: Duration, remaining: Duration) -> Duration {
+    interval.min(remaining)
+}
+
+fn next_poll_interval(interval: Duration) -> Duration {
+    (interval * 2).min(CHILD_POLL_MAX_INTERVAL)
+}
+
+// Opt-in, test-only aggregate process timing. No credential bytes, identifiers
+// or command arguments are recorded. Normal production builds retain no samples.
+#[cfg(test)]
+std::thread_local! {
+    static HELPER_PROFILE: std::cell::RefCell<Option<[Vec<u128>; 3]>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn start_linux_helper_profile() {
+    HELPER_PROFILE.with(|profile| {
+        *profile.borrow_mut() = Some(std::array::from_fn(|_| Vec::new()));
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn finish_linux_helper_profile() {
+    HELPER_PROFILE.with(|profile| {
+        if let Some(mut groups) = profile.borrow_mut().take() {
+            for (operation, samples) in ["lookup", "store", "clear"].into_iter().zip(&mut groups) {
+                if samples.is_empty() {
+                    continue;
+                }
+                samples.sort_unstable();
+                let count = samples.len();
+                let total: u128 = samples.iter().sum();
+                eprintln!(
+                    "recovery_linux_helper operation={operation} calls={count} total_us={total} median_us={} max_us={}",
+                    samples[count / 2],
+                    samples[count - 1]
+                );
+            }
+        }
+    });
+}
+
+fn profile_helper(_operation: usize, run: impl FnOnce() -> Result<Output>) -> Result<Output> {
+    #[cfg(test)]
+    let started = Instant::now();
+    let result = run();
+    #[cfg(test)]
+    HELPER_PROFILE.with(|profile| {
+        if let Some(groups) = profile.borrow_mut().as_mut() {
+            groups[_operation].push(started.elapsed().as_micros());
+        }
+    });
+    result
+}
 
 // Drain both helper pipes before exit, or the OS pipe buffer can stall the child.
 // Refuse an unbounded amount of subprocess output.
@@ -60,6 +118,7 @@ fn wait_bounded(mut child: Child, timeout: Duration) -> Result<Output> {
             .take()
             .map(|pipe| scope.spawn(move || read_bounded(pipe, MAX_HELPER_STDERR_BYTES)));
 
+        let mut interval = CHILD_POLL_MIN_INTERVAL;
         let status: Result<std::process::ExitStatus> = loop {
             match child.try_wait() {
                 Ok(Some(status)) => break Ok(status),
@@ -70,7 +129,13 @@ fn wait_bounded(mut child: Child, timeout: Duration) -> Result<Output> {
                         "Linux Secret Service timed out; unlock the keyring"
                     ));
                 }
-                Ok(None) => std::thread::sleep(CHILD_POLL_INTERVAL),
+                Ok(None) => {
+                    std::thread::sleep(poll_delay(
+                        interval,
+                        timeout.saturating_sub(started.elapsed()),
+                    ));
+                    interval = next_poll_interval(interval);
+                }
                 Err(_) => {
                     let _ = child.kill();
                     let _ = child.wait();
@@ -142,10 +207,12 @@ fn command(operation: &str, service: &str, account: &str) -> Command {
 }
 
 pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
-    let child = command("lookup", service, account)
-        .spawn()
-        .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
-    let output = wait_bounded(child, SECRET_TOOL_TIMEOUT)?;
+    let output = profile_helper(0, || {
+        let child = command("lookup", service, account)
+            .spawn()
+            .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
+        wait_bounded(child, SECRET_TOOL_TIMEOUT)
+    })?;
     if output.status.success() {
         if output.stdout.len() > MAX_SECRET_BYTES {
             return Err(anyhow!(
@@ -186,13 +253,13 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let child = command.spawn().map_err(|_| {
-        anyhow!("Linux Secret Service client is unavailable; install libsecret-tools")
+    let output = profile_helper(1, || {
+        let child = command.spawn().map_err(|_| {
+            anyhow!("Linux Secret Service client is unavailable; install libsecret-tools")
+        })?;
+        write_then_wait_bounded(child, secret.as_bytes(), SECRET_TOOL_TIMEOUT)
     })?;
-    if !write_then_wait_bounded(child, secret.as_bytes(), SECRET_TOOL_TIMEOUT)?
-        .status
-        .success()
-    {
+    if !output.status.success() {
         return Err(anyhow!(
             "Linux Secret Service refused to save the credential"
         ));
@@ -204,10 +271,12 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
 }
 
 pub fn remove(service: &str, account: &str) -> Result<()> {
-    let child = command("clear", service, account)
-        .spawn()
-        .map_err(|_| anyhow!("Linux Secret Service client unavailable during deletion"))?;
-    let output = wait_bounded(child, SECRET_TOOL_TIMEOUT)?;
+    let output = profile_helper(2, || {
+        let child = command("clear", service, account)
+            .spawn()
+            .map_err(|_| anyhow!("Linux Secret Service client unavailable during deletion"))?;
+        wait_bounded(child, SECRET_TOOL_TIMEOUT)
+    })?;
     if !output.status.success() {
         return Err(anyhow!("Linux Secret Service refused credential deletion"));
     }
@@ -222,6 +291,21 @@ pub fn remove(service: &str, account: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn adaptive_polling_is_capped_and_respects_remaining_deadline() {
+        let mut interval = CHILD_POLL_MIN_INTERVAL;
+        for expected in [1, 2, 4, 8, 16, 20, 20] {
+            assert_eq!(interval, Duration::from_millis(expected));
+            interval = next_poll_interval(interval);
+        }
+        assert_eq!(
+            poll_delay(interval, Duration::from_millis(3)),
+            Duration::from_millis(3)
+        );
+        assert_eq!(poll_delay(interval, Duration::ZERO), Duration::ZERO);
+    }
+
     #[test]
     fn invalid_secret_inputs_are_rejected_before_launching_any_process() {
         assert!(store("service", "account", "").is_err());
