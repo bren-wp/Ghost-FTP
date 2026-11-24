@@ -144,11 +144,50 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
         "download staging size mismatch: counted {transferred} bytes, stored {}",
         metadata.len()
     );
-    let file = tokio::fs::OpenOptions::new()
-        .write(true)
+    let mut options = tokio::fs::OpenOptions::new();
+    options.write(true);
+    #[cfg(unix)]
+    options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    #[cfg(windows)]
+    options.custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT);
+    let file = options
         .open(staging)
         .await
         .context("open download staging for durability check")?;
+    let opened = file
+        .metadata()
+        .await
+        .context("inspect opened download staging")?;
+    anyhow::ensure!(
+        opened.file_type().is_file() && opened.len() == transferred,
+        "opened download staging changed type or size"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        anyhow::ensure!(
+            opened.dev() == metadata.dev() && opened.ino() == metadata.ino(),
+            "download staging was replaced before durability check"
+        );
+        anyhow::ensure!(
+            opened.nlink() == 1,
+            "download staging must not have additional hard links"
+        );
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+        anyhow::ensure!(
+            opened.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+            "download staging must not be a reparse point"
+        );
+        anyhow::ensure!(
+            opened.creation_time() == metadata.creation_time()
+                && opened.last_write_time() == metadata.last_write_time(),
+            "download staging metadata changed before durability check"
+        );
+    }
     file.sync_all()
         .await
         .context("sync completed download staging before promotion")?;
@@ -409,6 +448,28 @@ mod tests {
             tokio::fs::read(&valuable).await.unwrap(),
             b"not transferred"
         );
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn hard_linked_staging_must_not_replace_existing_destination() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-staging-hardlink-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let original = root.join("existing.bin");
+        let unrelated = root.join("unrelated.bin");
+        let staging = root.join("staged.part");
+        tokio::fs::write(&original, b"original").await.unwrap();
+        tokio::fs::write(&unrelated, b"unrelated").await.unwrap();
+        tokio::fs::hard_link(&unrelated, &staging).await.unwrap();
+
+        assert!(commit_verified_delta_output(&staging, &original, 9)
+            .await
+            .is_err());
+        assert_eq!(tokio::fs::read(&original).await.unwrap(), b"original");
+        assert_eq!(tokio::fs::read(&unrelated).await.unwrap(), b"unrelated");
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"unrelated");
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
