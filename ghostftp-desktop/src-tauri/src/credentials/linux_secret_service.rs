@@ -422,6 +422,46 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires an isolated unlocked native Secret Service"]
+    fn native_strict_delete_retains_verified_absence_with_two_lookups() {
+        assert_eq!(
+            std::env::var("GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN")
+                .ok()
+                .as_deref(),
+            Some("disposable-fixtures")
+        );
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-delete-bench-{}",
+            uuid::Uuid::new_v4()
+        ));
+        super::super::configure_native_recovery_test_vault(root.clone(), None);
+        let result = std::panic::catch_unwind(|| {
+            let service = "com.ghostftp.download-recovery.v1";
+            let account = uuid::Uuid::new_v4().to_string();
+            super::super::vault_set(service, &account, "test-only-value").unwrap();
+            for expected_clears in [1, 0] {
+                start_linux_helper_profile();
+                super::super::vault_delete_strict(service, &account).unwrap();
+                HELPER_PROFILE.with(|profile| {
+                    let profile = profile.borrow();
+                    let profile = profile.as_ref().unwrap();
+                    assert_eq!(profile.operations[0].len(), 2);
+                    assert_eq!(profile.operations[1].len(), 0);
+                    assert_eq!(profile.operations[2].len(), expected_clears);
+                });
+                finish_linux_helper_profile();
+                assert!(lookup(service, &account).unwrap().is_none());
+            }
+        });
+        super::super::cleanup_native_recovery_test_vault(&root).unwrap();
+        super::super::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
+        if let Err(error) = result {
+            std::panic::resume_unwind(error);
+        }
+    }
+
+    #[test]
     fn adaptive_polling_is_capped_and_respects_remaining_deadline() {
         let mut interval = CHILD_POLL_MIN_INTERVAL;
         for expected in [1, 2, 4, 8, 16, 20, 20] {
