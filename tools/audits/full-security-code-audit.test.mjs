@@ -149,7 +149,11 @@ test("native desktop upload/download integrity guards are required across SFTP a
     'completed_transfer_size(transfer.size, transfer.transferred).map(|_| ())',
     'sync SFTP download staging file',
     'sync FTP download staging file',
-    'verify_staged_download_bytes(&working_path, record.transferred)',
+    'verify_download_writer(&writer, record.transferred).await',
+    '.promote(&working_path, &final_path, &id, allow_replace, &writer)',
+    'verify_download_writer(output, size).await?',
+    '.promote_delta(&out_path, local_path, output)',
+    'original_download_writer_survives_path_substitution()',
     'every_protocol_download_staging_requires_exact_bytes_and_durable_file()',
     'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()',
     'transfer.error = Some(safe_transfer_failure(&error).to_string())',
@@ -169,6 +173,7 @@ test("native desktop upload/download integrity guards are required across SFTP a
       ['verify_committed_length("FTP download"', 'fn ftp_ftps_sftp_downloads_cannot_confirm_truncated_or_oversized_streams()',
          'remote_errors_never_persist_authorization_headers_or_signed_urls()'].includes(guard) ? httpTests
       : ['every_protocol_download_staging_requires_exact_bytes_and_durable_file()',
+         'original_download_writer_survives_path_substitution()',
          'canceled_transfer_is_never_resurrected_by_late_completion_or_progress()',
          'completed_row_and_sqlite_ledger_reject_stale_progress_after_success()'].includes(guard) ? transferTests
       : transfer
