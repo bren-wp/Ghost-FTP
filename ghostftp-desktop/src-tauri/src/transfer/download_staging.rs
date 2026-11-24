@@ -795,6 +795,71 @@ const RECOVERY_INDEX_LIMIT: usize = 128;
 const RECOVERY_BLOB_CHUNK: usize = 720;
 const RECOVERY_BLOB_LIMIT: usize = 256 * 1024;
 const RECOVERY_GC_SERVICE: &str = "com.ghostftp.download-recovery-gc.v1";
+const RECOVERY_GC_KEY_SERVICE: &str = "com.ghostftp.download-recovery-gc-keys.v1";
+const RECOVERY_GC_KEY_LIMIT: usize = 32;
+
+type RecoveryGcKeys = std::collections::BTreeSet<Uuid>;
+
+fn read_gc_keys(scope: &str, key: &[u8; 32]) -> Result<RecoveryGcKeys> {
+    use base64::Engine;
+
+    let account = format!("{scope}:keys");
+    let Some(stored) = crate::credentials::vault_get_strict(RECOVERY_GC_KEY_SERVICE, &account)?
+    else {
+        return Ok(RecoveryGcKeys::new());
+    };
+    anyhow::ensure!(stored.len() <= 1200, "recovery key GC page too large");
+    let signed: AuthenticatedRecovery = serde_json::from_str(&stored)?;
+    signed.verify(&account, key)?;
+    anyhow::ensure!(
+        signed.key_id == Uuid::nil() && signed.phases.is_empty(),
+        "invalid recovery key GC page"
+    );
+    let bytes = base64::engine::general_purpose::STANDARD.decode(&signed.payload)?;
+    anyhow::ensure!(
+        bytes.len() % 16 == 0 && bytes.len() <= RECOVERY_GC_KEY_LIMIT * 16,
+        "invalid recovery key GC page size"
+    );
+    let mut keys = RecoveryGcKeys::new();
+    for chunk in bytes.chunks_exact(16) {
+        let id = Uuid::from_slice(chunk)?;
+        anyhow::ensure!(!id.is_nil() && keys.insert(id), "invalid recovery GC key ID");
+    }
+    Ok(keys)
+}
+
+fn write_gc_keys(scope: &str, key: &[u8; 32], keys: &RecoveryGcKeys) -> Result<()> {
+    use base64::Engine;
+
+    anyhow::ensure!(keys.len() <= RECOVERY_GC_KEY_LIMIT, "recovery key GC queue full");
+    let bytes: Vec<u8> = keys.iter().flat_map(|id| id.as_bytes().iter().copied()).collect();
+    let account = format!("{scope}:keys");
+    let payload = base64::engine::general_purpose::STANDARD.encode(bytes);
+    let signed = AuthenticatedRecovery::seal(&account, payload, Uuid::nil(), key)?;
+    let encoded = serde_json::to_string(&signed)?;
+    anyhow::ensure!(encoded.len() <= 1200, "recovery key GC page too large");
+    crate::credentials::vault_set(RECOVERY_GC_KEY_SERVICE, &account, &encoded)?;
+    anyhow::ensure!(
+        crate::credentials::vault_get_strict(RECOVERY_GC_KEY_SERVICE, &account)?.as_deref()
+            == Some(encoded.as_str()),
+        "recovery key GC readback mismatch"
+    );
+    Ok(())
+}
+
+fn register_recovery_gc_key(scope: &str, id: Uuid) -> Result<()> {
+    anyhow::ensure!(!id.is_nil(), "invalid recovery key ID");
+    let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, scope)?
+        .context("recovery index key unavailable")?;
+    GlobalRecoveryLedger::with_key(&key, |key| {
+        let mut keys = read_gc_keys(scope, key)?;
+        if keys.insert(id) {
+            write_gc_keys(scope, key, &keys)?;
+        }
+        recovery_fault_checkpoint("key_registered");
+        Ok(())
+    })
+}
 const RECOVERY_GC_PAGES: usize = 4;
 const RECOVERY_GC_PAGE_SIZE: usize = 12;
 
@@ -1246,6 +1311,7 @@ impl GlobalRecoveryLedger {
                     phase == RecoveryPhase::CleanupPending && (row.is_none() || exact),
                     "unexpected terminal recovery record"
                 );
+                register_recovery_gc_key(&scope, signed.key_id)?;
                 if exact {
                     db.download_recovery_finish_checked(&id, &destination, &envelope)?;
                 }
@@ -1255,7 +1321,7 @@ impl GlobalRecoveryLedger {
                     Some((phase.as_str(), &destination, &envelope)),
                     None,
                 )?;
-                // Keep terminal credentials for separate verified orphan cleanup.
+                // The authenticated key GC queue survives a crash after root retirement.
                 continue;
             }
             if anchor == RecoveryAnchorState::NeedsAdvance {
@@ -1420,7 +1486,8 @@ impl GlobalRecoveryLedger {
             let pages = (0..RECOVERY_GC_PAGES)
                 .map(|page| read_gc_page(&scope, page, key))
                 .collect::<Result<Vec<_>>>()?;
-            if pages.iter().all(RecoveryGcPage::is_empty) {
+            let keys = read_gc_keys(&scope, key)?;
+            if pages.iter().all(RecoveryGcPage::is_empty) && keys.is_empty() {
                 return Ok(());
             }
             let ledger = Self::load(db, false)?;
@@ -1431,6 +1498,7 @@ impl GlobalRecoveryLedger {
             }
             ledger.check_rows(db)?;
             let mut live = std::collections::BTreeSet::new();
+            let mut live_keys = RecoveryGcKeys::new();
             for shard in ledger.shard_bytes() {
                 live.insert(recovery_digest(&shard));
             }
@@ -1440,6 +1508,7 @@ impl GlobalRecoveryLedger {
                     signed.authenticate(&row.id, &row.payload)?.as_str() == row.phase,
                     "recovery GC requires current authenticated rows"
                 );
+                live_keys.insert(signed.key_id);
                 let (_, proof) = recovery_index_entry(
                     &row.id,
                     &row.phase,
@@ -1462,6 +1531,20 @@ impl GlobalRecoveryLedger {
                 // supersession registers their digest again before publication.
                 write_gc_page(&scope, page, key, &RecoveryGcPage::new())?;
                 recovery_fault_checkpoint("gc_page_cleared");
+            }
+            if !keys.is_empty() {
+                for id in keys {
+                    if !live_keys.contains(&id) {
+                        let account = id.to_string();
+                        // Revoke the authentication key before the anchor.
+                        // An interrupted deletion cannot reauthorize a row.
+                        crate::credentials::vault_delete_strict(RECOVERY_VAULT_SERVICE, &account)?;
+                        recovery_fault_checkpoint("gc_key_removed");
+                        crate::credentials::vault_delete_strict(RECOVERY_ANCHOR_SERVICE, &account)?;
+                        recovery_fault_checkpoint("gc_anchor_removed");
+                    }
+                }
+                write_gc_keys(&scope, key, &RecoveryGcKeys::new())?;
             }
             Ok(())
         })
@@ -1704,11 +1787,12 @@ impl AuthenticatedRecovery {
         self.append_phase(id, to, key)
     }
 
-    fn create(id: &str, payload: String) -> Result<Self> {
+    fn create(scope: &str, id: &str, payload: String) -> Result<Self> {
         use base64::Engine;
         use rand::RngCore;
 
         let key_id = Uuid::new_v4();
+        register_recovery_gc_key(scope, key_id)?;
         let account = key_id.to_string();
         let mut key = [0u8; 32];
         rand::rngs::OsRng.try_fill_bytes(&mut key)?;
@@ -1717,6 +1801,7 @@ impl AuthenticatedRecovery {
             signed.append_phase(id, RecoveryPhase::Prepared, &key)?;
             let encoded = base64::engine::general_purpose::STANDARD.encode(key);
             crate::credentials::vault_set(RECOVERY_VAULT_SERVICE, &account, &encoded)?;
+            recovery_fault_checkpoint("transaction_key_written");
             let readback = crate::credentials::vault_get_strict(RECOVERY_VAULT_SERVICE, &account)?
                 .context("recovery authentication key is missing after creation")?;
             anyhow::ensure!(readback == encoded, "recovery key readback mismatch");
@@ -1951,7 +2036,7 @@ impl RecoveryJournal {
         let mut ledger = GlobalRecoveryLedger::load(&self.db, true)?;
         ledger.check_rows(&self.db)?;
         GlobalRecoveryLedger::collect_garbage(&self.db)?;
-        let signed = AuthenticatedRecovery::create(&self.id, payload)?;
+        let signed = AuthenticatedRecovery::create(&self.db.recovery_scope()?, &self.id, payload)?;
         let stored = serde_json::to_string(&signed)?;
         // Index first, transaction anchor second, SQLite third. Any interrupted
         // write leaves a detectable mismatch before filesystem mutation.
@@ -2126,6 +2211,7 @@ impl RecoveryJournal {
                 destination,
                 payload,
             )?;
+            register_recovery_gc_key(&self.db.recovery_scope()?, signed.key_id)?;
             signed.store_anchor(&self.id, payload, true)
         })();
         if terminal.is_err() {
@@ -2158,22 +2244,8 @@ impl RecoveryJournal {
         if GlobalRecoveryLedger::collect_garbage(&self.db).is_err() {
             tracing::warn!("verified recovery garbage collection deferred");
         }
-        let key_id = self
-            .auth_key
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take();
-        if let Some(key_id) = key_id {
-            if crate::credentials::vault_delete_strict(RECOVERY_VAULT_SERVICE, &key_id.to_string())
-                .is_err()
-            {
-                tracing::warn!("completed recovery key requires credential vault cleanup");
-            } else if crate::credentials::vault_delete_strict(RECOVERY_ANCHOR_SERVICE, &key_id.to_string())
-                .is_err()
-            {
-                tracing::warn!("completed recovery anchor requires credential vault cleanup");
-            }
-        }
+        // Key and anchor deletion is handled by the resumable collector.
+        *self.auth_key.lock().unwrap_or_else(|e| e.into_inner()) = None;
     }
 }
 
@@ -3531,9 +3603,13 @@ mod tests {
         }
 
         let points = [
+            "key_registered",
+            "transaction_key_written",
             "gc_registered",
             "blob_chunk_written",
+            "blob_chunk_written@2",
             "blob_length_written",
+            "manifest_written",
             "prepared_manifest_committed",
             "prepared_anchor_written",
             "prepared_sql_committed",
@@ -3555,6 +3631,8 @@ mod tests {
             "terminal_anchor_written",
             "terminal_sql_removed",
             "terminal_manifest_written",
+            "gc_key_removed",
+            "gc_anchor_removed",
         ];
         for point in points {
             let root = std::env::temp_dir().join(format!("ghostftp-crash-{}", Uuid::new_v4()));
@@ -3614,14 +3692,23 @@ mod tests {
                 );
                 let early = matches!(
                     point,
-                    "gc_registered" | "blob_chunk_written" | "blob_length_written"
+                    "key_registered"
+                        | "transaction_key_written"
+                        | "gc_registered"
+                        | "blob_chunk_written"
+                        | "blob_chunk_written@2"
+                        | "blob_length_written"
                 );
                 let terminal = matches!(
                     point,
-                    "terminal_anchor_written" | "terminal_sql_removed" | "terminal_manifest_written"
+                    "terminal_anchor_written"
+                        | "terminal_sql_removed"
+                        | "terminal_manifest_written"
+                        | "gc_key_removed"
+                        | "gc_anchor_removed"
                 );
                 let rows = db.download_recovery_snapshot().unwrap();
-                assert_eq!(rows.len(), usize::from(!early && !terminal), "{point}");
+                assert_eq!(rows.len(), if early || terminal { 0 } else { 1 }, "{point}");
                 if let Some(row) = rows.first() {
                     let (_, digest) = recovery_index_entry(
                         &row.id,
@@ -3642,7 +3729,7 @@ mod tests {
             if !matches!(
                 point,
                 "backup_removed" | "terminal_anchor_written" | "terminal_sql_removed"
-                    | "terminal_manifest_written"
+                    | "terminal_manifest_written" | "gc_key_removed" | "gc_anchor_removed"
             ) {
                 assert!(
                     std::fs::read(&target).is_ok_and(|bytes| bytes == b"old")
