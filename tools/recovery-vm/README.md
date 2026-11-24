@@ -2,7 +2,7 @@
 
 Run only in a dedicated disposable Linux or Windows VM under libvirt. A forced power-off is destructive to the guest. Never use a workstation, shared VM, production domain, or a VM with real Ghost FTP credentials. The host requires Python 3, virsh, SSH with pinned guest host key and authorization to power off the designated test VM. The harness does not reboot the host.
 
-Provision the same exact source revision and build the Rust test binary with `cargo test --locked -p ghostftp --lib --no-run`. Keep the compiled binary and dedicated existing fixture parent directory across reboots. Configure the test user to access its own persistent credential store after boot. On Linux install secret-tool and arrange an unlocked persistent Secret Service on the guest user bus (not a temporary in-memory keyring). Pass the user bus address with --linux-dbus-address when SSH does not inherit it. On Windows use an authenticated test-user session that can access that user's Credential Manager; verify this with the native probes before testing. Do not bypass these prerequisites or disable vault errors.
+Provision the same exact source revision and build the Rust test binary with `cargo test --locked -p ghostftp --lib --no-run`. Keep the compiled binary and dedicated existing fixture parent directory across reboots. Record the binary SHA-256 from a trusted build before running the harness. Configure the guest SMBIOS UUID to equal the libvirt UUID, and provide the test account read-only access to that UUID (Linux DMI product_uuid or Windows CIM). A mismatched or unreadable identity refuses the reset. Configure the test user to access its own persistent credential store after boot. On Linux install secret-tool and arrange an unlocked persistent Secret Service on the guest user bus (not a temporary in-memory keyring). Pass the user bus address with --linux-dbus-address when SSH does not inherit it. On Windows use an authenticated test-user session that can access that user's Credential Manager; verify this with the native probes before testing. Do not bypass these prerequisites or disable vault errors.
 
 Name the VM `ghostftp-durability-linux` or `ghostftp-durability-windows` and record its libvirt UUID. For each case, use a fresh run and a separate report path. Example (replace the UUID, SSH target, and binary path with actual values):
 
@@ -13,6 +13,7 @@ python3 tools/recovery-vm/verify-hard-reset.py \
   --ssh-target test@guest --platform linux \
   --guest-root /var/tmp/ghostftp-fixtures \
   --test-binary /opt/ghostftp/ghostftp_lib-test \
+  --binary-sha256 "$TEST_BINARY_SHA256" \
   --linux-dbus-address unix:path=/run/user/1000/bus \
   --case stage_published --report stage-published-linux.json
 ```

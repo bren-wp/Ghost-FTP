@@ -57,6 +57,10 @@ def guest_command(platform, operation, root, binary, point, dbus):
     if platform == "linux":
         if operation == "boot-id":
             return "cat /proc/sys/kernel/random/boot_id"
+        if operation == "guest-id":
+            return "cat /sys/class/dmi/id/product_uuid"
+        if operation == "binary-hash":
+            return shlex.join(["sha256sum", "--", binary]) + " | cut -d ' ' -f 1"
         if operation == "checkpoint":
             return shlex.join(["cat", "--", str(root / "vault" / "checkpoint")])
         if dbus:
@@ -64,6 +68,10 @@ def guest_command(platform, operation, root, binary, point, dbus):
         return shlex.join(["env", *[k + "=" + v for k, v in values.items()], binary, *args])
     if operation == "boot-id":
         script = "(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().Ticks"
+    elif operation == "guest-id":
+        script = "(Get-CimInstance Win32_ComputerSystemProduct).UUID"
+    elif operation == "binary-hash":
+        script = "(Get-FileHash -Algorithm SHA256 -LiteralPath " + psquote(binary) + ").Hash"
     elif operation == "checkpoint":
         script = "Get-Content -Raw -LiteralPath " + psquote(root / "vault" / "checkpoint")
     else:
@@ -114,7 +122,18 @@ def exercise(args, report):
         return ssh + [guest_command(args.platform, operation, root,
                                     args.test_binary, args.case, args.linux_dbus_address)]
 
+    def check_guest():
+        guest_id = str(uuid.UUID(run(command("guest-id"), 15)))
+        if guest_id != expected:
+            raise RuntimeError("SSH guest SMBIOS UUID does not match the designated domain")
+        digest = run(command("binary-hash"), 60).lower()
+        if digest != args.binary_sha256.lower():
+            raise RuntimeError("guest test binary SHA-256 mismatch")
+        report["guest_uuid"] = guest_id
+        report["binary_sha256"] = digest
+
     check_domain()
+    check_guest()
     boot = run(command("boot-id"), 15)
     if not boot:
         raise RuntimeError("guest boot identity missing")
@@ -130,6 +149,7 @@ def exercise(args, report):
                         lambda value: value == args.case, args.timeout, child)
             report["checkpoint_observed"] = True
             check_domain()
+            check_guest()
             # This is the ONLY destructive host action. All identities were
             # checked again immediately before issuing the forced power-off.
             run(virsh + ["destroy", expected])
@@ -141,6 +161,7 @@ def exercise(args, report):
                 lambda: run(command("boot-id"), 15),
                 lambda value: bool(value) and value != boot, args.timeout)
             check_domain()
+            check_guest()
             verified = run(command("verify"), args.timeout)
             report["verification_output"] = verified
             if "GHOSTFTP_VM_VERIFY_OK" not in verified:
@@ -166,6 +187,7 @@ def main():
     parser.add_argument("--platform", choices=["linux", "windows"], required=True)
     parser.add_argument("--guest-root", required=True)
     parser.add_argument("--test-binary", required=True)
+    parser.add_argument("--binary-sha256", required=True)
     parser.add_argument("--linux-dbus-address")
     parser.add_argument("--case", choices=CASES, required=True)
     parser.add_argument("--timeout", type=int, default=300)
@@ -173,6 +195,8 @@ def main():
     args = parser.parse_args()
     if not 30 <= args.timeout <= 1800:
         parser.error("timeout must be between 30 and 1800 seconds")
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", args.binary_sha256):
+        parser.error("binary SHA-256 must contain 64 hexadecimal characters")
     report = {"run_id": str(uuid.uuid4()), "platform": args.platform,
               "case": args.case, "verified": False}
     started = time.monotonic()

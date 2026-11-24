@@ -3326,7 +3326,7 @@ fn windows_flush_recovery_file(file: &std::fs::File) -> Result<()> {
     let handle = unsafe {
         ReOpenFile(
             file.as_raw_handle(),
-            GENERIC_WRITE_ACCESS,
+            GENERIC_WRITE_ACCESS | 0x80, // FILE_READ_ATTRIBUTES
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             FILE_FLAG_OPEN_REPARSE_POINT,
         )
@@ -3340,7 +3340,9 @@ fn windows_flush_recovery_file(file: &std::fs::File) -> Result<()> {
         windows_staging_identity(&writer)? == identity,
         "recovery flush handle identity mismatch"
     );
-    writer.sync_all().context("flush verified Windows recovery file")?;
+    writer
+        .sync_all()
+        .context("flush verified Windows recovery file")?;
     anyhow::ensure!(
         windows_staging_identity(&writer)? == identity,
         "recovery flush identity changed"
@@ -3816,8 +3818,8 @@ mod tests {
     #[ignore = "requires a disposable native VM and explicit hard-reset harness"]
     fn vm_recovery_hard_reset_probe() {
         assert_eq!(
-            std::env::var("GHOSTFTP_VM_TEST_OPT_IN").as_deref(),
-            Ok("disposable-guest")
+            std::env::var("GHOSTFTP_VM_TEST_OPT_IN").ok().as_deref(),
+            Some("disposable-guest")
         );
         let root = PathBuf::from(std::env::var_os("GHOSTFTP_VM_RECOVERY_ROOT").unwrap());
         let mode = std::env::var("GHOSTFTP_VM_RECOVERY_MODE").unwrap();
@@ -3850,7 +3852,10 @@ mod tests {
                     .unwrap();
             }
         } else {
-            assert_eq!(std::fs::read(root.join("vm-fixture")).unwrap(), point.as_bytes());
+            assert_eq!(
+                std::fs::read(root.join("vm-fixture")).unwrap(),
+                point.as_bytes()
+            );
         }
         let root = root.canonicalize().unwrap();
         let stage = root.join("stage");
@@ -3901,7 +3906,10 @@ mod tests {
                     let signed: AuthenticatedRecovery =
                         serde_json::from_str(&rows[0].payload).unwrap();
                     assert_eq!(
-                        signed.authenticate(&rows[0].id, &rows[0].payload).unwrap().as_str(),
+                        signed
+                            .authenticate(&rows[0].id, &rows[0].payload)
+                            .unwrap()
+                            .as_str(),
                         rows[0].phase
                     );
                     let record: RecoveryInspectionRecord =
@@ -3912,7 +3920,10 @@ mod tests {
                         RecoveryObservation::Ambiguous | RecoveryObservation::Unavailable
                     ));
                 }
-                assert!(before.iter().flatten().all(|bytes| bytes == b"old" || bytes == b"new"));
+                assert!(before
+                    .iter()
+                    .flatten()
+                    .all(|bytes| bytes == b"old" || bytes == b"new"));
                 assert!(before.iter().flatten().any(|bytes| bytes == b"new"));
                 if !matches!(point.as_str(), "backup_removed" | "terminal_manifest_written") {
                     assert!(before.iter().flatten().any(|bytes| bytes == b"old"));

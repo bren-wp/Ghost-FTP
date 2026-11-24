@@ -43,6 +43,22 @@ class SafetyTests(unittest.TestCase):
                                       "backup_removed", None)
         self.assertIn("'/tmp/test bin'", command)
 
+    def test_ssh_guest_mismatch_never_reaches_destroy(self):
+        identity = str(uuid.uuid4())
+        args = SimpleNamespace(domain="ghostftp-durability-test", uuid=identity,
+                               confirm_reset=identity, ssh_target="test@guest",
+                               platform="linux", guest_root="/tmp/fixtures",
+                               libvirt_uri="qemu:///system", test_binary="/tmp/test",
+                               binary_sha256="a" * 64, case="backup_removed",
+                               linux_dbus_address=None)
+        with patch.object(suite, "run", side_effect=[
+                identity, args.domain, "running", str(uuid.uuid4())]) as command:
+            with self.assertRaisesRegex(RuntimeError, "SSH guest SMBIOS UUID"):
+                suite.exercise(args, {"run_id": str(uuid.uuid4())})
+            self.assertEqual(command.call_count, 4)
+            self.assertTrue(all("destroy" not in call.args[0]
+                                for call in command.call_args_list))
+
     def test_identity_mismatch_never_reaches_destroy(self):
         identity = str(uuid.uuid4())
         args = SimpleNamespace(domain="ghostftp-durability-test", uuid=identity,
