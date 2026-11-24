@@ -47,6 +47,48 @@ pub(super) async fn create_new_download_staging(path: &Path) -> Result<tokio::fs
         .with_context(|| format!("exclusively create download staging {}", path.display()))
 }
 
+/// Open an existing resumable stage without truncation or following links.
+/// Validation failures must not grant the caller cleanup ownership.
+pub(super) async fn open_resumable_download_staging(path: &Path) -> Result<tokio::fs::File> {
+    async fn open(path: &Path) -> Result<tokio::fs::File> {
+        let mut options = tokio::fs::OpenOptions::new();
+        options.read(true).write(true);
+        #[cfg(unix)]
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+        #[cfg(windows)]
+        options.custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT);
+        let file = match options.create_new(true).open(path).await {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                options.create_new(false).open(path).await?
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let metadata = file.metadata().await?;
+        anyhow::ensure!(
+            metadata.file_type().is_file(),
+            "resumable staging is not a regular file"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            anyhow::ensure!(
+                metadata.nlink() == 1,
+                "resumable staging must not have additional hard links"
+            );
+        }
+        #[cfg(windows)]
+        {
+            windows_staging_identity(&file)?;
+        }
+        Ok(file)
+    }
+
+    open(path).await.map_err(|error| {
+        DownloadStagingOpenFailure(std::io::Error::other(error.to_string())).into()
+    })
+}
+
 /// Best-effort cleanup must never remove a path for which exclusive
 /// creation failed. On subsequent I/O errors, only regular staging files may
 /// be unlinked, never a planted symlink or directory.
@@ -214,8 +256,8 @@ impl DownloadParentGuard {
                 if allow_replace {
                     promote_pinned_download(&pinned, &staging, &target_name, &backup)
                 } else {
-                    let entry = pinned_entry(&pinned, &staging)?
-                        .context("download staging is missing")?;
+                    let entry =
+                        pinned_entry(&pinned, &staging)?.context("download staging is missing")?;
                     anyhow::ensure!(
                         pinned_regular_file(&entry) && entry.st_nlink == 1,
                         "non-overwrite promotion requires a regular staging file without hard links"
@@ -729,6 +771,44 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(any(unix, windows))]
+    #[tokio::test]
+    async fn resumable_staging_refuses_hard_links_before_truncation() {
+        let root = std::env::temp_dir().join(format!("ghostftp-resume-hardlink-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let original = root.join("original");
+        let staging = root.join("stage");
+        tokio::fs::write(&original, b"valuable").await.unwrap();
+        tokio::fs::hard_link(&original, &staging).await.unwrap();
+
+        let error = open_resumable_download_staging(&staging).await.unwrap_err();
+        cleanup_failed_download_staging(&staging, &error).await;
+        assert_eq!(tokio::fs::read(&original).await.unwrap(), b"valuable");
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"valuable");
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn resumable_staging_refuses_symlink_before_truncation() {
+        let root = std::env::temp_dir().join(format!("ghostftp-resume-link-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let original = root.join("original");
+        let staging = root.join("stage");
+        tokio::fs::write(&original, b"valuable").await.unwrap();
+        std::os::unix::fs::symlink(&original, &staging).unwrap();
+
+        let error = open_resumable_download_staging(&staging).await.unwrap_err();
+        cleanup_failed_download_staging(&staging, &error).await;
+        assert_eq!(tokio::fs::read(&original).await.unwrap(), b"valuable");
+        assert!(tokio::fs::symlink_metadata(&staging)
+            .await
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
 
     #[test]
     fn agent_delta_patch_cannot_clobber_preexisting_output() {
