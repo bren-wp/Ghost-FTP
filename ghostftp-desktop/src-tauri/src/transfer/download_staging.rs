@@ -139,6 +139,128 @@ fn rename_pinned_siblings(
     Ok(())
 }
 
+/// Pin the parent once; the caller owns this descriptor until all operations finish.
+#[cfg(target_os = "linux")]
+fn pin_download_parent(parent: &Path) -> Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let directory = if parent.as_os_str().is_empty() {
+        Path::new(".")
+    } else {
+        parent
+    };
+    std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_PATH | libc::O_DIRECTORY | libc::O_CLOEXEC)
+        .open(directory)
+        .context("pin common download parent directory")
+}
+
+#[cfg(target_os = "linux")]
+fn pinned_entry(
+    parent: &std::fs::File,
+    name: &std::ffi::OsStr,
+) -> Result<Option<libc::stat>> {
+    use std::os::fd::AsRawFd;
+    use std::os::unix::ffi::OsStrExt;
+
+    let name = std::ffi::CString::new(name.as_bytes()).context("entry name contains NUL")?;
+    let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+    // SAFETY: the parent descriptor is live and the output buffer is writable.
+    let result = unsafe {
+        libc::fstatat(
+            parent.as_raw_fd(),
+            name.as_ptr(),
+            stat.as_mut_ptr(),
+            libc::AT_SYMLINK_NOFOLLOW,
+        )
+    };
+    if result == 0 {
+        // SAFETY: a successful fstatat initialized the buffer.
+        return Ok(Some(unsafe { stat.assume_init() }));
+    }
+    let error = std::io::Error::last_os_error();
+    if error.kind() == std::io::ErrorKind::NotFound {
+        return Ok(None);
+    }
+    Err(error).context("inspect pinned download entry")
+}
+
+#[cfg(target_os = "linux")]
+fn pinned_regular_file(stat: &libc::stat) -> bool {
+    stat.st_mode & libc::S_IFMT == libc::S_IFREG
+}
+
+#[cfg(target_os = "linux")]
+fn pinned_same_file(a: &libc::stat, b: &libc::stat) -> bool {
+    pinned_regular_file(a)
+        && pinned_regular_file(b)
+        && a.st_dev == b.st_dev
+        && a.st_ino == b.st_ino
+}
+
+/// Keep backup, promotion, rollback and backup cleanup in one directory.
+/// The remaining same-directory entry substitution race requires additional
+/// ownership/identity controls; pinning is not a complete TOCTOU solution.
+#[cfg(target_os = "linux")]
+fn promote_pinned_download(
+    parent: &std::fs::File,
+    staging: &std::ffi::OsStr,
+    target: &std::ffi::OsStr,
+    backup: &std::ffi::OsStr,
+) -> Result<()> {
+    use std::os::fd::AsRawFd;
+    use std::os::unix::ffi::OsStrExt;
+
+    let staged = pinned_entry(parent, staging)?.context("download staging is missing")?;
+    anyhow::ensure!(
+        pinned_regular_file(&staged) && staged.st_nlink == 1,
+        "download promotion refused: staging target is not a regular file or has hard links"
+    );
+    let original = pinned_entry(parent, target)?;
+    if let Some(ref original) = original {
+        anyhow::ensure!(
+            pinned_regular_file(original),
+            "download overwrite refused: existing destination is not a regular file"
+        );
+        rename_pinned_siblings(parent, target, backup)
+            .context("preserve existing local download target without overwriting a backup")?;
+    }
+
+    let promotion = (|| -> Result<()> {
+        let current = pinned_entry(parent, staging)?.context("download staging disappeared")?;
+        anyhow::ensure!(
+            pinned_same_file(&staged, &current) && current.st_nlink == 1,
+            "download staging identity changed before promotion"
+        );
+        rename_pinned_siblings(parent, staging, target)
+    })();
+    if let Err(error) = promotion {
+        if original.is_some() {
+            return match rename_pinned_siblings(parent, backup, target) {
+                Ok(()) => Err(error).context("download promotion failed; original target restored"),
+                Err(restore) => Err(anyhow::anyhow!(
+                    "download promotion failed; recovery backup {:?} remains in pinned directory: {error:#}; rollback: {restore:#}",
+                    backup
+                )),
+            };
+        }
+        return Err(error);
+    }
+
+    if let Some(original) = original {
+        // Never knowingly delete a different file substituted at the backup name.
+        if pinned_entry(parent, backup)?
+            .is_some_and(|current| pinned_same_file(&original, &current))
+        {
+            let name = std::ffi::CString::new(backup.as_bytes()).context("backup contains NUL")?;
+            // SAFETY: parent is live; name is a NUL-terminated sibling basename.
+            let _ = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
+        }
+    }
+    Ok(())
+}
+
 /// Use atomic no-replace operations. On Linux, sibling moves resolve the
 /// common parent only once. Other moves retain the existing platform helper.
 async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
@@ -150,17 +272,7 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
             (from.parent(), to.parent(), from.file_name(), to.file_name())
         {
             if parent == other_parent {
-                use std::os::unix::fs::OpenOptionsExt;
-                let directory = if parent.as_os_str().is_empty() {
-                    Path::new(".")
-                } else {
-                    parent
-                };
-                let pinned = std::fs::OpenOptions::new()
-                    .read(true)
-                    .custom_flags(libc::O_PATH | libc::O_DIRECTORY | libc::O_CLOEXEC)
-                    .open(directory)
-                    .context("pin common download parent directory")?;
+                let pinned = pin_download_parent(parent)?;
                 return rename_pinned_siblings(&pinned, source, target);
             }
         }
@@ -282,9 +394,7 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
     {
         use std::os::unix::fs::MetadataExt;
         anyhow::ensure!(
-            current.dev() == opened.dev()
-                && current.ino() == opened.ino()
-                && current.nlink() == 1,
+            current.dev() == opened.dev() && current.ino() == opened.ino() && current.nlink() == 1,
             "download staging identity changed after durability check"
         );
     }
@@ -324,6 +434,20 @@ pub(super) async fn promote_staged_download(
     id: &str,
 ) -> Result<()> {
     let backup = download_backup_path(final_path, id);
+    #[cfg(target_os = "linux")]
+    if staging.parent() == final_path.parent() && backup.parent() == final_path.parent() {
+        let parent = final_path.parent().context("download target has no parent")?;
+        let staging_name = staging.file_name().context("staging has no basename")?.to_owned();
+        let target_name = final_path.file_name().context("target has no basename")?.to_owned();
+        let backup_name = backup.file_name().context("backup has no basename")?.to_owned();
+        let parent = parent.to_path_buf();
+        return tokio::task::spawn_blocking(move || {
+            let pinned = pin_download_parent(&parent)?;
+            promote_pinned_download(&pinned, &staging_name, &target_name, &backup_name)
+        })
+        .await
+        .context("join pinned download promotion")?;
+    }
     let mut backup_created = false;
 
     let staging_meta = tokio::fs::symlink_metadata(staging)
@@ -627,8 +751,7 @@ mod tests {
     fn pinned_sibling_rename_does_not_follow_replaced_parent() {
         use std::ffi::OsStr;
 
-        let root =
-            std::env::temp_dir().join(format!("ghostftp-pinned-parent-{}", Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("ghostftp-pinned-parent-{}", Uuid::new_v4()));
         let parent = root.join("parent");
         let moved = root.join("moved");
         std::fs::create_dir_all(&parent).unwrap();
@@ -651,6 +774,39 @@ mod tests {
                 .is_err()
         );
         assert_eq!(std::fs::read(moved.join("final.bin")).unwrap(), b"verified");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn pinned_promotion_preserves_replacement_directory_and_backup() {
+        use std::ffi::OsStr;
+
+        let root = std::env::temp_dir().join(format!("ghostftp-pinned-promote-{}", Uuid::new_v4()));
+        let parent = root.join("parent");
+        let moved = root.join("moved");
+        std::fs::create_dir_all(&parent).unwrap();
+        std::fs::write(parent.join("stage.part"), b"new").unwrap();
+        std::fs::write(parent.join("final.bin"), b"old").unwrap();
+        let pinned = pin_download_parent(&parent).unwrap();
+        std::fs::rename(&parent, &moved).unwrap();
+        std::fs::create_dir(&parent).unwrap();
+        std::fs::write(parent.join("final.bin"), b"unrelated").unwrap();
+        std::fs::write(parent.join("backup"), b"keep").unwrap();
+
+        promote_pinned_download(
+            &pinned,
+            OsStr::new("stage.part"),
+            OsStr::new("final.bin"),
+            OsStr::new("backup"),
+        )
+        .unwrap();
+
+        assert_eq!(std::fs::read(moved.join("final.bin")).unwrap(), b"new");
+        assert!(!moved.join("backup").exists());
+        assert!(!moved.join("stage.part").exists());
+        assert_eq!(std::fs::read(parent.join("final.bin")).unwrap(), b"unrelated");
+        assert_eq!(std::fs::read(parent.join("backup")).unwrap(), b"keep");
         std::fs::remove_dir_all(root).unwrap();
     }
 
