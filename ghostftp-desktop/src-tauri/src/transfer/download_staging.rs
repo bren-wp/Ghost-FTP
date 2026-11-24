@@ -3759,6 +3759,227 @@ mod tests {
     }
 
     #[cfg(any(target_os = "linux", windows))]
+    fn native_fixture_promote(
+        db: &std::sync::Arc<crate::db::Db>,
+        stage: &Path,
+        target: &Path,
+        id: &str,
+    ) -> Result<()> {
+        let backup = download_backup_path(target, id);
+        let guard = DownloadParentGuard::with_db(target, Some(db.clone()))?;
+        let _lock = guard.check_recovery_destination(target)?;
+        let journal = guard.recovery_journal(stage, target, id)?.unwrap();
+        #[cfg(target_os = "linux")]
+        {
+            let writer = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(stage)?;
+            promote_pinned_download(
+                &guard.handle,
+                stage.file_name().unwrap(),
+                target.file_name().unwrap(),
+                backup.file_name().unwrap(),
+                Some(&writer),
+                Some(&journal),
+            )
+        }
+        #[cfg(windows)]
+        {
+            let writer =
+                windows_open_relative(&guard.handle, stage.file_name().unwrap(), 0x0001_0081)?;
+            windows_promote_with_backup(
+                &guard.handle,
+                &writer,
+                target.file_name().unwrap(),
+                backup.file_name().unwrap(),
+                Some(&journal),
+            )
+        }
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    fn write_durable_fixture(path: &Path, bytes: &[u8]) -> Result<()> {
+        use std::io::Write;
+
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        Ok(())
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    #[ignore = "requires a disposable native VM and explicit hard-reset harness"]
+    fn vm_recovery_hard_reset_probe() {
+        assert_eq!(
+            std::env::var("GHOSTFTP_VM_TEST_OPT_IN").as_deref(),
+            Ok("disposable-guest")
+        );
+        let root = PathBuf::from(std::env::var_os("GHOSTFTP_VM_RECOVERY_ROOT").unwrap());
+        let mode = std::env::var("GHOSTFTP_VM_RECOVERY_MODE").unwrap();
+        let point = std::env::var("GHOSTFTP_VM_RECOVERY_POINT").unwrap();
+        assert!(root.is_absolute());
+        let name = root.file_name().unwrap().to_str().unwrap();
+        assert!(Uuid::parse_str(name.strip_prefix("ghostftp-vm-").unwrap()).is_ok());
+        assert!(matches!(
+            point.as_str(),
+            "prepared_sql_committed"
+                | "backup_renamed"
+                | "stage_published"
+                | "backup_removed"
+                | "terminal_manifest_written"
+                | "rollback:rollback_restored"
+        ));
+        if mode == "prepare" {
+            // Never reuse an existing directory or overwrite a user's file.
+            std::fs::create_dir(&root).unwrap();
+            write_durable_fixture(&root.join("stage"), b"new").unwrap();
+            write_durable_fixture(&root.join("target"), b"old").unwrap();
+            write_durable_fixture(&root.join("unrelated"), b"keep").unwrap();
+            write_durable_fixture(&root.join("vm-fixture"), point.as_bytes()).unwrap();
+            #[cfg(target_os = "linux")]
+            {
+                std::fs::File::open(&root).unwrap().sync_all().unwrap();
+                std::fs::File::open(root.parent().unwrap())
+                    .unwrap()
+                    .sync_all()
+                    .unwrap();
+            }
+        } else {
+            assert_eq!(std::fs::read(root.join("vm-fixture")).unwrap(), point.as_bytes());
+        }
+        let root = root.canonicalize().unwrap();
+        let stage = root.join("stage");
+        let target = root.join("target");
+        let backup = download_backup_path(&target, "vm");
+        let checkpoint = (mode == "crash").then(|| point.clone());
+        crate::credentials::configure_native_recovery_test_vault(root.join("vault"), checkpoint);
+        if mode == "cleanup" {
+            crate::credentials::cleanup_native_recovery_test_vault(&root.join("vault")).unwrap();
+            crate::credentials::clear_recovery_test_vault();
+            // Retain guest evidence for the operator; never remove the root.
+            return;
+        }
+        let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
+        match mode.as_str() {
+            "prepare" => {
+                let _lock = db.recovery_lock().unwrap();
+                GlobalRecoveryLedger::load(&db, true).unwrap();
+                eprintln!("GHOSTFTP_VM_PREPARE_OK");
+            }
+            "crash" => {
+                let outcome = native_fixture_promote(&db, &stage, &target, "vm");
+                panic!("VM checkpoint not reached: {outcome:?}");
+            }
+            "verify" => {
+                let _lock = db.recovery_lock().unwrap();
+                let paths = [&stage, &target, &backup];
+                let observe = || {
+                    paths.map(|path| match std::fs::read(path) {
+                        Ok(bytes) => Some(bytes),
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                        Err(error) => panic!("VM file observation failed: {error}"),
+                    })
+                };
+                let before = observe();
+                let mut ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
+                ledger.reconcile_metadata(&db).unwrap();
+                ledger.check_rows(&db).unwrap();
+                GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+                let rows = db.download_recovery_snapshot().unwrap();
+                if point == "terminal_manifest_written" {
+                    assert!(rows.is_empty());
+                    assert_eq!(before[1].as_deref(), Some(b"new".as_slice()));
+                    assert!(before[2].is_none(), "retired backup reappeared");
+                } else {
+                    assert_eq!(rows.len(), 1);
+                    assert_eq!(rows[0].id, "vm");
+                    let signed: AuthenticatedRecovery =
+                        serde_json::from_str(&rows[0].payload).unwrap();
+                    assert_eq!(
+                        signed.authenticate(&rows[0].id, &rows[0].payload).unwrap().as_str(),
+                        rows[0].phase
+                    );
+                    let record: RecoveryInspectionRecord =
+                        serde_json::from_str(&signed.payload).unwrap();
+                    assert!(record.matches_reservation(rows[0].destination_key.as_deref()));
+                    assert!(!matches!(
+                        record.inspect(),
+                        RecoveryObservation::Ambiguous | RecoveryObservation::Unavailable
+                    ));
+                }
+                assert!(before.iter().flatten().all(|bytes| bytes == b"old" || bytes == b"new"));
+                assert!(before.iter().flatten().any(|bytes| bytes == b"new"));
+                if !matches!(point.as_str(), "backup_removed" | "terminal_manifest_written") {
+                    assert!(before.iter().flatten().any(|bytes| bytes == b"old"));
+                }
+                assert_eq!(before, observe(), "metadata recovery changed VM user files");
+                assert_eq!(std::fs::read(root.join("unrelated")).unwrap(), b"keep");
+                // Verify a second startup and keep all filesystem evidence.
+                let mut ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
+                ledger.reconcile_metadata(&db).unwrap();
+                ledger.check_rows(&db).unwrap();
+                assert_eq!(before, observe());
+                eprintln!("GHOSTFTP_VM_VERIFY_OK");
+            }
+            _ => panic!("invalid VM probe mode"),
+        }
+        crate::credentials::clear_recovery_test_vault();
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    #[ignore = "native full recovery benchmark; dedicated credential session required"]
+    fn native_vault_end_to_end_benchmark() {
+        let root = std::env::temp_dir().join(format!("ghostftp-e2e-bench-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
+        let result = std::panic::catch_unwind(|| {
+            let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
+            for size in [1024 * 1024, 16 * 1024 * 1024] {
+                let old = vec![0x31; size];
+                let new = vec![0x79; size];
+                let mut timings = Vec::new();
+                for sample in 0..3 {
+                    let id = format!("bench-{size}-{sample}");
+                    let target = root.join(format!("{id}-target"));
+                    let stage = root.join(format!("{id}-stage"));
+                    write_durable_fixture(&target, &old).unwrap();
+                    write_durable_fixture(&stage, &new).unwrap();
+                    let started = std::time::Instant::now();
+                    native_fixture_promote(&db, &stage, &target, &id).unwrap();
+                    timings.push(started.elapsed().as_micros());
+                    assert_eq!(std::fs::read(&target).unwrap(), new);
+                    assert!(!stage.exists());
+                    assert!(!download_backup_path(&target, &id).exists());
+                    let _lock = db.recovery_lock().unwrap();
+                    let ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
+                    ledger.check_rows(&db).unwrap();
+                    assert!(db.download_recovery_snapshot().unwrap().is_empty());
+                    GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+                    std::fs::remove_file(target).unwrap();
+                }
+                timings.sort_unstable();
+                eprintln!(
+                    "recovery_e2e_benchmark platform={} bytes={size} samples=3 median_us={} max_us={}",
+                    std::env::consts::OS, timings[1], timings[2]
+                );
+            }
+        });
+        crate::credentials::cleanup_native_recovery_test_vault(&root.join("vault")).unwrap();
+        crate::credentials::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
+        if let Err(error) = result {
+            std::panic::resume_unwind(error);
+        }
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
     fn run_recovery_crash_matrix(native: bool) {
         const ROOT: &str = "GHOSTFTP_RECOVERY_PROTOCOL_TEST_ROOT";
         const POINT: &str = "GHOSTFTP_RECOVERY_PROTOCOL_TEST_POINT";
