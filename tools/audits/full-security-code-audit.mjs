@@ -82,7 +82,11 @@ const REQUIRED = [
   // marking Done; uploaded SFTP bytes must match both local and server size.
   ["ghostftp-desktop/src-tauri/src/transfer.rs", [
     "fn verify_committed_length(", 
-    "verify_staged_download_bytes(&working_path, record.transferred)",
+    "verify_download_writer(&writer, record.transferred).await",
+    ".promote(&working_path, &final_path, &id, allow_replace, &writer)",
+    "fn verify_download_writer(",
+    "sync original download writer",
+    "Ok(tokio::fs::File::from_std(file))",
     "commit_verified_delta_output(&out_path, local_path, size)",
     "checked_agent_delta_chunk_length(range_len - got, bytes.len())",
     "fn safe_transfer_failure(", "transfer.error = Some(safe_transfer_failure(&error).to_string())",
