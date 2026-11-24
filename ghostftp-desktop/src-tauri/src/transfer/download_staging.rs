@@ -174,6 +174,36 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     .context("join local no-replace download promotion")?
 }
 
+/// Windows file identity from an opened handle, not timestamps or path text.
+/// The volume serial and file index identify the file on supported volumes.
+#[cfg(windows)]
+fn windows_staging_identity(file: &tokio::fs::File) -> Result<(u32, u64)> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT,
+    };
+
+    let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::uninit();
+    // SAFETY: file owns a live handle and the output buffer is writable.
+    let result = unsafe { GetFileInformationByHandle(file.as_raw_handle(), info.as_mut_ptr()) };
+    if result == 0 {
+        return Err(std::io::Error::last_os_error())
+            .context("query download staging file identity and link count");
+    }
+    // SAFETY: a successful call initialized the information structure.
+    let info = unsafe { info.assume_init() };
+    anyhow::ensure!(
+        info.nNumberOfLinks == 1,
+        "download staging must not have additional hard links"
+    );
+    anyhow::ensure!(
+        info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+        "download staging must not be a reparse point"
+    );
+    let index = (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow);
+    Ok((info.dwVolumeSerialNumber, index))
+}
+
 /// The common staging path covers every non-Agent download backend: FTP,
 /// FTPS, SFTP, S3, WebDAV, HTTP, Dropbox, OneDrive, Drive, Box and SaaS APIs.
 /// A provider returning success is not proof that the bytes hit the local
@@ -223,24 +253,10 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
         );
     }
     #[cfg(windows)]
-    {
-        use std::os::windows::{fs::MetadataExt, io::AsRawHandle};
-        use windows_sys::Win32::Storage::FileSystem::{
-            GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT,
-        };
-        let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::uninit();
-        // SAFETY: the file owns a live handle and the output buffer is writable.
-        let result = unsafe { GetFileInformationByHandle(file.as_raw_handle(), info.as_mut_ptr()) };
-        if result == 0 {
-            return Err(std::io::Error::last_os_error())
-                .context("query download staging file identity and link count");
-        }
-        // SAFETY: a successful call initialized the information structure.
-        let info = unsafe { info.assume_init() };
-        anyhow::ensure!(
-            info.nNumberOfLinks == 1,
-            "download staging must not have additional hard links"
-        );
+    let windows_identity = {
+        use std::os::windows::fs::MetadataExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+        let identity = windows_staging_identity(&file)?;
         anyhow::ensure!(
             opened.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
             "download staging must not be a reparse point"
@@ -250,7 +266,8 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
                 && opened.last_write_time() == metadata.last_write_time(),
             "download staging metadata changed before durability check"
         );
-    }
+        identity
+    };
     file.sync_all()
         .await
         .context("sync completed download staging before promotion")?;
@@ -280,6 +297,22 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
                 && current.creation_time() == opened.creation_time()
                 && current.last_write_time() == opened.last_write_time(),
             "download staging metadata changed after durability check"
+        );
+        let reopened = tokio::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(staging)
+            .await
+            .context("reopen synced download staging for identity verification")?;
+        let reopened_metadata = reopened.metadata().await?;
+        anyhow::ensure!(
+            reopened_metadata.file_type().is_file() && reopened_metadata.len() == transferred,
+            "reopened download staging changed type or size"
+        );
+        anyhow::ensure!(
+            windows_staging_identity(&file)? == windows_identity
+                && windows_staging_identity(&reopened)? == windows_identity,
+            "download staging file identity changed after durability check"
         );
     }
     Ok(())
@@ -539,6 +572,31 @@ mod tests {
             tokio::fs::read(&valuable).await.unwrap(),
             b"not transferred"
         );
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn windows_staging_identity_distinguishes_equal_length_files() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-staging-identity-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let first = root.join("first.part");
+        let second = root.join("second.part");
+        tokio::fs::write(&first, b"same").await.unwrap();
+        tokio::fs::write(&second, b"same").await.unwrap();
+        let a = tokio::fs::File::open(&first).await.unwrap();
+        let reopened = tokio::fs::File::open(&first).await.unwrap();
+        let b = tokio::fs::File::open(&second).await.unwrap();
+        assert_eq!(
+            windows_staging_identity(&a).unwrap(),
+            windows_staging_identity(&reopened).unwrap()
+        );
+        assert_ne!(
+            windows_staging_identity(&a).unwrap(),
+            windows_staging_identity(&b).unwrap()
+        );
+        drop((a, reopened, b));
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
