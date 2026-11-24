@@ -198,10 +198,11 @@ async fn every_protocol_download_staging_requires_exact_bytes_and_durable_file()
 #[cfg(any(target_os = "linux", windows))]
 #[tokio::test]
 async fn original_download_writer_survives_path_substitution() {
-    let dir = tempfile::tempdir().unwrap();
-    let stage = dir.path().join("transfer.part");
-    let original = dir.path().join("original.part");
-    let target = dir.path().join("target.bin");
+    let dir = std::env::temp_dir().join(format!("ghostftp-writer-{}", Uuid::new_v4()));
+    tokio::fs::create_dir_all(&dir).await.unwrap();
+    let stage = dir.join("transfer.part");
+    let original = dir.join("original.part");
+    let target = dir.join("target.bin");
     let guard = DownloadParentGuard::open(&target).unwrap();
     let mut writer = create_new_download_staging(&stage).await.unwrap();
     writer.write_all(b"good").await.unwrap();
@@ -219,6 +220,9 @@ async fn original_download_writer_survives_path_substitution() {
     assert_eq!(tokio::fs::read(&target).await.unwrap(), b"keep");
     assert_eq!(tokio::fs::read(&original).await.unwrap(), b"good");
     assert_eq!(tokio::fs::read(&stage).await.unwrap(), b"fake");
+    drop(writer);
+    drop(guard);
+    tokio::fs::remove_dir_all(dir).await.unwrap();
 }
 
 #[tokio::test]
