@@ -40,6 +40,7 @@ impl std::error::Error for DownloadStagingOpenFailure {
 /// before promotion can check its type. O_EXCL/CREATE_NEW rejects both.
 pub(super) async fn create_new_download_staging(path: &Path) -> Result<tokio::fs::File> {
     tokio::fs::OpenOptions::new()
+        .read(true)
         .write(true)
         .create_new(true)
         .open(path)
@@ -90,12 +91,14 @@ impl DownloadStageOwner {
             create_pinned_staging(parent, name)
         } else {
             std::fs::OpenOptions::new()
+                .read(true)
                 .write(true)
                 .create_new(true)
                 .open(path)
         };
         #[cfg(not(target_os = "linux"))]
         let file = std::fs::OpenOptions::new()
+            .read(true)
             .write(true)
             .create_new(true)
             .open(path);
@@ -291,7 +294,7 @@ fn create_pinned_staging(
         libc::openat(
             parent.as_raw_fd(),
             name.as_ptr(),
-            libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            libc::O_RDWR | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
             0o666 as libc::mode_t,
         )
     };
@@ -327,6 +330,123 @@ pub(super) struct DownloadParentGuard {
     recovery_db: Option<std::sync::Arc<crate::db::Db>>,
 }
 
+// Positional reads preserve the writer's offset. Hash the entire observed
+// length and reject common concurrent changes; this is not a filesystem lock.
+#[cfg(any(target_os = "linux", windows))]
+fn recovery_file_hash(file: &std::fs::File, identity: (u64, u64, u64)) -> Result<String> {
+    use sha2::{Digest, Sha256};
+
+    let before = file.metadata()?;
+    anyhow::ensure!(
+        recovery_file_identity(file)? == identity,
+        "recovery content handle identity mismatch"
+    );
+    let mut hash = Sha256::new();
+    let mut buffer = vec![0u8; 128 * 1024];
+    let mut offset = 0u64;
+    loop {
+        let remaining = identity.2 - offset;
+        let count = if remaining == 0 {
+            1
+        } else {
+            remaining.min(buffer.len() as u64) as usize
+        };
+        #[cfg(target_os = "linux")]
+        let read = {
+            use std::os::unix::fs::FileExt;
+            file.read_at(&mut buffer[..count], offset)
+        };
+        #[cfg(windows)]
+        let read = {
+            use std::os::windows::fs::FileExt;
+            file.seek_read(&mut buffer[..count], offset)
+        };
+        let read = match read {
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            other => other?,
+        };
+        if remaining == 0 {
+            anyhow::ensure!(read == 0, "recovery file grew during hashing");
+            break;
+        }
+        anyhow::ensure!(read != 0, "recovery file shrank during hashing");
+        hash.update(&buffer[..read]);
+        offset += read as u64;
+    }
+    let after = file.metadata()?;
+    #[cfg(target_os = "linux")]
+    let unchanged = {
+        use std::os::unix::fs::MetadataExt;
+        before.mtime() == after.mtime()
+            && before.mtime_nsec() == after.mtime_nsec()
+            && before.ctime() == after.ctime()
+            && before.ctime_nsec() == after.ctime_nsec()
+    };
+    #[cfg(windows)]
+    let unchanged = {
+        use std::os::windows::fs::MetadataExt;
+        before.creation_time() == after.creation_time()
+            && before.last_write_time() == after.last_write_time()
+    };
+    anyhow::ensure!(
+        unchanged && before.len() == after.len() && recovery_file_identity(file)? == identity,
+        "recovery file changed during hashing"
+    );
+    Ok(format!("{:x}", hash.finalize()))
+}
+
+#[cfg(any(target_os = "linux", windows))]
+fn recovery_file_identity(file: &std::fs::File) -> Result<(u64, u64, u64)> {
+    let metadata = file.metadata()?;
+    anyhow::ensure!(metadata.is_file(), "recovery handle is not a regular file");
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::MetadataExt;
+        anyhow::ensure!(metadata.nlink() == 1, "recovery handle has hard links");
+        Ok((metadata.dev(), metadata.ino(), metadata.len()))
+    }
+    #[cfg(windows)]
+    {
+        let (volume, index) = windows_staging_identity(file)?;
+        Ok((u64::from(volume), index, metadata.len()))
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn open_recovery_read(parent: &std::fs::File, name: &std::ffi::OsStr) -> Result<std::fs::File> {
+    use std::os::fd::{AsRawFd, FromRawFd};
+    use std::os::unix::ffi::OsStrExt;
+
+    let bytes = name.as_bytes();
+    anyhow::ensure!(
+        !bytes.is_empty() && bytes != b"." && bytes != b".." && !bytes.contains(&b'/'),
+        "recovery read requires a basename"
+    );
+    let name = std::ffi::CString::new(bytes)?;
+    // SAFETY: the directory descriptor and NUL-terminated basename are live.
+    let fd = unsafe {
+        libc::openat(
+            parent.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
+        )
+    };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error()).context("open pinned recovery content");
+    }
+    // SAFETY: successful openat returned a newly owned descriptor.
+    let file = unsafe { std::fs::File::from_raw_fd(fd) };
+    recovery_file_identity(&file)?;
+    Ok(file)
+}
+
+#[cfg(windows)]
+fn open_recovery_read(parent: &std::fs::File, name: &std::ffi::OsStr) -> Result<std::fs::File> {
+    let file = windows_open_relative(parent, name, 0x81)?;
+    recovery_file_identity(&file)?;
+    Ok(file)
+}
+
 /// This is a durable recovery intent, not permission to mutate files after
 /// restart. File identifiers may be reused after all handles are closed.
 #[derive(serde::Serialize)]
@@ -339,6 +459,8 @@ struct RecoveryRecord<'a> {
     parent_identity: (u64, u64),
     stage_identity: (u64, u64, u64),
     original_identity: (u64, u64, u64),
+    stage_sha256: String,
+    original_sha256: String,
 }
 
 /// Persisted paths are hints, not proof of ownership. Observations never
@@ -353,6 +475,10 @@ struct RecoveryInspectionRecord {
     parent_identity: (u64, u64),
     stage_identity: (u64, u64, u64),
     original_identity: (u64, u64, u64),
+    #[serde(default)]
+    stage_sha256: String,
+    #[serde(default)]
+    original_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -409,7 +535,10 @@ fn observation_matches_phase(phase: &str, observed: RecoveryObservation) -> bool
 
 impl RecoveryInspectionRecord {
     fn valid_layout(&self) -> bool {
-        self.schema == 1
+        self.schema == 2
+            && [&self.stage_sha256, &self.original_sha256]
+                .iter()
+                .all(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
             && self.parent.is_absolute()
             && self.stage.parent() == Some(self.parent.as_path())
             && self.target.parent() == Some(self.parent.as_path())
@@ -476,12 +605,27 @@ impl RecoveryInspectionRecord {
             let _ = (parent, name);
             (0u64, 0u64, 0u64)
         };
-        if identity == self.original_identity {
-            EntryObservation::Original
-        } else if identity == self.stage_identity {
-            EntryObservation::Stage
-        } else {
-            EntryObservation::Other
+        #[cfg(any(target_os = "linux", windows))]
+        {
+            let (expected_hash, observation) = if identity == self.original_identity {
+                (&self.original_sha256, EntryObservation::Original)
+            } else if identity == self.stage_identity {
+                (&self.stage_sha256, EntryObservation::Stage)
+            } else {
+                return EntryObservation::Other;
+            };
+            match open_recovery_read(parent, name)
+                .and_then(|file| recovery_file_hash(&file, identity))
+            {
+                Ok(hash) if &hash == expected_hash => observation,
+                Ok(_) => EntryObservation::Other,
+                Err(_) => EntryObservation::Unavailable,
+            }
+        }
+        #[cfg(not(any(target_os = "linux", windows)))]
+        {
+            let _ = identity;
+            EntryObservation::Unavailable
         }
     }
 
@@ -539,8 +683,9 @@ impl RecoveryInspectionRecord {
     }
 }
 
-/// Startup diagnostics only. No journal writes, file-content reads or
-/// filesystem mutations. Concurrent operations can invalidate observations.
+/// Startup diagnostics only. No journal writes or filesystem mutations.
+/// Full content reads are bounded; larger records require manual review.
+/// Concurrent operations can invalidate observations.
 pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
     let rows = db.download_recovery_snapshot()?;
     let truncated = rows.len() > 128;
@@ -549,6 +694,7 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
     let mut uncertain = 0usize;
     let mut rollback_candidates = 0usize;
     let mut cleanup_candidates = 0usize;
+    let mut remaining_hash_bytes = 64u64 * 1024 * 1024;
     for row in rows.into_iter().take(128) {
         let signed = serde_json::from_str::<AuthenticatedRecovery>(&row.payload)
             .ok()
@@ -569,6 +715,18 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
             uncertain += 1;
             continue;
         }
+        // Three names, two inspections: conservatively budget six full reads
+        // of the larger file. Never substitute a sampled digest.
+        let cost = record
+            .stage_identity
+            .2
+            .max(record.original_identity.2)
+            .saturating_mul(6);
+        if cost > remaining_hash_bytes {
+            uncertain += 1;
+            continue;
+        }
+        remaining_hash_bytes -= cost;
         let observed = record.inspect();
         match recovery_decision(true, observed) {
             RecoveryDecision::RollbackCandidate => rollback_candidates += 1,
@@ -768,9 +926,11 @@ impl RecoveryJournal {
         parent_identity: (u64, u64),
         stage_identity: (u64, u64, u64),
         original_identity: (u64, u64, u64),
+        stage_sha256: String,
+        original_sha256: String,
     ) -> Result<()> {
         let record = RecoveryRecord {
-            schema: 1,
+            schema: 2,
             parent: &self.parent,
             stage: &self.stage,
             target: &self.target,
@@ -778,6 +938,8 @@ impl RecoveryJournal {
             parent_identity,
             stage_identity,
             original_identity,
+            stage_sha256,
+            original_sha256,
         };
         let destination_key = recovery_destination_key(parent_identity, &self.target)?;
         let payload = serde_json::to_string(&record)?;
@@ -1087,7 +1249,7 @@ impl DownloadParentGuard {
                         &staging,
                         &target_name,
                         &backup,
-                        Some(&expected),
+                        Some(&verified),
                         journal.as_ref(),
                     )
                 } else {
@@ -1113,7 +1275,14 @@ impl DownloadParentGuard {
             if allow_replace {
                 let backup = download_backup_path(target, id);
                 let backup = backup.file_name().context("backup has no basename")?;
-                windows_promote_with_backup(&self.handle, &delete, name, backup, journal.as_ref())
+                let parent = self.handle.clone();
+                let name = name.to_owned();
+                let backup = backup.to_owned();
+                tokio::task::spawn_blocking(move || {
+                    windows_promote_with_backup(&parent, &delete, &name, &backup, journal.as_ref())
+                })
+                .await
+                .context("join Windows recovery promotion")?
             } else {
                 windows_rename_handle(&delete, &self.handle, name, false)
             }
@@ -1252,12 +1421,14 @@ fn promote_pinned_download(
     staging: &std::ffi::OsStr,
     target: &std::ffi::OsStr,
     backup: &std::ffi::OsStr,
-    expected: Option<&std::fs::Metadata>,
+    verified: Option<&std::fs::File>,
     journal: Option<&RecoveryJournal>,
 ) -> Result<()> {
     use std::os::fd::AsRawFd;
     use std::os::unix::ffi::OsStrExt;
 
+    let expected = verified.map(std::fs::File::metadata).transpose()?;
+    let expected = expected.as_ref();
     let staged = pinned_entry(parent, staging)?.context("download staging is missing")?;
     anyhow::ensure!(
         pinned_regular_file(&staged) && staged.st_nlink == 1,
@@ -1275,14 +1446,35 @@ fn promote_pinned_download(
         if let Some(journal) = journal {
             use std::os::unix::fs::MetadataExt;
             let directory = parent.metadata()?;
+            let stage_identity = (staged.st_dev, staged.st_ino, u64::try_from(staged.st_size)?);
+            let original_identity = (
+                original.st_dev,
+                original.st_ino,
+                u64::try_from(original.st_size)?,
+            );
+            let writer = verified.context("recovery requires verified staging handle")?;
+            let stage_hash = match recovery_file_hash(writer, stage_identity) {
+                Ok(hash) => hash,
+                Err(error)
+                    if error
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|error| error.raw_os_error() == Some(libc::EBADF)) =>
+                {
+                    // Some backends exclusively create write-only handles.
+                    // Keep the writer live and bind the relative read to its identity.
+                    let reader = open_recovery_read(parent, staging)?;
+                    recovery_file_hash(&reader, stage_identity)?
+                }
+                Err(error) => return Err(error),
+            };
+            let original_reader = open_recovery_read(parent, target)?;
+            let original_hash = recovery_file_hash(&original_reader, original_identity)?;
             journal.begin(
                 (directory.dev(), directory.ino()),
-                (staged.st_dev, staged.st_ino, u64::try_from(staged.st_size)?),
-                (
-                    original.st_dev,
-                    original.st_ino,
-                    u64::try_from(original.st_size)?,
-                ),
+                stage_identity,
+                original_identity,
+                stage_hash,
+                original_hash,
             )?;
         }
         rename_pinned_siblings(parent, target, backup)
@@ -1505,7 +1697,12 @@ fn windows_promote_with_backup(
     journal: Option<&RecoveryJournal>,
 ) -> Result<()> {
     const DELETE_AND_ATTRIBUTES: u32 = 0x0001_0080;
-    let original = match windows_open_relative(parent, target, DELETE_AND_ATTRIBUTES) {
+    let access = if journal.is_some() {
+        DELETE_AND_ATTRIBUTES | 1 // FILE_READ_DATA
+    } else {
+        DELETE_AND_ATTRIBUTES
+    };
+    let original = match windows_open_relative(parent, target, access) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return windows_rename_handle(source, parent, target, false);
@@ -1521,18 +1718,23 @@ fn windows_promote_with_backup(
         let (volume, index) = windows_file_identity(parent)?;
         let (source_volume, source_index) = windows_staging_identity(source)?;
         let (original_volume, original_index) = windows_staging_identity(&original)?;
+        let stage_identity = (
+            u64::from(source_volume),
+            source_index,
+            source.metadata()?.len(),
+        );
+        let original_identity = (
+            u64::from(original_volume),
+            original_index,
+            original.metadata()?.len(),
+        );
+        let reader = windows_reopen_recovery_read(source)?;
         journal.begin(
             (u64::from(volume), index),
-            (
-                u64::from(source_volume),
-                source_index,
-                source.metadata()?.len(),
-            ),
-            (
-                u64::from(original_volume),
-                original_index,
-                original.metadata()?.len(),
-            ),
+            stage_identity,
+            original_identity,
+            recovery_file_hash(&reader, stage_identity)?,
+            recovery_file_hash(&original, original_identity)?,
         )?;
     }
     windows_rename_handle(&original, parent, backup, false)
@@ -1623,6 +1825,32 @@ fn windows_file_identity(file: &impl std::os::windows::io::AsRawHandle) -> Resul
         info.dwVolumeSerialNumber,
         (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
     ))
+}
+
+/// Read the same open object, not a path that could have been substituted.
+#[cfg(windows)]
+fn windows_reopen_recovery_read(file: &std::fs::File) -> Result<std::fs::File> {
+    use std::os::windows::io::{AsRawHandle, FromRawHandle};
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::Storage::FileSystem::{
+        ReOpenFile, FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES, FILE_READ_DATA,
+        FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+    };
+
+    // SAFETY: the original handle is live; successful reopen owns a new handle.
+    let handle = unsafe {
+        ReOpenFile(
+            file.as_raw_handle(),
+            FILE_READ_DATA | FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_FLAG_OPEN_REPARSE_POINT,
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE {
+        return Err(std::io::Error::last_os_error()).context("reopen recovery content");
+    }
+    // SAFETY: successful ReOpenFile returns an independently owned handle.
+    Ok(unsafe { std::fs::File::from_raw_handle(handle) })
 }
 
 /// Obtain DELETE access to the already opened object, not a new pathname.
@@ -1781,7 +2009,7 @@ pub(super) async fn verify_staged_download_bytes(
         metadata.len()
     );
     let mut options = tokio::fs::OpenOptions::new();
-    options.write(true);
+    options.read(true).write(true);
     #[cfg(unix)]
     options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
     #[cfg(windows)]
@@ -2168,7 +2396,7 @@ mod tests {
         };
         drop(parent);
         let record = RecoveryInspectionRecord {
-            schema: 1,
+            schema: 2,
             parent: root.clone(),
             stage: stage.clone(),
             target: target.clone(),
@@ -2176,6 +2404,16 @@ mod tests {
             parent_identity,
             stage_identity: identity(&stage),
             original_identity: identity(&target),
+            stage_sha256: recovery_file_hash(
+                &std::fs::File::open(&stage).unwrap(),
+                identity(&stage),
+            )
+            .unwrap(),
+            original_sha256: recovery_file_hash(
+                &std::fs::File::open(&target).unwrap(),
+                identity(&target),
+            )
+            .unwrap(),
         };
         let reservation = recovery_destination_key(parent_identity, &target).unwrap();
         assert!(record.matches_reservation(Some(&reservation)));
@@ -2184,8 +2422,14 @@ mod tests {
         let other_reservation = recovery_destination_key(parent_identity, &backup).unwrap();
         assert!(!record.matches_reservation(Some(&other_reservation)));
         assert_eq!(record.inspect(), RecoveryObservation::OriginalPresent);
+        std::fs::write(&stage, b"bad").unwrap();
+        assert_eq!(record.inspect(), RecoveryObservation::Ambiguous);
+        std::fs::write(&stage, b"new").unwrap();
         std::fs::rename(&target, &backup).unwrap();
         assert_eq!(record.inspect(), RecoveryObservation::BackupPresent);
+        std::fs::write(&backup, b"bad").unwrap();
+        assert_eq!(record.inspect(), RecoveryObservation::Ambiguous);
+        std::fs::write(&backup, b"old").unwrap();
         assert!(!target.exists());
         assert_eq!(std::fs::read(&backup).unwrap(), b"old");
         std::fs::rename(&stage, &target).unwrap();
@@ -2255,7 +2499,10 @@ mod tests {
             .map(|signed| signed.payload)
             .unwrap_or_else(|_| rows[0].1.clone());
         let record: serde_json::Value = serde_json::from_str(&payload).unwrap();
-        assert_eq!(record["schema"], 1);
+        assert_eq!(record["schema"], 2);
+        assert_eq!(record["stage_sha256"].as_str().unwrap().len(), 64);
+        assert_eq!(record["original_sha256"].as_str().unwrap().len(), 64);
+        assert_ne!(record["stage_sha256"], record["original_sha256"]);
         assert!(record["original_identity"].is_array());
         assert!(guard
             .promote(&stage, &target, "different-id", false, &verified)
