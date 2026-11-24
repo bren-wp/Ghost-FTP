@@ -783,14 +783,95 @@ const RECOVERY_VAULT_SERVICE: &str = "com.ghostftp.download-recovery.v1";
 const RECOVERY_ANCHOR_SERVICE: &str = "com.ghostftp.download-recovery-anchor.v1";
 const RECOVERY_INDEX_SERVICE: &str = "com.ghostftp.download-recovery-index.v1";
 const RECOVERY_INDEX_KEY_SERVICE: &str = "com.ghostftp.download-recovery-index-key.v1";
-// A compact binary index keeps the entire authenticated entry within a
-// conservative Windows Credential Manager size budget.
-const RECOVERY_INDEX_LIMIT: usize = 8;
+const RECOVERY_BLOB_SERVICE: &str = "com.ghostftp.download-recovery-blob.v2";
+// A small authenticated manifest commits to immutable eight-entry shards.
+// The overall bound matches the SQLite reconciliation snapshot capacity.
+const RECOVERY_SHARD_SIZE: usize = 8;
+const RECOVERY_INDEX_LIMIT: usize = 128;
+const RECOVERY_BLOB_CHUNK: usize = 720;
+const RECOVERY_BLOB_LIMIT: usize = 256 * 1024;
+
+fn recovery_digest(bytes: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes).into()
+}
+
+fn recovery_blob_account(scope: &str, digest: &[u8; 32], part: &str) -> String {
+    use base64::Engine;
+    let digest = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(digest);
+    format!("{scope}:{digest}:{part}")
+}
+
+// Content-addressed immutable values are staged before publishing the root.
+// Existing bytes must match exactly; a missing or corrupt chunk never permits
+// reading a different generation. All credentials use persistent strict reads.
+fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
+    use base64::Engine;
+
+    anyhow::ensure!(
+        !bytes.is_empty() && bytes.len() <= RECOVERY_BLOB_LIMIT,
+        "invalid recovery blob size"
+    );
+    let digest = recovery_digest(bytes);
+    let put = |part: &str, value: &str| -> Result<()> {
+        let account = recovery_blob_account(scope, &digest, part);
+        match crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)? {
+            Some(existing) => anyhow::ensure!(existing == value, "recovery blob collision"),
+            None => crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &account, value)?,
+        }
+        anyhow::ensure!(
+            crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?
+                .as_deref()
+                == Some(value),
+            "recovery blob readback mismatch"
+        );
+        Ok(())
+    };
+    for (index, chunk) in bytes.chunks(RECOVERY_BLOB_CHUNK).enumerate() {
+        let encoded = base64::engine::general_purpose::STANDARD.encode(chunk);
+        put(&index.to_string(), &encoded)?;
+    }
+    // Publish the length only after every chunk has been verified.
+    put("length", &bytes.len().to_string())?;
+    Ok(digest)
+}
+
+fn get_recovery_blob(scope: &str, digest: &[u8; 32]) -> Result<Vec<u8>> {
+    use base64::Engine;
+
+    let get = |part: &str| -> Result<String> {
+        let account = recovery_blob_account(scope, digest, part);
+        crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?
+            .context("recovery blob part missing")
+    };
+    let length: usize = get("length")?.parse()?;
+    anyhow::ensure!(
+        length > 0 && length <= RECOVERY_BLOB_LIMIT,
+        "invalid recovery blob size"
+    );
+    let mut bytes = Vec::with_capacity(length);
+    for index in 0..length.div_ceil(RECOVERY_BLOB_CHUNK) {
+        let encoded = get(&index.to_string())?;
+        anyhow::ensure!(encoded.len() <= 960, "recovery blob chunk too large");
+        let chunk = base64::engine::general_purpose::STANDARD.decode(encoded)?;
+        anyhow::ensure!(
+            chunk.len() == (length - bytes.len()).min(RECOVERY_BLOB_CHUNK),
+            "invalid recovery blob chunk length"
+        );
+        bytes.extend_from_slice(&chunk);
+    }
+    anyhow::ensure!(
+        bytes.len() == length && recovery_digest(&bytes) == *digest,
+        "recovery blob digest mismatch"
+    );
+    Ok(bytes)
+}
 
 #[derive(Default)]
 struct GlobalRecoveryLedger {
     generation: u64,
     entries: std::collections::BTreeMap<[u8; 32], [u8; 32]>,
+    sharded: bool,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -814,6 +895,7 @@ fn recovery_index_entry(
 }
 
 impl GlobalRecoveryLedger {
+    #[cfg(test)]
     fn encode(&self) -> String {
         use base64::Engine;
 
@@ -845,10 +927,111 @@ impl GlobalRecoveryLedger {
             );
         }
         anyhow::ensure!(
-            entries.len() <= RECOVERY_INDEX_LIMIT,
+            entries.len() <= RECOVERY_SHARD_SIZE,
+            "legacy recovery index capacity exceeded"
+        );
+        Ok(Self {
+            generation,
+            entries,
+            sharded: false,
+        })
+    }
+
+    fn shard_bytes(&self) -> Vec<Vec<u8>> {
+        let mut shards = Vec::new();
+        for (index, (id, proof)) in self.entries.iter().enumerate() {
+            if index % RECOVERY_SHARD_SIZE == 0 {
+                shards.push(Vec::with_capacity(RECOVERY_SHARD_SIZE * 64));
+            }
+            let shard = shards.last_mut().expect("shard allocated");
+            shard.extend_from_slice(id);
+            shard.extend_from_slice(proof);
+        }
+        shards
+    }
+
+    fn manifest(generation: u64, shards: &[[u8; 32]]) -> Result<String> {
+        use base64::Engine;
+        anyhow::ensure!(
+            shards.len() <= RECOVERY_INDEX_LIMIT / RECOVERY_SHARD_SIZE,
+            "too many recovery shards"
+        );
+        let mut bytes = generation.to_be_bytes().to_vec();
+        for digest in shards {
+            bytes.extend_from_slice(digest);
+        }
+        Ok(format!(
+            "v2:{}",
+            base64::engine::general_purpose::STANDARD.encode(bytes)
+        ))
+    }
+
+    fn parse_manifest(payload: &str) -> Result<(u64, Vec<[u8; 32]>)> {
+        use base64::Engine;
+        let encoded = payload.strip_prefix("v2:").context("invalid recovery manifest version")?;
+        anyhow::ensure!(encoded.len() <= 704, "recovery manifest too large");
+        let bytes = base64::engine::general_purpose::STANDARD.decode(encoded)?;
+        anyhow::ensure!(
+            bytes.len() >= 8 && (bytes.len() - 8) % 32 == 0,
+            "invalid recovery manifest"
+        );
+        let generation = u64::from_be_bytes(bytes[..8].try_into()?);
+        let shards: Vec<[u8; 32]> = bytes[8..]
+            .chunks_exact(32)
+            .map(|chunk| chunk.try_into().map_err(Into::into))
+            .collect::<Result<_>>()?;
+        anyhow::ensure!(
+            shards.len() <= RECOVERY_INDEX_LIMIT / RECOVERY_SHARD_SIZE,
+            "too many recovery shards"
+        );
+        Ok((generation, shards))
+    }
+
+    fn from_shards(
+        generation: u64,
+        shards: impl IntoIterator<Item = Vec<u8>>,
+    ) -> Result<Self> {
+        let mut ledger = Self {
+            generation,
+            sharded: true,
+            ..Self::default()
+        };
+        let mut previous = None;
+        for shard in shards {
+            anyhow::ensure!(
+                !shard.is_empty()
+                    && shard.len() <= RECOVERY_SHARD_SIZE * 64
+                    && shard.len() % 64 == 0,
+                "invalid recovery shard"
+            );
+            for entry in shard.chunks_exact(64) {
+                let id: [u8; 32] = entry[..32].try_into()?;
+                let proof: [u8; 32] = entry[32..].try_into()?;
+                anyhow::ensure!(
+                    previous.is_none_or(|last| last < id),
+                    "unordered or duplicate recovery shard entry"
+                );
+                ledger.entries.insert(id, proof);
+                previous = Some(id);
+            }
+        }
+        anyhow::ensure!(
+            ledger.entries.len() <= RECOVERY_INDEX_LIMIT,
             "recovery index capacity exceeded"
         );
-        Ok(Self { generation, entries })
+        Ok(ledger)
+    }
+
+    fn store_record(
+        db: &crate::db::Db,
+        id: &str,
+        phase: &str,
+        destination: &str,
+        envelope: &str,
+    ) -> Result<[u8; 32]> {
+        anyhow::ensure!(envelope.len() <= 65536, "recovery envelope too large");
+        let bytes = serde_json::to_vec(&(id, phase, Some(destination), envelope))?;
+        put_recovery_blob(&db.recovery_scope()?, &bytes)
     }
 
     fn differences(
@@ -915,7 +1098,8 @@ impl GlobalRecoveryLedger {
         let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?;
         let stored = crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)?;
         match (key, stored) {
-            (Some(key), Some(stored)) => Self::with_key(&key, |key| {
+            (Some(key), Some(stored)) => {
+                let mut ledger = Self::with_key(&key, |key| {
                 anyhow::ensure!(stored.len() <= 1200, "recovery index envelope too large");
                 let signed: AuthenticatedRecovery = serde_json::from_str(&stored)?;
                 signed.verify(&scope, key)?;
@@ -923,10 +1107,38 @@ impl GlobalRecoveryLedger {
                     signed.key_id == Uuid::nil() && signed.phases.is_empty(),
                     "invalid global recovery index envelope"
                 );
-                Self::decode(&signed.payload)
-            }),
+                if signed.payload.starts_with("v2:") {
+                    let (generation, digests) = Self::parse_manifest(&signed.payload)?;
+                    let shards = digests
+                        .iter()
+                        .map(|digest| get_recovery_blob(&scope, digest))
+                        .collect::<Result<Vec<_>>>()?;
+                    Self::from_shards(generation, shards)
+                } else {
+                    Self::decode(&signed.payload)
+                }
+                })?;
+                if initialize && !ledger.sharded {
+                    ledger.check_rows(db)?;
+                    for row in db.download_recovery_snapshot()? {
+                        let destination = row.destination_key.as_deref().context("legacy reservation missing")?;
+                        let signed: AuthenticatedRecovery = serde_json::from_str(&row.payload)?;
+                        anyhow::ensure!(
+                            signed.authenticate(&row.id, &row.payload)?.as_str() == row.phase,
+                            "legacy recovery record is not authenticated"
+                        );
+                        Self::store_record(db, &row.id, &row.phase, destination, &row.payload)?;
+                    }
+                    ledger.sharded = true;
+                    ledger.save(db)?;
+                }
+                Ok(ledger)
+            }
             (None, None) => {
-                let ledger = Self::default();
+                let ledger = Self {
+                    sharded: true,
+                    ..Self::default()
+                };
                 ledger.check_rows(db)?;
                 if initialize {
                     let mut key = [0u8; 32];
@@ -953,7 +1165,13 @@ impl GlobalRecoveryLedger {
         let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?
             .context("recovery index key unavailable")?;
         Self::with_key(&key, |key| {
-            let signed = AuthenticatedRecovery::seal(&scope, self.encode(), Uuid::nil(), key)?;
+            let shards = self
+                .shard_bytes()
+                .iter()
+                .map(|bytes| put_recovery_blob(&scope, bytes))
+                .collect::<Result<Vec<_>>>()?;
+            let manifest = Self::manifest(self.generation, &shards)?;
+            let signed = AuthenticatedRecovery::seal(&scope, manifest, Uuid::nil(), key)?;
             let encoded = serde_json::to_string(&signed)?;
             anyhow::ensure!(encoded.len() <= 1200, "recovery index envelope too large");
             crate::credentials::vault_set(RECOVERY_INDEX_SERVICE, &scope, &encoded)?;
@@ -991,6 +1209,8 @@ impl GlobalRecoveryLedger {
                 expected.is_some() || self.entries.len() < RECOVERY_INDEX_LIMIT,
                 "global recovery index capacity reached"
             );
+            let stored = Self::store_record(db, id, phase, destination, payload)?;
+            anyhow::ensure!(stored == proof, "redundant recovery record digest mismatch");
             self.entries.insert(identity, proof);
         } else {
             self.entries.remove(&identity);
@@ -2920,7 +3140,7 @@ mod tests {
     fn global_index_authenticated_envelope_rejects_tampering_and_wrong_scope() {
         let key = [0x42; 32];
         let mut ledger = GlobalRecoveryLedger::default();
-        for index in 0..RECOVERY_INDEX_LIMIT {
+        for index in 0..RECOVERY_SHARD_SIZE {
             let (id, proof) = recovery_index_entry(
                 &index.to_string(),
                 "prepared",
@@ -2937,10 +3157,40 @@ mod tests {
         assert!(signed.verify("other", &key).is_err());
         assert_eq!(
             GlobalRecoveryLedger::decode(&signed.payload).unwrap().entries.len(),
-            RECOVERY_INDEX_LIMIT
+            RECOVERY_SHARD_SIZE
         );
         signed.payload.push('A');
         assert!(signed.verify("scope", &key).is_err());
+    }
+
+    #[test]
+    fn sharded_index_round_trips_more_than_eight_entries() {
+        let mut ledger = GlobalRecoveryLedger::default();
+        ledger.generation = 42;
+        for index in 0..RECOVERY_INDEX_LIMIT {
+            let (id, proof) = recovery_index_entry(
+                &index.to_string(),
+                "prepared",
+                Some("destination"),
+                "payload",
+            )
+            .unwrap();
+            ledger.entries.insert(id, proof);
+        }
+        let shards = ledger.shard_bytes();
+        assert_eq!(shards.len(), 16);
+        let digests: Vec<_> = shards.iter().map(|bytes| recovery_digest(bytes)).collect();
+        let manifest = GlobalRecoveryLedger::manifest(ledger.generation, &digests).unwrap();
+        let (generation, decoded) = GlobalRecoveryLedger::parse_manifest(&manifest).unwrap();
+        assert_eq!(decoded, digests);
+        let restored = GlobalRecoveryLedger::from_shards(generation, shards.clone()).unwrap();
+        assert_eq!(restored.entries, ledger.entries);
+        assert_eq!(restored.generation, 42);
+        let mut duplicated = shards;
+        duplicated[1] = duplicated[0].clone();
+        assert!(GlobalRecoveryLedger::from_shards(generation, duplicated).is_err());
+        let signed = AuthenticatedRecovery::seal("scope", manifest, Uuid::nil(), &[7; 32]).unwrap();
+        assert!(serde_json::to_string(&signed).unwrap().len() <= 1200);
     }
 
     #[test]
