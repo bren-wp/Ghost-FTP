@@ -430,10 +430,8 @@ mod tests {
                 .as_deref(),
             Some("disposable-fixtures")
         );
-        let root = std::env::temp_dir().join(format!(
-            "ghostftp-delete-bench-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delete-bench-{}", uuid::Uuid::new_v4()));
         super::super::configure_native_recovery_test_vault(root.clone(), None);
         let result = std::panic::catch_unwind(|| {
             let service = "com.ghostftp.download-recovery.v1";
