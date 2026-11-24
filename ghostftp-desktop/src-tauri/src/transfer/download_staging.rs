@@ -539,10 +539,26 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
     let mut matching = 0usize;
     let mut divergent = 0usize;
     let mut uncertain = 0usize;
-    for (phase, payload) in rows.into_iter().take(128) {
-        let observed = serde_json::from_str::<RecoveryInspectionRecord>(&payload)
+    let mut rollback_candidates = 0usize;
+    let mut cleanup_candidates = 0usize;
+    for (id, phase, payload) in rows.into_iter().take(128) {
+        let signed = serde_json::from_str::<AuthenticatedRecovery>(&payload)
+            .ok()
+            .filter(|record| record.authenticate(&id).is_ok());
+        let Some(signed) = signed else {
+            // Legacy, tampered and inaccessible records never authorize even
+            // an automatic filesystem inspection of their stored path hints.
+            uncertain += 1;
+            continue;
+        };
+        let observed = serde_json::from_str::<RecoveryInspectionRecord>(&signed.payload)
             .map(|record| record.inspect())
             .unwrap_or(RecoveryObservation::Ambiguous);
+        match recovery_decision(true, observed) {
+            RecoveryDecision::RollbackCandidate => rollback_candidates += 1,
+            RecoveryDecision::CleanupCandidate => cleanup_candidates += 1,
+            _ => {}
+        }
         if matches!(
             observed,
             RecoveryObservation::Ambiguous | RecoveryObservation::Unavailable
@@ -559,11 +575,132 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
             matching,
             divergent,
             uncertain,
+            rollback_candidates,
+            cleanup_candidates,
             truncated,
             "download recovery observations require review"
         );
     }
     Ok(())
+}
+
+const RECOVERY_VAULT_SERVICE: &str = "com.ghostftp.download-recovery.v1";
+
+/// Authenticates immutable intent bytes and the transfer ID. The mutable
+/// SQLite phase is not authenticated and neither is current file content.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct AuthenticatedRecovery {
+    key_id: Uuid,
+    nonce: [u8; 12],
+    tag: Vec<u8>,
+    payload: String,
+}
+
+impl AuthenticatedRecovery {
+    fn seal(id: &str, payload: String, key_id: Uuid, key: &[u8; 32]) -> Result<Self> {
+        use aes_gcm::aead::{Aead, KeyInit, Payload};
+        use aes_gcm::{Aes256Gcm, Key, Nonce};
+        use rand::RngCore;
+
+        let mut nonce = [0u8; 12];
+        rand::rngs::OsRng.try_fill_bytes(&mut nonce)?;
+        let aad = serde_json::to_vec(&(RECOVERY_VAULT_SERVICE, id, key_id, &payload))?;
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+        let tag = cipher
+            .encrypt(Nonce::from_slice(&nonce), Payload { msg: &[], aad: &aad })
+            .map_err(|_| anyhow::anyhow!("recovery authentication failed"))?;
+        Ok(Self {
+            key_id,
+            nonce,
+            tag,
+            payload,
+        })
+    }
+
+    fn verify(&self, id: &str, key: &[u8; 32]) -> Result<()> {
+        use aes_gcm::aead::{Aead, KeyInit, Payload};
+        use aes_gcm::{Aes256Gcm, Key, Nonce};
+
+        anyhow::ensure!(self.tag.len() == 16, "invalid recovery authentication tag");
+        let aad = serde_json::to_vec(&(RECOVERY_VAULT_SERVICE, id, self.key_id, &self.payload))?;
+        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+        cipher
+            .decrypt(
+                Nonce::from_slice(&self.nonce),
+                Payload {
+                    msg: &self.tag,
+                    aad: &aad,
+                },
+            )
+            .map_err(|_| anyhow::anyhow!("recovery authentication failed"))?;
+        Ok(())
+    }
+
+    fn create(id: &str, payload: String) -> Result<Self> {
+        use base64::Engine;
+        use rand::RngCore;
+
+        let key_id = Uuid::new_v4();
+        let account = key_id.to_string();
+        let mut key = [0u8; 32];
+        rand::rngs::OsRng.try_fill_bytes(&mut key)?;
+        let result = (|| {
+            let signed = Self::seal(id, payload, key_id, &key)?;
+            let encoded = base64::engine::general_purpose::STANDARD.encode(key);
+            crate::credentials::vault_set(RECOVERY_VAULT_SERVICE, &account, &encoded)?;
+            let readback = crate::credentials::vault_get(RECOVERY_VAULT_SERVICE, &account)?
+                .context("recovery authentication key is missing after creation")?;
+            anyhow::ensure!(readback == encoded, "recovery key readback mismatch");
+            Ok(signed)
+        })();
+        key.fill(0);
+        result
+    }
+
+    fn authenticate(&self, id: &str) -> Result<()> {
+        use base64::Engine;
+
+        let encoded = crate::credentials::vault_get(
+            RECOVERY_VAULT_SERVICE,
+            &self.key_id.to_string(),
+        )?
+        .context("recovery authentication key is unavailable")?;
+        let mut decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
+        let result = match <&[u8; 32]>::try_from(decoded.as_slice()) {
+            Ok(key) => self.verify(id, key),
+            Err(_) => Err(anyhow::anyhow!("invalid recovery authentication key length")),
+        };
+        decoded.fill(0);
+        result
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum RecoveryDecision {
+    ManualReview,
+    InspectOnly,
+    RollbackCandidate,
+    CleanupCandidate,
+}
+
+/// Candidates are advisory only: authentication of the journal does not
+/// prove current file contents or exclude replay, identifier reuse or races.
+fn recovery_decision(authenticated: bool, observed: RecoveryObservation) -> RecoveryDecision {
+    if !authenticated {
+        return RecoveryDecision::ManualReview;
+    }
+    match observed {
+        RecoveryObservation::BackupPresent | RecoveryObservation::BackupWithoutStage => {
+            RecoveryDecision::RollbackCandidate
+        }
+        RecoveryObservation::PublishedWithBackup => RecoveryDecision::CleanupCandidate,
+        RecoveryObservation::OriginalPresent
+        | RecoveryObservation::OriginalWithoutStage
+        | RecoveryObservation::PublishedWithoutBackup => RecoveryDecision::InspectOnly,
+        RecoveryObservation::Ambiguous | RecoveryObservation::Unavailable => {
+            RecoveryDecision::ManualReview
+        }
+    }
 }
 
 struct RecoveryJournal {
@@ -573,6 +710,7 @@ struct RecoveryJournal {
     stage: PathBuf,
     target: PathBuf,
     backup: PathBuf,
+    auth_key: std::sync::Mutex<Option<Uuid>>,
 }
 
 fn recovery_destination_key(parent_identity: (u64, u64), target: &Path) -> Result<String> {
@@ -620,8 +758,22 @@ impl RecoveryJournal {
             original_identity,
         };
         let destination_key = recovery_destination_key(parent_identity, &self.target)?;
+        let payload = serde_json::to_string(&record)?;
+        // An unavailable credential vault must not silently grant recovery
+        // authority or disable ordinary downloads on headless installations.
+        let stored = match AuthenticatedRecovery::create(&self.id, payload.clone()) {
+            Ok(signed) => {
+                let encoded = serde_json::to_string(&signed)?;
+                *self.auth_key.lock().unwrap_or_else(|e| e.into_inner()) = Some(signed.key_id);
+                encoded
+            }
+            Err(_) => {
+                tracing::warn!("recovery intent is unauthenticated; manual review required");
+                payload
+            }
+        };
         self.db
-            .download_recovery_begin(&self.id, &serde_json::to_string(&record)?, &destination_key)
+            .download_recovery_begin(&self.id, &stored, &destination_key)
             .context("persist recovery intent before backup")
     }
 
@@ -632,6 +784,13 @@ impl RecoveryJournal {
     fn finish(&self) {
         if self.db.download_recovery_finish(&self.id).is_err() {
             tracing::warn!("completed download recovery intent could not be cleared");
+            return;
+        }
+        let key_id = self.auth_key.lock().unwrap_or_else(|e| e.into_inner()).take();
+        if let Some(key_id) = key_id {
+            if crate::credentials::vault_delete(RECOVERY_VAULT_SERVICE, &key_id.to_string()).is_err() {
+                tracing::warn!("completed recovery key requires credential vault cleanup");
+            }
         }
     }
 }
@@ -675,6 +834,7 @@ impl DownloadParentGuard {
             stage: std::path::absolute(staging)?,
             target: std::path::absolute(target)?,
             backup: std::path::absolute(download_backup_path(target, id))?,
+            auth_key: std::sync::Mutex::new(None),
         }))
     }
 
@@ -1992,7 +2152,10 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].0, "recovery");
         assert_eq!(db.download_recovery_phase("recovery").unwrap(), "prepared");
-        let record: serde_json::Value = serde_json::from_str(&rows[0].1).unwrap();
+        let payload = serde_json::from_str::<AuthenticatedRecovery>(&rows[0].1)
+            .map(|signed| signed.payload)
+            .unwrap_or_else(|_| rows[0].1.clone());
+        let record: serde_json::Value = serde_json::from_str(&payload).unwrap();
         assert_eq!(record["schema"], 1);
         assert!(record["original_identity"].is_array());
         assert!(guard
