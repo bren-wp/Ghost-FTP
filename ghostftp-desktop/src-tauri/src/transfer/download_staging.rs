@@ -497,16 +497,21 @@ impl DownloadParentGuard {
                     && verified.metadata().await?.len() == reopened.metadata().await?.len(),
                 "verified staging identity changed before promotion"
             );
-            if !allow_replace {
-                let name = target.file_name().context("target has no basename")?;
-                anyhow::ensure!(
-                    staging.parent() == target.parent(),
-                    "download staging must be a sibling of its target"
-                );
-                let delete = windows_delete_access(verified)?;
-                return windows_rename_handle(&delete, &self.handle, name, false);
+            let name = target.file_name().context("target has no basename")?;
+            anyhow::ensure!(
+                staging.parent() == target.parent(),
+                "download staging must be a sibling of its target"
+            );
+            let delete = windows_delete_access(verified)?;
+            if allow_replace {
+                let backup = download_backup_path(target, id);
+                let backup = backup.file_name().context("backup has no basename")?;
+                windows_promote_with_backup(&self.handle, &delete, name, backup)
+            } else {
+                windows_rename_handle(&delete, &self.handle, name, false)
             }
         }
+        #[cfg(not(windows))]
         if allow_replace {
             promote_staged_download(staging, target, id).await
         } else {
@@ -733,6 +738,145 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     .context("join local no-replace download promotion")?
 }
 
+/// Open a single existing child of the pinned directory, never resolving
+/// the full path again. NT native open is needed for a RootDirectory handle.
+#[cfg(windows)]
+fn windows_open_relative(
+    parent: &std::fs::File,
+    name: &std::ffi::OsStr,
+    access: u32,
+) -> std::io::Result<std::fs::File> {
+    use std::ffi::c_void;
+    use std::os::windows::ffi::OsStrExt;
+    use std::os::windows::io::{AsRawHandle, FromRawHandle};
+    use windows_sys::Win32::Foundation::HANDLE;
+
+    #[repr(C)]
+    struct UnicodeString {
+        length: u16,
+        maximum_length: u16,
+        buffer: *mut u16,
+    }
+    #[repr(C)]
+    struct ObjectAttributes {
+        length: u32,
+        root_directory: HANDLE,
+        object_name: *mut UnicodeString,
+        attributes: u32,
+        security_descriptor: *mut c_void,
+        security_quality_of_service: *mut c_void,
+    }
+    #[repr(C)]
+    struct IoStatusBlock {
+        status_or_pointer: usize,
+        information: usize,
+    }
+    #[link(name = "ntdll")]
+    extern "system" {
+        fn NtOpenFile(
+            file_handle: *mut HANDLE,
+            desired_access: u32,
+            object_attributes: *mut ObjectAttributes,
+            io_status_block: *mut IoStatusBlock,
+            share_access: u32,
+            open_options: u32,
+        ) -> i32;
+        fn RtlNtStatusToDosError(status: i32) -> u32;
+    }
+
+    let mut wide: Vec<u16> = name.encode_wide().collect();
+    if wide.is_empty()
+        || name == "."
+        || name == ".."
+        || wide.iter().any(|&c| matches!(c, 0 | 47 | 58 | 92))
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "relative open requires a single filename",
+        ));
+    }
+    let bytes = wide
+        .len()
+        .checked_mul(2)
+        .and_then(|n| u16::try_from(n).ok())
+        .ok_or_else(|| std::io::Error::other("relative filename too long"))?;
+    let mut name = UnicodeString {
+        length: bytes,
+        maximum_length: bytes,
+        buffer: wide.as_mut_ptr(),
+    };
+    let mut attributes = ObjectAttributes {
+        length: std::mem::size_of::<ObjectAttributes>() as u32,
+        root_directory: parent.as_raw_handle(),
+        object_name: &mut name,
+        attributes: 0x40, // OBJ_CASE_INSENSITIVE
+        security_descriptor: std::ptr::null_mut(),
+        security_quality_of_service: std::ptr::null_mut(),
+    };
+    let mut iosb = IoStatusBlock {
+        status_or_pointer: 0,
+        information: 0,
+    };
+    let mut handle: HANDLE = std::ptr::null_mut();
+    // SAFETY: these repr(C) structures match the Windows x64 NT ABI. All
+    // buffers and the root handle are live until the synchronous call returns.
+    let status = unsafe {
+        NtOpenFile(
+            &mut handle,
+            access | 0x0010_0000, // SYNCHRONIZE
+            &mut attributes,
+            &mut iosb,
+            0x7, // share read, write, delete
+            0x0020_0060, // OPEN_REPARSE_POINT | NON_DIRECTORY | SYNCHRONOUS_IO_NONALERT
+        )
+    };
+    if status < 0 {
+        // SAFETY: conversion accepts any NTSTATUS value.
+        let error = unsafe { RtlNtStatusToDosError(status) };
+        return Err(std::io::Error::from_raw_os_error(error as i32));
+    }
+    if handle.is_null() {
+        return Err(std::io::Error::other("relative open returned no handle"));
+    }
+    // SAFETY: successful NtOpenFile transfers ownership of this handle.
+    Ok(unsafe { std::fs::File::from_raw_handle(handle) })
+}
+
+/// Preserve the original file by its own native handle. All rename targets
+/// are resolved against the retained directory and cannot overwrite a collision.
+#[cfg(windows)]
+fn windows_promote_with_backup(
+    parent: &std::fs::File,
+    source: &std::fs::File,
+    target: &std::ffi::OsStr,
+    backup: &std::ffi::OsStr,
+) -> Result<()> {
+    const DELETE_AND_ATTRIBUTES: u32 = 0x0001_0080;
+    let original = match windows_open_relative(parent, target, DELETE_AND_ATTRIBUTES) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return windows_rename_handle(source, parent, target, false);
+        }
+        Err(error) => return Err(error).context("open existing destination relative to parent"),
+    };
+    windows_staging_identity(&original)?;
+    anyhow::ensure!(original.metadata()?.is_file(), "destination is not a real file");
+    windows_rename_handle(&original, parent, backup, false)
+        .context("preserve original destination without replacing backup")?;
+    if let Err(error) = windows_rename_handle(source, parent, target, false) {
+        return match windows_rename_handle(&original, parent, target, false) {
+            Ok(()) => Err(error).context("promotion failed; original restored"),
+            Err(rollback) => Err(anyhow::anyhow!(
+                "promotion failed; recovery backup remains: {error:#}; rollback: {rollback:#}"
+            )),
+        };
+    }
+    // The original handle now identifies the backup, not the new target.
+    // Cleanup failure leaves the backup intact; publication already succeeded.
+    let _ = windows_delete_handle(&original);
+    Ok(())
+}
+
 /// Obtain DELETE access to the already opened object, not a new pathname.
 #[cfg(windows)]
 fn windows_delete_access(file: &tokio::fs::File) -> Result<std::fs::File> {
@@ -840,8 +984,9 @@ fn windows_delete_handle(file: &std::fs::File) -> Result<()> {
 /// Windows file identity from an opened handle, not timestamps or path text.
 /// The volume serial and file index identify the file on supported volumes.
 #[cfg(windows)]
-fn windows_staging_identity(file: &tokio::fs::File) -> Result<(u32, u64)> {
-    use std::os::windows::io::AsRawHandle;
+fn windows_staging_identity(
+    file: &impl std::os::windows::io::AsRawHandle,
+) -> Result<(u32, u64)> {
     use windows_sys::Win32::Storage::FileSystem::{
         GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT,
     };
@@ -1142,6 +1287,37 @@ mod tests {
         owner.cleanup(&parent, &stage).await;
         assert!(!stage.exists());
         drop(parent);
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn native_windows_overwrite_preserves_existing_backup() {
+        let root = std::env::temp_dir().join(format!("ghostftp-win-backup-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let stage = root.join("stage");
+        let target = root.join("target");
+        let backup = download_backup_path(&target, "native");
+        let guard = DownloadParentGuard::open(&target).unwrap();
+        tokio::fs::write(&stage, b"new").await.unwrap();
+        tokio::fs::write(&target, b"old").await.unwrap();
+        tokio::fs::write(&backup, b"recovery").await.unwrap();
+        let verified = verify_staged_download_bytes(&stage, 3).await.unwrap();
+        assert!(guard
+            .promote(&stage, &target, "native", true, &verified)
+            .await
+            .is_err());
+        assert_eq!(tokio::fs::read(&target).await.unwrap(), b"old");
+        assert_eq!(tokio::fs::read(&backup).await.unwrap(), b"recovery");
+        tokio::fs::remove_file(&backup).await.unwrap();
+        guard
+            .promote(&stage, &target, "native", true, &verified)
+            .await
+            .unwrap();
+        drop(verified);
+        assert_eq!(tokio::fs::read(&target).await.unwrap(), b"new");
+        assert!(!backup.exists());
+        drop(guard);
         tokio::fs::remove_dir_all(root).await.unwrap();
     }
 
