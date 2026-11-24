@@ -3,6 +3,70 @@ use std::sync::Mutex;
 
 static VAULT_LOCK: Mutex<()> = Mutex::new(());
 
+// Test binaries only. The production vault cannot be redirected by an
+// environment variable, configuration file or IPC command.
+#[cfg(test)]
+struct RecoveryTestVault {
+    root: std::path::PathBuf,
+    checkpoint: Option<String>,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static RECOVERY_TEST_VAULT: std::cell::RefCell<Option<RecoveryTestVault>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn configure_recovery_test_vault(
+    root: std::path::PathBuf,
+    checkpoint: Option<String>,
+) {
+    std::fs::create_dir_all(&root).unwrap();
+    RECOVERY_TEST_VAULT.with(|state| {
+        *state.borrow_mut() = Some(RecoveryTestVault { root, checkpoint });
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn clear_recovery_test_vault() {
+    RECOVERY_TEST_VAULT.with(|state| *state.borrow_mut() = None);
+}
+
+#[cfg(test)]
+fn test_recovery_path(service: &str, account: &str) -> Option<std::path::PathBuf> {
+    use sha2::{Digest, Sha256};
+
+    if !service.starts_with("com.ghostftp.download-recovery") {
+        return None;
+    }
+    RECOVERY_TEST_VAULT.with(|state| {
+        state.borrow().as_ref().map(|vault| {
+            let digest = Sha256::digest(
+                serde_json::to_vec(&(service, account)).expect("serialize test vault account"),
+            );
+            vault.root.join(format!("{digest:x}"))
+        })
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn recovery_test_checkpoint(point: &str) {
+    RECOVERY_TEST_VAULT.with(|state| {
+        let state = state.borrow();
+        let Some(vault) = state.as_ref() else {
+            return;
+        };
+        if vault.checkpoint.as_deref() == Some(point) {
+            std::fs::write(vault.root.join("checkpoint"), point).unwrap();
+            // Parent kills this process while the real recovery lock is held.
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
+    });
+}
+
 #[cfg(target_os = "linux")]
 mod linux_secret_service;
 
@@ -61,6 +125,14 @@ pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
 
 /// Recovery anchors must never fall back to volatile legacy keyutils.
 pub(crate) fn vault_get_strict(service: &str, account: &str) -> Result<Option<String>> {
+    #[cfg(test)]
+    if let Some(path) = test_recovery_path(service, account) {
+        return match std::fs::read_to_string(path) {
+            Ok(value) => Ok(Some(value)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
+        };
+    }
     let _guard = VAULT_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -77,6 +149,17 @@ pub(crate) fn vault_get_strict(service: &str, account: &str) -> Result<Option<St
 /// New Linux writes are persistent-only and must verify their destination.
 /// No fallback to kernel keyutils: it loses data on reboot.
 pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
+    #[cfg(test)]
+    if let Some(path) = test_recovery_path(service, account) {
+        use std::io::Write;
+        let temporary = path.with_extension("tmp");
+        let mut file = std::fs::File::create(&temporary)?;
+        file.write_all(value.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(temporary, path)?;
+        return Ok(());
+    }
     let _guard = VAULT_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -91,6 +174,41 @@ pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
             .set_password(value)
             .map_err(|_| anyhow!("OS credential store refused secret write"))
     }
+}
+
+/// Idempotent persistent-only removal, with readback under one vault lock.
+/// Never fall back to a volatile credential when deciding whether it is gone.
+pub(crate) fn vault_delete_strict(service: &str, account: &str) -> Result<()> {
+    #[cfg(test)]
+    if let Some(path) = test_recovery_path(service, account) {
+        return match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.into()),
+        };
+    }
+    let _guard = VAULT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    #[cfg(target_os = "linux")]
+    {
+        if linux_secret_service::lookup(service, account)?.is_some() {
+            linux_secret_service::remove(service, account)?;
+        }
+        anyhow::ensure!(
+            linux_secret_service::lookup(service, account)?.is_none(),
+            "persistent credential still exists after removal"
+        );
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        legacy_delete(service, account)?;
+        anyhow::ensure!(
+            legacy_get(service, account)?.is_none(),
+            "persistent credential still exists after removal"
+        );
+    }
+    Ok(())
 }
 
 pub fn vault_delete(service: &str, account: &str) -> Result<()> {
