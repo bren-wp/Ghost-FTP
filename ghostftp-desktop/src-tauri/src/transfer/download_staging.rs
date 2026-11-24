@@ -228,6 +228,100 @@ impl DownloadParentGuard {
         Ok(())
     }
 
+    /// Atomically publish a hash-verified delta without the backup/rename gap.
+    pub(super) async fn promote_delta(
+        &self,
+        staging: &Path,
+        target: &Path,
+        verified: &tokio::fs::File,
+    ) -> Result<()> {
+        self.verify()?;
+        #[cfg(target_os = "linux")]
+        {
+            anyhow::ensure!(
+                staging.parent() == target.parent(),
+                "delta staging must be a sibling of its target"
+            );
+            let stage = staging
+                .file_name()
+                .context("delta staging has no basename")?
+                .to_owned();
+            let target = target
+                .file_name()
+                .context("delta target has no basename")?
+                .to_owned();
+            let parent = self.handle.try_clone()?;
+            let verified = verified.try_clone().await?.into_std().await;
+            return tokio::task::spawn_blocking(move || {
+                use std::os::fd::AsRawFd;
+                use std::os::unix::ffi::OsStrExt;
+
+                let expected = verified.metadata()?;
+                let entry = pinned_entry(&parent, &stage)?.context("delta stage is missing")?;
+                require_pinned_identity(&entry, &expected)?;
+                match pinned_entry(&parent, &target)? {
+                    None => rename_pinned_siblings(&parent, &stage, &target),
+                    Some(existing) => {
+                        anyhow::ensure!(
+                            pinned_regular_file(&existing),
+                            "delta download destination must be a real file"
+                        );
+                        let stage = std::ffi::CString::new(stage.as_bytes())?;
+                        let target = std::ffi::CString::new(target.as_bytes())?;
+                        // SAFETY: the directory handle is live and both names are basenames.
+                        let result = unsafe {
+                            libc::renameat(
+                                parent.as_raw_fd(),
+                                stage.as_ptr(),
+                                parent.as_raw_fd(),
+                                target.as_ptr(),
+                            )
+                        };
+                        if result != 0 {
+                            return Err(std::io::Error::last_os_error())
+                                .context("atomically replace verified delta target");
+                        }
+                        Ok(())
+                    }
+                }
+            })
+            .await
+            .context("join guarded delta promotion")?;
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            #[cfg(windows)]
+            {
+                let reopened = tokio::fs::OpenOptions::new()
+                    .read(true)
+                    .custom_flags(
+                        windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT,
+                    )
+                    .open(staging)
+                    .await?;
+                anyhow::ensure!(
+                    windows_staging_identity(verified)? == windows_staging_identity(&reopened)?,
+                    "verified delta staging identity changed before promotion"
+                );
+            }
+            match tokio::fs::symlink_metadata(target).await {
+                Ok(metadata) => {
+                    anyhow::ensure!(
+                        metadata.is_file(),
+                        "delta download destination must be a real file"
+                    );
+                    tokio::fs::rename(staging, target)
+                        .await
+                        .context("atomically replace verified delta target")
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    promote_staged_download_noreplace(staging, target).await
+                }
+                Err(error) => Err(error).context("inspect delta download destination"),
+            }
+        }
+    }
+
     /// Best-effort cleanup of a stage whose actual handle is still open.
     /// A mismatch leaves the entry untouched rather than deleting unknown data.
     pub(super) async fn cleanup_verified(&self, staging: &Path, verified: &tokio::fs::File) {
@@ -605,6 +699,7 @@ fn windows_staging_identity(file: &tokio::fs::File) -> Result<(u32, u64)> {
 /// A provider returning success is not proof that the bytes hit the local
 /// temporary file. Do not replace a preexisting file unless the byte count
 /// matches the actual staging file and it has been synced to persistent storage.
+#[cfg(test)]
 pub(super) async fn verify_staged_download_bytes(
     staging: &Path,
     transferred: u64,
@@ -839,6 +934,7 @@ pub(super) async fn promote_staged_download_noreplace(
 /// rename, so a crash/concurrent reader never observes the missing-file gap
 /// inherent in move-to-backup followed by move-from-staging.
 /// For absent destinations use an atomic no-replace move to prevent races.
+#[cfg(test)]
 pub(super) async fn commit_verified_delta_output(
     staging: &Path,
     final_path: &Path,
