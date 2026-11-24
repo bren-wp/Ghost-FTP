@@ -157,10 +157,7 @@ fn pin_download_parent(parent: &Path) -> Result<std::fs::File> {
 }
 
 #[cfg(target_os = "linux")]
-fn pinned_entry(
-    parent: &std::fs::File,
-    name: &std::ffi::OsStr,
-) -> Result<Option<libc::stat>> {
+fn pinned_entry(parent: &std::fs::File, name: &std::ffi::OsStr) -> Result<Option<libc::stat>> {
     use std::os::fd::AsRawFd;
     use std::os::unix::ffi::OsStrExt;
 
@@ -193,10 +190,7 @@ fn pinned_regular_file(stat: &libc::stat) -> bool {
 
 #[cfg(target_os = "linux")]
 fn pinned_same_file(a: &libc::stat, b: &libc::stat) -> bool {
-    pinned_regular_file(a)
-        && pinned_regular_file(b)
-        && a.st_dev == b.st_dev
-        && a.st_ino == b.st_ino
+    pinned_regular_file(a) && pinned_regular_file(b) && a.st_dev == b.st_dev && a.st_ino == b.st_ino
 }
 
 /// Keep backup, promotion, rollback and backup cleanup in one directory.
@@ -236,7 +230,12 @@ fn promote_pinned_download(
         rename_pinned_siblings(parent, staging, target)
     })();
     if let Err(error) = promotion {
-        if original.is_some() {
+        if let Some(ref original) = original {
+            let recoverable = pinned_entry(parent, backup)
+                .is_ok_and(|entry| entry.is_some_and(|current| pinned_same_file(original, &current)));
+            if !recoverable {
+                return Err(error).context("download promotion failed; backup identity is uncertain");
+            }
             return match rename_pinned_siblings(parent, backup, target) {
                 Ok(()) => Err(error).context("download promotion failed; original target restored"),
                 Err(restore) => Err(anyhow::anyhow!(
@@ -250,12 +249,13 @@ fn promote_pinned_download(
 
     if let Some(original) = original {
         // Never knowingly delete a different file substituted at the backup name.
-        if pinned_entry(parent, backup)?
-            .is_some_and(|current| pinned_same_file(&original, &current))
-        {
-            let name = std::ffi::CString::new(backup.as_bytes()).context("backup contains NUL")?;
-            // SAFETY: parent is live; name is a NUL-terminated sibling basename.
-            let _ = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
+        let owned = pinned_entry(parent, backup)
+            .is_ok_and(|entry| entry.is_some_and(|current| pinned_same_file(&original, &current)));
+        if owned {
+            if let Ok(name) = std::ffi::CString::new(backup.as_bytes()) {
+                // SAFETY: parent is live; name is a NUL-terminated sibling basename.
+                let _ = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
+            }
         }
     }
     Ok(())
@@ -437,9 +437,18 @@ pub(super) async fn promote_staged_download(
     #[cfg(target_os = "linux")]
     if staging.parent() == final_path.parent() && backup.parent() == final_path.parent() {
         let parent = final_path.parent().context("download target has no parent")?;
-        let staging_name = staging.file_name().context("staging has no basename")?.to_owned();
-        let target_name = final_path.file_name().context("target has no basename")?.to_owned();
-        let backup_name = backup.file_name().context("backup has no basename")?.to_owned();
+        let staging_name = staging
+            .file_name()
+            .context("staging has no basename")?
+            .to_owned();
+        let target_name = final_path
+            .file_name()
+            .context("target has no basename")?
+            .to_owned();
+        let backup_name = backup
+            .file_name()
+            .context("backup has no basename")?
+            .to_owned();
         let parent = parent.to_path_buf();
         return tokio::task::spawn_blocking(move || {
             let pinned = pin_download_parent(&parent)?;
