@@ -806,12 +806,7 @@ fn windows_rename_handle(
             buffer.as_mut_ptr().cast::<u8>().add(offset).cast::<u16>(),
             wide.len(),
         );
-        SetFileInformationByHandle(
-            source.as_raw_handle(),
-            FileRenameInfo,
-            info.cast(),
-            len_u32,
-        )
+        SetFileInformationByHandle(source.as_raw_handle(), FileRenameInfo, info.cast(), len_u32)
     };
     if ok == 0 {
         return Err(std::io::Error::last_os_error()).context("rename verified Windows file handle");
