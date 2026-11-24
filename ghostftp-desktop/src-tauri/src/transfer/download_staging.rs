@@ -315,6 +315,13 @@ impl DownloadParentGuard {
                         .context("atomically replace verified delta target")
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    #[cfg(windows)]
+                    {
+                        let name = target.file_name().context("delta target has no basename")?;
+                        let delete = windows_delete_access(verified)?;
+                        windows_rename_handle(&delete, &self.handle, name, false)
+                    }
+                    #[cfg(not(windows))]
                     promote_staged_download_noreplace(staging, target).await
                 }
                 Err(error) => Err(error).context("inspect delta download destination"),
@@ -371,7 +378,9 @@ impl DownloadParentGuard {
                     windows_staging_identity(&reopened),
                 ) {
                     if a == b {
-                        cleanup_owned_regular_staging_file(staging).await;
+                        if let Ok(delete) = windows_delete_access(verified) {
+                            let _ = windows_delete_handle(&delete);
+                        }
                     }
                 }
             }
@@ -439,6 +448,15 @@ impl DownloadParentGuard {
                     && verified.metadata().await?.len() == reopened.metadata().await?.len(),
                 "verified staging identity changed before promotion"
             );
+            if !allow_replace {
+                let name = target.file_name().context("target has no basename")?;
+                anyhow::ensure!(
+                    staging.parent() == target.parent(),
+                    "download staging must be a sibling of its target"
+                );
+                let delete = windows_delete_access(verified)?;
+                return windows_rename_handle(&delete, &self.handle, name, false);
+            }
         }
         if allow_replace {
             promote_staged_download(staging, target, id).await
@@ -662,6 +680,111 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     })
     .await
     .context("join local no-replace download promotion")?
+}
+
+/// Obtain DELETE access to the already opened object, not a new pathname.
+#[cfg(windows)]
+fn windows_delete_access(file: &tokio::fs::File) -> Result<std::fs::File> {
+    use std::os::windows::io::{AsRawHandle, FromRawHandle};
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::Storage::FileSystem::{
+        ReOpenFile, FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
+        FILE_SHARE_READ, FILE_SHARE_WRITE,
+    };
+
+    // DELETE is the standard access right required by rename and disposition.
+    const DELETE_ACCESS: u32 = 0x0001_0000;
+    // SAFETY: the original handle remains live; ReOpenFile returns a new owned handle.
+    let handle = unsafe {
+        ReOpenFile(
+            file.as_raw_handle(),
+            DELETE_ACCESS | FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_FLAG_OPEN_REPARSE_POINT,
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE {
+        return Err(std::io::Error::last_os_error()).context("reopen verified object for delete");
+    }
+    // SAFETY: the successful call returned an independently owned handle.
+    Ok(unsafe { std::fs::File::from_raw_handle(handle) })
+}
+
+/// Rename the open source object relative to an already opened destination directory.
+#[cfg(windows)]
+fn windows_rename_handle(
+    source: &std::fs::File,
+    parent: &std::fs::File,
+    name: &std::ffi::OsStr,
+    replace: bool,
+) -> Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        FileRenameInfo, SetFileInformationByHandle, FILE_RENAME_INFO,
+    };
+
+    let wide: Vec<u16> = name.encode_wide().collect();
+    anyhow::ensure!(
+        !wide.is_empty()
+            && name != "."
+            && name != ".."
+            && !wide.iter().any(|&c| matches!(c, 0 | 47 | 58 | 92)),
+        "rename target must be a simple filename"
+    );
+    let bytes = wide.len().checked_mul(2).context("rename name too long")?;
+    let offset = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
+    let len = offset
+        .checked_add(bytes)
+        .and_then(|n| n.checked_add(2))
+        .context("rename buffer overflow")?
+        .max(std::mem::size_of::<FILE_RENAME_INFO>());
+    let len_u32 = u32::try_from(len)?;
+    let name_len = u32::try_from(bytes)?;
+    // usize storage is aligned for FILE_RENAME_INFO on supported Windows x64.
+    let mut buffer = vec![0usize; len.div_ceil(std::mem::size_of::<usize>())];
+    let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+    // SAFETY: the aligned buffer has room for the fixed header, UTF-16 name,
+    // and zero terminator. Both file handles remain live throughout the call.
+    let ok = unsafe {
+        (*info).Anonymous.ReplaceIfExists = u8::from(replace);
+        (*info).RootDirectory = parent.as_raw_handle();
+        (*info).FileNameLength = name_len;
+        std::ptr::copy_nonoverlapping(wide.as_ptr(), (*info).FileName.as_mut_ptr(), wide.len());
+        SetFileInformationByHandle(
+            source.as_raw_handle(),
+            FileRenameInfo,
+            info.cast(),
+            len_u32,
+        )
+    };
+    if ok == 0 {
+        return Err(std::io::Error::last_os_error()).context("rename verified Windows file handle");
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn windows_delete_handle(file: &std::fs::File) -> Result<()> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        FileDispositionInfo, SetFileInformationByHandle, FILE_DISPOSITION_INFO,
+    };
+
+    let disposition = FILE_DISPOSITION_INFO { DeleteFile: 1 };
+    // SAFETY: the source handle and fixed-size disposition buffer are live.
+    let ok = unsafe {
+        SetFileInformationByHandle(
+            file.as_raw_handle(),
+            FileDispositionInfo,
+            (&disposition as *const FILE_DISPOSITION_INFO).cast(),
+            std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32,
+        )
+    };
+    if ok == 0 {
+        return Err(std::io::Error::last_os_error()).context("delete verified Windows file handle");
+    }
+    Ok(())
 }
 
 /// Windows file identity from an opened handle, not timestamps or path text.
