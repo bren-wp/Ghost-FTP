@@ -87,7 +87,11 @@ const REQUIRED = [
     "fn verify_download_writer(",
     "sync original download writer",
     "Ok(tokio::fs::File::from_std(file))",
-    "commit_verified_delta_output(&out_path, local_path, size)",
+    "delta::apply_delta_open(",
+    "verify_download_writer(output, size).await?",
+    ".promote_delta(&out_path, local_path, output)",
+    "parent_guard.cleanup_verified(&patch_path, &patch).await",
+    "parent_guard.cleanup_verified(&out_path, &output).await",
     "checked_agent_delta_chunk_length(range_len - got, bytes.len())",
     "fn safe_transfer_failure(", "transfer.error = Some(safe_transfer_failure(&error).to_string())",
     "old_diagnostic_rewritten", "INTERRUPTED_TRANSFER_MESSAGE",
@@ -182,7 +186,7 @@ const REQUIRED = [
   ["ghostftp-desktop/src-tauri/src/transfer/download_staging.rs", [
     "fn create_new_download_staging(", "create_new(true)",
     "fn verify_staged_download_bytes(", "file.sync_all()",
-    "fn promote_staged_download(", "fn commit_verified_delta_output(",
+    "fn promote_staged_download(", "fn promote_delta(", "libc::renameat(",
     "tokio::fs::rename(staging, final_path)",
     "promote_staged_download_noreplace(staging, final_path)",
     "move_local_noreplace(", "symlink_metadata(",
@@ -195,7 +199,7 @@ const REQUIRED = [
   ["ghostftp-desktop/src-tauri/ghostftp-agent-proto/src/delta.rs", [
     "let mut output_created = false", "result.is_err() && output_created",
     "create_new(true)", "*output_created = true",
-    "fn apply_delta_inner(",
+    "fn apply_delta_inner(", "pub fn apply_delta_open(", "hasher.update_reader(&mut output)",
   ]],
   ["ghostftp-desktop/src-tauri/ghostftp-agentd/src/ops.rs", [
     "fn promote_verified_agent_delta_output(", "symlink_metadata(temp)",
