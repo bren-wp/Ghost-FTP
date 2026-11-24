@@ -406,7 +406,20 @@ impl Db {
                 "recovery lock is a reparse point"
             );
         }
-        file.try_lock().context("another recovery operation is active")?;
+        file.try_lock()
+            .context("another recovery operation is active")?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let current = std::fs::symlink_metadata(&path)?;
+            anyhow::ensure!(
+                current.is_file()
+                    && current.nlink() == 1
+                    && current.dev() == metadata.dev()
+                    && current.ino() == metadata.ino(),
+                "recovery lock entry changed"
+            );
+        }
         Ok(file)
     }
 
@@ -1592,6 +1605,47 @@ mod tests {
         assert!(second.recovery_lock().is_ok());
         drop(first);
         drop(second);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn recovery_lock_released_after_child_process_kill() {
+        const CHILD_ROOT: &str = "GHOSTFTP_RECOVERY_LOCK_TEST_ROOT";
+        if let Some(root) = std::env::var_os(CHILD_ROOT) {
+            let root = std::path::PathBuf::from(root);
+            let db = Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            std::fs::write(root.join("ready"), b"locked").unwrap();
+            std::thread::sleep(Duration::from_secs(30));
+            return;
+        }
+        let root = std::env::temp_dir()
+            .join(format!("ghostftp-recovery-process-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let db = Db::open(&root.join("ghostftp.db")).unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("recovery_lock_released_after_child_process_kill")
+            .env(CHILD_ROOT, &root)
+            .spawn()
+            .unwrap();
+        let mut ready = false;
+        for _ in 0..100 {
+            if root.join("ready").exists() {
+                ready = true;
+                break;
+            }
+            if child.try_wait().unwrap().is_some() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        let blocked = db.recovery_lock().is_err();
+        let killed = child.kill().is_ok();
+        let status = child.wait().unwrap();
+        assert!(ready && blocked && killed && !status.success());
+        assert!(db.recovery_lock().is_ok());
+        drop(db);
         std::fs::remove_dir_all(root).unwrap();
     }
 

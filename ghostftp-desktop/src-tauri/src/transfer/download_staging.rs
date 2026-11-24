@@ -839,13 +839,22 @@ impl GlobalRecoveryLedger {
         for entry in bytes[8..].chunks_exact(64) {
             let id: [u8; 32] = entry[..32].try_into()?;
             let proof: [u8; 32] = entry[32..].try_into()?;
-            anyhow::ensure!(entries.insert(id, proof).is_none(), "duplicate recovery index ID");
+            anyhow::ensure!(
+                entries.insert(id, proof).is_none(),
+                "duplicate recovery index ID"
+            );
         }
-        anyhow::ensure!(entries.len() <= RECOVERY_INDEX_LIMIT, "recovery index capacity exceeded");
+        anyhow::ensure!(
+            entries.len() <= RECOVERY_INDEX_LIMIT,
+            "recovery index capacity exceeded"
+        );
         Ok(Self { generation, entries })
     }
 
-    fn differences(&self, rows: &[crate::db::DownloadRecoverySnapshot]) -> Result<RecoveryIndexDifference> {
+    fn differences(
+        &self,
+        rows: &[crate::db::DownloadRecoverySnapshot],
+    ) -> Result<RecoveryIndexDifference> {
         let mut actual = std::collections::BTreeMap::new();
         for row in rows {
             let (id, proof) = recovery_index_entry(
@@ -864,7 +873,10 @@ impl GlobalRecoveryLedger {
                 Some(_) => {}
             }
         }
-        difference.unindexed = actual.keys().filter(|id| !self.entries.contains_key(*id)).count();
+        difference.unindexed = actual
+            .keys()
+            .filter(|id| !self.entries.contains_key(*id))
+            .count();
         Ok(difference)
     }
 
@@ -983,7 +995,10 @@ impl GlobalRecoveryLedger {
         } else {
             self.entries.remove(&identity);
         }
-        self.generation = self.generation.checked_add(1).context("recovery index overflow")?;
+        self.generation = self
+            .generation
+            .checked_add(1)
+            .context("recovery index overflow")?;
         self.save(db)
     }
 }
@@ -1189,8 +1204,9 @@ impl AuthenticatedRecovery {
     fn with_key<T>(key_id: Uuid, action: impl FnOnce(&[u8; 32]) -> Result<T>) -> Result<T> {
         use base64::Engine;
 
-        let encoded = crate::credentials::vault_get_strict(RECOVERY_VAULT_SERVICE, &key_id.to_string())?
-            .context("recovery authentication key is unavailable")?;
+        let encoded =
+            crate::credentials::vault_get_strict(RECOVERY_VAULT_SERVICE, &key_id.to_string())?
+                .context("recovery authentication key is unavailable")?;
         let mut decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
         let result = match <&[u8; 32]>::try_from(decoded.as_slice()) {
             Ok(key) => action(key),
@@ -1205,11 +1221,9 @@ impl AuthenticatedRecovery {
     fn authenticate(&self, id: &str, envelope: &str) -> Result<RecoveryPhase> {
         Self::with_key(self.key_id, |key| {
             let phase = self.verify_phases(id, key)?;
-            let stored = crate::credentials::vault_get_strict(
-                RECOVERY_ANCHOR_SERVICE,
-                &self.key_id.to_string(),
-            )?
-            .context("recovery anchor is unavailable")?;
+            let stored =
+                crate::credentials::vault_get_strict(RECOVERY_ANCHOR_SERVICE, &self.key_id.to_string())?
+                    .context("recovery anchor is unavailable")?;
             let anchor: Self = serde_json::from_str(&stored)?;
             verify_recovery_anchor(&anchor, id, self.key_id, envelope, key)?;
             Ok(phase)
@@ -1228,7 +1242,8 @@ impl AuthenticatedRecovery {
             let encoded = serde_json::to_string(&anchor)?;
             let account = self.key_id.to_string();
             crate::credentials::vault_set(RECOVERY_ANCHOR_SERVICE, &account, &encoded)?;
-            let readback = crate::credentials::vault_get_strict(RECOVERY_ANCHOR_SERVICE, &account)?;
+            let readback =
+                crate::credentials::vault_get_strict(RECOVERY_ANCHOR_SERVICE, &account)?;
             anyhow::ensure!(
                 readback.as_deref() == Some(encoded.as_str()),
                 "recovery anchor readback mismatch"
@@ -2902,6 +2917,33 @@ mod tests {
     }
 
     #[test]
+    fn global_index_authenticated_envelope_rejects_tampering_and_wrong_scope() {
+        let key = [0x42; 32];
+        let mut ledger = GlobalRecoveryLedger::default();
+        for index in 0..RECOVERY_INDEX_LIMIT {
+            let (id, proof) = recovery_index_entry(
+                &index.to_string(),
+                "prepared",
+                Some("destination"),
+                "payload",
+            )
+            .unwrap();
+            ledger.entries.insert(id, proof);
+        }
+        let mut signed =
+            AuthenticatedRecovery::seal("scope", ledger.encode(), Uuid::nil(), &key).unwrap();
+        assert!(serde_json::to_string(&signed).unwrap().len() <= 1200);
+        assert!(signed.verify("scope", &key).is_ok());
+        assert!(signed.verify("other", &key).is_err());
+        assert_eq!(
+            GlobalRecoveryLedger::decode(&signed.payload).unwrap().entries.len(),
+            RECOVERY_INDEX_LIMIT
+        );
+        signed.payload.push('A');
+        assert!(signed.verify("scope", &key).is_err());
+    }
+
+    #[test]
     fn independent_anchor_rejects_old_envelope_and_terminal_replay() {
         let key = [0x23; 32];
         let key_id = Uuid::new_v4();
@@ -3208,7 +3250,7 @@ mod tests {
         let verified = verify_staged_download_bytes(&stage, 3).await.unwrap();
         let vault_ready = {
             let _lock = db.recovery_lock().unwrap();
-            GlobalRecoveryLedger::load(&db, false).is_ok()
+            GlobalRecoveryLedger::load(&db, true).is_ok()
         };
 
         assert!(guard
