@@ -420,7 +420,8 @@ impl RecoveryInspectionRecord {
             && self.stage != self.target
             && self.stage != self.backup
             && self.target != self.backup
-            && self.stage_identity != self.original_identity
+            && (self.stage_identity.0, self.stage_identity.1)
+                != (self.original_identity.0, self.original_identity.1)
             && !self.parent.components().any(|component| {
                 matches!(component, std::path::Component::ParentDir)
             })
@@ -1831,6 +1832,101 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recovery_classifies_layout_independently_of_last_recorded_phase() {
+        use EntryObservation::{Missing, Original, Other, Stage, Unavailable};
+        use RecoveryObservation::{
+            Ambiguous, BackupPresent, BackupWithoutStage, OriginalPresent, OriginalWithoutStage,
+            PublishedWithBackup, PublishedWithoutBackup,
+        };
+        for (target, stage, backup, expected) in [
+            (Original, Stage, Missing, OriginalPresent),
+            (Missing, Stage, Original, BackupPresent),
+            (Stage, Missing, Original, PublishedWithBackup),
+            (Stage, Missing, Missing, PublishedWithoutBackup),
+            (Original, Missing, Missing, OriginalWithoutStage),
+            (Missing, Missing, Original, BackupWithoutStage),
+            (Other, Stage, Original, Ambiguous),
+            (Missing, Unavailable, Original, RecoveryObservation::Unavailable),
+        ] {
+            assert_eq!(classify_recovery(target, stage, backup), expected);
+        }
+        assert!(observation_matches_phase("prepared", OriginalPresent));
+        assert!(!observation_matches_phase("prepared", BackupPresent));
+        assert!(!observation_matches_phase("backup_saved", PublishedWithBackup));
+        assert!(observation_matches_phase("rollback_pending", BackupPresent));
+        assert!(observation_matches_phase("rolled_back", OriginalPresent));
+        assert!(observation_matches_phase("cleanup_pending", PublishedWithoutBackup));
+        assert!(!observation_matches_phase("legacy_unknown", OriginalPresent));
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn reconciliation_observes_backup_promotion_and_substitution_without_mutation() {
+        fn identity(path: &Path) -> (u64, u64, u64) {
+            let file = std::fs::File::open(path).unwrap();
+            let metadata = file.metadata().unwrap();
+            #[cfg(target_os = "linux")]
+            {
+                use std::os::unix::fs::MetadataExt;
+                (metadata.dev(), metadata.ino(), metadata.len())
+            }
+            #[cfg(windows)]
+            {
+                let (volume, index) = windows_file_identity(&file).unwrap();
+                (u64::from(volume), index, metadata.len())
+            }
+        }
+
+        let root = std::env::temp_dir().join(format!("ghostftp-reconcile-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let target = root.join("target");
+        let stage = root.join("stage");
+        let backup = root.join("backup");
+        std::fs::write(&target, b"old").unwrap();
+        std::fs::write(&stage, b"new").unwrap();
+        let parent = open_download_directory(&root).unwrap();
+        #[cfg(target_os = "linux")]
+        let parent_identity = {
+            use std::os::unix::fs::MetadataExt;
+            let metadata = parent.metadata().unwrap();
+            (metadata.dev(), metadata.ino())
+        };
+        #[cfg(windows)]
+        let parent_identity = {
+            let (volume, index) = windows_file_identity(&parent).unwrap();
+            (u64::from(volume), index)
+        };
+        drop(parent);
+        let record = RecoveryInspectionRecord {
+            schema: 1,
+            parent: root.clone(),
+            stage: stage.clone(),
+            target: target.clone(),
+            backup: backup.clone(),
+            parent_identity,
+            stage_identity: identity(&stage),
+            original_identity: identity(&target),
+        };
+        assert_eq!(record.inspect(), RecoveryObservation::OriginalPresent);
+        std::fs::rename(&target, &backup).unwrap();
+        assert_eq!(record.inspect(), RecoveryObservation::BackupPresent);
+        assert!(!target.exists());
+        assert_eq!(std::fs::read(&backup).unwrap(), b"old");
+        std::fs::rename(&stage, &target).unwrap();
+        assert_eq!(record.inspect(), RecoveryObservation::PublishedWithBackup);
+        assert_eq!(std::fs::read(&target).unwrap(), b"new");
+        assert_eq!(std::fs::read(&backup).unwrap(), b"old");
+        std::fs::remove_file(&backup).unwrap();
+        assert_eq!(record.inspect(), RecoveryObservation::PublishedWithoutBackup);
+        std::fs::rename(&target, root.join("moved")).unwrap();
+        std::fs::write(&target, b"bad").unwrap();
+        assert_eq!(record.inspect(), RecoveryObservation::Ambiguous);
+        assert_eq!(std::fs::read(&target).unwrap(), b"bad");
+        assert_eq!(std::fs::read(root.join("moved")).unwrap(), b"new");
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[cfg(any(target_os = "linux", windows))]
     #[tokio::test]
