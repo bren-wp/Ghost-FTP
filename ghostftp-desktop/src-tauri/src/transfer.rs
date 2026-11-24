@@ -619,7 +619,6 @@ use download_staging::{
     create_new_delta_upload_patch, create_new_download_staging, download_staging_path,
     fresh_download_staging_path, local_path_exists_fail_closed, local_path_exists_sync_fail_closed,
     open_owned_resumable_download_staging, DownloadParentGuard, DownloadStageOwner,
-    DownloadStagingOpenFailure,
 };
 #[cfg(test)]
 use download_staging::{
@@ -2371,7 +2370,7 @@ impl TransferManager {
     ) -> Result<()> {
         let parent_guard = DownloadParentGuard::open(local_path)?;
         let staging = download_staging_path(local_path, id);
-        let owner = DownloadStageOwner::default();
+        let owner = DownloadStageOwner::for_parent(&parent_guard);
         let result = self
             .agent_download_core(id, session, remote_path, &staging, app, &owner)
             .await;
@@ -2994,27 +2993,9 @@ impl TransferManager {
                     0
                 };
 
-                let mut open = std::fs::OpenOptions::new();
-                open.write(true);
-                if offset == 0 {
-                    // FTP/FTPS restarts at zero without a verified prefix.
-                    // O_EXCL prevents symlink following and stale-file clobber.
-                    open.create_new(true);
-                } else {
-                    // Retained for a future fully verified FTP ranged-resume.
-                    open.create(true);
-                }
-                let mut file = open
-                    .open(&final_path)
-                    .map_err(DownloadStagingOpenFailure)
-                    .with_context(|| format!("open {}", final_path.display()))?;
-                if offset == 0 {
-                    owner.record_std(&file)?;
-                }
-                if offset > 0 {
-                    file.set_len(offset)?;
-                    file.seek(SeekFrom::Start(offset))?;
-                }
+                // FTP cannot authenticate a previously downloaded prefix.
+                anyhow::ensure!(offset == 0, "FTP resume requires a verified prefix");
+                let file = owner.create_std(&final_path)?;
                 let mut writer = std::io::BufWriter::new(file);
                 let outcome = stream.retr_resumable(&path, offset, &mut writer, |_| {
                     if canceled.load(Ordering::Acquire) {
@@ -4961,7 +4942,7 @@ async fn run_download_task(
     } else {
         final_path.clone()
     };
-    let mut owner = DownloadStageOwner::default();
+    let mut owner = DownloadStageOwner::for_parent(&parent_guard);
     let res = loop {
         if let Err(error) = parent_guard.verify() {
             finalize(&mgr, &id, &app, Err(error)).await;
@@ -4970,7 +4951,7 @@ async fn run_download_task(
         }
         if staged_download && !byte_resume {
             working_path = fresh_download_staging_path(&final_path, &id);
-            owner = DownloadStageOwner::default();
+            owner = DownloadStageOwner::for_parent(&parent_guard);
         }
         let attempt = dispatch_download(
             &mgr,
