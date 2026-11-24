@@ -616,10 +616,9 @@ mod download_staging;
 mod remote_upload_staging;
 use download_staging::{
     cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
-    commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
-    download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
-    local_path_exists_sync_fail_closed, open_resumable_download_staging,
-    DownloadParentGuard, DownloadStagingOpenFailure,
+    create_new_delta_upload_patch, create_new_download_staging, download_staging_path,
+    fresh_download_staging_path, local_path_exists_fail_closed, local_path_exists_sync_fail_closed,
+    open_resumable_download_staging, DownloadParentGuard, DownloadStagingOpenFailure,
 };
 #[cfg(test)]
 use download_staging::{
@@ -2550,12 +2549,12 @@ impl TransferManager {
         let out_path = local_dir.join(format!(".ghostftp-delta-{}.tmp", Uuid::new_v4()));
         // A path is ours only AFTER exclusive creation succeeded. Never clean
         // up an unexpected pre-existing pathname, including a symlink.
-        let mut owns_patch = false;
-        let mut owns_delta_output = false;
+        let mut patch_handle = None;
+        let mut output_handle = None;
         let result: Result<()> = async {
             parent_guard.verify()?;
             let mut patch_file = create_new_download_staging(&patch_path).await?;
-            owns_patch = true;
+            patch_handle = Some(patch_file.try_clone().await?);
             let mut fetched: u64 = 0;
             let mut last_emit = Instant::now();
             for &(range_off, range_len) in &needed {
@@ -2613,8 +2612,8 @@ impl TransferManager {
             );
             let recipe = plan.recipe.clone();
             parent_guard.verify()?;
-            tokio::task::spawn_blocking(move || {
-                delta::apply_delta(
+            let output = tokio::task::spawn_blocking(move || {
+                delta::apply_delta_open(
                     basis_owned.as_deref(),
                     &patch_owned,
                     &recipe,
@@ -2625,9 +2624,10 @@ impl TransferManager {
             .await
             .map_err(|e| anyhow::anyhow!("apply delta task: {e}"))?
             .context("apply delta")?;
-            owns_delta_output = true;
-            parent_guard.verify()?;
-            commit_verified_delta_output(&out_path, local_path, size)
+            let output = output_handle.insert(tokio::fs::File::from_std(output));
+            verify_download_writer(output, size).await?;
+            parent_guard
+                .promote_delta(&out_path, local_path, output)
                 .await
                 .with_context(|| {
                     format!("safely promote delta result to {}", local_path.display())
@@ -2635,12 +2635,12 @@ impl TransferManager {
             Ok(())
         }
         .await;
-        if parent_guard.verify().is_ok() {
-            if owns_patch {
-                cleanup_owned_regular_staging_file(&patch_path).await;
-            }
-            if result.is_err() && owns_delta_output {
-                cleanup_owned_regular_staging_file(&out_path).await;
+        if let Some(patch) = patch_handle {
+            parent_guard.cleanup_verified(&patch_path, &patch).await;
+        }
+        if result.is_err() {
+            if let Some(output) = output_handle {
+                parent_guard.cleanup_verified(&out_path, &output).await;
             }
         }
         result?;
@@ -3054,7 +3054,10 @@ impl TransferManager {
                         "FTP download persisted fewer bytes than received"
                     );
                 }
-                Ok((outcome, writer.into_inner().context("finish FTP staging writer")?))
+                Ok((
+                    outcome,
+                    writer.into_inner().context("finish FTP staging writer")?,
+                ))
             })
             .await
         {
@@ -5036,7 +5039,9 @@ async fn run_download_task(
                     Err(error) => Err(error),
                 }
             }
-            Ok(None) => Err(anyhow::anyhow!("download adapter did not return its staging writer")),
+            Ok(None) => Err(anyhow::anyhow!(
+                "download adapter did not return its staging writer"
+            )),
             Err(error) => {
                 if parent_guard.verify().is_ok() {
                     cleanup_failed_download_staging(&working_path, &error).await;
@@ -5157,7 +5162,9 @@ async fn verify_download_writer(file: &tokio::fs::File, transferred: u64) -> Res
         metadata.is_file() && metadata.len() == transferred,
         "download writer type or byte count changed"
     );
-    file.sync_all().await.context("sync original download writer")?;
+    file.sync_all()
+        .await
+        .context("sync original download writer")?;
     let synced = file.metadata().await?;
     anyhow::ensure!(
         synced.is_file() && synced.len() == transferred,
@@ -5178,66 +5185,54 @@ async fn dispatch_download(
     app: &AppHandle,
 ) -> Result<Option<tokio::fs::File>> {
     match &**session {
-        Session::Ssh(ssh) => {
-            mgr.run_ssh_download(id, ssh.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Ftp(ftp) => {
-            mgr.run_ftp_download(id, ftp.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Object(obj) => {
-            mgr.run_object_download(id, obj.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Webdav(dav) => {
-            mgr.run_webdav_download(id, dav.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Http(http) => {
-            mgr.run_http_download(id, http.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Dropbox(dbx) => {
-            mgr.run_dropbox_download(id, dbx.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::OneDrive(od) => {
-            mgr.run_onedrive_download(id, od.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::GDrive(gd) => {
-            mgr.run_gdrive_download(id, gd.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Box(bx) => {
-            mgr.run_box_download(id, bx.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Shopify(sh) => {
-            mgr.run_shopify_download(id, sh.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::HubSpot(hs) => {
-            mgr.run_hubspot_download(id, hs.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
-        Session::Dynamics(dynm) => {
-            mgr.run_dynamics_download(id, dynm.clone(), remote_path, final_path, app)
-                .await
-                .map(Some)
-        }
+        Session::Ssh(ssh) => mgr
+            .run_ssh_download(id, ssh.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Ftp(ftp) => mgr
+            .run_ftp_download(id, ftp.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Object(obj) => mgr
+            .run_object_download(id, obj.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Webdav(dav) => mgr
+            .run_webdav_download(id, dav.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Http(http) => mgr
+            .run_http_download(id, http.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Dropbox(dbx) => mgr
+            .run_dropbox_download(id, dbx.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::OneDrive(od) => mgr
+            .run_onedrive_download(id, od.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::GDrive(gd) => mgr
+            .run_gdrive_download(id, gd.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Box(bx) => mgr
+            .run_box_download(id, bx.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Shopify(sh) => mgr
+            .run_shopify_download(id, sh.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::HubSpot(hs) => mgr
+            .run_hubspot_download(id, hs.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
+        Session::Dynamics(dynm) => mgr
+            .run_dynamics_download(id, dynm.clone(), remote_path, final_path, app)
+            .await
+            .map(Some),
         Session::Agent(agent) => {
             debug_assert!(supports_delta(session));
             if allow_replace {
@@ -5256,7 +5251,7 @@ async fn dispatch_download(
                     false,
                 )
                 .await
-                    .map(|()| None)
+                .map(|()| None)
             }
         }
     }
