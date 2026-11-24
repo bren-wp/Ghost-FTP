@@ -337,22 +337,31 @@ impl DownloadParentGuard {
             .await
             .context("join guarded delta promotion")?;
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(windows)]
         {
-            #[cfg(windows)]
-            {
-                let reopened = tokio::fs::OpenOptions::new()
-                    .read(true)
-                    .custom_flags(
-                        windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT,
-                    )
-                    .open(staging)
-                    .await?;
-                anyhow::ensure!(
-                    windows_staging_identity(verified)? == windows_staging_identity(&reopened)?,
-                    "verified delta staging identity changed before promotion"
-                );
-            }
+            anyhow::ensure!(
+                staging.parent() == target.parent(),
+                "delta staging must be a sibling of its target"
+            );
+            let stage = staging.file_name().context("delta stage has no basename")?;
+            let name = target.file_name().context("delta target has no basename")?;
+            let delete = windows_verified_delete_access(&self.handle, stage, verified)?;
+            let replace = match windows_open_relative(&self.handle, name, 0x80) {
+                Ok(existing) => {
+                    windows_staging_identity(&existing)?;
+                    anyhow::ensure!(
+                        existing.metadata()?.is_file(),
+                        "delta download destination must be a real file"
+                    );
+                    true
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+                Err(error) => return Err(error).context("inspect relative delta destination"),
+            };
+            windows_rename_handle(&delete, &self.handle, name, replace)
+        }
+        #[cfg(not(any(target_os = "linux", windows)))]
+        {
             match tokio::fs::symlink_metadata(target).await {
                 Ok(metadata) => {
                     anyhow::ensure!(
@@ -364,13 +373,6 @@ impl DownloadParentGuard {
                         .context("atomically replace verified delta target")
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    #[cfg(windows)]
-                    {
-                        let name = target.file_name().context("delta target has no basename")?;
-                        let delete = windows_delete_access(verified)?;
-                        windows_rename_handle(&delete, &self.handle, name, false)
-                    }
-                    #[cfg(not(windows))]
                     promote_staged_download_noreplace(staging, target).await
                 }
                 Err(error) => Err(error).context("inspect delta download destination"),
@@ -416,21 +418,9 @@ impl DownloadParentGuard {
         }
         #[cfg(windows)]
         {
-            let reopened = tokio::fs::OpenOptions::new()
-                .read(true)
-                .custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT)
-                .open(staging)
-                .await;
-            if let Ok(reopened) = reopened {
-                if let (Ok(a), Ok(b)) = (
-                    windows_staging_identity(verified),
-                    windows_staging_identity(&reopened),
-                ) {
-                    if a == b {
-                        if let Ok(delete) = windows_delete_access(verified) {
-                            let _ = windows_delete_handle(&delete);
-                        }
-                    }
+            if let Some(name) = staging.file_name() {
+                if let Ok(delete) = windows_verified_delete_access(&self.handle, name, verified) {
+                    let _ = windows_delete_handle(&delete);
                 }
             }
         }
@@ -487,22 +477,13 @@ impl DownloadParentGuard {
 
         #[cfg(windows)]
         {
-            let reopened = tokio::fs::OpenOptions::new()
-                .read(true)
-                .custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT)
-                .open(staging)
-                .await?;
-            anyhow::ensure!(
-                windows_staging_identity(verified)? == windows_staging_identity(&reopened)?
-                    && verified.metadata().await?.len() == reopened.metadata().await?.len(),
-                "verified staging identity changed before promotion"
-            );
+            let stage = staging.file_name().context("stage has no basename")?;
             let name = target.file_name().context("target has no basename")?;
             anyhow::ensure!(
                 staging.parent() == target.parent(),
                 "download staging must be a sibling of its target"
             );
-            let delete = windows_delete_access(verified)?;
+            let delete = windows_verified_delete_access(&self.handle, stage, verified)?;
             if allow_replace {
                 let backup = download_backup_path(target, id);
                 let backup = backup.file_name().context("backup has no basename")?;
@@ -715,6 +696,7 @@ fn promote_pinned_download(
 
 /// Use atomic no-replace operations. On Linux, sibling moves resolve the
 /// common parent only once. Other moves retain the existing platform helper.
+#[cfg(any(not(windows), test))]
 async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
     let from = from.to_path_buf();
     let to = to.to_path_buf();
@@ -860,7 +842,10 @@ fn windows_promote_with_backup(
         Err(error) => return Err(error).context("open existing destination relative to parent"),
     };
     windows_staging_identity(&original)?;
-    anyhow::ensure!(original.metadata()?.is_file(), "destination is not a real file");
+    anyhow::ensure!(
+        original.metadata()?.is_file(),
+        "destination is not a real file"
+    );
     windows_rename_handle(&original, parent, backup, false)
         .context("preserve original destination without replacing backup")?;
     if let Err(error) = windows_rename_handle(source, parent, target, false) {
@@ -875,6 +860,28 @@ fn windows_promote_with_backup(
     // Cleanup failure leaves the backup intact; publication already succeeded.
     let _ = windows_delete_handle(&original);
     Ok(())
+}
+
+/// Verify the directory entry relative to the retained parent and acquire
+/// DELETE access to the original object, never to a replacement pathname.
+#[cfg(windows)]
+fn windows_verified_delete_access(
+    parent: &std::fs::File,
+    name: &std::ffi::OsStr,
+    verified: &tokio::fs::File,
+) -> Result<std::fs::File> {
+    let entry = windows_open_relative(parent, name, 0x80)?;
+    let expected = windows_staging_identity(verified)?;
+    anyhow::ensure!(
+        windows_staging_identity(&entry)? == expected,
+        "verified staging identity changed before native operation"
+    );
+    let delete = windows_delete_access(verified)?;
+    anyhow::ensure!(
+        windows_staging_identity(&delete)? == expected && delete.metadata()?.is_file(),
+        "verified staging identity changed when acquiring delete access"
+    );
+    Ok(delete)
 }
 
 /// Obtain DELETE access to the already opened object, not a new pathname.
@@ -984,9 +991,7 @@ fn windows_delete_handle(file: &std::fs::File) -> Result<()> {
 /// Windows file identity from an opened handle, not timestamps or path text.
 /// The volume serial and file index identify the file on supported volumes.
 #[cfg(windows)]
-fn windows_staging_identity(
-    file: &impl std::os::windows::io::AsRawHandle,
-) -> Result<(u32, u64)> {
+fn windows_staging_identity(file: &impl std::os::windows::io::AsRawHandle) -> Result<(u32, u64)> {
     use windows_sys::Win32::Storage::FileSystem::{
         GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT,
     };
@@ -1128,6 +1133,7 @@ pub(super) async fn verify_staged_download_bytes(
     Ok(file)
 }
 
+#[cfg(any(not(windows), test))]
 pub(super) async fn promote_staged_download(
     staging: &Path,
     final_path: &Path,
@@ -1225,6 +1231,7 @@ pub(super) async fn promote_staged_download(
 /// Finish a Skip/Rename download without racing another process or queued
 /// transfer which created the destination after the initial existence check.
 /// This is an atomic move-if-absent, not a check-then-rename sequence.
+#[cfg(any(not(windows), test))]
 pub(super) async fn promote_staged_download_noreplace(
     staging: &Path,
     final_path: &Path,
