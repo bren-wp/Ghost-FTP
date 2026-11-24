@@ -106,3 +106,8 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --locked -p ghostftp --lib native_vault_recovery_survives_killed_process -- --ignored --nocapture
+          cargo test --locked -p ghostftp --lib native_vault_manifest_benchmark -- --ignored --nocapture
+          export GHOSTFTP_NATIVE_RESTART_ROOT="$(mktemp -d)"
+          trap 'GHOSTFTP_NATIVE_RESTART_MODE=cleanup cargo test --locked -p ghostftp --lib native_vault_restart_probe -- --ignored --nocapture; rm -rf -- "$GHOSTFTP_NATIVE_RESTART_ROOT"' EXIT
+          GHOSTFTP_NATIVE_RESTART_MODE=write cargo test --locked -p ghostftp --lib native_vault_restart_probe -- --ignored --nocapture
+          GHOSTFTP_NATIVE_RESTART_MODE=read cargo test --locked -p ghostftp --lib native_vault_restart_probe -- --ignored --nocapture

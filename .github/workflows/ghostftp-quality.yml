@@ -469,6 +469,8 @@ jobs:
           dbus-run-session -- bash -euo pipefail -c '
             printf "%s" "isolated-ci-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
             cargo test --locked -p ghostftp --lib native_vault_recovery_survives_killed_process -- --ignored --nocapture
+            cargo test --locked -p ghostftp --lib native_vault_manifest_benchmark -- --ignored --nocapture
+            bash ../../.github/scripts/test-native-vault-restart.sh
           '
 
       - name: Clippy

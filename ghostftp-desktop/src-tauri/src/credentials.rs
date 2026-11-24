@@ -124,12 +124,16 @@ fn test_recovery_path(service: &str, account: &str) -> Option<std::path::PathBuf
         return None;
     }
     RECOVERY_TEST_VAULT.with(|state| {
-        state.borrow().as_ref().filter(|vault| !vault.native).map(|vault| {
-            let digest = Sha256::digest(
-                serde_json::to_vec(&(service, account)).expect("serialize test vault account"),
-            );
-            vault.root.join(format!("{digest:x}"))
-        })
+        state
+            .borrow()
+            .as_ref()
+            .filter(|vault| !vault.native)
+            .map(|vault| {
+                let digest = Sha256::digest(
+                    serde_json::to_vec(&(service, account)).expect("serialize test vault account"),
+                );
+                vault.root.join(format!("{digest:x}"))
+            })
     })
 }
 

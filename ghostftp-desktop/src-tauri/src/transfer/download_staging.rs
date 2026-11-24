@@ -849,7 +849,10 @@ fn read_gc_keys(scope: &str, key: &[u8; 32]) -> Result<RecoveryGcKeys> {
     let mut keys = RecoveryGcKeys::new();
     for chunk in bytes.chunks_exact(16) {
         let id = Uuid::from_slice(chunk)?;
-        anyhow::ensure!(!id.is_nil() && keys.insert(id), "invalid recovery GC key ID");
+        anyhow::ensure!(
+            !id.is_nil() && keys.insert(id),
+            "invalid recovery GC key ID"
+        );
     }
     Ok(keys)
 }
@@ -3709,7 +3712,10 @@ mod tests {
             let backup = download_backup_path(&target, "fault");
             let guard = DownloadParentGuard::with_db(&target, Some(db.clone())).unwrap();
             let _lock = db.recovery_lock().unwrap();
-            let journal = guard.recovery_journal(&stage, &target, "fault").unwrap().unwrap();
+            let journal = guard
+                .recovery_journal(&stage, &target, "fault")
+                .unwrap()
+                .unwrap();
             #[cfg(target_os = "linux")]
             {
                 let writer = std::fs::File::open(&stage).unwrap();
@@ -3725,12 +3731,9 @@ mod tests {
             }
             #[cfg(windows)]
             {
-                let writer = windows_open_relative(
-                    &guard.handle,
-                    stage.file_name().unwrap(),
-                    0x0001_0081,
-                )
-                .unwrap();
+                let writer =
+                    windows_open_relative(&guard.handle, stage.file_name().unwrap(), 0x0001_0081)
+                        .unwrap();
                 windows_promote_with_backup(
                     &guard.handle,
                     &writer,
@@ -3781,6 +3784,14 @@ mod tests {
             "rollback:phase_manifest_committed@3",
             "rollback:phase_anchor_written@3",
             "rollback:phase_sql_committed@3",
+            #[cfg(target_os = "linux")]
+            "backup_directory_synced",
+            #[cfg(target_os = "linux")]
+            "published_directory_synced",
+            #[cfg(target_os = "linux")]
+            "cleanup_directory_synced",
+            #[cfg(target_os = "linux")]
+            "rollback:rollback_directory_synced",
         ];
         // The native smoke matrix is bounded independently of the exhaustive
         // isolated-backend matrix because Linux invokes a credential helper.
@@ -3794,7 +3805,11 @@ mod tests {
             "rollback:rollback_restored",
             "rollback:phase_sql_committed@3",
         ];
-        let points: &[&str] = if native { &native_points } else { &isolated_points };
+        let points: &[&str] = if native {
+            &native_points
+        } else {
+            &isolated_points
+        };
         for &point in points {
             let started = std::time::Instant::now();
             let root = std::env::temp_dir().join(format!("ghostftp-crash-{}", Uuid::new_v4()));
@@ -3818,7 +3833,9 @@ mod tests {
             }
             let mut command = std::process::Command::new(std::env::current_exe().unwrap());
             if native {
-                command.arg("native_vault_recovery_survives_killed_process").arg("--ignored");
+                command
+                    .arg("native_vault_recovery_survives_killed_process")
+                    .arg("--ignored");
             } else {
                 command.arg("recovery_protocol_survives_killed_process_at_durable_boundaries");
             }
@@ -3845,12 +3862,10 @@ mod tests {
                 let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
                 let _lock = db.recovery_lock().unwrap();
                 let scope = db.recovery_scope().unwrap();
-                let encoded = crate::credentials::vault_get_strict(
-                    RECOVERY_INDEX_KEY_SERVICE,
-                    &scope,
-                )
-                .unwrap()
-                .unwrap();
+                let encoded =
+                    crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)
+                        .unwrap()
+                        .unwrap();
                 let (candidates, key_candidates) =
                     GlobalRecoveryLedger::with_key(&encoded, |key| {
                         let mut candidates = RecoveryGcPage::new();
@@ -3871,7 +3886,12 @@ mod tests {
                 ledger.check_rows(&db).unwrap();
                 let mut live: std::collections::BTreeSet<_> =
                     ledger.entries.values().copied().collect();
-                live.extend(ledger.shard_bytes().iter().map(|bytes| recovery_digest(bytes)));
+                live.extend(
+                    ledger
+                        .shard_bytes()
+                        .iter()
+                        .map(|bytes| recovery_digest(bytes)),
+                );
                 for (digest, length) in candidates {
                     if live.contains(&digest) {
                         get_recovery_blob(&scope, &digest).unwrap();
@@ -3886,9 +3906,12 @@ mod tests {
                     .is_none());
                     for part in 0..length.div_ceil(RECOVERY_BLOB_CHUNK) {
                         let account = recovery_blob_account(&scope, &digest, &part.to_string());
-                        assert!(crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)
-                            .unwrap()
-                            .is_none());
+                        assert!(crate::credentials::vault_get_strict(
+                            RECOVERY_BLOB_SERVICE,
+                            &account
+                        )
+                        .unwrap()
+                        .is_none());
                     }
                 }
                 let live_keys: RecoveryGcKeys = db
@@ -3904,9 +3927,11 @@ mod tests {
                 for id in key_candidates {
                     if !live_keys.contains(&id) {
                         for service in [RECOVERY_VAULT_SERVICE, RECOVERY_ANCHOR_SERVICE] {
-                            assert!(crate::credentials::vault_get_strict(service, &id.to_string())
-                                .unwrap()
-                                .is_none());
+                            assert!(
+                                crate::credentials::vault_get_strict(service, &id.to_string())
+                                    .unwrap()
+                                    .is_none()
+                            );
                         }
                     }
                 }
@@ -3950,7 +3975,9 @@ mod tests {
                         "rollback_pending"
                     };
                     assert_eq!(row.phase, expected, "{point}");
-                    if point.ends_with("@3") || point.ends_with("rollback_restored") {
+                    if point.ends_with("@3")
+                        || point.ends_with("rollback_restored")
+                        || point.ends_with("rollback_directory_synced") {
                         assert_eq!(std::fs::read(&target).unwrap(), b"old");
                         assert!(!backup.exists());
                     } else {
@@ -3978,8 +4005,13 @@ mod tests {
             );
             if !matches!(
                 point,
-                "backup_removed" | "terminal_anchor_written" | "terminal_sql_removed"
-                    | "terminal_manifest_written" | "gc_key_removed" | "gc_anchor_removed"
+                "backup_removed"
+                    | "cleanup_directory_synced"
+                    | "terminal_anchor_written"
+                    | "terminal_sql_removed"
+                    | "terminal_manifest_written"
+                    | "gc_key_removed"
+                    | "gc_anchor_removed"
             ) {
                 assert!(
                     std::fs::read(&target).is_ok_and(|bytes| bytes == b"old")
@@ -3993,7 +4025,104 @@ mod tests {
             }
             crate::credentials::clear_recovery_test_vault();
             std::fs::remove_dir_all(root).unwrap();
-            eprintln!("recovery checkpoint {point} (native={native}): {:?}", started.elapsed());
+            eprintln!(
+                "recovery checkpoint {point} (native={native}): {:?}",
+                started.elapsed()
+            );
+        }
+    }
+
+    // These probes use the production OS credential adapter and explicit
+    // CI-owned test directories. The service restart is orchestrated outside
+    // the test process, so a new process verifies the persisted root.
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    #[ignore = "requires an isolated native vault session"]
+    fn native_vault_restart_probe() {
+        let root = PathBuf::from(std::env::var_os("GHOSTFTP_NATIVE_RESTART_ROOT").unwrap());
+        let mode = std::env::var("GHOSTFTP_NATIVE_RESTART_MODE").unwrap();
+        let root = root.canonicalize().unwrap();
+        crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
+        if mode == "cleanup" {
+            crate::credentials::cleanup_native_recovery_test_vault(&root.join("vault")).unwrap();
+            crate::credentials::clear_recovery_test_vault();
+            return;
+        }
+        let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
+        let _lock = db.recovery_lock().unwrap();
+        if mode == "write" {
+            let target = root.join("target");
+            let guard = DownloadParentGuard::with_db(&target, Some(db.clone())).unwrap();
+            let journal = guard
+                .recovery_journal(&root.join("stage"), &target, "restart")
+                .unwrap()
+                .unwrap();
+            // Metadata-only fixture: no file recovery is authorized or run.
+            journal
+                .begin((1, 2), (1, 3, 3), (1, 4, 3), "a".repeat(64), "b".repeat(64))
+                .unwrap();
+            journal
+                .advance(RecoveryPhase::Prepared, RecoveryPhase::BackupSaved)
+                .unwrap();
+        } else {
+            assert_eq!(mode, "read");
+            let mut ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
+            ledger.reconcile_metadata(&db).unwrap();
+            ledger.check_rows(&db).unwrap();
+            let rows = db.download_recovery_snapshot().unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].id, "restart");
+            assert_eq!(rows[0].phase, "backup_saved");
+            let signed: AuthenticatedRecovery = serde_json::from_str(&rows[0].payload).unwrap();
+            assert_eq!(
+                signed.authenticate(&rows[0].id, &rows[0].payload).unwrap(),
+                RecoveryPhase::BackupSaved
+            );
+            GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+        }
+        crate::credentials::clear_recovery_test_vault();
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    #[ignore = "native vault manifest benchmark; run on dedicated test session"]
+    fn native_vault_manifest_benchmark() {
+        for count in [1usize, 8, 32, 128] {
+            let root = std::env::temp_dir().join(format!("ghostftp-bench-{}", Uuid::new_v4()));
+            std::fs::create_dir_all(&root).unwrap();
+            crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
+            let result = std::panic::catch_unwind(|| {
+                let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+                let _lock = db.recovery_lock().unwrap();
+                let mut ledger = GlobalRecoveryLedger::load(&db, true).unwrap();
+                // Synthetic commitments measure authenticated manifest I/O,
+                // not the full record, filesystem or GC workload.
+                for i in 0..count {
+                    let bytes = i.to_be_bytes();
+                    ledger.entries.insert(recovery_digest(&bytes), recovery_digest(&[&bytes[..], b"proof"].concat()));
+                }
+                let started = std::time::Instant::now();
+                ledger.save(&db).unwrap();
+                let write_us = started.elapsed().as_micros();
+                let mut reads = Vec::new();
+                for _ in 0..5 {
+                    let started = std::time::Instant::now();
+                    let loaded = GlobalRecoveryLedger::load(&db, false).unwrap();
+                    reads.push(started.elapsed().as_micros());
+                    assert_eq!(loaded.entries, ledger.entries);
+                }
+                reads.sort_unstable();
+                eprintln!(
+                    "recovery_manifest_benchmark platform={} entries={count} write_us={write_us} read_median_us={} read_max_us={}",
+                    std::env::consts::OS, reads[2], reads[4]
+                );
+            });
+            crate::credentials::cleanup_native_recovery_test_vault(&root.join("vault")).unwrap();
+            crate::credentials::clear_recovery_test_vault();
+            std::fs::remove_dir_all(root).unwrap();
+            if let Err(error) = result {
+                std::panic::resume_unwind(error);
+            }
         }
     }
 
@@ -4047,7 +4176,8 @@ mod tests {
             assert!(GlobalRecoveryLedger::collect_garbage(&db).is_err());
             assert_eq!(get_recovery_blob(&scope, &digest).unwrap(), bytes);
             crate::credentials::vault_set(RECOVERY_GC_SERVICE, &account, &stored).unwrap();
-            crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, "foreign-account", "keep").unwrap();
+            crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, "foreign-account", "keep")
+                .unwrap();
             GlobalRecoveryLedger::collect_garbage(&db).unwrap();
             assert!(get_recovery_blob(&scope, &digest).is_err());
             assert_eq!(
