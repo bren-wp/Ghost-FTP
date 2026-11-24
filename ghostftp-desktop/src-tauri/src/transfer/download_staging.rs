@@ -228,6 +228,64 @@ impl DownloadParentGuard {
         Ok(())
     }
 
+    /// Best-effort cleanup of a stage whose actual handle is still open.
+    /// A mismatch leaves the entry untouched rather than deleting unknown data.
+    pub(super) async fn cleanup_verified(&self, staging: &Path, verified: &tokio::fs::File) {
+        if self.verify().is_err() {
+            return;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::fd::AsRawFd;
+            use std::os::unix::ffi::OsStrExt;
+
+            let Some(name) = staging.file_name() else {
+                return;
+            };
+            let name = name.to_owned();
+            let Ok(parent) = self.handle.try_clone() else {
+                return;
+            };
+            let Ok(verified) = verified.try_clone().await else {
+                return;
+            };
+            let verified = verified.into_std().await;
+            let _ = tokio::task::spawn_blocking(move || -> Result<()> {
+                let expected = verified.metadata()?;
+                let entry = pinned_entry(&parent, &name)?.context("staging is missing")?;
+                require_pinned_identity(&entry, &expected)?;
+                let name = std::ffi::CString::new(name.as_bytes())?;
+                // SAFETY: the directory descriptor is live and the name is a basename.
+                let result = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
+                if result != 0 {
+                    return Err(std::io::Error::last_os_error().into());
+                }
+                Ok(())
+            })
+            .await;
+        }
+        #[cfg(windows)]
+        {
+            let reopened = tokio::fs::OpenOptions::new()
+                .read(true)
+                .custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT)
+                .open(staging)
+                .await;
+            if let Ok(reopened) = reopened {
+                if let (Ok(a), Ok(b)) = (
+                    windows_staging_identity(verified),
+                    windows_staging_identity(&reopened),
+                ) {
+                    if a == b {
+                        cleanup_owned_regular_staging_file(staging).await;
+                    }
+                }
+            }
+        }
+        #[cfg(not(any(target_os = "linux", windows)))]
+        let _ = (staging, verified);
+    }
+
     pub(super) async fn promote(
         &self,
         staging: &Path,
@@ -258,7 +316,11 @@ impl DownloadParentGuard {
                 let expected = verified.metadata()?;
                 if allow_replace {
                     promote_pinned_download(
-                        &pinned, &staging, &target_name, &backup, Some(&expected),
+                        &pinned,
+                        &staging,
+                        &target_name,
+                        &backup,
+                        Some(&expected),
                     )
                 } else {
                     let entry =
@@ -833,6 +895,7 @@ mod tests {
             .promote(&staging, &target, "test", true, &verified)
             .await
             .is_err());
+        guard.cleanup_verified(&staging, &verified).await;
         assert_eq!(tokio::fs::read(&target).await.unwrap(), b"original");
         assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"fake");
         assert_eq!(tokio::fs::read(&moved).await.unwrap(), b"good");
