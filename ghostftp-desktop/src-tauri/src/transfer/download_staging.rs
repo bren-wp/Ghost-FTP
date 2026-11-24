@@ -700,7 +700,7 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
             .ok()
             .filter(|record| {
                 record
-                    .authenticate(&row.id)
+                    .authenticate(&row.id, &row.payload)
                     .is_ok_and(|phase| phase.as_str() == row.phase)
             });
         let Some(signed) = signed else {
@@ -763,10 +763,42 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
 }
 
 const RECOVERY_VAULT_SERVICE: &str = "com.ghostftp.download-recovery.v1";
+const RECOVERY_ANCHOR_SERVICE: &str = "com.ghostftp.download-recovery-anchor.v1";
+
+/// Compact commitment to the exact SQLite envelope, including its phase chain.
+/// A terminal commitment cannot match any live envelope.
+fn recovery_anchor_payload(envelope: &str, terminal: bool) -> String {
+    use sha2::{Digest, Sha256};
+
+    let kind = if terminal { "terminal" } else { "active" };
+    format!(
+        "ghostftp-recovery-anchor-v1:{kind}:{:x}",
+        Sha256::digest(envelope.as_bytes())
+    )
+}
+
+/// Verify the independent vault anchor using the transaction authentication key.
+fn verify_recovery_anchor(
+    anchor: &AuthenticatedRecovery,
+    id: &str,
+    key_id: Uuid,
+    envelope: &str,
+    key: &[u8; 32],
+) -> Result<()> {
+    anchor.verify(id, key)?;
+    anyhow::ensure!(
+        anchor.key_id == key_id
+            && anchor.phases.is_empty()
+            && anchor.payload == recovery_anchor_payload(envelope, false),
+        "recovery anchor does not match current envelope"
+    );
+    Ok(())
+}
 
 /// Authenticates immutable intent bytes and a chained sequence of phase
 /// proofs. The SQLite phase must match the authenticated chain tip.
-/// Whole-database rollback with the original vault key is still possible.
+/// The independent vault anchor detects replay of a superseded SQL envelope.
+/// Restoring both SQLite and the corresponding vault state remains out of scope.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct AuthenticatedRecovery {
     key_id: Uuid,
@@ -948,8 +980,39 @@ impl AuthenticatedRecovery {
         result
     }
 
-    fn authenticate(&self, id: &str) -> Result<RecoveryPhase> {
-        Self::with_key(self.key_id, |key| self.verify_phases(id, key))
+    fn authenticate(&self, id: &str, envelope: &str) -> Result<RecoveryPhase> {
+        Self::with_key(self.key_id, |key| {
+            let phase = self.verify_phases(id, key)?;
+            let stored = crate::credentials::vault_get(
+                RECOVERY_ANCHOR_SERVICE,
+                &self.key_id.to_string(),
+            )?
+            .context("recovery anchor is unavailable")?;
+            let anchor: Self = serde_json::from_str(&stored)?;
+            verify_recovery_anchor(&anchor, id, self.key_id, envelope, key)?;
+            Ok(phase)
+        })
+    }
+
+    fn store_anchor(&self, id: &str, envelope: &str, terminal: bool) -> Result<()> {
+        Self::with_key(self.key_id, |key| {
+            self.verify_phases(id, key)?;
+            let anchor = Self::seal(
+                id,
+                recovery_anchor_payload(envelope, terminal),
+                self.key_id,
+                key,
+            )?;
+            let encoded = serde_json::to_string(&anchor)?;
+            let account = self.key_id.to_string();
+            crate::credentials::vault_set(RECOVERY_ANCHOR_SERVICE, &account, &encoded)?;
+            let readback = crate::credentials::vault_get(RECOVERY_ANCHOR_SERVICE, &account)?;
+            anyhow::ensure!(
+                readback.as_deref() == Some(encoded.as_str()),
+                "recovery anchor readback mismatch"
+            );
+            Ok(())
+        })
     }
 
     fn advance(&mut self, id: &str, from: RecoveryPhase, to: RecoveryPhase) -> Result<()> {
@@ -1051,6 +1114,9 @@ impl RecoveryJournal {
         let stored = match AuthenticatedRecovery::create(&self.id, payload.clone()) {
             Ok(signed) => {
                 let encoded = serde_json::to_string(&signed)?;
+                // Commit the independent anchor before the SQL row. A crash
+                // between the stores never authorizes a stale envelope.
+                signed.store_anchor(&self.id, &encoded, false)?;
                 *self.auth_key.lock().unwrap_or_else(|e| e.into_inner()) = Some(signed.key_id);
                 encoded
             }
@@ -1080,11 +1146,21 @@ impl RecoveryJournal {
             .auth_key
             .lock()
             .map_err(|_| anyhow::anyhow!("recovery key lock poisoned"))?;
+        self.db
+            .download_recovery_check_current(&self.id, from, destination, previous)?;
         let next = if let Some(key_id) = *auth_key {
             let mut signed: AuthenticatedRecovery = serde_json::from_str(previous)?;
             anyhow::ensure!(signed.key_id == key_id, "recovery key changed");
+            anyhow::ensure!(
+                signed.authenticate(&self.id, previous)? == from,
+                "recovery anchor phase mismatch"
+            );
             signed.advance(&self.id, from, to)?;
-            serde_json::to_string(&signed)?
+            let next = serde_json::to_string(&signed)?;
+            // Vault first, SQL CAS second. A failed CAS leaves an intentional
+            // mismatch for manual review; never move the anchor backward.
+            signed.store_anchor(&self.id, &next, false)?;
+            next
         } else {
             // An explicitly unsigned live transaction remains manual-only on
             // restart. Never downgrade a signed transaction on vault failure.
@@ -1102,6 +1178,46 @@ impl RecoveryJournal {
         Ok(())
     }
 
+    /// Only a live, anchored transaction may authorize backup restoration
+    /// or deletion. Verify both stores before reading any recorded content.
+    #[cfg(any(target_os = "linux", windows))]
+    fn verify_before_mutation(
+        &self,
+        parent: &std::fs::File,
+        phase: RecoveryPhase,
+        published: bool,
+    ) -> Result<()> {
+        let persisted = self
+            .persisted
+            .lock()
+            .map_err(|_| anyhow::anyhow!("recovery journal lock poisoned"))?;
+        let (destination, envelope) = persisted.as_ref().context("missing recovery intent")?;
+        let signed: AuthenticatedRecovery =
+            serde_json::from_str(envelope).context("unsigned recovery requires manual review")?;
+        anyhow::ensure!(
+            signed.authenticate(&self.id, envelope)? == phase,
+            "recovery anchor phase mismatch"
+        );
+        self.db
+            .download_recovery_check_current(&self.id, phase, destination, envelope)?;
+        let record: RecoveryInspectionRecord = serde_json::from_str(&signed.payload)?;
+        anyhow::ensure!(
+            record.matches_reservation(Some(destination.as_str())),
+            "recovery reservation mismatch"
+        );
+        if published {
+            anyhow::ensure!(
+                record.inspect_entry(parent, &record.target) == EntryObservation::Stage,
+                "published download content changed; backup retained"
+            );
+        }
+        anyhow::ensure!(
+            record.inspect_entry(parent, &record.backup) == EntryObservation::Original,
+            "recovery backup content changed or is unavailable"
+        );
+        Ok(())
+    }
+
     fn finish(&self) {
         let Ok(persisted) = self.persisted.lock() else {
             return;
@@ -1109,6 +1225,26 @@ impl RecoveryJournal {
         let Some((destination, payload)) = persisted.as_ref() else {
             return;
         };
+        // Tombstone first: replay of a completed row must fail even if
+        // credential deletion is interrupted or the SQL commit fails.
+        let terminal = (|| -> Result<()> {
+            let signed: AuthenticatedRecovery = serde_json::from_str(payload)?;
+            anyhow::ensure!(
+                signed.authenticate(&self.id, payload)? == RecoveryPhase::CleanupPending,
+                "recovery anchor phase mismatch"
+            );
+            self.db.download_recovery_check_current(
+                &self.id,
+                RecoveryPhase::CleanupPending,
+                destination,
+                payload,
+            )?;
+            signed.store_anchor(&self.id, payload, true)
+        })();
+        if terminal.is_err() {
+            tracing::warn!("completed recovery anchor could not be retired");
+            return;
+        }
         if self
             .db
             .download_recovery_finish_checked(&self.id, destination, payload)
@@ -1127,6 +1263,10 @@ impl RecoveryJournal {
                 .is_err()
             {
                 tracing::warn!("completed recovery key requires credential vault cleanup");
+            } else if crate::credentials::vault_delete(RECOVERY_ANCHOR_SERVICE, &key_id.to_string())
+                .is_err()
+            {
+                tracing::warn!("completed recovery anchor requires credential vault cleanup");
             }
         }
     }
@@ -1654,6 +1794,7 @@ fn promote_pinned_download(
             }
             if let Some(journal) = journal {
                 journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::RollbackPending)?;
+                journal.verify_before_mutation(parent, RecoveryPhase::RollbackPending, false)?;
             }
             return match rename_pinned_siblings(parent, backup, target) {
                 Ok(()) => {
@@ -1690,6 +1831,15 @@ fn promote_pinned_download(
         let owned = pinned_entry(parent, backup)
             .is_ok_and(|entry| entry.is_some_and(|current| pinned_same_file(&original, &current)));
         if owned {
+            if let Some(journal) = journal {
+                if journal
+                    .verify_before_mutation(parent, RecoveryPhase::CleanupPending, true)
+                    .is_err()
+                {
+                    tracing::warn!("download published; unverified recovery backup retained");
+                    return Ok(());
+                }
+            }
             if let Ok(name) = std::ffi::CString::new(backup.as_bytes()) {
                 // SAFETY: parent is live; name is a NUL-terminated sibling basename.
                 let removed = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
@@ -1893,6 +2043,7 @@ fn windows_promote_with_backup(
     if let Err(error) = windows_rename_handle(source, parent, target, false) {
         if let Some(journal) = journal {
             journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::RollbackPending)?;
+            journal.verify_before_mutation(parent, RecoveryPhase::RollbackPending, false)?;
         }
         return match windows_rename_handle(&original, parent, target, false) {
             Ok(()) => {
@@ -1920,6 +2071,15 @@ fn windows_promote_with_backup(
     }
     // The original handle now identifies the backup, not the new target.
     // Cleanup failure leaves the backup intact; publication already succeeded.
+    if let Some(journal) = journal {
+        if journal
+            .verify_before_mutation(parent, RecoveryPhase::CleanupPending, true)
+            .is_err()
+        {
+            tracing::warn!("download published; unverified recovery backup retained");
+            return Ok(());
+        }
+    }
     let removed = windows_delete_handle(&original).is_ok();
     drop(original);
     if removed {
@@ -2424,6 +2584,44 @@ mod tests {
         record.nonce[0] ^= 1;
         record.key_id = Uuid::new_v4();
         assert!(record.verify("transfer-a", &key).is_err());
+    }
+
+    #[test]
+    fn independent_anchor_rejects_old_envelope_and_terminal_replay() {
+        let key = [0x23; 32];
+        let key_id = Uuid::new_v4();
+        let mut record = AuthenticatedRecovery::seal("id", "intent".into(), key_id, &key).unwrap();
+        record
+            .append_phase("id", RecoveryPhase::Prepared, &key)
+            .unwrap();
+        let old = serde_json::to_string(&record).unwrap();
+        record
+            .advance_signed(
+                "id",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::BackupSaved,
+                &key,
+            )
+            .unwrap();
+        let current = serde_json::to_string(&record).unwrap();
+        let anchor = AuthenticatedRecovery::seal(
+            "id",
+            recovery_anchor_payload(&current, false),
+            key_id,
+            &key,
+        )
+        .unwrap();
+        assert!(verify_recovery_anchor(&anchor, "id", key_id, &current, &key).is_ok());
+        assert!(verify_recovery_anchor(&anchor, "id", key_id, &old, &key).is_err());
+        assert!(verify_recovery_anchor(&anchor, "other", key_id, &current, &key).is_err());
+        let terminal = AuthenticatedRecovery::seal(
+            "id",
+            recovery_anchor_payload(&current, true),
+            key_id,
+            &key,
+        )
+        .unwrap();
+        assert!(verify_recovery_anchor(&terminal, "id", key_id, &current, &key).is_err());
     }
 
     #[test]

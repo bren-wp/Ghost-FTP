@@ -718,6 +718,25 @@ impl Db {
         Ok(())
     }
 
+    /// Confirm the exact live transaction immediately before a filesystem mutation.
+    pub(crate) fn download_recovery_check_current(
+        &self,
+        id: &str,
+        phase: RecoveryPhase,
+        destination: &str,
+        payload: &str,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let matches: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM download_recovery
+             WHERE id = ?1 AND phase = ?2 AND destination_key = ?3 AND payload = ?4)",
+            rusqlite::params![id, phase.as_str(), destination, payload],
+            |row| row.get(0),
+        )?;
+        anyhow::ensure!(matches, "download recovery state changed");
+        Ok(())
+    }
+
     /// Persist the signed phase chain and SQL phase together; reject a changed
     /// reservation, stale phase or replaced envelope.
     pub(crate) fn download_recovery_transition_checked(
@@ -1516,9 +1535,25 @@ mod tests {
                 "backup-proof",
             )
         };
+        assert!(db
+            .download_recovery_check_current(
+                "id",
+                RecoveryPhase::Prepared,
+                "destination",
+                "prepared-proof",
+            )
+            .is_ok());
         assert!(advance("other", "prepared-proof").is_err());
         assert!(advance("destination", "forged").is_err());
         advance("destination", "prepared-proof").unwrap();
+        assert!(db
+            .download_recovery_check_current(
+                "id",
+                RecoveryPhase::Prepared,
+                "destination",
+                "prepared-proof",
+            )
+            .is_err());
         assert!(advance("destination", "prepared-proof").is_err());
         let rows = db.download_recovery_snapshot().unwrap();
         assert_eq!(rows[0].phase, "backup_saved");
