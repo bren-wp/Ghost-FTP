@@ -293,6 +293,7 @@ fn apply_delta_inner(
     // CREATE_NEW provides the same exclusive-open contract as regular download
     // staging; never follow a planted symlink or truncate another process's file.
     let out_file = OpenOptions::new()
+        .read(true)
         .write(true)
         .create_new(true)
         .open(out)
@@ -320,13 +321,12 @@ fn apply_delta_inner(
     }
     out_writer.flush().context("flush output")?;
     out_writer.get_ref().sync_all().context("fsync output")?;
-    drop(out_writer);
+    let mut output = out_writer.into_inner().context("finish delta output writer")?;
+    output.seek(SeekFrom::Start(0)).context("rewind delta output")?;
 
     let expected = decode_hash(expected_hash).context("decode expected hash")?;
     let mut hasher = blake3::Hasher::new();
-    hasher
-        .update_reader(File::open(out).with_context(|| format!("reopen {}", out.display()))?)
-        .context("hash output")?;
+    hasher.update_reader(&mut output).context("hash output")?;
     anyhow::ensure!(
         hasher.finalize().as_bytes() == &expected,
         "output hash mismatch — reassembled file does not match the plan"
