@@ -56,8 +56,11 @@ pub(crate) fn finish_linux_helper_profile() {
                 samples.sort_unstable();
                 let count = samples.len();
                 let total: u128 = samples.iter().sum();
+                // Nearest rank, using the actual count and no interpolation.
+                let p95 = samples[(count * 95).div_ceil(100) - 1];
+                let p99 = samples[(count * 99).div_ceil(100) - 1];
                 eprintln!(
-                    "recovery_linux_helper operation={operation} calls={count} total_us={total} median_us={} max_us={}",
+                    "recovery_linux_helper operation={operation} calls={count} total_us={total} median_us={} p95_us={p95} p99_us={p99} max_us={}",
                     samples[count / 2],
                     samples[count - 1]
                 );

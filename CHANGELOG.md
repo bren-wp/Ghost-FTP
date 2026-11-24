@@ -1,6 +1,14 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.83 Preview — 24 November 2026 (development candidate; not yet published)
+## 0.99.84 Preview — 25 November 2026 (development candidate; not yet published)
+
+- Revalidate the live crash probe, original boot identity and checkpoint before an authorized guest hard reset.
+- Adapt Linux Secret Service polling to the remaining deadline and profile native helper operations in tests only.
+- Bound benchmark fixture memory with streaming generation and verification; add explicit opt-in 100 MiB, 1 GiB and greater-than-4-GiB cases.
+- Report nearest-rank p95/p99 helper latency with sample counts. Preserve native vault read-back verification and fail-closed behavior.
+- Synchronize published release links and source metadata; exact-head CI and native measurements are required before publication.
+
+## 0.99.83 Preview — published 24 November 2026
 
 - Add Connected saved-site filter and direct access to an existing session, without reconnecting or interrupting other sessions.
 - Add a clear-search action, reset-filters empty state, visible result count, editable site name, natural sorting and accurate recent-site dates.
