@@ -705,6 +705,9 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
         tracing::warn!("recovery metadata reconciliation requires manual review");
         return Ok(());
     }
+    if GlobalRecoveryLedger::collect_garbage(db).is_err() {
+        tracing::warn!("verified recovery garbage collection deferred");
+    }
     let rows = db.download_recovery_snapshot()?;
     let truncated = rows.len() > 128;
     let mut matching = 0usize;
@@ -791,6 +794,129 @@ const RECOVERY_SHARD_SIZE: usize = 8;
 const RECOVERY_INDEX_LIMIT: usize = 128;
 const RECOVERY_BLOB_CHUNK: usize = 720;
 const RECOVERY_BLOB_LIMIT: usize = 256 * 1024;
+const RECOVERY_GC_SERVICE: &str = "com.ghostftp.download-recovery-gc.v1";
+const RECOVERY_GC_PAGES: usize = 4;
+const RECOVERY_GC_PAGE_SIZE: usize = 12;
+
+type RecoveryGcPage = std::collections::BTreeMap<[u8; 32], usize>;
+
+fn gc_page_account(scope: &str, page: usize) -> String {
+    format!("{scope}:{page}")
+}
+
+fn read_gc_page(scope: &str, page: usize, key: &[u8; 32]) -> Result<RecoveryGcPage> {
+    use base64::Engine;
+
+    let account = gc_page_account(scope, page);
+    let Some(stored) = crate::credentials::vault_get_strict(RECOVERY_GC_SERVICE, &account)? else {
+        return Ok(RecoveryGcPage::new());
+    };
+    anyhow::ensure!(stored.len() <= 1200, "recovery GC page too large");
+    let signed: AuthenticatedRecovery = serde_json::from_str(&stored)?;
+    signed.verify(&account, key)?;
+    anyhow::ensure!(
+        signed.key_id == Uuid::nil() && signed.phases.is_empty(),
+        "invalid recovery GC page"
+    );
+    let bytes = base64::engine::general_purpose::STANDARD.decode(&signed.payload)?;
+    anyhow::ensure!(
+        bytes.len() % 36 == 0 && bytes.len() <= RECOVERY_GC_PAGE_SIZE * 36,
+        "invalid recovery GC page size"
+    );
+    let mut entries = RecoveryGcPage::new();
+    for entry in bytes.chunks_exact(36) {
+        let digest: [u8; 32] = entry[..32].try_into()?;
+        let length = u32::from_be_bytes(entry[32..].try_into()?) as usize;
+        anyhow::ensure!(
+            length > 0 && length <= RECOVERY_BLOB_LIMIT && entries.insert(digest, length).is_none(),
+            "invalid recovery GC candidate"
+        );
+    }
+    Ok(entries)
+}
+
+fn write_gc_page(scope: &str, page: usize, key: &[u8; 32], entries: &RecoveryGcPage) -> Result<()> {
+    use base64::Engine;
+
+    anyhow::ensure!(entries.len() <= RECOVERY_GC_PAGE_SIZE, "recovery GC page full");
+    let mut bytes = Vec::new();
+    for (digest, length) in entries {
+        bytes.extend_from_slice(digest);
+        bytes.extend_from_slice(&u32::try_from(*length)?.to_be_bytes());
+    }
+    let account = gc_page_account(scope, page);
+    let payload = base64::engine::general_purpose::STANDARD.encode(bytes);
+    let signed = AuthenticatedRecovery::seal(&account, payload, Uuid::nil(), key)?;
+    let encoded = serde_json::to_string(&signed)?;
+    anyhow::ensure!(encoded.len() <= 1200, "recovery GC page too large");
+    crate::credentials::vault_set(RECOVERY_GC_SERVICE, &account, &encoded)?;
+    anyhow::ensure!(
+        crate::credentials::vault_get_strict(RECOVERY_GC_SERVICE, &account)?.as_deref()
+            == Some(encoded.as_str()),
+        "recovery GC page readback mismatch"
+    );
+    Ok(())
+}
+
+// Register ownership before writing any chunk. A bounded authenticated queue
+// retains interrupted writes and superseded objects, even after process death.
+fn register_recovery_gc(scope: &str, digest: [u8; 32], length: usize) -> Result<()> {
+    anyhow::ensure!(length > 0 && length <= RECOVERY_BLOB_LIMIT, "invalid GC length");
+    let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, scope)?
+        .context("recovery index key unavailable")?;
+    GlobalRecoveryLedger::with_key(&key, |key| {
+        let mut pages = Vec::new();
+        for page in 0..RECOVERY_GC_PAGES {
+            let entries = read_gc_page(scope, page, key)?;
+            if let Some(existing) = entries.get(&digest) {
+                anyhow::ensure!(*existing == length, "recovery GC length mismatch");
+                return Ok(());
+            }
+            pages.push(entries);
+        }
+        let (page, entries) = pages
+            .iter_mut()
+            .enumerate()
+            .find(|(_, entries)| entries.len() < RECOVERY_GC_PAGE_SIZE)
+            .context("recovery GC queue full; reconcile before writing")?;
+        entries.insert(digest, length);
+        write_gc_page(scope, page, key, entries)?;
+        recovery_fault_checkpoint("gc_registered");
+        Ok(())
+    })
+}
+
+fn delete_recovery_blob(scope: &str, digest: &[u8; 32], length: usize) -> Result<()> {
+    let length_account = recovery_blob_account(scope, digest, "length");
+    if let Some(marker) =
+        crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &length_account)?
+    {
+        anyhow::ensure!(marker.parse::<usize>()? == length, "recovery GC length mismatch");
+        anyhow::ensure!(
+            get_recovery_blob(scope, digest)?.len() == length,
+            "recovery GC blob verification failed"
+        );
+        // Removing the length first marks a verified deletion in progress.
+        // The authenticated queue retains the exact chunk count across crashes.
+        crate::credentials::vault_delete_strict(RECOVERY_BLOB_SERVICE, &length_account)?;
+        recovery_fault_checkpoint("gc_length_removed");
+    }
+    for index in 0..length.div_ceil(RECOVERY_BLOB_CHUNK) {
+        let account = recovery_blob_account(scope, digest, &index.to_string());
+        crate::credentials::vault_delete_strict(RECOVERY_BLOB_SERVICE, &account)?;
+        recovery_fault_checkpoint("gc_chunk_removed");
+    }
+    Ok(())
+}
+
+#[cfg(not(test))]
+#[inline]
+fn recovery_fault_checkpoint(_point: &str) {}
+
+#[cfg(test)]
+fn recovery_fault_checkpoint(point: &str) {
+    crate::credentials::recovery_test_checkpoint(point);
+}
 
 fn recovery_digest(bytes: &[u8]) -> [u8; 32] {
     use sha2::{Digest, Sha256};
@@ -814,6 +940,7 @@ fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
         "invalid recovery blob size"
     );
     let digest = recovery_digest(bytes);
+    register_recovery_gc(scope, digest, bytes.len())?;
     let put = |part: &str, value: &str| -> Result<()> {
         let account = recovery_blob_account(scope, &digest, part);
         match crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)? {
@@ -831,9 +958,11 @@ fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
     for (index, chunk) in bytes.chunks(RECOVERY_BLOB_CHUNK).enumerate() {
         let encoded = base64::engine::general_purpose::STANDARD.encode(chunk);
         put(&index.to_string(), &encoded)?;
+        recovery_fault_checkpoint("blob_chunk_written");
     }
     // Publish the length only after every chunk has been verified.
     put("length", &bytes.len().to_string())?;
+    recovery_fault_checkpoint("blob_length_written");
     Ok(digest)
 }
 
@@ -1199,11 +1328,16 @@ impl GlobalRecoveryLedger {
                             .iter()
                             .map(|digest| get_recovery_blob(&scope, digest))
                             .collect::<Result<Vec<_>>>()?;
-                        Self::from_shards(generation, shards)
+                        let ledger = Self::from_shards(generation, shards.clone())?;
+                        anyhow::ensure!(
+                            ledger.shard_bytes() == shards,
+                            "noncanonical recovery shards"
+                        );
+                        Ok(ledger)
                     } else {
                         Self::decode(&signed.payload)
                     }
-                 })?;
+                })?;
                 if initialize && !ledger.sharded {
                     ledger.check_rows(db)?;
                     for row in db.download_recovery_snapshot()? {
@@ -1264,11 +1398,67 @@ impl GlobalRecoveryLedger {
             let encoded = serde_json::to_string(&signed)?;
             anyhow::ensure!(encoded.len() <= 1200, "recovery index envelope too large");
             crate::credentials::vault_set(RECOVERY_INDEX_SERVICE, &scope, &encoded)?;
+            recovery_fault_checkpoint("manifest_written");
             let readback = crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)?;
             anyhow::ensure!(
                 readback.as_deref() == Some(encoded.as_str()),
                 "recovery index readback mismatch"
             );
+            Ok(())
+        })
+    }
+
+    // Caller owns the interprocess lock. Always reload the authoritative
+    // manifest before collecting; never trust the caller's cached ledger.
+    fn collect_garbage(db: &crate::db::Db) -> Result<()> {
+        let scope = db.recovery_scope()?;
+        let Some(key) = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?
+        else {
+            return Ok(());
+        };
+        Self::with_key(&key, |key| {
+            let pages = (0..RECOVERY_GC_PAGES)
+                .map(|page| read_gc_page(&scope, page, key))
+                .collect::<Result<Vec<_>>>()?;
+            if pages.iter().all(RecoveryGcPage::is_empty) {
+                return Ok(());
+            }
+            let ledger = Self::load(db, false)?;
+            anyhow::ensure!(ledger.sharded, "legacy recovery manifest requires migration");
+            ledger.check_rows(db)?;
+            let mut live = std::collections::BTreeSet::new();
+            for shard in ledger.shard_bytes() {
+                live.insert(recovery_digest(&shard));
+            }
+            for row in db.download_recovery_snapshot()? {
+                let signed: AuthenticatedRecovery = serde_json::from_str(&row.payload)?;
+                anyhow::ensure!(
+                    signed.authenticate(&row.id, &row.payload)?.as_str() == row.phase,
+                    "recovery GC requires current authenticated rows"
+                );
+                let (_, proof) = recovery_index_entry(
+                    &row.id,
+                    &row.phase,
+                    row.destination_key.as_deref(),
+                    &row.payload,
+                )?;
+                get_recovery_blob(&scope, &proof)?;
+                live.insert(proof);
+            }
+            for (page, entries) in pages.iter().enumerate() {
+                if entries.is_empty() {
+                    continue;
+                }
+                for (digest, length) in entries {
+                    if !live.contains(digest) {
+                        delete_recovery_blob(&scope, digest, *length)?;
+                    }
+                }
+                // Live candidates are forgotten, not deleted. A later
+                // supersession registers their digest again before publication.
+                write_gc_page(&scope, page, key, &RecoveryGcPage::new())?;
+                recovery_fault_checkpoint("gc_page_cleared");
+            }
             Ok(())
         })
     }
@@ -1292,6 +1482,18 @@ impl GlobalRecoveryLedger {
             self.entries.get(&identity).copied() == expected,
             "stale global recovery index entry"
         );
+        let scope = db.recovery_scope()?;
+        if self.sharded {
+            // Preserve all previous root references until a verified new
+            // root and matching SQLite snapshot make them unreachable.
+            for shard in self.shard_bytes() {
+                register_recovery_gc(&scope, recovery_digest(&shard), shard.len())?;
+            }
+            if let Some(proof) = expected {
+                let bytes = get_recovery_blob(&scope, &proof)?;
+                register_recovery_gc(&scope, proof, bytes.len())?;
+            }
+        }
         if let Some((phase, destination, payload)) = next {
             let (_, proof) = recovery_index_entry(id, phase, Some(destination), payload)?;
             anyhow::ensure!(
@@ -1744,6 +1946,7 @@ impl RecoveryJournal {
         let payload = serde_json::to_string(&record)?;
         let mut ledger = GlobalRecoveryLedger::load(&self.db, true)?;
         ledger.check_rows(&self.db)?;
+        GlobalRecoveryLedger::collect_garbage(&self.db)?;
         let signed = AuthenticatedRecovery::create(&self.id, payload)?;
         let stored = serde_json::to_string(&signed)?;
         // Index first, transaction anchor second, SQLite third. Any interrupted
@@ -1755,6 +1958,7 @@ impl RecoveryJournal {
             Some((RecoveryPhase::Prepared.as_str(), &destination_key, &stored)),
         )?;
         signed.store_anchor(&self.id, &stored, false)?;
+        recovery_fault_checkpoint("prepared_anchor_written");
         *self.auth_key.lock().unwrap_or_else(|e| e.into_inner()) = Some(signed.key_id);
         let mut persisted = self
             .persisted
@@ -1764,6 +1968,10 @@ impl RecoveryJournal {
             .download_recovery_begin(&self.id, &stored, &destination_key)
             .context("persist recovery intent before backup")?;
         *persisted = Some((destination_key, stored));
+        recovery_fault_checkpoint("prepared_sql_committed");
+        if GlobalRecoveryLedger::collect_garbage(&self.db).is_err() {
+            tracing::warn!("verified recovery garbage collection deferred");
+        }
         Ok(())
     }
 
@@ -1799,6 +2007,7 @@ impl RecoveryJournal {
                 Some((to.as_str(), destination, &next)),
             )?;
             signed.store_anchor(&self.id, &next, false)?;
+            recovery_fault_checkpoint("phase_anchor_written");
             next
         } else {
             anyhow::bail!("unsigned recovery requires manual review");
@@ -1812,6 +2021,10 @@ impl RecoveryJournal {
             &next,
         )?;
         *previous = next;
+        recovery_fault_checkpoint("phase_sql_committed");
+        if GlobalRecoveryLedger::collect_garbage(&self.db).is_err() {
+            tracing::warn!("verified recovery garbage collection deferred");
+        }
         Ok(())
     }
 
@@ -1913,6 +2126,7 @@ impl RecoveryJournal {
             tracing::warn!("completed recovery anchor could not be retired");
             return;
         }
+        recovery_fault_checkpoint("terminal_anchor_written");
         if self
             .db
             .download_recovery_finish_checked(&self.id, destination, payload)
@@ -1921,6 +2135,7 @@ impl RecoveryJournal {
             tracing::warn!("completed download recovery intent could not be cleared");
             return;
         }
+        recovery_fault_checkpoint("terminal_sql_removed");
         if ledger
             .update(
                 &self.db,
@@ -1932,6 +2147,10 @@ impl RecoveryJournal {
         {
             tracing::warn!("completed transaction remains in global recovery index");
             return;
+        }
+        recovery_fault_checkpoint("terminal_manifest_written");
+        if GlobalRecoveryLedger::collect_garbage(&self.db).is_err() {
+            tracing::warn!("verified recovery garbage collection deferred");
         }
         let key_id = self
             .auth_key
@@ -2006,6 +2225,7 @@ impl DownloadParentGuard {
             ledger.reconcile_metadata(db)?;
             ledger.check_rows(db)?;
         }
+        GlobalRecoveryLedger::collect_garbage(db)?;
         #[cfg(unix)]
         let identity = {
             use std::os::unix::fs::MetadataExt;
