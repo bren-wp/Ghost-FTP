@@ -52,9 +52,21 @@ pub(super) async fn create_new_download_staging(path: &Path) -> Result<tokio::fs
 #[derive(Clone, Default)]
 pub(super) struct DownloadStageOwner {
     file: std::sync::Arc<std::sync::Mutex<Option<std::fs::File>>>,
+    #[cfg(target_os = "linux")]
+    parent: Option<std::sync::Arc<std::fs::File>>,
 }
 
 impl DownloadStageOwner {
+    pub(super) fn for_parent(parent: &DownloadParentGuard) -> Self {
+        #[cfg(not(target_os = "linux"))]
+        let _ = parent;
+        Self {
+            #[cfg(target_os = "linux")]
+            parent: Some(parent.handle.clone()),
+            ..Self::default()
+        }
+    }
+
     pub(super) fn record_std(&self, file: &std::fs::File) -> Result<()> {
         let clone = file.try_clone()?;
         let mut owned = self
@@ -70,10 +82,36 @@ impl DownloadStageOwner {
         self.record_std(&clone)
     }
 
-    pub(super) async fn create(&self, path: &Path) -> Result<tokio::fs::File> {
-        let file = create_new_download_staging(path).await?;
-        self.record(&file).await?;
+    pub(super) fn create_std(&self, path: &Path) -> Result<std::fs::File> {
+        #[cfg(target_os = "linux")]
+        let file = if let Some(parent) = &self.parent {
+            let name = path.file_name().context("staging has no basename")?;
+            create_pinned_staging(parent, name)
+        } else {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+        };
+        #[cfg(not(target_os = "linux"))]
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path);
+        let file = file
+            .map_err(DownloadStagingOpenFailure)
+            .context("exclusively create owned download stage")?;
+        self.record_std(&file)?;
         Ok(file)
+    }
+
+    pub(super) async fn create(&self, path: &Path) -> Result<tokio::fs::File> {
+        let owner = self.clone();
+        let path = path.to_path_buf();
+        let file = tokio::task::spawn_blocking(move || owner.create_std(&path))
+            .await
+            .context("join owned staging creation")??;
+        Ok(tokio::fs::File::from_std(file))
     }
 
     pub(super) async fn cleanup(&self, parent: &DownloadParentGuard, path: &Path) {
@@ -230,6 +268,39 @@ fn rename_pinned_siblings(
     Ok(())
 }
 
+/// Exclusively create a regular child in the original pinned directory.
+#[cfg(target_os = "linux")]
+fn create_pinned_staging(
+    parent: &std::fs::File,
+    name: &std::ffi::OsStr,
+) -> std::io::Result<std::fs::File> {
+    use std::os::fd::{AsRawFd, FromRawFd};
+    use std::os::unix::ffi::OsStrExt;
+
+    let bytes = name.as_bytes();
+    if bytes.is_empty() || bytes == b"." || bytes == b".." || bytes.contains(&b'/') {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "staging requires a basename",
+        ));
+    }
+    let name = std::ffi::CString::new(bytes)?;
+    // SAFETY: parent owns a live descriptor and name is a NUL-terminated basename.
+    let fd = unsafe {
+        libc::openat(
+            parent.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            0o666 as libc::mode_t,
+        )
+    };
+    if fd < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    // SAFETY: openat returned an independently owned descriptor.
+    Ok(unsafe { std::fs::File::from_raw_fd(fd) })
+}
+
 /// Pin the parent once; the caller owns this descriptor until all operations finish.
 #[cfg(target_os = "linux")]
 fn pin_download_parent(parent: &Path) -> Result<std::fs::File> {
@@ -251,7 +322,7 @@ fn pin_download_parent(parent: &Path) -> Result<std::fs::File> {
 /// Existing path-based backend I/O still needs identity checks at boundaries.
 pub(super) struct DownloadParentGuard {
     path: PathBuf,
-    handle: std::fs::File,
+    handle: std::sync::Arc<std::fs::File>,
 }
 
 impl DownloadParentGuard {
@@ -264,7 +335,7 @@ impl DownloadParentGuard {
         };
         Ok(Self {
             path: path.to_path_buf(),
-            handle: open_download_directory(path)?,
+            handle: std::sync::Arc::new(open_download_directory(path)?),
         })
     }
 
@@ -1295,6 +1366,30 @@ mod tests {
         assert!(!stage.exists());
         drop(parent);
         tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn owned_creation_uses_initial_directory_after_path_replacement() {
+        let root = std::env::temp_dir().join(format!("ghostftp-openat-{}", Uuid::new_v4()));
+        let parent = root.join("parent");
+        let moved = root.join("moved");
+        std::fs::create_dir_all(&parent).unwrap();
+        let guard = DownloadParentGuard::open(&parent.join("target")).unwrap();
+        let owner = DownloadStageOwner::for_parent(&guard);
+        std::fs::rename(&parent, &moved).unwrap();
+        std::fs::create_dir(&parent).unwrap();
+        std::fs::write(parent.join("stage"), b"keep").unwrap();
+
+        let mut file = owner.create_std(&parent.join("stage")).unwrap();
+        std::io::Write::write_all(&mut file, b"new").unwrap();
+        assert_eq!(std::fs::read(parent.join("stage")).unwrap(), b"keep");
+        assert_eq!(std::fs::read(moved.join("stage")).unwrap(), b"new");
+        assert!(owner.create_std(&parent.join("stage")).is_err());
+        drop(file);
+        drop(owner);
+        drop(guard);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[cfg(windows)]
