@@ -234,6 +234,7 @@ impl DownloadParentGuard {
         target: &Path,
         id: &str,
         allow_replace: bool,
+        verified: &tokio::fs::File,
     ) -> Result<()> {
         self.verify()?;
         #[cfg(target_os = "linux")]
@@ -252,16 +253,17 @@ impl DownloadParentGuard {
                 .context("backup has no basename")?
                 .to_owned();
             let pinned = self.handle.try_clone()?;
+            let verified = verified.try_clone().await?.into_std().await;
             return tokio::task::spawn_blocking(move || {
+                let expected = verified.metadata()?;
                 if allow_replace {
-                    promote_pinned_download(&pinned, &staging, &target_name, &backup)
+                    promote_pinned_download(
+                        &pinned, &staging, &target_name, &backup, Some(&expected),
+                    )
                 } else {
                     let entry =
                         pinned_entry(&pinned, &staging)?.context("download staging is missing")?;
-                    anyhow::ensure!(
-                        pinned_regular_file(&entry) && entry.st_nlink == 1,
-                        "non-overwrite promotion requires a regular staging file without hard links"
-                    );
+                    require_pinned_identity(&entry, &expected)?;
                     rename_pinned_siblings(&pinned, &staging, &target_name)
                 }
             })
@@ -269,6 +271,19 @@ impl DownloadParentGuard {
             .context("join guarded download promotion")?;
         }
 
+        #[cfg(windows)]
+        {
+            let reopened = tokio::fs::OpenOptions::new()
+                .read(true)
+                .custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT)
+                .open(staging)
+                .await?;
+            anyhow::ensure!(
+                windows_staging_identity(verified)? == windows_staging_identity(&reopened)?
+                    && verified.metadata().await?.len() == reopened.metadata().await?.len(),
+                "verified staging identity changed before promotion"
+            );
+        }
         if allow_replace {
             promote_staged_download(staging, target, id).await
         } else {
@@ -374,6 +389,23 @@ fn pinned_same_file(a: &libc::stat, b: &libc::stat) -> bool {
     pinned_regular_file(a) && pinned_regular_file(b) && a.st_dev == b.st_dev && a.st_ino == b.st_ino
 }
 
+#[cfg(target_os = "linux")]
+fn require_pinned_identity(entry: &libc::stat, expected: &std::fs::Metadata) -> Result<()> {
+    use std::os::unix::fs::MetadataExt;
+
+    anyhow::ensure!(
+        pinned_regular_file(entry)
+            && expected.is_file()
+            && entry.st_nlink == 1
+            && expected.nlink() == 1
+            && entry.st_dev == expected.dev()
+            && entry.st_ino == expected.ino()
+            && u64::try_from(entry.st_size).ok() == Some(expected.len()),
+        "verified staging identity changed before promotion"
+    );
+    Ok(())
+}
+
 /// Keep backup, promotion, rollback and backup cleanup in one directory.
 /// The remaining same-directory entry substitution race requires additional
 /// ownership/identity controls; pinning is not a complete TOCTOU solution.
@@ -383,6 +415,7 @@ fn promote_pinned_download(
     staging: &std::ffi::OsStr,
     target: &std::ffi::OsStr,
     backup: &std::ffi::OsStr,
+    expected: Option<&std::fs::Metadata>,
 ) -> Result<()> {
     use std::os::fd::AsRawFd;
     use std::os::unix::ffi::OsStrExt;
@@ -392,6 +425,9 @@ fn promote_pinned_download(
         pinned_regular_file(&staged) && staged.st_nlink == 1,
         "download promotion refused: staging target is not a regular file or has hard links"
     );
+    if let Some(expected) = expected {
+        require_pinned_identity(&staged, expected)?;
+    }
     let original = pinned_entry(parent, target)?;
     if let Some(ref original) = original {
         anyhow::ensure!(
@@ -408,6 +444,9 @@ fn promote_pinned_download(
             pinned_same_file(&staged, &current) && current.st_nlink == 1,
             "download staging identity changed before promotion"
         );
+        if let Some(expected) = expected {
+            require_pinned_identity(&current, expected)?;
+        }
         rename_pinned_siblings(parent, staging, target)
     })();
     if let Err(error) = promotion {
@@ -504,7 +543,10 @@ fn windows_staging_identity(file: &tokio::fs::File) -> Result<(u32, u64)> {
 /// A provider returning success is not proof that the bytes hit the local
 /// temporary file. Do not replace a preexisting file unless the byte count
 /// matches the actual staging file and it has been synced to persistent storage.
-pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u64) -> Result<()> {
+pub(super) async fn verify_staged_download_bytes(
+    staging: &Path,
+    transferred: u64,
+) -> Result<tokio::fs::File> {
     let metadata = tokio::fs::symlink_metadata(staging)
         .await
         .context("inspect completed download staging file")?;
@@ -608,7 +650,7 @@ pub(super) async fn verify_staged_download_bytes(staging: &Path, transferred: u6
             "download staging file identity changed after durability check"
         );
     }
-    Ok(())
+    Ok(file)
 }
 
 pub(super) async fn promote_staged_download(
@@ -637,7 +679,7 @@ pub(super) async fn promote_staged_download(
         let parent = parent.to_path_buf();
         return tokio::task::spawn_blocking(move || {
             let pinned = pin_download_parent(&parent)?;
-            promote_pinned_download(&pinned, &staging_name, &target_name, &backup_name)
+            promote_pinned_download(&pinned, &staging_name, &target_name, &backup_name, None)
         })
         .await
         .context("join pinned download promotion")?;
@@ -772,10 +814,38 @@ pub(super) async fn commit_verified_delta_output(
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn verified_stage_substitution_preserves_original_destination() {
+        let root = std::env::temp_dir().join(format!("ghostftp-verified-stage-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let target = root.join("target");
+        let staging = root.join("stage");
+        let moved = root.join("verified");
+        tokio::fs::write(&target, b"original").await.unwrap();
+        tokio::fs::write(&staging, b"good").await.unwrap();
+        let guard = DownloadParentGuard::open(&target).unwrap();
+        let verified = verify_staged_download_bytes(&staging, 4).await.unwrap();
+        tokio::fs::rename(&staging, &moved).await.unwrap();
+        tokio::fs::write(&staging, b"fake").await.unwrap();
+
+        assert!(guard
+            .promote(&staging, &target, "test", true, &verified)
+            .await
+            .is_err());
+        assert_eq!(tokio::fs::read(&target).await.unwrap(), b"original");
+        assert_eq!(tokio::fs::read(&staging).await.unwrap(), b"fake");
+        assert_eq!(tokio::fs::read(&moved).await.unwrap(), b"good");
+        assert!(!download_backup_path(&target, "test").exists());
+        drop(verified);
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
     #[cfg(any(unix, windows))]
     #[tokio::test]
     async fn resumable_staging_refuses_hard_links_before_truncation() {
-        let root = std::env::temp_dir().join(format!("ghostftp-resume-hardlink-{}", Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-resume-hardlink-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&root).await.unwrap();
         let original = root.join("original");
         let staging = root.join("stage");
@@ -1050,6 +1120,7 @@ mod tests {
             OsStr::new("stage.part"),
             OsStr::new("final.bin"),
             OsStr::new("backup"),
+            None,
         )
         .unwrap();
 
