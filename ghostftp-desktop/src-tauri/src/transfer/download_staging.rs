@@ -4546,7 +4546,10 @@ mod tests {
                 write_durable_fixture(&target, b"old").unwrap();
                 write_durable_fixture(&stage, b"new").unwrap();
                 let guard = DownloadParentGuard::with_db(&target, Some(db.clone())).unwrap();
-                let journal = guard.recovery_journal(&stage, &target, &id).unwrap().unwrap();
+                let journal = guard
+                    .recovery_journal(&stage, &target, &id)
+                    .unwrap()
+                    .unwrap();
                 let original = std::fs::File::open(&target).unwrap();
                 let staged = std::fs::File::open(&stage).unwrap();
                 let original_identity = recovery_file_identity(&original).unwrap();
