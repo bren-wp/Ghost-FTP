@@ -131,7 +131,13 @@ const MIGRATIONS: &[&str] = &[
         id         INTEGER PRIMARY KEY CHECK (id = 1),
         payload    TEXT    NOT NULL,
         updated_ms INTEGER NOT NULL
-    );",
+    );",    // v9 — filesystem recovery intents, separate from prunable transfer history.
+    // Pending entries are never deleted by the history retention policy.
+    "CREATE TABLE download_recovery (
+        id         TEXT PRIMARY KEY,
+        payload    TEXT    NOT NULL,
+        updated_ms INTEGER NOT NULL
+    ) WITHOUT ROWID;",
 ];
 
 /// A persisted per-file sync record — what the source looked like the last time
@@ -254,6 +260,8 @@ impl Db {
             mode.eq_ignore_ascii_case("wal"),
             "SQLite WAL mode is unavailable"
         );
+        conn.pragma_update(None, "synchronous", "FULL")
+            .context("enable durable SQLite commits")?;
         conn.pragma_update(None, "foreign_keys", "ON")
             .context("enable SQLite foreign keys")?;
         let foreign: i64 = conn
@@ -593,6 +601,40 @@ impl Db {
     pub fn settings_delete(&self, key: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM settings WHERE key = ?1", [key])?;
+        Ok(())
+    }
+
+    // ---- Durable filesystem recovery intents ----
+
+    /// Insert once: an unresolved transaction must not be overwritten by Retry.
+    pub fn download_recovery_begin(&self, id: &str, payload: &str) -> Result<()> {
+        anyhow::ensure!(
+            payload.len() <= 65536,
+            "download recovery record exceeds size limit"
+        );
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO download_recovery (id, payload, updated_ms) VALUES (?1, ?2, ?3)",
+            rusqlite::params![id, payload, now_ms()],
+        )?;
+        Ok(())
+    }
+
+    /// Never use transfer-history pruning for recovery intents.
+    pub fn download_recovery_list(&self) -> Result<Vec<(String, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, payload FROM download_recovery ORDER BY updated_ms, id",
+        )?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// Only a conclusively finished transaction may remove its intent.
+    pub fn download_recovery_finish(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM download_recovery WHERE id = ?1", [id])?;
         Ok(())
     }
 
