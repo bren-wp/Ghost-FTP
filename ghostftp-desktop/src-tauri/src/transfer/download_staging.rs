@@ -1298,6 +1298,35 @@ mod tests {
     }
 
     #[cfg(windows)]
+    #[test]
+    fn native_windows_promotion_failure_restores_original() {
+        use std::ffi::OsStr;
+
+        let root = std::env::temp_dir().join(format!("ghostftp-win-rollback-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("stage"), b"new").unwrap();
+        std::fs::write(root.join("target"), b"old").unwrap();
+        let parent = open_download_directory(&root).unwrap();
+        // This file has no DELETE right: the second rename must fail after
+        // backing up the original, forcing rollback through its live handle.
+        let source = windows_open_relative(&parent, OsStr::new("stage"), 0x80).unwrap();
+        let error = windows_promote_with_backup(
+            &parent,
+            &source,
+            OsStr::new("target"),
+            OsStr::new("backup"),
+        )
+        .unwrap_err();
+        assert!(format!("{error:#}").contains("original restored"));
+        assert_eq!(std::fs::read(root.join("target")).unwrap(), b"old");
+        assert_eq!(std::fs::read(root.join("stage")).unwrap(), b"new");
+        assert!(!root.join("backup").exists());
+        drop(source);
+        drop(parent);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
     #[tokio::test]
     async fn native_windows_overwrite_preserves_existing_backup() {
         let root = std::env::temp_dir().join(format!("ghostftp-win-backup-{}", Uuid::new_v4()));
