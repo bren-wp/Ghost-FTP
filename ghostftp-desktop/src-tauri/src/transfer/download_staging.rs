@@ -3981,26 +3981,119 @@ mod tests {
     #[test]
     #[ignore = "native full recovery benchmark; dedicated credential session required"]
     fn native_vault_end_to_end_benchmark() {
-        let root = std::env::temp_dir().join(format!("ghostftp-e2e-bench-{}", Uuid::new_v4()));
-        std::fs::create_dir_all(&root).unwrap();
+        run_native_vault_file_benchmark(&[1024 * 1024, 16 * 1024 * 1024], &std::env::temp_dir());
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    #[ignore = "requires disposable disk with at least 10 GiB free and unlocked native vault"]
+    fn native_vault_large_file_benchmark() {
+        assert_eq!(
+            std::env::var("GHOSTFTP_LARGE_RECOVERY_BENCH_OPT_IN")
+                .ok()
+                .as_deref(),
+            Some("disposable-fixtures")
+        );
+        let parent = PathBuf::from(
+            std::env::var_os("GHOSTFTP_LARGE_RECOVERY_BENCH_ROOT")
+                .expect("dedicated benchmark directory required"),
+        );
+        assert!(parent.is_absolute() && parent.is_dir());
+        run_native_vault_file_benchmark(
+            &[
+                100 * 1024 * 1024,
+                1024 * 1024 * 1024,
+                4 * 1024 * 1024 * 1024 + 1,
+            ],
+            &parent,
+        );
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    fn write_benchmark_pattern(path: &Path, size: u64, byte: u8) -> Result<()> {
+        use std::io::Write;
+
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
+        let buffer = vec![byte; 1024 * 1024];
+        let mut remaining = size;
+        while remaining > 0 {
+            let count = remaining.min(buffer.len() as u64) as usize;
+            file.write_all(&buffer[..count])?;
+            remaining -= count as u64;
+        }
+        file.sync_all()?;
+        Ok(())
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    fn verify_benchmark_pattern(path: &Path, size: u64, byte: u8) -> Result<()> {
+        use std::io::Read;
+
+        let mut file = std::fs::File::open(path)?;
+        anyhow::ensure!(file.metadata()?.len() == size, "benchmark size mismatch");
+        let mut buffer = vec![0; 1024 * 1024];
+        let mut remaining = size;
+        while remaining > 0 {
+            let count = remaining.min(buffer.len() as u64) as usize;
+            file.read_exact(&mut buffer[..count])?;
+            anyhow::ensure!(
+                buffer[..count].iter().all(|value| *value == byte),
+                "benchmark content mismatch"
+            );
+            remaining -= count as u64;
+        }
+        let mut extra = [0];
+        anyhow::ensure!(file.read(&mut extra)? == 0, "benchmark file grew");
+        Ok(())
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn streaming_benchmark_fixture_detects_corruption_and_truncation() {
+        let root = std::env::temp_dir().join(format!("ghostftp-pattern-{}", Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("fixture");
+        let size = 1024 * 1024 + 1;
+        write_benchmark_pattern(&path, size, 0x79).unwrap();
+        verify_benchmark_pattern(&path, size, 0x79).unwrap();
+        assert!(verify_benchmark_pattern(&path, size, 0x31).is_err());
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_len(size - 1)
+            .unwrap();
+        assert!(verify_benchmark_pattern(&path, size, 0x79).is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    fn run_native_vault_file_benchmark(sizes: &[u64], parent: &Path) {
+        let root = parent.join(format!("ghostftp-e2e-bench-{}", Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
         let root = root.canonicalize().unwrap();
         crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
         let result = std::panic::catch_unwind(|| {
             let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
-            for size in [1024 * 1024, 16 * 1024 * 1024] {
-                let old = vec![0x31; size];
-                let new = vec![0x79; size];
+            for &size in sizes {
                 let mut timings = Vec::new();
                 for sample in 0..3 {
                     let id = format!("bench-{size}-{sample}");
                     let target = root.join(format!("{id}-target"));
                     let stage = root.join(format!("{id}-stage"));
-                    write_durable_fixture(&target, &old).unwrap();
-                    write_durable_fixture(&stage, &new).unwrap();
+                    write_benchmark_pattern(&target, size, 0x31).unwrap();
+                    write_benchmark_pattern(&stage, size, 0x79).unwrap();
+                    #[cfg(target_os = "linux")]
+                    crate::credentials::start_linux_helper_profile();
                     let started = std::time::Instant::now();
                     native_fixture_promote(&db, &stage, &target, &id).unwrap();
                     timings.push(started.elapsed().as_micros());
-                    assert_eq!(std::fs::read(&target).unwrap(), new);
+                    #[cfg(target_os = "linux")]
+                    crate::credentials::finish_linux_helper_profile();
+                    verify_benchmark_pattern(&target, size, 0x79).unwrap();
                     assert!(!stage.exists());
                     assert!(!download_backup_path(&target, &id).exists());
                     let _lock = db.recovery_lock().unwrap();

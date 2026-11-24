@@ -9,7 +9,8 @@
 //! This module must never erase the old backend during migration.
 
 use anyhow::{anyhow, Result};
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
+use std::os::fd::AsRawFd;
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
@@ -19,107 +20,224 @@ const MAX_SECRET_BYTES: usize = 8191;
 // A locked/unresponsive Secret Service must not indefinitely park a desktop
 // command or leave a dangling credential helper on Windows/Linux clients.
 const SECRET_TOOL_TIMEOUT: Duration = Duration::from_secs(30);
-const CHILD_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const CHILD_POLL_MIN_INTERVAL: Duration = Duration::from_millis(1);
+const CHILD_POLL_MAX_INTERVAL: Duration = Duration::from_millis(20);
+
+fn poll_delay(interval: Duration, remaining: Duration) -> Duration {
+    interval.min(remaining)
+}
+
+fn next_poll_interval(interval: Duration) -> Duration {
+    (interval * 2).min(CHILD_POLL_MAX_INTERVAL)
+}
+
+// Opt-in, test-only aggregate process timing. No credential bytes, identifiers
+// or command arguments are recorded. Normal production builds retain no samples.
+#[cfg(test)]
+std::thread_local! {
+    static HELPER_PROFILE: std::cell::RefCell<Option<[Vec<u128>; 3]>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn start_linux_helper_profile() {
+    HELPER_PROFILE.with(|profile| {
+        *profile.borrow_mut() = Some(std::array::from_fn(|_| Vec::new()));
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn finish_linux_helper_profile() {
+    HELPER_PROFILE.with(|profile| {
+        if let Some(mut groups) = profile.borrow_mut().take() {
+            for (operation, samples) in ["lookup", "store", "clear"].into_iter().zip(&mut groups) {
+                if samples.is_empty() {
+                    continue;
+                }
+                samples.sort_unstable();
+                let count = samples.len();
+                let total: u128 = samples.iter().sum();
+                // Nearest rank, using the actual count and no interpolation.
+                let p95 = samples[(count * 95).div_ceil(100) - 1];
+                let p99 = samples[(count * 99).div_ceil(100) - 1];
+                eprintln!(
+                    "recovery_linux_helper operation={operation} calls={count} total_us={total} median_us={} p95_us={p95} p99_us={p99} max_us={}",
+                    samples[count / 2],
+                    samples[count - 1]
+                );
+            }
+        }
+    });
+}
+
+fn profile_helper(_operation: usize, run: impl FnOnce() -> Result<Output>) -> Result<Output> {
+    #[cfg(test)]
+    let started = Instant::now();
+    let result = run();
+    #[cfg(test)]
+    HELPER_PROFILE.with(|profile| {
+        if let Some(groups) = profile.borrow_mut().as_mut() {
+            groups[_operation].push(started.elapsed().as_micros());
+        }
+    });
+    result
+}
 
 // Drain both helper pipes before exit, or the OS pipe buffer can stall the child.
 // Refuse an unbounded amount of subprocess output.
 const MAX_HELPER_STDERR_BYTES: usize = 4096;
 
-fn read_bounded(mut pipe: impl Read, max_bytes: usize) -> Result<Vec<u8>> {
-    // Cap retained bytes, NOT bytes consumed from the pipe. Stopping reads at
-    // max_bytes + 1 can close stdout while the helper is still writing, causing
-    // an otherwise successful helper to exit with SIGPIPE (intermittent CI
-    // failures). Continue draining into a fixed buffer until EOF, while saving
-    // only the first max_bytes + 1 bytes for the caller's overflow check.
-    let limit = max_bytes.saturating_add(1);
-    let mut output = Vec::with_capacity(limit.min(8192));
+// Set O_NONBLOCK on the parent's pipe endpoints, not on the helper's
+// separate stdin/stdout/stderr endpoints.
+fn set_nonblocking(pipe: &impl AsRawFd) -> Result<()> {
+    let fd = pipe.as_raw_fd();
+    // SAFETY: the borrowed pipe owns a valid descriptor throughout both calls;
+    // F_GETFL takes no third argument and F_SETFL takes integer status flags.
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    if flags == -1 {
+        return Err(anyhow!("Linux Secret Service pipe flags unavailable"));
+    }
+    if unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } == -1 {
+        return Err(anyhow!("Linux Secret Service nonblocking pipe unavailable"));
+    }
+    Ok(())
+}
+
+// Drain in bounded batches. Retain at most max_bytes + 1 to distinguish
+// oversized output without prematurely closing a producing helper's pipe.
+fn drain_pipe<P: Read>(
+    pipe: &mut Option<P>,
+    output: &mut Vec<u8>,
+    max_bytes: usize,
+) -> Result<bool> {
+    let mut progressed = false;
+    let Some(reader) = pipe.as_mut() else {
+        return Ok(false);
+    };
     let mut buffer = [0u8; 8192];
-    loop {
-        match pipe.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(count) => {
-                let retain = (limit - output.len()).min(count);
-                output.extend_from_slice(&buffer[..retain]);
+    for _ in 0..8 {
+        match reader.read(&mut buffer) {
+            Ok(0) => {
+                *pipe = None;
+                return Ok(true);
             }
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Ok(count) => {
+                let retain = (max_bytes + 1 - output.len()).min(count);
+                output.extend_from_slice(&buffer[..retain]);
+                progressed = true;
+            }
+            Err(error) if error.kind() == ErrorKind::Interrupted => continue,
+            Err(error) if error.kind() == ErrorKind::WouldBlock => break,
             Err(_) => return Err(anyhow!("Linux Secret Service output could not be read")),
         }
     }
-    Ok(output)
+    Ok(progressed)
 }
 
-fn wait_bounded(mut child: Child, timeout: Duration) -> Result<Output> {
+// One deadline covers process exit AND pipe EOF. Inherited descriptors held
+// by descendants cannot strand a scoped reader/writer thread after child exit.
+fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration) -> Result<Output> {
     let started = Instant::now();
-    std::thread::scope(|scope| {
-        let stdout_reader = child
-            .stdout
-            .take()
-            .map(|pipe| scope.spawn(move || read_bounded(pipe, MAX_SECRET_BYTES)));
-        let stderr_reader = child
-            .stderr
-            .take()
-            .map(|pipe| scope.spawn(move || read_bounded(pipe, MAX_HELPER_STDERR_BYTES)));
+    let mut stdin = child.stdin.take();
+    let mut stdout = child.stdout.take();
+    let mut stderr = child.stderr.take();
+    if secret.is_some() && stdin.is_none() {
+        return Err(anyhow!("Linux Secret Service pipe unavailable"));
+    }
+    if secret.is_none() {
+        stdin = None;
+    }
+    if let Some(pipe) = &stdin {
+        set_nonblocking(pipe)?;
+    }
+    if let Some(pipe) = &stdout {
+        set_nonblocking(pipe)?;
+    }
+    if let Some(pipe) = &stderr {
+        set_nonblocking(pipe)?;
+    }
 
-        let status: Result<std::process::ExitStatus> = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break Ok(status),
-                Ok(None) if started.elapsed() >= timeout => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break Err(anyhow!(
-                        "Linux Secret Service timed out; unlock the keyring"
-                    ));
-                }
-                Ok(None) => std::thread::sleep(CHILD_POLL_INTERVAL),
-                Err(_) => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break Err(anyhow!("Linux Secret Service process failed"));
+    let input = secret.unwrap_or_default();
+    let mut written = 0;
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let mut status = None;
+    let mut interval = CHILD_POLL_MIN_INTERVAL;
+    loop {
+        if started.elapsed() >= timeout {
+            return Err(anyhow!(
+                "Linux Secret Service timed out; unlock the keyring"
+            ));
+        }
+        let mut progressed = drain_pipe(&mut stdout, &mut out, MAX_SECRET_BYTES)?;
+        progressed |= drain_pipe(&mut stderr, &mut err, MAX_HELPER_STDERR_BYTES)?;
+        if let Some(pipe) = stdin.as_mut() {
+            if written < input.len() {
+                match pipe.write(&input[written..]) {
+                    Ok(0) => return Err(anyhow!("Linux Secret Service refused credential input")),
+                    Ok(count) => {
+                        written += count;
+                        progressed = true;
+                    }
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            ErrorKind::WouldBlock | ErrorKind::Interrupted
+                        ) => {}
+                    Err(_) => return Err(anyhow!("Linux Secret Service refused credential input")),
                 }
             }
-        };
-
-        let stdout = match stdout_reader {
-            Some(reader) => reader
-                .join()
-                .map_err(|_| anyhow!("Linux Secret Service output reader failed"))??,
-            None => Vec::new(),
-        };
-        let stderr = match stderr_reader {
-            Some(reader) => reader
-                .join()
-                .map_err(|_| anyhow!("Linux Secret Service error reader failed"))??,
-            None => Vec::new(),
-        };
-        Ok(Output {
-            status: status?,
-            stdout,
-            stderr,
-        })
-    })
+            if written == input.len() {
+                stdin = None;
+                progressed = true;
+            }
+        }
+        if status.is_none() {
+            status = child
+                .try_wait()
+                .map_err(|_| anyhow!("Linux Secret Service process failed"))?;
+        }
+        if let Some(exit) = status {
+            if stdin.is_some() {
+                return Err(anyhow!("Linux Secret Service refused credential input"));
+            }
+            if stdout.is_none() && stderr.is_none() {
+                return Ok(Output {
+                    status: exit,
+                    stdout: out,
+                    stderr: err,
+                });
+            }
+        }
+        if progressed {
+            interval = CHILD_POLL_MIN_INTERVAL;
+        } else {
+            std::thread::sleep(poll_delay(
+                interval,
+                timeout.saturating_sub(started.elapsed()),
+            ));
+            interval = next_poll_interval(interval);
+        }
+    }
 }
 
-// A write to child stdin can block indefinitely before calling wait_bounded.
-// Keep the deadline supervisor active while a worker handles the input pipe.
-fn write_then_wait_bounded(mut child: Child, secret: &[u8], timeout: Duration) -> Result<Output> {
-    let mut stdin = match child.stdin.take() {
-        Some(stdin) => stdin,
-        None => {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(anyhow!("Linux Secret Service pipe unavailable"));
-        }
-    };
-    std::thread::scope(|scope| {
-        let writer = scope.spawn(move || stdin.write_all(secret));
-        let output = wait_bounded(child, timeout);
-        let written = writer
-            .join()
-            .map_err(|_| anyhow!("Linux Secret Service input writer failed"))?;
-        let output = output?;
-        written.map_err(|_| anyhow!("Linux Secret Service refused credential input"))?;
-        Ok(output)
-    })
+fn run_bounded(mut child: Child, secret: Option<&[u8]>, timeout: Duration) -> Result<Output> {
+    let result = supervise_helper(&mut child, secret, timeout);
+    if result.is_err() {
+        // Pipe endpoints have already been dropped. Terminate/reap only our
+        // direct child; never signal an unrelated process or credential daemon.
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    result
+}
+
+fn wait_bounded(child: Child, timeout: Duration) -> Result<Output> {
+    run_bounded(child, None, timeout)
+}
+
+fn write_then_wait_bounded(child: Child, secret: &[u8], timeout: Duration) -> Result<Output> {
+    run_bounded(child, Some(secret), timeout)
 }
 
 fn command(operation: &str, service: &str, account: &str) -> Command {
@@ -142,10 +260,12 @@ fn command(operation: &str, service: &str, account: &str) -> Command {
 }
 
 pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
-    let child = command("lookup", service, account)
-        .spawn()
-        .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
-    let output = wait_bounded(child, SECRET_TOOL_TIMEOUT)?;
+    let output = profile_helper(0, || {
+        let child = command("lookup", service, account)
+            .spawn()
+            .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
+        wait_bounded(child, SECRET_TOOL_TIMEOUT)
+    })?;
     if output.status.success() {
         if output.stdout.len() > MAX_SECRET_BYTES {
             return Err(anyhow!(
@@ -186,13 +306,13 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let child = command.spawn().map_err(|_| {
-        anyhow!("Linux Secret Service client is unavailable; install libsecret-tools")
+    let output = profile_helper(1, || {
+        let child = command.spawn().map_err(|_| {
+            anyhow!("Linux Secret Service client is unavailable; install libsecret-tools")
+        })?;
+        write_then_wait_bounded(child, secret.as_bytes(), SECRET_TOOL_TIMEOUT)
     })?;
-    if !write_then_wait_bounded(child, secret.as_bytes(), SECRET_TOOL_TIMEOUT)?
-        .status
-        .success()
-    {
+    if !output.status.success() {
         return Err(anyhow!(
             "Linux Secret Service refused to save the credential"
         ));
@@ -204,10 +324,12 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
 }
 
 pub fn remove(service: &str, account: &str) -> Result<()> {
-    let child = command("clear", service, account)
-        .spawn()
-        .map_err(|_| anyhow!("Linux Secret Service client unavailable during deletion"))?;
-    let output = wait_bounded(child, SECRET_TOOL_TIMEOUT)?;
+    let output = profile_helper(2, || {
+        let child = command("clear", service, account)
+            .spawn()
+            .map_err(|_| anyhow!("Linux Secret Service client unavailable during deletion"))?;
+        wait_bounded(child, SECRET_TOOL_TIMEOUT)
+    })?;
     if !output.status.success() {
         return Err(anyhow!("Linux Secret Service refused credential deletion"));
     }
@@ -222,6 +344,21 @@ pub fn remove(service: &str, account: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn adaptive_polling_is_capped_and_respects_remaining_deadline() {
+        let mut interval = CHILD_POLL_MIN_INTERVAL;
+        for expected in [1, 2, 4, 8, 16, 20, 20] {
+            assert_eq!(interval, Duration::from_millis(expected));
+            interval = next_poll_interval(interval);
+        }
+        assert_eq!(
+            poll_delay(interval, Duration::from_millis(3)),
+            Duration::from_millis(3)
+        );
+        assert_eq!(poll_delay(interval, Duration::ZERO), Duration::ZERO);
+    }
+
     #[test]
     fn invalid_secret_inputs_are_rejected_before_launching_any_process() {
         assert!(store("service", "account", "").is_err());
@@ -307,6 +444,37 @@ mod tests {
         assert!(output.status.success());
         assert_eq!(output.stdout.len(), MAX_SECRET_BYTES + 1);
         assert_eq!(output.stderr.len(), MAX_HELPER_STDERR_BYTES + 1);
+    }
+
+    #[test]
+    fn inherited_output_pipes_cannot_extend_helper_deadline() {
+        for script in ["sleep 2 & exit 0", "sleep 2 >&2 & exit 0"] {
+            let child = Command::new("sh")
+                .args(["-c", script])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let started = Instant::now();
+            let error = wait_bounded(child, Duration::from_millis(80)).unwrap_err();
+            assert!(error.to_string().contains("timed out"));
+            assert!(started.elapsed() < Duration::from_secs(2));
+        }
+    }
+
+    #[test]
+    fn inherited_stdin_cannot_block_an_incomplete_write_after_exit() {
+        let child = Command::new("sh")
+            .args(["-c", "sleep 2 <&0 & exit 0"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let input = vec![b'x'; 512 * 1024];
+        let started = Instant::now();
+        assert!(write_then_wait_bounded(child, &input, Duration::from_millis(80)).is_err());
+        assert!(started.elapsed() < Duration::from_secs(2));
     }
 
     #[test]

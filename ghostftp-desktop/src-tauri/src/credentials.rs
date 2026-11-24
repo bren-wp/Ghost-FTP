@@ -165,6 +165,8 @@ pub(crate) fn recovery_test_checkpoint(point: &str) {
 
 #[cfg(target_os = "linux")]
 mod linux_secret_service;
+#[cfg(all(test, target_os = "linux"))]
+pub(crate) use linux_secret_service::{finish_linux_helper_profile, start_linux_helper_profile};
 
 /// These identifiers have shipped in existing Windows Credential Manager
 /// entries and Linux keyutils entries. NEVER change them during migration.

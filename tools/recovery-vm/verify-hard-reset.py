@@ -99,6 +99,18 @@ def await_value(operation, accepted, seconds, child=None):
     raise TimeoutError("guest checkpoint or new boot was not observed")
 
 
+def ensure_reset_ready(child, read_boot, expected_boot, read_checkpoint, expected_point):
+    """Fail closed if the crash probe moved while guest identity was rechecked."""
+    if child.poll() is not None:
+        raise RuntimeError("guest crash probe exited before hard reset")
+    if read_boot() != expected_boot:
+        raise RuntimeError("guest boot identity changed before hard reset")
+    if read_checkpoint() != expected_point:
+        raise RuntimeError("guest checkpoint changed before hard reset")
+    if child.poll() is not None:
+        raise RuntimeError("guest crash probe exited before hard reset")
+
+
 def exercise(args, report):
     expected = validate_domain(args.domain, args.uuid, args.confirm_reset)
     if args.ssh_target.startswith("-") or not args.ssh_target:
@@ -150,8 +162,12 @@ def exercise(args, report):
             report["checkpoint_observed"] = True
             check_domain()
             check_guest()
-            # This is the ONLY destructive host action. All identities were
-            # checked again immediately before issuing the forced power-off.
+            # Identity and hash checks may take time. Revalidate the live
+            # probe, original boot and exact checkpoint before authorizing reset.
+            ensure_reset_ready(child, lambda: run(command("boot-id"), 15), boot,
+                               lambda: run(command("checkpoint"), 15), args.case)
+            report["checkpoint_revalidated"] = True
+            # This is the ONLY destructive host action.
             run(virsh + ["destroy", expected])
             report["hard_power_off"] = True
             if run(virsh + ["domstate", expected]) != "shut off":
