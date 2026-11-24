@@ -323,10 +323,71 @@ fn pin_download_parent(parent: &Path) -> Result<std::fs::File> {
 pub(super) struct DownloadParentGuard {
     path: PathBuf,
     handle: std::sync::Arc<std::fs::File>,
+    recovery_db: Option<std::sync::Arc<crate::db::Db>>,
+}
+
+/// This is a durable recovery intent, not permission to mutate files after
+/// restart. File identifiers may be reused after all handles are closed.
+#[derive(serde::Serialize)]
+struct RecoveryRecord<'a> {
+    schema: u32,
+    parent: &'a Path,
+    stage: &'a Path,
+    target: &'a Path,
+    backup: &'a Path,
+    parent_identity: (u64, u64),
+    stage_identity: (u64, u64, u64),
+    original_identity: (u64, u64, u64),
+}
+
+struct RecoveryJournal {
+    db: std::sync::Arc<crate::db::Db>,
+    id: String,
+    parent: PathBuf,
+    stage: PathBuf,
+    target: PathBuf,
+    backup: PathBuf,
+}
+
+impl RecoveryJournal {
+    fn begin(
+        &self,
+        parent_identity: (u64, u64),
+        stage_identity: (u64, u64, u64),
+        original_identity: (u64, u64, u64),
+    ) -> Result<()> {
+        let record = RecoveryRecord {
+            schema: 1,
+            parent: &self.parent,
+            stage: &self.stage,
+            target: &self.target,
+            backup: &self.backup,
+            parent_identity,
+            stage_identity,
+            original_identity,
+        };
+        self.db
+            .download_recovery_begin(&self.id, &serde_json::to_string(&record)?)
+            .context("persist recovery intent before backup")
+    }
+
+    fn finish(&self) {
+        if self.db.download_recovery_finish(&self.id).is_err() {
+            tracing::warn!("completed download recovery intent could not be cleared");
+        }
+    }
 }
 
 impl DownloadParentGuard {
+    #[cfg(test)]
     pub(super) fn open(target: &Path) -> Result<Self> {
+        Self::with_db(target, None)
+    }
+
+    pub(super) fn with_db(
+        target: &Path,
+        recovery_db: Option<std::sync::Arc<crate::db::Db>>,
+    ) -> Result<Self> {
         let path = target.parent().context("download target has no parent")?;
         let path = if path.as_os_str().is_empty() {
             Path::new(".")
@@ -336,7 +397,27 @@ impl DownloadParentGuard {
         Ok(Self {
             path: path.to_path_buf(),
             handle: std::sync::Arc::new(open_download_directory(path)?),
+            recovery_db,
         })
+    }
+
+    fn recovery_journal(
+        &self,
+        staging: &Path,
+        target: &Path,
+        id: &str,
+    ) -> Result<Option<RecoveryJournal>> {
+        let Some(db) = &self.recovery_db else {
+            return Ok(None);
+        };
+        Ok(Some(RecoveryJournal {
+            db: db.clone(),
+            id: id.to_string(),
+            parent: std::path::absolute(&self.path)?,
+            stage: std::path::absolute(staging)?,
+            target: std::path::absolute(target)?,
+            backup: std::path::absolute(download_backup_path(target, id))?,
+        }))
     }
 
     pub(super) fn verify(&self) -> Result<()> {
@@ -508,6 +589,11 @@ impl DownloadParentGuard {
         verified: &tokio::fs::File,
     ) -> Result<()> {
         self.verify()?;
+        let journal = if allow_replace {
+            self.recovery_journal(staging, target, id)?
+        } else {
+            None
+        };
         #[cfg(target_os = "linux")]
         if staging.parent() == target.parent() {
             let staging = staging
@@ -534,6 +620,7 @@ impl DownloadParentGuard {
                         &target_name,
                         &backup,
                         Some(&expected),
+                        journal.as_ref(),
                     )
                 } else {
                     let entry =
@@ -558,7 +645,7 @@ impl DownloadParentGuard {
             if allow_replace {
                 let backup = download_backup_path(target, id);
                 let backup = backup.file_name().context("backup has no basename")?;
-                windows_promote_with_backup(&self.handle, &delete, name, backup)
+                windows_promote_with_backup(&self.handle, &delete, name, backup, journal.as_ref())
             } else {
                 windows_rename_handle(&delete, &self.handle, name, false)
             }
@@ -698,6 +785,7 @@ fn promote_pinned_download(
     target: &std::ffi::OsStr,
     backup: &std::ffi::OsStr,
     expected: Option<&std::fs::Metadata>,
+    journal: Option<&RecoveryJournal>,
 ) -> Result<()> {
     use std::os::fd::AsRawFd;
     use std::os::unix::ffi::OsStrExt;
@@ -716,6 +804,15 @@ fn promote_pinned_download(
             pinned_regular_file(original),
             "download overwrite refused: existing destination is not a regular file"
         );
+        if let Some(journal) = journal {
+            use std::os::unix::fs::MetadataExt;
+            let directory = parent.metadata()?;
+            journal.begin(
+                (directory.dev(), directory.ino()),
+                (staged.st_dev, staged.st_ino, u64::try_from(staged.st_size)?),
+                (original.st_dev, original.st_ino, u64::try_from(original.st_size)?),
+            )?;
+        }
         rename_pinned_siblings(parent, target, backup)
             .context("preserve existing local download target without overwriting a backup")?;
     }
@@ -758,7 +855,12 @@ fn promote_pinned_download(
         if owned {
             if let Ok(name) = std::ffi::CString::new(backup.as_bytes()) {
                 // SAFETY: parent is live; name is a NUL-terminated sibling basename.
-                let _ = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
+                let removed = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), 0) };
+                if removed == 0 {
+                    if let Some(journal) = journal {
+                        journal.finish();
+                    }
+                }
             }
         }
     }
@@ -879,7 +981,7 @@ fn windows_open_relative(
             access | 0x0010_0000, // SYNCHRONIZE
             &mut attributes,
             &mut iosb,
-            0x7, // share read, write, delete
+            0x7,         // share read, write, delete
             0x0020_0060, // OPEN_REPARSE_POINT | NON_DIRECTORY | SYNCHRONOUS_IO_NONALERT
         )
     };
@@ -903,6 +1005,7 @@ fn windows_promote_with_backup(
     source: &std::fs::File,
     target: &std::ffi::OsStr,
     backup: &std::ffi::OsStr,
+    journal: Option<&RecoveryJournal>,
 ) -> Result<()> {
     const DELETE_AND_ATTRIBUTES: u32 = 0x0001_0080;
     let original = match windows_open_relative(parent, target, DELETE_AND_ATTRIBUTES) {
@@ -917,6 +1020,16 @@ fn windows_promote_with_backup(
         original.metadata()?.is_file(),
         "destination is not a real file"
     );
+    if let Some(journal) = journal {
+        let (volume, index) = windows_file_identity(parent)?;
+        let (source_volume, source_index) = windows_staging_identity(source)?;
+        let (original_volume, original_index) = windows_staging_identity(&original)?;
+        journal.begin(
+            (u64::from(volume), index),
+            (u64::from(source_volume), source_index, source.metadata()?.len()),
+            (u64::from(original_volume), original_index, original.metadata()?.len()),
+        )?;
+    }
     windows_rename_handle(&original, parent, backup, false)
         .context("preserve original destination without replacing backup")?;
     if let Err(error) = windows_rename_handle(source, parent, target, false) {
@@ -929,7 +1042,17 @@ fn windows_promote_with_backup(
     }
     // The original handle now identifies the backup, not the new target.
     // Cleanup failure leaves the backup intact; publication already succeeded.
-    let _ = windows_delete_handle(&original);
+    let removed = windows_delete_handle(&original).is_ok();
+    drop(original);
+    if removed {
+        if let Some(journal) = journal {
+            if windows_open_relative(parent, backup, 0x80)
+                .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+            {
+                journal.finish();
+            }
+        }
+    }
     Ok(())
 }
 
@@ -953,6 +1076,25 @@ fn windows_verified_delete_access(
         "verified staging identity changed when acquiring delete access"
     );
     Ok(delete)
+}
+
+#[cfg(windows)]
+fn windows_file_identity(file: &impl std::os::windows::io::AsRawHandle) -> Result<(u32, u64)> {
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+    };
+    let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::uninit();
+    // SAFETY: the file handle and writable output buffer remain live.
+    let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle(), info.as_mut_ptr()) };
+    if ok == 0 {
+        return Err(std::io::Error::last_os_error()).context("read recovery file identity");
+    }
+    // SAFETY: successful API call initialized the structure.
+    let info = unsafe { info.assume_init() };
+    Ok((
+        info.dwVolumeSerialNumber,
+        (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+    ))
 }
 
 /// Obtain DELETE access to the already opened object, not a new pathname.
@@ -1231,7 +1373,7 @@ pub(super) async fn promote_staged_download(
         let parent = parent.to_path_buf();
         return tokio::task::spawn_blocking(move || {
             let pinned = pin_download_parent(&parent)?;
-            promote_pinned_download(&pinned, &staging_name, &target_name, &backup_name, None)
+            promote_pinned_download(&pinned, &staging_name, &target_name, &backup_name, None, None)
         })
         .await
         .context("join pinned download promotion")?;
@@ -1410,6 +1552,7 @@ mod tests {
             &source,
             OsStr::new("target"),
             OsStr::new("backup"),
+            None,
         )
         .unwrap_err();
         assert!(format!("{error:#}").contains("original restored"));
@@ -1824,6 +1967,7 @@ mod tests {
             OsStr::new("stage.part"),
             OsStr::new("final.bin"),
             OsStr::new("backup"),
+            None,
             None,
         )
         .unwrap();
