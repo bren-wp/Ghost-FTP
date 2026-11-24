@@ -47,8 +47,44 @@ assert.equal(
 );
 
 const ui = readFileSync(new URL("../src/components/SiteManagerDialog.tsx", import.meta.url), "utf8");
-assert.match(ui, /view === "duplicates" && !duplicateIds\.has\(profile\.id\)/);
-assert.match(ui, /label="Duplicates" count=\{duplicateIds\.size\}/);
+const viewSource = readFileSync(new URL("../src/lib/siteViewModel.ts", import.meta.url), "utf8");
+assert.match(viewSource, /view === "duplicates" && !duplicateIds\.has\(profile\.id\)/);
+assert.match(ui, /label="Duplicates" count=\{counts\.duplicates\}/);
 assert.match(ui, /matchingSites\.length > 0/, "visible advisory when a connection matches");
-assert.match(ui, /\$\{profile\.username\}/, "Sites search must include the server account name");
+assert.match(viewSource, /\$\{profile\.username\}/, "Sites search must include the server account name");
 console.log("Ghost FTP saved-site duplicate discovery and UI wiring regressions passed.");
+
+const { outputText } = ts.transpileModule(viewSource, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+});
+const { filterAndSortSites, countSiteViews, validLastUsed } = await import(
+  "data:text/javascript;base64," + Buffer.from(outputText).toString("base64")
+);
+const inventory = [
+  site("ten", { name: "Server 10", lastUsed: NaN }),
+  site("two", { name: "Server 2", lastUsed: 200, favorite: true }),
+  site("cloud", { protocol: "s3", lastUsed: Infinity }),
+  site("old", { lastUsed: 100, bookmarked: true }),
+];
+Object.freeze(inventory);
+const duplicates = new Set(["ten", "two"]);
+const connected = new Set(["two", "ephemeral"]);
+const select = (query, view, field = "name", direction = "asc") =>
+  filterAndSortSites(inventory, query, view, field, direction, duplicates, connected);
+assert.deepEqual(countSiteViews(inventory, duplicates, connected),
+  { all: 4, favorites: 1, recent: 2, bookmarks: 1, duplicates: 2, cloud: 1, connected: 1 });
+assert.deepEqual(select("  SERVER  ", "all").map(s => s.id), ["two", "ten"]);
+assert.deepEqual(select("OWNER", "connected").map(s => s.id), ["two"]);
+assert.deepEqual(select("never compare or log me", "all"), []);
+assert.deepEqual(select("", "recent", "lastUsed", "desc").map(s => s.id), ["two", "old"]);
+assert.deepEqual(select("", "all", "lastUsed", "asc").map(s => s.id), ["old", "two", "ten", "cloud"]);
+assert.deepEqual(select("", "all", "lastUsed", "desc").map(s => s.id), ["two", "old", "ten", "cloud"]);
+assert.strictEqual(select("", "connected")[0], inventory[1]);
+assert.equal(inventory[0].id, "ten");
+for (const value of [undefined, 0, -1, NaN, Infinity, Number.MAX_VALUE]) assert.equal(validLastUsed(value), null);
+assert.ok(ui.includes('label="Connected" count={counts.connected}'));
+assert.ok(ui.includes('if (actionRef.current) return false;'));
+assert.ok(ui.includes('revealedPasswordId === draft.id'));
+assert.ok(ui.includes('Disconnect this site before deleting it.'));
+assert.ok(ui.includes('aria-label="Clear site search"'));
+console.log("Sites connected filter, stable sorting, credential privacy and action guard regressions passed.");

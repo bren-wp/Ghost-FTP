@@ -17,12 +17,14 @@ import {
   Server,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { useConnections } from "@/stores/connectionsStore";
 import { useLayout } from "@/stores/layoutStore";
 import type { ConnectionProfile, Protocol } from "@/lib/types";
 import { PROTOCOL_DEFAULT_PORT } from "@/lib/types";
 import { duplicateSavedSiteIds, matchingSavedSites } from "@/lib/siteDuplicates";
+import { countSiteViews, filterAndSortSites } from "@/lib/siteViewModel";
 import { ConfirmModal } from "./ConfirmModal";
 import { CloudAccountConnect } from "./CloudAccountConnect";
 import { CloudStorageConnect } from "./CloudStorageConnect";
@@ -40,7 +42,7 @@ interface Props {
 }
 
 type View = "all" | "favorites" | "recent" | "bookmarks" | string;
-type Action = "save" | "test" | "connect" | "duplicate" | "delete" | null;
+type Action = "save" | "test" | "connect" | "duplicate" | "delete" | "favorite" | null;
 
 
 const DIRECT_EDIT_PROTOCOLS = new Set<Protocol>(["sftp", "ftp", "ftps"]);
@@ -85,15 +87,27 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     profiles[0] ? { ...profiles[0] } : null
   );
   const [action, setAction] = useState<Action>(null);
+  const actionRef = useRef<Action>(null);
+  const beginAction = (next: NonNullable<Action>) => {
+    if (actionRef.current) return false;
+    actionRef.current = next;
+    setAction(next);
+    return true;
+  };
+  const endAction = () => {
+    actionRef.current = null;
+    setAction(null);
+  };
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [revealedPasswordId, setRevealedPasswordId] = useState<string | null>(null);
+  const showPassword = draft !== null && revealedPasswordId === draft.id;
   const [addingMeta, setAddingMeta] = useState<"tag" | "folder" | null>(null);
   const [metaValue, setMetaValue] = useState("");
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
   const [cloudWizard, setCloudWizard] = useState<"oauth" | "storage" | null>(null);
 
   const closeIfIdle = () => {
-    if (action) return;
+    if (actionRef.current) return;
     if (editing) {
       toast.info("Unsaved changes", "Save or cancel changes to this site before leaving.");
       return;
@@ -114,47 +128,17 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     [profiles]
   );
 
+  const connectedIds = useMemo(() => new Set(sessions.map((session) => session.profileId)), [sessions]);
+  const counts = useMemo(() => countSiteViews(profiles, duplicateIds, connectedIds), [profiles, duplicateIds, connectedIds]);
   const filtered = useMemo(
-    () =>
-      profiles
-        .filter((profile) => {
-          const haystack =
-            `${profile.name} ${profile.host} ${profile.username} ${profile.protocol} ${profile.group ?? ""} ${profile.description ?? ""} ${(
-              profile.tags ?? []
-            ).join(" ")}`.toLowerCase();
-          if (query && !haystack.includes(query.toLowerCase())) return false;
-          if (view === "favorites" && !profile.favorite) return false;
-          if (view === "recent" && !profile.lastUsed) return false;
-          if (view === "bookmarks" && !profile.bookmarked) return false;
-          if (view === "duplicates" && !duplicateIds.has(profile.id)) return false;
-          if (
-            view === "cloud" &&
-            !["s3", "azure", "gcs", "webdav", "dropbox", "onedrive", "gdrive", "box"].includes(profile.protocol)
-          ) return false;
-          if (
-            view.startsWith("tag:") &&
-            !(profile.tags ?? []).includes(view.slice(4))
-          ) {
-            return false;
-          }
-          if (
-            view.startsWith("folder:") &&
-            (profile.group || "") !== view.slice(7)
-          ) {
-            return false;
-          }
-          return true;
-        })
-        .sort((a, b) => {
-          let cmp = 0;
-          if (sortField === "host") cmp = a.host.localeCompare(b.host);
-          else if (sortField === "protocol") cmp = a.protocol.localeCompare(b.protocol);
-          else if (sortField === "lastUsed") cmp = (a.lastUsed ?? 0) - (b.lastUsed ?? 0);
-          else cmp = a.name.localeCompare(b.name);
-          return sortDirection === "asc" ? cmp : -cmp;
-        }),
-    [profiles, duplicateIds, query, view, sortField, sortDirection]
+    () => filterAndSortSites(profiles, query, view, sortField, sortDirection, duplicateIds, connectedIds),
+    [profiles, query, view, sortField, sortDirection, duplicateIds, connectedIds]
   );
+  const resetFilters = () => {
+    setQuery("");
+    setView("all");
+    searchRef.current?.focus();
+  };
 
   const toggleSort = (field: SiteSortField) => {
     if (field === sortField) {
@@ -175,10 +159,13 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   const deletionTarget = confirmDeleteId
     ? profiles.find((profile) => profile.id === confirmDeleteId) ?? null
     : null;
-  const matchingSites = draft ? matchingSavedSites(draft, profiles) : [];
-  const isConnected = selected
-    ? sessions.some((session) => session.profileId === selected.id)
-    : false;
+  const matchingSites = useMemo(() => draft ? matchingSavedSites(draft, profiles) : [], [draft, profiles]);
+  const isConnected = selected ? connectedIds.has(selected.id) : false;
+  useEffect(() => {
+    setRevealedPasswordId(null);
+    setAddingMeta(null);
+    setMetaValue("");
+  }, [selected?.id]);
   const canDirectEdit = selected
     ? DIRECT_EDIT_PROTOCOLS.has(selected.protocol)
     : false;
@@ -210,7 +197,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   };
 
   const startEdit = () => {
-    if (!selected || !canDirectEdit) return;
+    if (!selected || !canDirectEdit || actionRef.current) return;
+    setAddingMeta(null);
+    setMetaValue("");
     setDraft({ ...selected });
     setEditing(true);
   };
@@ -229,21 +218,21 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       return;
     }
 
-    setAction("save");
+    if (!beginAction("save")) return;
     try {
       await saveProfile({ ...draft, name, host, username });
+      setRevealedPasswordId(null);
       setEditing(false);
       toast.success("Site saved", name);
     } catch (error) {
       toastError(error, `Couldn't save ${name}`);
     } finally {
-      setAction(null);
+      endAction();
     }
   };
 
   const toggleBookmark = async () => {
-    if (!selected || action) return;
-    setAction("save");
+    if (!selected || editing || action || !beginAction("save")) return;
     try {
       await saveProfile({ ...selected, bookmarked: !selected.bookmarked });
       toast.info(
@@ -253,16 +242,19 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     } catch (error) {
       toastError(error, `Couldn't update ${selected.name}`);
     } finally {
-      setAction(null);
+      endAction();
     }
   };
 
   const remove = async () => {
-    if (!deletionTarget || action) return;
+    if (!deletionTarget) throw new Error("The selected site is no longer available.");
+    if (useConnections.getState().sessions.some((session) => session.profileId === deletionTarget.id)) {
+      throw new Error("Disconnect this site before deleting it.");
+    }
+    if (!beginAction("delete")) throw new Error("Another site operation is in progress.");
     const index = profiles.findIndex((profile) => profile.id === deletionTarget.id);
     const next = profiles[index + 1] ?? profiles[index - 1] ?? null;
 
-    setAction("delete");
     try {
       await deleteProfile(deletionTarget.id);
       setSelectedId(next?.id ?? null);
@@ -272,7 +264,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     } finally {
       // Errors reject to ConfirmModal, which keeps the deletion confirmation
       // open and displays a retryable failure instead of closing prematurely.
-      setAction(null);
+      endAction();
     }
   };
 
@@ -296,21 +288,19 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
   };
 
   const connectSelected = async () => {
-    if (!selected || isConnected || action || editing) return;
-    setAction("connect");
+    if (!selected || action || editing || !beginAction("connect")) return;
     try {
       await connect(selected.id);
     } catch {
       // connectionsStore already surfaces the redacted FTP/FTPS/SFTP error.
       return;
     } finally {
-      setAction(null);
+      endAction();
     }
   };
 
   const testSelected = async () => {
-    if (!selected || action) return;
-    setAction("test");
+    if (!selected || action || editing || !beginAction("test")) return;
     try {
       await ipc.testProfileConnection(selected.id);
       toast.success(
@@ -320,15 +310,15 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     } catch (error) {
       toastError(error, `Couldn't connect to ${selected.name}`);
     } finally {
-      setAction(null);
+      endAction();
     }
   };
 
   const applyMeta = async () => {
-    if (!selected || !addingMeta || action) return;
+    if (!selected || !addingMeta || editing || action) return;
     const value = metaValue.trim();
     if (!value) return;
-    setAction("save");
+    if (!beginAction("save")) return;
     try {
       if (addingMeta === "tag") {
         const nextTags = Array.from(new Set([...(selected.tags ?? []), value]));
@@ -344,12 +334,12 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     } catch (error) {
       toastError(error, "Couldn't update site organization");
     } finally {
-      setAction(null);
+      endAction();
     }
   };
 
   const toggleFavorite = async (profile: ConnectionProfile) => {
-    if (favoriteBusyId) return;
+    if (editing || action || !beginAction("favorite")) return;
     setFavoriteBusyId(profile.id);
     try {
       await saveProfile({ ...profile, favorite: !profile.favorite });
@@ -361,12 +351,12 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
       toastError(error, `Couldn't update ${profile.name}`);
     } finally {
       setFavoriteBusyId(null);
+      endAction();
     }
   };
 
   const duplicateSelected = async () => {
-    if (!selected || !canDuplicate || action) return;
-    setAction("duplicate");
+    if (!selected || !canDuplicate || action || editing || !beginAction("duplicate")) return;
     try {
       const copy = await duplicateProfile(selected.id);
       setSelectedId(copy.id);
@@ -376,7 +366,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
     } catch (error) {
       toastError(error, `Couldn't duplicate ${selected.name}`);
     } finally {
-      setAction(null);
+      endAction();
     }
   };
 
@@ -411,7 +401,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
           </button>
           {profiles.length > 0 && (
             <>
-              <div className="relative">
+              <div className="ghost-site-search relative min-w-0">
                 <Search
                   size={14}
                   className="pointer-events-none absolute left-3 top-2.5 text-text-dim"
@@ -420,10 +410,11 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                   ref={searchRef}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="ghost-ref-input w-64 pl-9"
+                  className="ghost-ref-input w-full pl-9 pr-9"
                   placeholder="Search sites…"
                   aria-label="Search saved sites"
                 />
+                {query && <button type="button" className="ghost-site-search-clear" aria-label="Clear site search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={14} aria-hidden="true"/></button>}
               </div>
               <button
                 type="button"
@@ -456,12 +447,13 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
 
         {profiles.length > 0 && (
           <div className="ghost-site-filterbar flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-[#051929] px-3 py-2">
-          <FilterChip active={view === "all"} label="All" count={profiles.length} onClick={() => setView("all")} />
-          <FilterChip active={view === "favorites"} label="Favorites" count={profiles.filter((profile) => profile.favorite).length} onClick={() => setView("favorites")} />
-          <FilterChip active={view === "recent"} label="Recent" count={profiles.filter((profile) => profile.lastUsed).length} onClick={() => setView("recent")} />
-          <FilterChip active={view === "bookmarks"} label="Bookmarks" count={profiles.filter((profile) => profile.bookmarked).length} onClick={() => setView("bookmarks")} />
-          <FilterChip active={view === "duplicates"} label="Duplicates" count={duplicateIds.size} onClick={() => setView("duplicates")} />
-          <FilterChip active={view === "cloud"} label="Cloud" count={profiles.filter((profile) => ["s3", "azure", "gcs", "webdav", "dropbox", "onedrive", "gdrive", "box"].includes(profile.protocol)).length} onClick={() => setView("cloud")} />
+          <FilterChip active={view === "all"} label="All" count={counts.all} onClick={() => setView("all")} />
+          <FilterChip active={view === "favorites"} label="Favorites" count={counts.favorites} onClick={() => setView("favorites")} />
+          <FilterChip active={view === "recent"} label="Recent" count={counts.recent} onClick={() => setView("recent")} />
+          <FilterChip active={view === "bookmarks"} label="Bookmarks" count={counts.bookmarks} onClick={() => setView("bookmarks")} />
+          <FilterChip active={view === "duplicates"} label="Duplicates" count={counts.duplicates} onClick={() => setView("duplicates")} />
+          <FilterChip active={view === "cloud"} label="Cloud" count={counts.cloud} onClick={() => setView("cloud")} />
+          <FilterChip active={view === "connected"} label="Connected" count={counts.connected} onClick={() => setView("connected")} />
           <div className="h-6 w-px shrink-0 bg-border"/>
           <label className="ghost-site-filter-select">Tag<select aria-label="Filter by tag" value={view.startsWith("tag:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All tags</option>{tags.map((tag) => <option key={tag} value={`tag:${tag}`}>{tag}</option>)}</select></label>
           <label className="ghost-site-filter-select">Folder<select aria-label="Filter by folder" value={view.startsWith("folder:") ? view : ""} onChange={(event) => setView(event.target.value || "all")}><option value="">All folders</option>{folders.map((folder) => <option key={folder} value={`folder:${folder}`}>{folder}</option>)}</select></label>
@@ -491,9 +483,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
 
             {filtered.length === 0 && (
               <div className="p-10 text-center text-text-muted">
-                {query
-                  ? "No saved sites match your search."
-                  : "No saved sites in this view."}
+                <p>{query.trim() ? "No saved sites match your search." : "No saved sites in this view."}</p>
+                <button type="button" className="ghost-mini-button mx-auto mt-3" onClick={resetFilters}>Clear filters</button>
               </div>
             )}
 
@@ -503,16 +494,14 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 profile={profile}
                 active={selected?.id === profile.id}
                 favorite={profile.favorite === true}
-                favoriteBusy={favoriteBusyId === profile.id}
-                connected={sessions.some(
-                  (session) => session.profileId === profile.id
-                )}
+                favoriteBusy={Boolean(action) || editing || favoriteBusyId === profile.id}
+                connected={connectedIds.has(profile.id)}
                 onClick={() => select(profile.id)}
                 onFavorite={() => void toggleFavorite(profile)}
               />
             ))}
             <div className="ghost-site-table-footer sticky bottom-0 mt-1 flex h-8 items-center border-t border-border bg-[#051929] px-3 text-[10px] text-text-muted">
-              <span>{profiles.length} sites total</span>
+              <span role="status">{filtered.length} of {profiles.length} sites</span>
               <span className="mx-2 text-text-dim">|</span>
               <span>{selected ? `1 selected (${selected.name})` : "0 selected"}</span>
             </div>
@@ -557,7 +546,7 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                       onClick={() => {
                         setDraft({ ...selected });
                         setEditing(false);
-                        setShowPassword(false);
+                        setRevealedPasswordId(null);
                       }}
                     >
                       Cancel
@@ -599,17 +588,20 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 <div className="mb-4 grid grid-cols-2 gap-2 border-t border-border pt-4">
                   <div className="rounded-md border border-border-subtle bg-[#051929] p-2.5">
                     <div className="mb-1 text-[10px] uppercase tracking-wide text-text-dim">Folder</div>
-                    <div className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[11px]">{selected.group || "None"}</span><button type="button" className="ghost-site-meta-add" disabled={Boolean(action)} onClick={() => { setAddingMeta("folder"); setMetaValue(selected.group ?? ""); }}><Edit3 size={12}/></button></div>
+                    <div className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[11px]">{selected.group || "None"}</span><button type="button" className="ghost-site-meta-add" aria-label="Assign folder" disabled={Boolean(action) || editing} onClick={() => { setAddingMeta("folder"); setMetaValue(selected.group ?? ""); }}><Edit3 size={12}/></button></div>
                     {addingMeta === "folder" && <div className="ghost-site-meta-editor mt-2"><input autoFocus value={metaValue} placeholder="Folder name" onChange={(event) => setMetaValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void applyMeta(); if (event.key === "Escape") setAddingMeta(null); }}/><button type="button" onClick={() => void applyMeta()} disabled={!metaValue.trim()}>Set</button><button type="button" onClick={() => setAddingMeta(null)}>×</button></div>}
                   </div>
                   <div className="rounded-md border border-border-subtle bg-[#051929] p-2.5">
                     <div className="mb-1 text-[10px] uppercase tracking-wide text-text-dim">Tags</div>
-                    <div className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[11px]">{(selected.tags ?? []).join(", ") || "None"}</span><button type="button" className="ghost-site-meta-add" disabled={Boolean(action)} onClick={() => { setAddingMeta("tag"); setMetaValue(""); }}><Plus size={12}/></button></div>
+                    <div className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[11px]">{(selected.tags ?? []).join(", ") || "None"}</span><button type="button" className="ghost-site-meta-add" aria-label="Add tag" disabled={Boolean(action) || editing} onClick={() => { setAddingMeta("tag"); setMetaValue(""); }}><Plus size={12}/></button></div>
                     {addingMeta === "tag" && <div className="ghost-site-meta-editor mt-2"><input autoFocus value={metaValue} placeholder="Tag name" onChange={(event) => setMetaValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void applyMeta(); if (event.key === "Escape") setAddingMeta(null); }}/><button type="button" onClick={() => void applyMeta()} disabled={!metaValue.trim()}>Add</button><button type="button" onClick={() => setAddingMeta(null)}>×</button></div>}
                   </div>
                 </div>
 
                 <div className="space-y-3 border-t border-border pt-4">
+                  <EditField label="Site Name" editing={editing}>
+                    <input value={draft.name} readOnly={!editing} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+                  </EditField>
                   <EditField label="Protocol" editing={editing}>
                     <select
                       value={draft.protocol}
@@ -681,7 +673,8 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                         <button
                           type="button"
                           className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-text-dim hover:text-white"
-                          onClick={() => setShowPassword((value) => !value)}
+                          onClick={() => setRevealedPasswordId(showPassword ? null : draft.id)}
+                          aria-pressed={showPassword}
                           aria-label={showPassword ? "Hide password" : "Show password"}
                         >
                           {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
@@ -740,12 +733,12 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                 <div className="mt-5 flex gap-2">
                   <button
                     type="button"
-                    disabled={isConnected || Boolean(action) || editing}
+                    disabled={Boolean(action) || editing}
                     className="ghost-primary-button flex-1"
                     onClick={() => void connectSelected()}
                   >
                     <Link2 size={15} />
-                    {isConnected ? "Connected" : action === "connect" ? "Connecting…" : "Connect"}
+                    {action === "connect" ? "Connecting…" : isConnected ? "Open session" : "Connect"}
                   </button>
                   <button
                     type="button"

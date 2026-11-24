@@ -424,7 +424,7 @@ for (const required of [
   if (!healthStatusBar.includes(required)) failures.push(`Desktop status bar missing live connection-health contract: ${required}`);
 }
 
-const siteManagerCloud = read("src/components/SiteManagerDialog.tsx");
+const siteManagerCloud = read("src/components/SiteManagerDialog.tsx") + "\n" + read("src/lib/siteViewModel.ts");
 for (const required of ['view === "cloud"', 'label="Cloud"', "s3", "azure", "gcs"]) {
   if (!siteManagerCloud.includes(required)) failures.push(`Sites must retain discoverable cloud filtering: ${required}`);
 }

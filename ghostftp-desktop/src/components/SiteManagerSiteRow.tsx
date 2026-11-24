@@ -1,6 +1,8 @@
 // Ghost FTP by Brendigo
 import { Star } from "lucide-react";
 import type { ConnectionProfile } from "@/lib/types";
+import { monogram } from "@/lib/format";
+import { validLastUsed } from "@/lib/siteViewModel";
 
 export function SiteRow({
   profile, active, favorite, favoriteBusy, connected, onClick, onFavorite,
@@ -10,8 +12,7 @@ export function SiteRow({
   onClick: () => void; onFavorite: () => void;
 }) {
   const tag = profile.tags?.[0] || profile.group || "Sites";
-  const initials = profile.name.trim().split(/\s+/).slice(0, 2)
-    .map((part) => part.charAt(0)).join("").toUpperCase() || "S";
+  const initials = monogram(profile.name);
   const subtitle = profile.defaultRemotePath?.trim() || profile.host;
   return (
     <div className={`ghost-site-row ${active ? "is-selected" : ""}`} role="group"
@@ -62,8 +63,9 @@ function tagToneClass(label: string) {
 }
 
 function formatLastUsed(value?: number) {
-  if (!value) return "—";
-  const date = new Date(value * 1000);
+  const timestamp = validLastUsed(value);
+  if (timestamp === null) return "—";
+  const date = new Date(timestamp * 1000);
   const now = new Date();
   return date.toDateString() === now.toDateString()
     ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })

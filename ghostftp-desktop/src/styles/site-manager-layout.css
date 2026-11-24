@@ -205,3 +205,20 @@
 @media (prefers-reduced-motion: reduce) {
   .ghost-sites-empty-actions button { transition: none; }
 }
+
+/* Keep native Sites controls reachable at narrower Windows/Linux window sizes. */
+.ghost-site-search { width: min(256px, 100%); flex: 0 1 256px; }
+.ghost-site-search-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border-radius: 4px; color: #a9c9e2;
+}
+.ghost-site-search-clear:hover { color: #edf7ff; background: #103755; }
+.ghost-site-search-clear:focus-visible,
+.ghost-site-filter-chip:focus-visible,
+.ghost-site-row-favorite:focus-visible,
+.ghost-site-meta-add:focus-visible { outline: 2px solid #85d0ff; outline-offset: 2px; }
+@container sites-workspace (max-width: 940px) {
+  .ghost-site-manager .ghost-site-manager-hero { flex-wrap: wrap; height: auto; min-height: 76px; padding-block: 10px; }
+  .ghost-site-search { flex: 1 1 160px; }
+}
