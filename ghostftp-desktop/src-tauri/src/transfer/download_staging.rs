@@ -47,20 +47,66 @@ pub(super) async fn create_new_download_staging(path: &Path) -> Result<tokio::fs
         .with_context(|| format!("exclusively create download staging {}", path.display()))
 }
 
+/// Ownership evidence is a live handle cloned only after exclusive creation.
+/// Blocking FTP workers share this record with the async transfer runner.
+#[derive(Clone, Default)]
+pub(super) struct DownloadStageOwner {
+    file: std::sync::Arc<std::sync::Mutex<Option<std::fs::File>>>,
+}
+
+impl DownloadStageOwner {
+    pub(super) fn record_std(&self, file: &std::fs::File) -> Result<()> {
+        let clone = file.try_clone()?;
+        let mut owned = self
+            .file
+            .lock()
+            .map_err(|_| anyhow::anyhow!("download stage ownership lock poisoned"))?;
+        *owned = Some(clone);
+        Ok(())
+    }
+
+    pub(super) async fn record(&self, file: &tokio::fs::File) -> Result<()> {
+        let clone = file.try_clone().await?.into_std().await;
+        self.record_std(&clone)
+    }
+
+    pub(super) async fn create(&self, path: &Path) -> Result<tokio::fs::File> {
+        let file = create_new_download_staging(path).await?;
+        self.record(&file).await?;
+        Ok(file)
+    }
+
+    pub(super) async fn cleanup(&self, parent: &DownloadParentGuard, path: &Path) {
+        let owned = self.file.lock().ok().and_then(|mut file| file.take());
+        if let Some(file) = owned {
+            let file = tokio::fs::File::from_std(file);
+            parent.cleanup_verified(path, &file).await;
+        }
+    }
+}
+
 /// Open an existing resumable stage without truncation or following links.
 /// Validation failures must not grant the caller cleanup ownership.
+#[cfg(test)]
 pub(super) async fn open_resumable_download_staging(path: &Path) -> Result<tokio::fs::File> {
-    async fn open(path: &Path) -> Result<tokio::fs::File> {
+    open_owned_resumable_download_staging(path, &DownloadStageOwner::default()).await
+}
+
+pub(super) async fn open_owned_resumable_download_staging(
+    path: &Path,
+    owner: &DownloadStageOwner,
+) -> Result<tokio::fs::File> {
+    async fn open(path: &Path, owner: &DownloadStageOwner) -> Result<tokio::fs::File> {
         let mut options = tokio::fs::OpenOptions::new();
         options.read(true).write(true);
         #[cfg(unix)]
         options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
         #[cfg(windows)]
         options.custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT);
-        let file = match options.create_new(true).open(path).await {
-            Ok(file) => file,
+        let (file, created) = match options.create_new(true).open(path).await {
+            Ok(file) => (file, true),
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                options.create_new(false).open(path).await?
+                (options.create_new(false).open(path).await?, false)
             }
             Err(error) => return Err(error.into()),
         };
@@ -81,10 +127,13 @@ pub(super) async fn open_resumable_download_staging(path: &Path) -> Result<tokio
         {
             windows_staging_identity(&file)?;
         }
+        if created {
+            owner.record(&file).await?;
+        }
         Ok(file)
     }
 
-    open(path).await.map_err(|error| {
+    open(path, owner).await.map_err(|error| {
         DownloadStagingOpenFailure(std::io::Error::other(error.to_string())).into()
     })
 }
@@ -1077,6 +1126,29 @@ pub(super) async fn commit_verified_delta_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[tokio::test]
+    async fn failed_stage_cleanup_requires_exclusive_creation_evidence() {
+        let root = std::env::temp_dir().join(format!("ghostftp-owned-stage-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&root).await.unwrap();
+        let target = root.join("target");
+        let stage = root.join("stage");
+        let parent = DownloadParentGuard::open(&target).unwrap();
+        let owner = DownloadStageOwner::default();
+        tokio::fs::write(&stage, b"unowned").await.unwrap();
+        assert!(owner.create(&stage).await.is_err());
+        owner.cleanup(&parent, &stage).await;
+        assert_eq!(tokio::fs::read(&stage).await.unwrap(), b"unowned");
+        tokio::fs::remove_file(&stage).await.unwrap();
+
+        let file = owner.create(&stage).await.unwrap();
+        drop(file);
+        owner.cleanup(&parent, &stage).await;
+        assert!(!stage.exists());
+        drop(parent);
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
 
     #[cfg(windows)]
     #[tokio::test]
