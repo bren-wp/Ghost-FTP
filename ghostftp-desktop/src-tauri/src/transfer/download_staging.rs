@@ -428,6 +428,14 @@ impl RecoveryInspectionRecord {
                 .any(|component| matches!(component, std::path::Component::ParentDir))
     }
 
+    // The destination key is derived from fields inside the authenticated
+    // payload, never from the mutable SQLite reservation alone.
+    fn matches_reservation(&self, key: Option<&str>) -> bool {
+        self.valid_layout()
+            && recovery_destination_key(self.parent_identity, &self.target)
+                .is_ok_and(|expected| key == Some(expected.as_str()))
+    }
+
     fn inspect_entry(&self, parent: &std::fs::File, path: &Path) -> EntryObservation {
         let Some(name) = path.file_name() else {
             return EntryObservation::Unavailable;
@@ -541,19 +549,27 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
     let mut uncertain = 0usize;
     let mut rollback_candidates = 0usize;
     let mut cleanup_candidates = 0usize;
-    for (id, phase, payload) in rows.into_iter().take(128) {
-        let signed = serde_json::from_str::<AuthenticatedRecovery>(&payload)
+    for row in rows.into_iter().take(128) {
+        let signed = serde_json::from_str::<AuthenticatedRecovery>(&row.payload)
             .ok()
-            .filter(|record| record.authenticate(&id).is_ok());
+            .filter(|record| record.authenticate(&row.id).is_ok());
         let Some(signed) = signed else {
             // Legacy, tampered and inaccessible records never authorize even
             // an automatic filesystem inspection of their stored path hints.
             uncertain += 1;
             continue;
         };
-        let observed = serde_json::from_str::<RecoveryInspectionRecord>(&signed.payload)
-            .map(|record| record.inspect())
-            .unwrap_or(RecoveryObservation::Ambiguous);
+        let Ok(record) = serde_json::from_str::<RecoveryInspectionRecord>(&signed.payload) else {
+            uncertain += 1;
+            continue;
+        };
+        if !record.matches_reservation(row.destination_key.as_deref()) {
+            // A missing, substituted or incompatible reservation is not
+            // sufficient evidence to inspect the recorded filesystem paths.
+            uncertain += 1;
+            continue;
+        }
+        let observed = record.inspect();
         match recovery_decision(true, observed) {
             RecoveryDecision::RollbackCandidate => rollback_candidates += 1,
             RecoveryDecision::CleanupCandidate => cleanup_candidates += 1,
@@ -564,7 +580,7 @@ pub(super) fn reconcile_pending_recovery(db: &crate::db::Db) -> Result<()> {
             RecoveryObservation::Ambiguous | RecoveryObservation::Unavailable
         ) {
             uncertain += 1;
-        } else if observation_matches_phase(&phase, observed) {
+        } else if observation_matches_phase(&row.phase, observed) {
             matching += 1;
         } else {
             divergent += 1;
@@ -2161,6 +2177,12 @@ mod tests {
             stage_identity: identity(&stage),
             original_identity: identity(&target),
         };
+        let reservation = recovery_destination_key(parent_identity, &target).unwrap();
+        assert!(record.matches_reservation(Some(&reservation)));
+        assert!(!record.matches_reservation(None));
+        assert!(!record.matches_reservation(Some("substituted")));
+        let other_reservation = recovery_destination_key(parent_identity, &backup).unwrap();
+        assert!(!record.matches_reservation(Some(&other_reservation)));
         assert_eq!(record.inspect(), RecoveryObservation::OriginalPresent);
         std::fs::rename(&target, &backup).unwrap();
         assert_eq!(record.inspect(), RecoveryObservation::BackupPresent);

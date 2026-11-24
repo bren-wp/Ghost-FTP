@@ -27,6 +27,14 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+/// A single bounded snapshot row, including its reservation from the same SQL read.
+pub(crate) struct DownloadRecoverySnapshot {
+    pub(crate) id: String,
+    pub(crate) phase: String,
+    pub(crate) payload: String,
+    pub(crate) destination_key: Option<String>,
+}
+
 /// Milliseconds since the Unix epoch — the timestamp unit every `ghostftp.db` row
 /// uses. Monotonic enough for ordering; not security-sensitive.
 pub fn now_ms() -> i64 {
@@ -724,14 +732,23 @@ impl Db {
 
     /// Bounded, read-only snapshot for filesystem reconciliation. The phase
     /// is deliberately returned separately from the immutable intent payload.
-    pub(crate) fn download_recovery_snapshot(&self) -> Result<Vec<(String, String, String)>> {
+    pub(crate) fn download_recovery_snapshot(&self) -> Result<Vec<DownloadRecoverySnapshot>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, phase, CASE WHEN length(CAST(payload AS BLOB)) <= 65536
-                THEN payload ELSE '' END
+                THEN payload ELSE '' END,
+                CASE WHEN length(CAST(destination_key AS BLOB)) <= 65536
+                THEN destination_key ELSE NULL END
              FROM download_recovery ORDER BY updated_ms, id LIMIT 129",
         )?;
-        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+        let rows = stmt.query_map([], |r| {
+            Ok(DownloadRecoverySnapshot {
+                id: r.get(0)?,
+                phase: r.get(1)?,
+                payload: r.get(2)?,
+                destination_key: r.get(3)?,
+            })
+        })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }
@@ -1461,6 +1478,15 @@ mod tests {
             assert_eq!(
                 db.download_recovery_phase("pending").unwrap(),
                 "backup_saved"
+            );
+            let snapshot = db.download_recovery_snapshot().unwrap();
+            assert_eq!(snapshot.len(), 1);
+            assert_eq!(snapshot[0].id, "pending");
+            assert_eq!(snapshot[0].phase, "backup_saved");
+            assert_eq!(snapshot[0].payload, "original");
+            assert_eq!(
+                snapshot[0].destination_key.as_deref(),
+                Some("destination")
             );
             assert!(db
                 .download_recovery_transition(
