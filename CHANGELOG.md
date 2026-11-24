@@ -1,6 +1,16 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.82 Preview — 23 November 2026 (development candidate; not yet published)
+## 0.99.83 Preview — 24 November 2026 (development candidate; not yet published)
+
+- Add Connected saved-site filter and direct access to an existing session, without reconnecting or interrupting other sessions.
+- Add a clear-search action, reset-filters empty state, visible result count, editable site name, natural sorting and accurate recent-site dates.
+- Share saved-site filtering, counting, timestamp validation and Unicode-safe monograms. Do not index authentication secrets.
+- Serialize Site Manager profile actions, restrict conflicting edits, mask passwords on site changes and revalidate live sessions before deleting a profile.
+- Improve responsive header controls, keyboard focus indicators and accessible sorting and metadata controls.
+- Extend saved-site model, privacy and UI wiring regression coverage. Retain cross-platform build, security and real protocol gates.
+- Fix Agent configuration staging ownership on exclusive-open failure; preserve the original configuration and another writer's file. Guard Sites against mismatched selected/draft details and edits during save. Update the native Linux source contract for the extracted selector.
+
+## 0.99.82 Preview — published 23 November 2026
 
 - Prevent file/folder uploads from being enqueued onto a previously active server when a native file picker remains open during connection changes.
 - Handle native save-dialog errors during transfer-history export, including failures before the backend export begins.

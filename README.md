@@ -15,15 +15,19 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 **Windows 10/11 x64 · Linux x86_64 · Portable and installable**
 
-[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases) · [**Download Ghost FTP**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore features](#built-for-the-way-you-work) · [See the app](#ghost-ftp-in-action) · [Installation](docs/guides/INSTALLATION.md)
+[**Download Ghost FTP for Windows & Linux**](https://github.com/bren-wp/Ghost-FTP/releases) · [Explore features](#built-for-the-way-you-work) · [See the app](#ghost-ftp-in-action) · [Installation](docs/guides/INSTALLATION.md)
 
 </div>
 
 ---
 
-## Ghost FTP 0.99.82 Preview — development candidate
+## Download Ghost FTP
 
-The new candidate improves transfer history sorting and invalid timestamp handling, protects against a changed connection while the native file picker is open, and handles native export-dialog errors. The previously published [v0.99.81 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.81) remains available. This source is **not yet a published v0.99.82 download**.
+**[Get v0.99.82 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.82)** — choose a portable or installable edition for your desktop from the previously published v0.99.82.
+
+[Windows & Linux package options](#choose-your-platform) · [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases)
+
+**Ghost FTP 0.99.83 Preview** is not yet published. See the [release notes](docs/releases/0.99.83.md) for details.
 
 ## Built for the way you work
 
@@ -36,11 +40,11 @@ The new candidate improves transfer history sorting and invalid timestamp handli
 
 ## Ghost FTP in action
 
-**See Ghost FTP in action.** Genuine native Windows/Linux application captures with build provenance—not AI artwork or mockups. Screenshots from earlier versions remain explicitly identified.
+Explore the two-pane workspace, saved connections, transfer queue and preferences in genuine native Windows/Linux application captures from earlier versions.
 
-**Latest verified Windows 0.99.71 native captures:** [Windows & Linux build QA — 20 November 2026](https://github.com/bren-wp/Ghost-FTP/actions/runs/44665767749) (artifact **GhostFTP-Windows-x64-Preview-QA**; files, sites, transfers, settings, About, properties and responsive compact/minimum windows). The embedded images below retain their documented earlier-version provenance; current QA capture bundles are linked rather than silently relabeled.
+**Windows 0.99.71 native captures:** [Windows & Linux build QA — 20 November 2026](https://github.com/bren-wp/Ghost-FTP/actions/runs/44665767749) (artifact **GhostFTP-Windows-x64-Preview-QA**; files, sites, transfers, settings, About, properties and responsive compact/minimum windows). The embedded images below retain their documented earlier-version provenance; current QA capture bundles are linked rather than silently relabeled.
 
-**Published v0.99.73 Windows native QA package:** [GhostFTP-Windows-x64-v0.99.73-Native-QA.zip](https://github.com/bren-wp/Ghost-FTP/releases/download/v0.99.73/GhostFTP-Windows-x64-v0.99.73-Native-QA.zip). This is the actual QA archive attached to the published 0.99.73 release. Its content must be examined against the approved references before calling any screen pixel-perfect; the images embedded below still have their own earlier-build provenance.
+**Published v0.99.73 Windows native QA package:** [GhostFTP-Windows-x64-v0.99.73-Native-QA.zip](https://github.com/bren-wp/Ghost-FTP/releases/download/v0.99.73/GhostFTP-Windows-x64-v0.99.73-Native-QA.zip). The archive accompanies that published release; the gallery below shows earlier builds with their original capture information.
 
 <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP on Windows: actual local and remote file workspace" width="100%"></a>
 
@@ -114,7 +118,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
-For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.81 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
+For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.82 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
 
 ## Your trust matters
 

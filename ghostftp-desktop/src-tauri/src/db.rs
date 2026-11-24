@@ -27,6 +27,14 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
+/// A single bounded snapshot row, including its reservation from the same SQL read.
+pub(crate) struct DownloadRecoverySnapshot {
+    pub(crate) id: String,
+    pub(crate) phase: String,
+    pub(crate) payload: String,
+    pub(crate) destination_key: Option<String>,
+}
+
 /// Milliseconds since the Unix epoch — the timestamp unit every `ghostftp.db` row
 /// uses. Monotonic enough for ordering; not security-sensitive.
 pub fn now_ms() -> i64 {
@@ -132,6 +140,21 @@ const MIGRATIONS: &[&str] = &[
         payload    TEXT    NOT NULL,
         updated_ms INTEGER NOT NULL
     );",
+    // v9 — filesystem recovery intents, separate from prunable transfer history.
+    // Pending entries are never deleted by the history retention policy.
+    "CREATE TABLE download_recovery (
+        id         TEXT PRIMARY KEY,
+        payload    TEXT    NOT NULL,
+        updated_ms INTEGER NOT NULL
+    ) WITHOUT ROWID;",
+    // v10 — explicit filesystem transaction phases. A v9 intent has unknown
+    // progress and must never be treated as a newly prepared transaction.
+    "ALTER TABLE download_recovery ADD COLUMN phase TEXT NOT NULL DEFAULT 'legacy_unknown'
+        CHECK (phase IN ('legacy_unknown', 'prepared', 'backup_saved', 'promoted',
+                         'rollback_pending', 'rolled_back', 'cleanup_pending'));
+     ALTER TABLE download_recovery ADD COLUMN destination_key TEXT;
+     CREATE UNIQUE INDEX download_recovery_destination_idx
+        ON download_recovery(destination_key) WHERE destination_key IS NOT NULL;",
 ];
 
 /// A persisted per-file sync record — what the source looked like the last time
@@ -164,8 +187,55 @@ pub struct Snippet {
     pub updated_ms: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RecoveryPhase {
+    Prepared,
+    BackupSaved,
+    Promoted,
+    RollbackPending,
+    RolledBack,
+    CleanupPending,
+}
+
+impl RecoveryPhase {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Prepared => "prepared",
+            Self::BackupSaved => "backup_saved",
+            Self::Promoted => "promoted",
+            Self::RollbackPending => "rollback_pending",
+            Self::RolledBack => "rolled_back",
+            Self::CleanupPending => "cleanup_pending",
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        match value {
+            "prepared" => Some(Self::Prepared),
+            "backup_saved" => Some(Self::BackupSaved),
+            "promoted" => Some(Self::Promoted),
+            "rollback_pending" => Some(Self::RollbackPending),
+            "rolled_back" => Some(Self::RolledBack),
+            "cleanup_pending" => Some(Self::CleanupPending),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn permits(self, next: Self) -> bool {
+        matches!(
+            (self, next),
+            (Self::Prepared, Self::BackupSaved)
+                | (Self::BackupSaved, Self::Promoted)
+                | (Self::BackupSaved, Self::RollbackPending)
+                | (Self::RollbackPending, Self::RolledBack)
+                | (Self::Promoted, Self::CleanupPending)
+        )
+    }
+}
+
 pub struct Db {
     conn: Mutex<Connection>,
+    recovery_root: Option<std::path::PathBuf>,
 }
 
 /// SQLite is not encryption: keep secrets in the Windows/Linux keyring.
@@ -254,6 +324,12 @@ impl Db {
             mode.eq_ignore_ascii_case("wal"),
             "SQLite WAL mode is unavailable"
         );
+        conn.pragma_update(None, "synchronous", "FULL")
+            .context("enable durable SQLite commits")?;
+        let synchronous: i64 = conn
+            .pragma_query_value(None, "synchronous", |row| row.get(0))
+            .context("verify SQLite durability mode")?;
+        anyhow::ensure!(synchronous >= 2, "SQLite FULL durability is unavailable");
         conn.pragma_update(None, "foreign_keys", "ON")
             .context("enable SQLite foreign keys")?;
         let foreign: i64 = conn
@@ -263,8 +339,14 @@ impl Db {
         conn.pragma_update(None, "secure_delete", "ON")
             .context("enable SQLite secure delete")?;
         migrate(&conn).context("running ghostftp.db migrations")?;
+        let recovery_root = path
+            .canonicalize()?
+            .parent()
+            .context("database has no parent directory")?
+            .to_path_buf();
         Ok(Self {
             conn: Mutex::new(conn),
+            recovery_root: Some(recovery_root),
         })
     }
 
@@ -275,7 +357,149 @@ impl Db {
         migrate(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
+            recovery_root: None,
         })
+    }
+
+    /// Scope the independent ledger to the canonical application data directory.
+    pub(crate) fn recovery_scope(&self) -> Result<String> {
+        use sha2::{Digest, Sha256};
+
+        let root = self
+            .recovery_root
+            .as_ref()
+            .context("missing recovery root")?;
+        #[cfg(windows)]
+        let bytes = root.to_string_lossy().to_uppercase().into_bytes();
+        #[cfg(not(windows))]
+        let bytes = root.as_os_str().as_encoded_bytes();
+        Ok(format!("{:x}", Sha256::digest(bytes)))
+    }
+
+    /// A conservative bootstrap sentinel, independent of SQLite and vault.
+    /// It never authorizes recovery; it only prevents reinitialization after
+    /// a previously initialized vault disappears. Caller holds recovery_lock.
+    pub(crate) fn recovery_vault_initialized(&self, create: bool) -> Result<bool> {
+        use std::io::{Read, Write};
+
+        const MARKER: &[u8] = b"ghostftp-recovery-vault-initialized-v1";
+        let root = self
+            .recovery_root
+            .as_ref()
+            .context("missing recovery root")?;
+        let path = root.join("ghostftp.recovery.initialized");
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(unix)]
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+            options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+        }
+        match options.open(&path) {
+            Ok(file) => {
+                let metadata = file.metadata()?;
+                anyhow::ensure!(
+                    metadata.is_file() && metadata.len() == MARKER.len() as u64,
+                    "invalid recovery initialization marker"
+                );
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    anyhow::ensure!(
+                        metadata.nlink() == 1 && metadata.mode() & 0o077 == 0,
+                        "unsafe recovery initialization marker"
+                    );
+                }
+                #[cfg(windows)]
+                {
+                    use std::os::windows::fs::MetadataExt;
+                    use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+                    anyhow::ensure!(
+                        metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+                        "reparse recovery initialization marker"
+                    );
+                }
+                let mut bytes = Vec::new();
+                file.take(MARKER.len() as u64 + 1).read_to_end(&mut bytes)?;
+                anyhow::ensure!(bytes == MARKER, "invalid recovery initialization marker");
+                Ok(true)
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && !create => Ok(false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                options.write(true).create_new(true);
+                #[cfg(unix)]
+                options.mode(0o600);
+                let mut file = options.open(&path)?;
+                file.write_all(MARKER)?;
+                file.sync_all()?;
+                #[cfg(unix)]
+                std::fs::File::open(root)?.sync_all()?;
+                Ok(true)
+            }
+            Err(error) => Err(error).context("open recovery initialization marker"),
+        }
+    }
+
+    /// Keep this file open through the entire promotion, including blocking
+    /// workers. Never unlink the lock file on release.
+    pub(crate) fn recovery_lock(&self) -> Result<std::fs::File> {
+        let root = self
+            .recovery_root
+            .as_ref()
+            .context("missing recovery root")?;
+        let path = root.join("ghostftp.recovery.lock");
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true).write(true).create(true).truncate(false);
+        #[cfg(unix)]
+        options
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+            options
+                .share_mode(3)
+                .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+        }
+        let file = options.open(&path).context("open recovery lock")?;
+        let metadata = file.metadata()?;
+        anyhow::ensure!(metadata.is_file(), "recovery lock is not a regular file");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            anyhow::ensure!(
+                metadata.nlink() == 1 && metadata.mode() & 0o077 == 0,
+                "recovery lock has unsafe links or permissions"
+            );
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+            anyhow::ensure!(
+                metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+                "recovery lock is a reparse point"
+            );
+        }
+        file.try_lock()
+            .context("another recovery operation is active")?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let current = std::fs::symlink_metadata(&path)?;
+            anyhow::ensure!(
+                current.is_file()
+                    && current.nlink() == 1
+                    && current.dev() == metadata.dev()
+                    && current.ino() == metadata.ino(),
+                "recovery lock entry changed"
+            );
+        }
+        Ok(file)
     }
 
     /// SQLite is the authoritative persisted configuration for watched
@@ -593,6 +817,229 @@ impl Db {
     pub fn settings_delete(&self, key: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM settings WHERE key = ?1", [key])?;
+        Ok(())
+    }
+
+    // ---- Durable filesystem recovery intents ----
+
+    /// Insert once: an unresolved transaction must not be overwritten by Retry.
+    pub(crate) fn download_recovery_begin(
+        &self,
+        id: &str,
+        payload: &str,
+        destination_key: &str,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            payload.len() <= 65536,
+            "download recovery record exceeds size limit"
+        );
+        let conn = self.conn.lock().unwrap();
+        anyhow::ensure!(
+            !destination_key.is_empty(),
+            "missing recovery destination key"
+        );
+        // A legacy record has no reliable reservation key. Preserve it and
+        // stop new backup transactions until it can be reviewed.
+        let changed = conn.execute(
+            "INSERT INTO download_recovery (id, payload, updated_ms, phase, destination_key)
+             SELECT ?1, ?2, ?3, 'prepared', ?4
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM download_recovery WHERE destination_key IS NULL
+             )",
+            rusqlite::params![id, payload, now_ms(), destination_key],
+        )?;
+        anyhow::ensure!(changed == 1, "legacy recovery intent requires review");
+        Ok(())
+    }
+
+    /// Restore an absent, independently authenticated recovery record only.
+    /// Caller validates the manifest, phase chain and vault anchor under the
+    /// recovery lock. A conflicting ID or destination is never overwritten.
+    pub(crate) fn download_recovery_restore_missing(
+        &self,
+        id: &str,
+        phase: RecoveryPhase,
+        destination: &str,
+        payload: &str,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            !id.is_empty() && !destination.is_empty() && payload.len() <= 65536,
+            "invalid redundant recovery record"
+        );
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "INSERT INTO download_recovery (id, payload, updated_ms, phase, destination_key)
+             SELECT ?1, ?2, ?3, ?4, ?5
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM download_recovery WHERE destination_key IS NULL
+             )",
+            rusqlite::params![id, payload, now_ms(), phase.as_str(), destination],
+        )?;
+        anyhow::ensure!(changed == 1, "recovery restore requires manual review");
+        Ok(())
+    }
+
+    /// Compare-and-set used by migration and state-machine tests.
+    #[cfg(test)]
+    pub(crate) fn download_recovery_transition(
+        &self,
+        id: &str,
+        from: RecoveryPhase,
+        to: RecoveryPhase,
+    ) -> Result<()> {
+        anyhow::ensure!(from.permits(to), "invalid download recovery transition");
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "UPDATE download_recovery SET phase = ?3, updated_ms = ?4
+             WHERE id = ?1 AND phase = ?2",
+            rusqlite::params![id, from.as_str(), to.as_str(), now_ms()],
+        )?;
+        anyhow::ensure!(changed == 1, "download recovery phase changed");
+        Ok(())
+    }
+
+    /// Confirm the exact live transaction immediately before a filesystem mutation.
+    pub(crate) fn download_recovery_check_current(
+        &self,
+        id: &str,
+        phase: RecoveryPhase,
+        destination: &str,
+        payload: &str,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let matches: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM download_recovery
+             WHERE id = ?1 AND phase = ?2 AND destination_key = ?3 AND payload = ?4)",
+            rusqlite::params![id, phase.as_str(), destination, payload],
+            |row| row.get(0),
+        )?;
+        anyhow::ensure!(matches, "download recovery state changed");
+        Ok(())
+    }
+
+    /// Persist the signed phase chain and SQL phase together; reject a changed
+    /// reservation, stale phase or replaced envelope.
+    pub(crate) fn download_recovery_transition_checked(
+        &self,
+        id: &str,
+        from: RecoveryPhase,
+        to: RecoveryPhase,
+        destination: &str,
+        previous: &str,
+        next: &str,
+    ) -> Result<()> {
+        anyhow::ensure!(from.permits(to), "invalid download recovery transition");
+        anyhow::ensure!(
+            next.len() <= 65536,
+            "download recovery record exceeds size limit"
+        );
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "UPDATE download_recovery SET phase = ?3, updated_ms = ?4, payload = ?7
+             WHERE id = ?1 AND phase = ?2 AND destination_key = ?5 AND payload = ?6",
+            rusqlite::params![
+                id,
+                from.as_str(),
+                to.as_str(),
+                now_ms(),
+                destination,
+                previous,
+                next
+            ],
+        )?;
+        anyhow::ensure!(changed == 1, "download recovery state changed");
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn download_recovery_phase(&self, id: &str) -> Result<String> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT phase FROM download_recovery WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(Into::into)
+    }
+
+    /// Prevent a different transfer from knowingly publishing into an
+    /// unresolved backup transaction's destination. This is a preflight
+    /// check; the unique index separately serializes journal insertion.
+    pub(crate) fn download_recovery_check_destination(&self, key: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let pending: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM download_recovery WHERE destination_key = ?1)",
+            [key],
+            |row| row.get(0),
+        )?;
+        anyhow::ensure!(!pending, "destination has an unresolved recovery intent");
+        Ok(())
+    }
+
+    /// Bounded, read-only snapshot for filesystem reconciliation. The phase
+    /// is deliberately returned separately from the immutable intent payload.
+    pub(crate) fn download_recovery_snapshot(&self) -> Result<Vec<DownloadRecoverySnapshot>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, phase, CASE WHEN length(CAST(payload AS BLOB)) <= 65536
+                THEN payload ELSE '' END,
+                CASE WHEN length(CAST(destination_key AS BLOB)) <= 65536
+                THEN destination_key ELSE NULL END
+             FROM download_recovery ORDER BY updated_ms, id LIMIT 129",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(DownloadRecoverySnapshot {
+                id: r.get(0)?,
+                phase: r.get(1)?,
+                payload: r.get(2)?,
+                destination_key: r.get(3)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// Never use transfer-history pruning for recovery intents.
+    pub fn download_recovery_list(&self) -> Result<Vec<(String, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt =
+            conn.prepare("SELECT id, payload FROM download_recovery ORDER BY updated_ms, id")?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// Only a conclusively finished transaction may remove its intent.
+    #[cfg(test)]
+    pub fn download_recovery_finish(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "DELETE FROM download_recovery WHERE id = ?1 AND phase = 'cleanup_pending'",
+            [id],
+        )?;
+        anyhow::ensure!(
+            changed == 1,
+            "download recovery is not ready for completion"
+        );
+        Ok(())
+    }
+
+    pub(crate) fn download_recovery_finish_checked(
+        &self,
+        id: &str,
+        destination: &str,
+        payload: &str,
+    ) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let changed = conn.execute(
+            "DELETE FROM download_recovery WHERE id = ?1 AND phase = 'cleanup_pending'
+             AND destination_key = ?2 AND payload = ?3",
+            rusqlite::params![id, destination, payload],
+        )?;
+        anyhow::ensure!(
+            changed == 1,
+            "download recovery is not ready for completion"
+        );
         Ok(())
     }
 
@@ -1249,6 +1696,294 @@ mod tests {
         cleared.sort();
         assert_eq!(cleared, vec!["k1".to_string(), "k3".to_string()]);
         assert!(!db.thumb_touch("k1").unwrap());
+    }
+
+    #[test]
+    fn recovery_lock_rejects_concurrent_handles_and_releases_on_drop() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-recovery-lock-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let first = Db::open(&root.join("ghostftp.db")).unwrap();
+        let second = Db::open(&root.join("ghostftp.db")).unwrap();
+        let lock = first.recovery_lock().unwrap();
+        assert!(second.recovery_lock().is_err());
+        drop(lock);
+        assert!(second.recovery_lock().is_ok());
+        drop(first);
+        drop(second);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn recovery_lock_released_after_child_process_kill() {
+        const CHILD_ROOT: &str = "GHOSTFTP_RECOVERY_LOCK_TEST_ROOT";
+        if let Some(root) = std::env::var_os(CHILD_ROOT) {
+            let root = std::path::PathBuf::from(root);
+            let db = Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            std::fs::write(root.join("ready"), b"locked").unwrap();
+            std::thread::sleep(Duration::from_secs(30));
+            return;
+        }
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-recovery-process-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let db = Db::open(&root.join("ghostftp.db")).unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("recovery_lock_released_after_child_process_kill")
+            .env(CHILD_ROOT, &root)
+            .spawn()
+            .unwrap();
+        let mut ready = false;
+        for _ in 0..100 {
+            if root.join("ready").exists() {
+                ready = true;
+                break;
+            }
+            if child.try_wait().unwrap().is_some() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        let blocked = db.recovery_lock().is_err();
+        let killed = child.kill().is_ok();
+        let status = child.wait().unwrap();
+        assert!(ready && blocked && killed && !status.success());
+        assert!(db.recovery_lock().is_ok());
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_restore_missing_never_overwrites_existing_reservations() {
+        let db = Db::open_in_memory().unwrap();
+        db.download_recovery_restore_missing(
+            "id",
+            RecoveryPhase::BackupSaved,
+            "destination",
+            "signed",
+        )
+        .unwrap();
+        assert!(db
+            .download_recovery_restore_missing("id", RecoveryPhase::Prepared, "other", "stale",)
+            .is_err());
+        assert!(db
+            .download_recovery_restore_missing(
+                "other",
+                RecoveryPhase::Prepared,
+                "destination",
+                "stale",
+            )
+            .is_err());
+        let rows = db.download_recovery_snapshot().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].phase, "backup_saved");
+        assert_eq!(rows[0].payload, "signed");
+    }
+
+    #[test]
+    fn recovery_transition_cas_rejects_replaced_envelopes_and_reservations() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-phase-cas-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let db = Db::open(&root.join("ghostftp.db")).unwrap();
+        db.download_recovery_begin("id", "prepared-proof", "destination")
+            .unwrap();
+        let advance = |destination: &str, previous: &str| {
+            db.download_recovery_transition_checked(
+                "id",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::BackupSaved,
+                destination,
+                previous,
+                "backup-proof",
+            )
+        };
+        assert!(db
+            .download_recovery_check_current(
+                "id",
+                RecoveryPhase::Prepared,
+                "destination",
+                "prepared-proof",
+            )
+            .is_ok());
+        assert!(advance("other", "prepared-proof").is_err());
+        assert!(advance("destination", "forged").is_err());
+        advance("destination", "prepared-proof").unwrap();
+        assert!(db
+            .download_recovery_check_current(
+                "id",
+                RecoveryPhase::Prepared,
+                "destination",
+                "prepared-proof",
+            )
+            .is_err());
+        assert!(advance("destination", "prepared-proof").is_err());
+        let rows = db.download_recovery_snapshot().unwrap();
+        assert_eq!(rows[0].phase, "backup_saved");
+        assert_eq!(rows[0].payload, "backup-proof");
+        assert!(db
+            .download_recovery_finish_checked("id", "destination", "backup-proof")
+            .is_err());
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn download_recovery_intents_survive_reopen_and_history_pruning() {
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-recovery-db-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("ghostftp.db");
+        {
+            let db = Db::open(&path).unwrap();
+            db.download_recovery_begin("pending", "original", "destination")
+                .unwrap();
+            assert!(db
+                .download_recovery_begin("pending", "replacement", "other")
+                .is_err());
+            assert!(db
+                .download_recovery_begin("different", "replacement", "destination")
+                .is_err());
+            assert!(db
+                .download_recovery_check_destination("destination")
+                .is_err());
+            assert!(db.download_recovery_check_destination("other").is_ok());
+            assert!(db.download_recovery_finish("pending").is_err());
+            assert!(db
+                .download_recovery_transition(
+                    "pending",
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::Promoted,
+                )
+                .is_err());
+            db.download_recovery_transition(
+                "pending",
+                RecoveryPhase::Prepared,
+                RecoveryPhase::BackupSaved,
+            )
+            .unwrap();
+            db.transfer_ledger_upsert("old", "{}").unwrap();
+            db.transfer_ledger_prune(0).unwrap();
+        }
+        {
+            let db = Db::open(&path).unwrap();
+            assert_eq!(
+                db.download_recovery_list().unwrap(),
+                vec![("pending".to_string(), "original".to_string())]
+            );
+            assert_eq!(
+                db.download_recovery_phase("pending").unwrap(),
+                "backup_saved"
+            );
+            let snapshot = db.download_recovery_snapshot().unwrap();
+            assert_eq!(snapshot.len(), 1);
+            assert_eq!(snapshot[0].id, "pending");
+            assert_eq!(snapshot[0].phase, "backup_saved");
+            assert_eq!(snapshot[0].payload, "original");
+            assert_eq!(snapshot[0].destination_key.as_deref(), Some("destination"));
+            assert!(db
+                .download_recovery_transition(
+                    "pending",
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::BackupSaved,
+                )
+                .is_err());
+            db.download_recovery_transition(
+                "pending",
+                RecoveryPhase::BackupSaved,
+                RecoveryPhase::Promoted,
+            )
+            .unwrap();
+            db.download_recovery_transition(
+                "pending",
+                RecoveryPhase::Promoted,
+                RecoveryPhase::CleanupPending,
+            )
+            .unwrap();
+            db.download_recovery_finish("pending").unwrap();
+            assert!(db.download_recovery_list().unwrap().is_empty());
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_v9_migration_preserves_unknown_phase_and_blocks_new_backup() {
+        let conn = Connection::open_in_memory().unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(9).enumerate() {
+            apply_migration(&conn, (index + 1) as i64, sql).unwrap();
+        }
+        conn.execute(
+            "INSERT INTO download_recovery (id, payload, updated_ms) VALUES ('legacy', 'old', 1)",
+            [],
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        let db = Db {
+            conn: Mutex::new(conn),
+            recovery_root: None,
+        };
+        assert_eq!(
+            db.download_recovery_phase("legacy").unwrap(),
+            "legacy_unknown"
+        );
+        assert!(db.download_recovery_begin("new", "data", "target").is_err());
+        assert!(db.download_recovery_finish("legacy").is_err());
+        assert_eq!(
+            db.download_recovery_list().unwrap(),
+            vec![("legacy".to_string(), "old".to_string())]
+        );
+    }
+
+    #[test]
+    fn recovery_phases_survive_each_database_reopen() {
+        let root = std::env::temp_dir().join(format!("ghostftp-phases-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("ghostftp.db");
+        for (id, sequence) in [
+            (
+                "success",
+                vec![
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::BackupSaved,
+                    RecoveryPhase::Promoted,
+                    RecoveryPhase::CleanupPending,
+                ],
+            ),
+            (
+                "rollback",
+                vec![
+                    RecoveryPhase::Prepared,
+                    RecoveryPhase::BackupSaved,
+                    RecoveryPhase::RollbackPending,
+                    RecoveryPhase::RolledBack,
+                ],
+            ),
+        ] {
+            {
+                let db = Db::open(&path).unwrap();
+                db.download_recovery_begin(id, "payload", id).unwrap();
+            }
+            for (i, phase) in sequence.iter().copied().enumerate() {
+                let db = Db::open(&path).unwrap();
+                assert_eq!(db.download_recovery_phase(id).unwrap(), phase.as_str());
+                if let Some(next) = sequence.get(i + 1) {
+                    db.download_recovery_transition(id, phase, *next).unwrap();
+                }
+            }
+        }
+        let db = Db::open(&path).unwrap();
+        assert!(db.download_recovery_finish("rollback").is_err());
+        db.download_recovery_finish("success").unwrap();
+        assert_eq!(
+            db.download_recovery_phase("rollback").unwrap(),
+            "rolled_back"
+        );
+        drop(db);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

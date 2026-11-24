@@ -201,7 +201,7 @@ requireIncludes(
     "profiles.find((profile) => profile.id === draft?.id)",
     "setDraft({ ...selected });",
     "setEditing(false);",
-    "setShowPassword(false);",
+    "setRevealedPasswordId(null);",
     "Cancel",
     'title={editing ? "Save or cancel changes before leaving this site." : undefined}',
     'disabled={Boolean(action) || editing}',

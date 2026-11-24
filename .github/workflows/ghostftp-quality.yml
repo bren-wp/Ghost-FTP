@@ -32,6 +32,9 @@ jobs:
           cache: npm
           cache-dependency-path: ghostftp-desktop/package-lock.json
 
+      - name: VM hard-reset harness safety unit tests
+        run: python3 -m unittest discover -s tools/recovery-vm -p 'test_*.py'
+
       - name: Verify version train transition regression matrix
         run: node .github/scripts/check-version-policy.mjs
 
@@ -426,7 +429,7 @@ jobs:
           }
 
           apt_retry update
-          apt_retry install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          apt_retry install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf dbus gnome-keyring libsecret-tools
 
       - name: Prepare desktop frontendDist for Rust checks
         shell: bash
@@ -455,6 +458,24 @@ jobs:
         timeout-minutes: 20
         working-directory: ghostftp-desktop/src-tauri
         run: cargo test --workspace --locked
+
+      - name: Native Linux Secret Service recovery crash matrix
+        timeout-minutes: 30
+        working-directory: ghostftp-desktop/src-tauri
+        shell: bash
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          export XDG_DATA_HOME="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          trap 'rm -rf -- "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"' EXIT
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-ci-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            cargo test --locked -p ghostftp --lib native_vault_recovery_survives_killed_process -- --ignored --nocapture
+            cargo test --locked -p ghostftp --lib native_vault_manifest_benchmark -- --ignored --nocapture
+            cargo test --locked -p ghostftp --lib native_vault_end_to_end_benchmark -- --ignored --nocapture
+            bash ../../.github/scripts/test-native-vault-restart.sh
+          '
 
       - name: Clippy
         working-directory: ghostftp-desktop/src-tauri

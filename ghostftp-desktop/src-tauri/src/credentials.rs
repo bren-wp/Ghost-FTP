@@ -3,6 +3,166 @@ use std::sync::Mutex;
 
 static VAULT_LOCK: Mutex<()> = Mutex::new(());
 
+// Test binaries only. The production vault cannot be redirected by an
+// environment variable, configuration file or IPC command.
+#[cfg(test)]
+struct RecoveryTestVault {
+    root: std::path::PathBuf,
+    checkpoint: Option<String>,
+    hits: usize,
+    native: bool,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static RECOVERY_TEST_VAULT: std::cell::RefCell<Option<RecoveryTestVault>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn configure_recovery_test_vault(root: std::path::PathBuf, checkpoint: Option<String>) {
+    std::fs::create_dir_all(&root).unwrap();
+    RECOVERY_TEST_VAULT.with(|state| {
+        *state.borrow_mut() = Some(RecoveryTestVault {
+            root,
+            checkpoint,
+            hits: 0,
+            native: false,
+        });
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn configure_native_recovery_test_vault(
+    root: std::path::PathBuf,
+    checkpoint: Option<String>,
+) {
+    configure_recovery_test_vault(root, checkpoint);
+    RECOVERY_TEST_VAULT.with(|state| {
+        state.borrow_mut().as_mut().unwrap().native = true;
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn recovery_test_force_rollback() -> bool {
+    RECOVERY_TEST_VAULT.with(|state| {
+        state.borrow().as_ref().is_some_and(|vault| {
+            vault
+                .checkpoint
+                .as_deref()
+                .is_some_and(|point| point.starts_with("rollback:"))
+        })
+    })
+}
+
+// Record only test-created recovery credentials before native writes. The
+// registry survives a killed child and is never used by production code.
+#[cfg(test)]
+fn register_native_test_credential(service: &str, account: &str) -> Result<()> {
+    use sha2::{Digest, Sha256};
+    use std::io::Write;
+
+    if !service.starts_with("com.ghostftp.download-recovery") {
+        return Ok(());
+    }
+    RECOVERY_TEST_VAULT.with(|state| {
+        let state = state.borrow();
+        let Some(vault) = state.as_ref().filter(|vault| vault.native) else {
+            return Ok(());
+        };
+        let registry = vault.root.join("native-accounts");
+        std::fs::create_dir_all(&registry)?;
+        let bytes = serde_json::to_vec(&(service, account))?;
+        let digest = Sha256::digest(&bytes);
+        let path = registry.join(format!("{digest:x}"));
+        match std::fs::read(&path) {
+            Ok(existing) => anyhow::ensure!(existing == bytes, "native test registry collision"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let mut file = std::fs::OpenOptions::new()
+                    .create_new(true)
+                    .write(true)
+                    .open(path)?;
+                file.write_all(&bytes)?;
+                file.sync_all()?;
+            }
+            Err(error) => return Err(error.into()),
+        }
+        Ok(())
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn cleanup_native_recovery_test_vault(root: &std::path::Path) -> Result<()> {
+    let registry = root.join("native-accounts");
+    if !registry.exists() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(registry)? {
+        let entry = entry?;
+        let (service, account): (String, String) =
+            serde_json::from_slice(&std::fs::read(entry.path())?)?;
+        anyhow::ensure!(
+            service.starts_with("com.ghostftp.download-recovery"),
+            "invalid native test credential service"
+        );
+        vault_delete_strict(&service, &account)?;
+        std::fs::remove_file(entry.path())?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn clear_recovery_test_vault() {
+    RECOVERY_TEST_VAULT.with(|state| *state.borrow_mut() = None);
+}
+
+#[cfg(test)]
+fn test_recovery_path(service: &str, account: &str) -> Option<std::path::PathBuf> {
+    use sha2::{Digest, Sha256};
+
+    if !service.starts_with("com.ghostftp.download-recovery") {
+        return None;
+    }
+    RECOVERY_TEST_VAULT.with(|state| {
+        state
+            .borrow()
+            .as_ref()
+            .filter(|vault| !vault.native)
+            .map(|vault| {
+                let digest = Sha256::digest(
+                    serde_json::to_vec(&(service, account)).expect("serialize test vault account"),
+                );
+                vault.root.join(format!("{digest:x}"))
+            })
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn recovery_test_checkpoint(point: &str) {
+    RECOVERY_TEST_VAULT.with(|state| {
+        let mut state = state.borrow_mut();
+        let Some(vault) = state.as_mut() else {
+            return;
+        };
+        let Some(checkpoint) = vault.checkpoint.as_deref() else {
+            return;
+        };
+        let selected = checkpoint.strip_prefix("rollback:").unwrap_or(checkpoint);
+        let (name, occurrence) = selected.split_once('@').unwrap_or((selected, "1"));
+        if name != point {
+            return;
+        }
+        vault.hits += 1;
+        if vault.hits == occurrence.parse::<usize>().unwrap() {
+            std::fs::write(vault.root.join("checkpoint"), checkpoint).unwrap();
+            // Parent kills this process while the real recovery lock is held.
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
+    });
+}
+
 #[cfg(target_os = "linux")]
 mod linux_secret_service;
 
@@ -59,9 +219,45 @@ pub fn vault_get(service: &str, account: &str) -> Result<Option<String>> {
     }
 }
 
+/// Recovery anchors must never fall back to volatile legacy keyutils.
+pub(crate) fn vault_get_strict(service: &str, account: &str) -> Result<Option<String>> {
+    #[cfg(test)]
+    if let Some(path) = test_recovery_path(service, account) {
+        return match std::fs::read_to_string(path) {
+            Ok(value) => Ok(Some(value)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
+        };
+    }
+    let _guard = VAULT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    #[cfg(target_os = "linux")]
+    {
+        linux_secret_service::lookup(service, account)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        legacy_get(service, account)
+    }
+}
+
 /// New Linux writes are persistent-only and must verify their destination.
 /// No fallback to kernel keyutils: it loses data on reboot.
 pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
+    #[cfg(test)]
+    register_native_test_credential(service, account)?;
+    #[cfg(test)]
+    if let Some(path) = test_recovery_path(service, account) {
+        use std::io::Write;
+        let temporary = path.with_extension("tmp");
+        let mut file = std::fs::File::create(&temporary)?;
+        file.write_all(value.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(temporary, path)?;
+        return Ok(());
+    }
     let _guard = VAULT_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -76,6 +272,41 @@ pub fn vault_set(service: &str, account: &str, value: &str) -> Result<()> {
             .set_password(value)
             .map_err(|_| anyhow!("OS credential store refused secret write"))
     }
+}
+
+/// Idempotent persistent-only removal, with readback under one vault lock.
+/// Never fall back to a volatile credential when deciding whether it is gone.
+pub(crate) fn vault_delete_strict(service: &str, account: &str) -> Result<()> {
+    #[cfg(test)]
+    if let Some(path) = test_recovery_path(service, account) {
+        return match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.into()),
+        };
+    }
+    let _guard = VAULT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    #[cfg(target_os = "linux")]
+    {
+        if linux_secret_service::lookup(service, account)?.is_some() {
+            linux_secret_service::remove(service, account)?;
+        }
+        anyhow::ensure!(
+            linux_secret_service::lookup(service, account)?.is_none(),
+            "persistent credential still exists after removal"
+        );
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        legacy_delete(service, account)?;
+        anyhow::ensure!(
+            legacy_get(service, account)?.is_none(),
+            "persistent credential still exists after removal"
+        );
+    }
+    Ok(())
 }
 
 pub fn vault_delete(service: &str, account: &str) -> Result<()> {

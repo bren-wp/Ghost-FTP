@@ -8,6 +8,7 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -59,6 +60,9 @@ pub struct Peer {
     pub permissions: Option<PeerPermissions>,
 }
 
+const MAX_CONFIG_BYTES: u64 = 1024 * 1024;
+const MAX_PAIRED_DEVICES: usize = 128;
+
 /// On-disk daemon config (`agentd.json`).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -67,28 +71,63 @@ pub struct Config {
     pub peers: Vec<Peer>,
 }
 
+/// Open the final path component without following links on Unix. Nonblocking
+/// open also prevents a substituted FIFO from hanging configuration loading.
+fn open_config_file(path: &Path) -> Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    let file = options
+        .open(path)
+        .with_context(|| format!("open config {path:?}"))?;
+    anyhow::ensure!(
+        file.metadata()?.is_file(),
+        "opened agent config must be a regular file"
+    );
+    Ok(file)
+}
+
 impl Config {
     pub fn load(path: &Path) -> Result<Self> {
-        if !path.exists() {
-            return Ok(Self::default());
-        }
-        let metadata = std::fs::symlink_metadata(path).context("inspect agent config")?;
+        let metadata = match std::fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Self::default());
+            }
+            Err(error) => return Err(error).context("inspect agent config"),
+        };
         anyhow::ensure!(
             metadata.file_type().is_file(),
             "agent config must be a regular file"
         );
         anyhow::ensure!(
-            metadata.len() <= 1024 * 1024,
+            metadata.len() <= MAX_CONFIG_BYTES,
             "agent config exceeds safe maximum"
         );
-        let bytes = std::fs::read(path).with_context(|| format!("read config {path:?}"))?;
+        let file = open_config_file(path)?;
+        // The file may grow after inspection. Bound the actual read as well.
+        let mut bytes = Vec::new();
+        file.take(MAX_CONFIG_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .with_context(|| format!("read config {path:?}"))?;
+        anyhow::ensure!(
+            bytes.len() as u64 <= MAX_CONFIG_BYTES,
+            "agent config exceeds safe maximum"
+        );
         let legacy_missing_policy: bool = serde_json::from_slice::<serde_json::Value>(&bytes)
             .ok()
             .and_then(|value| value.as_object().map(|map| !map.contains_key("policy")))
             .unwrap_or(false);
         let mut cfg: Self =
             serde_json::from_slice(&bytes).with_context(|| format!("parse config {path:?}"))?;
-        anyhow::ensure!(cfg.peers.len() <= 128, "agent has too many paired devices");
+        anyhow::ensure!(
+            cfg.peers.len() <= MAX_PAIRED_DEVICES,
+            "agent has too many paired devices"
+        );
         let mut migrated = false;
         if legacy_missing_policy && !cfg.peers.is_empty() {
             // Older versions defaulted the daemon-wide policy to allow-all.
@@ -121,11 +160,19 @@ impl Config {
 
     pub fn save(&self, path: &Path) -> Result<()> {
         use std::io::Write;
+        anyhow::ensure!(
+            self.peers.len() <= MAX_PAIRED_DEVICES,
+            "agent has too many paired devices"
+        );
+        let bytes = serde_json::to_vec_pretty(self)?;
+        anyhow::ensure!(
+            bytes.len() as u64 <= MAX_CONFIG_BYTES,
+            "agent config exceeds safe maximum"
+        );
         let parent = path
             .parent()
             .context("agent config has no parent directory")?;
         std::fs::create_dir_all(parent).context("create agent config directory")?;
-        let bytes = serde_json::to_vec_pretty(self)?;
         // Use a private, same-directory temporary file and atomic rename;
         // never truncate the only copy of pins or permissions on a crash.
         let tmp = path.with_extension(format!("json.{}.tmp", std::process::id()));
@@ -136,23 +183,31 @@ impl Config {
             use std::os::unix::fs::OpenOptionsExt;
             opts.mode(0o600);
         }
+        // A failed exclusive open means we do not own this path. Never
+        // unlink a concurrent writer's staging file (or a stale foreign file).
+        let mut out = opts
+            .open(&tmp)
+            .context("create private agent config staging")?;
         let result = (|| -> Result<()> {
-            let mut out = opts
-                .open(&tmp)
-                .context("create private agent config staging")?;
             out.write_all(&bytes).context("write staged agent config")?;
             out.sync_all().context("sync staged agent config")?;
+            // Close our handle before replacing the destination on Windows.
+            drop(out);
             std::fs::rename(&tmp, path).context("atomically replace agent config")?;
-            #[cfg(unix)]
-            std::fs::File::open(parent)?
-                .sync_all()
-                .context("sync agent config directory")?;
             Ok(())
         })();
-        if result.is_err() {
+        if let Err(error) = result {
             let _ = std::fs::remove_file(&tmp);
+            return Err(error);
         }
-        result
+        // After rename the staging path no longer belongs to this writer.
+        // In particular, a directory sync failure must not unlink a new
+        // staging file created by another save after our successful rename.
+        #[cfg(unix)]
+        std::fs::File::open(parent)?
+            .sync_all()
+            .context("sync agent config directory")?;
+        Ok(())
     }
 
     /// True if `public_key` (base64) belongs to a pinned peer.
@@ -256,11 +311,98 @@ mod security_tests {
     }
 
     #[test]
+    fn exclusive_staging_collision_preserves_config_and_foreign_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
+        let original = Config::default();
+        original.save(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let staged = path.with_extension(format!("json.{}.tmp", std::process::id()));
+        std::fs::write(&staged, b"another writer owns this file").unwrap();
+
+        let mut changed = Config::default();
+        changed.upsert_peer("new controller", "public-B");
+        assert!(changed.save(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        assert_eq!(
+            std::fs::read(&staged).unwrap(),
+            b"another writer owns this file"
+        );
+        assert!(Config::load(&path).unwrap().peers.is_empty());
+
+        std::fs::remove_file(&staged).unwrap();
+        changed.save(&path).unwrap();
+        assert!(Config::load(&path).unwrap().is_paired("public-B"));
+        assert!(!staged.exists());
+    }
+
+    #[test]
+    fn rejected_config_saves_preserve_existing_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
+        Config::default().save(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+
+        let mut oversized = Config::default();
+        oversized.upsert_peer("controller", &"x".repeat(MAX_CONFIG_BYTES as usize));
+        assert!(oversized.save(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+
+        let mut too_many = Config::default();
+        for i in 0..=MAX_PAIRED_DEVICES {
+            too_many.upsert_peer("controller", &format!("key-{i}"));
+        }
+        assert!(too_many.save(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+
+    #[test]
+    fn oversized_config_is_rejected_before_parsing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
+        std::fs::write(&path, vec![b' '; MAX_CONFIG_BYTES as usize + 1]).unwrap();
+        let error = Config::load(&path).unwrap_err();
+        assert!(error.to_string().contains("exceeds safe maximum"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dangling_config_symlink_is_not_treated_as_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
+        std::os::unix::fs::symlink(dir.path().join("missing.json"), &path).unwrap();
+        assert!(Config::load(&path).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn config_open_rejects_symlink_even_without_preflight_check() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("target.json");
+        Config::default().save(&target).unwrap();
+        let path = dir.path().join("agentd.json");
+        std::os::unix::fs::symlink(&target, &path).unwrap();
+        assert!(open_config_file(&path).is_err());
+        assert!(open_config_file(&target).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn config_open_rejects_fifo_without_waiting_for_writer() {
+        use std::os::unix::ffi::OsStrExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
+        let raw_path = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
+        // SAFETY: raw_path is a live, NUL-terminated pathname in a private directory.
+        assert_eq!(unsafe { libc::mkfifo(raw_path.as_ptr(), 0o600) }, 0);
+        assert!(open_config_file(&path).is_err());
+    }
+
+    #[test]
     fn legacy_migration_preserves_previous_grants_and_is_idempotent() {
-        let path = std::env::temp_dir().join(format!(
-            "ghostftp-agent-security-{}.json",
-            std::process::id()
-        ));
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("agentd.json");
         std::fs::write(&path, r#"{"policy":{"allowExec":true,"allowWrite":true},"peers":[{"name":"old","publicKey":"legacy","pairedAt":1}]}"#).unwrap();
         let migrated = Config::load(&path).unwrap();
         assert_eq!(

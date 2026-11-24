@@ -1,4 +1,5 @@
 // Ghost FTP by Brendigo
+use super::download_staging::DownloadStagingOpenFailure;
 use super::*;
 
 #[test]
@@ -193,6 +194,36 @@ async fn every_protocol_download_staging_requires_exact_bytes_and_durable_file()
     assert!(verify_staged_download_bytes(&file, 0).await.is_ok());
     tokio::fs::remove_file(&file).await.unwrap();
     tokio::fs::remove_dir_all(&dir).await.unwrap();
+}
+
+#[cfg(any(target_os = "linux", windows))]
+#[tokio::test]
+async fn original_download_writer_survives_path_substitution() {
+    let dir = std::env::temp_dir().join(format!("ghostftp-writer-{}", Uuid::new_v4()));
+    tokio::fs::create_dir_all(&dir).await.unwrap();
+    let stage = dir.join("transfer.part");
+    let original = dir.join("original.part");
+    let target = dir.join("target.bin");
+    let guard = DownloadParentGuard::open(&target).unwrap();
+    let mut writer = create_new_download_staging(&stage).await.unwrap();
+    writer.write_all(b"good").await.unwrap();
+    writer.flush().await.unwrap();
+    tokio::fs::write(&target, b"keep").await.unwrap();
+    tokio::fs::rename(&stage, &original).await.unwrap();
+    tokio::fs::write(&stage, b"fake").await.unwrap();
+
+    assert!(verify_download_writer(&writer, 4).await.is_ok());
+    assert!(verify_download_writer(&writer, 3).await.is_err());
+    assert!(guard
+        .promote(&stage, &target, "writer", true, &writer)
+        .await
+        .is_err());
+    assert_eq!(tokio::fs::read(&target).await.unwrap(), b"keep");
+    assert_eq!(tokio::fs::read(&original).await.unwrap(), b"good");
+    assert_eq!(tokio::fs::read(&stage).await.unwrap(), b"fake");
+    drop(writer);
+    drop(guard);
+    tokio::fs::remove_dir_all(dir).await.unwrap();
 }
 
 #[tokio::test]
