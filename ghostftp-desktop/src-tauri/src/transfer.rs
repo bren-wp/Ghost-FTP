@@ -605,13 +605,15 @@ use self::integrity::{
 mod download_staging;
 mod remote_upload_staging;
 #[cfg(test)]
-use download_staging::download_backup_path;
+use download_staging::{
+    download_backup_path, promote_staged_download, promote_staged_download_noreplace,
+};
 use download_staging::{
     cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
     commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
     download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
-    local_path_exists_sync_fail_closed, promote_staged_download, promote_staged_download_noreplace,
-    verify_staged_download_bytes, DownloadParentGuard, DownloadStagingOpenFailure,
+    local_path_exists_sync_fail_closed, verify_staged_download_bytes, DownloadParentGuard,
+    DownloadStagingOpenFailure,
 };
 use remote_upload_staging::{
     capture_local_upload_snapshot, fresh_remote_upload_staging_path, preflight_ftp_upload_staging,
