@@ -1,4 +1,5 @@
 // Ghost FTP by Brendigo
+use super::download_staging::DownloadStagingOpenFailure;
 use super::*;
 
 #[test]

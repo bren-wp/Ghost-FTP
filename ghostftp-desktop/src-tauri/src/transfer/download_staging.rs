@@ -3925,7 +3925,10 @@ mod tests {
                     .flatten()
                     .all(|bytes| bytes == b"old" || bytes == b"new"));
                 assert!(before.iter().flatten().any(|bytes| bytes == b"new"));
-                if !matches!(point.as_str(), "backup_removed" | "terminal_manifest_written") {
+                if !matches!(
+                    point.as_str(),
+                    "backup_removed" | "terminal_manifest_written"
+                ) {
                     assert!(before.iter().flatten().any(|bytes| bytes == b"old"));
                 }
                 assert_eq!(before, observe(), "metadata recovery changed VM user files");

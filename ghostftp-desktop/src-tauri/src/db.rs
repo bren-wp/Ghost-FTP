@@ -1924,6 +1924,7 @@ mod tests {
         migrate(&conn).unwrap();
         let db = Db {
             conn: Mutex::new(conn),
+            recovery_root: None,
         };
         assert_eq!(
             db.download_recovery_phase("legacy").unwrap(),
