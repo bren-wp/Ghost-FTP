@@ -618,8 +618,8 @@ use download_staging::{
     cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
     commit_verified_delta_output, create_new_delta_upload_patch, create_new_download_staging,
     download_staging_path, fresh_download_staging_path, local_path_exists_fail_closed,
-    local_path_exists_sync_fail_closed, open_resumable_download_staging, verify_staged_download_bytes,
-    DownloadParentGuard, DownloadStagingOpenFailure,
+    local_path_exists_sync_fail_closed, open_resumable_download_staging,
+    verify_staged_download_bytes, DownloadParentGuard, DownloadStagingOpenFailure,
 };
 #[cfg(test)]
 use download_staging::{
@@ -1654,7 +1654,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: Option<&AppHandle>,
-    ) -> Result<()> {
+    ) -> Result<tokio::fs::File> {
         use base64::Engine as _;
         use ghostftp_agent_proto::msg::{Request, Response};
         self.update(id, |t| t.status = TransferStatus::Transferring)
@@ -1744,7 +1744,7 @@ impl TransferManager {
             "Agent download source changed size during transfer"
         );
         self.update(id, |t| t.transferred = offset).await;
-        Ok(())
+        Ok(local_file)
     }
 
     async fn run_ssh_download(
@@ -2373,14 +2373,14 @@ impl TransferManager {
             .await;
         parent_guard.verify()?;
         match result {
-            Ok(()) => {
+            Ok(verified) => {
                 let result = parent_guard
-                    .promote(&staging, local_path, id, allow_replace)
+                    .promote(&staging, local_path, id, allow_replace, &verified)
                     .await;
                 // A Skip/Rename collision must never strand an Agent staging
                 // file, nor touch the destination owned by another process.
-                if !allow_replace && result.is_err() && parent_guard.verify().is_ok() {
-                    cleanup_owned_regular_staging_file(&staging).await;
+                if !allow_replace && result.is_err() {
+                    parent_guard.cleanup_verified(&staging, &verified).await;
                 }
                 result
             }
@@ -5027,17 +5027,14 @@ async fn run_download_task(
                     None => Err(anyhow::anyhow!("completed download record disappeared")),
                 };
                 match checked {
-                    Ok(()) => {
+                    Ok(verified) => {
                         parent_guard
-                            .promote(&working_path, &final_path, &id, allow_replace)
+                            .promote(&working_path, &final_path, &id, allow_replace, &verified)
                             .await
                     }
-                    Err(error) => {
-                        if parent_guard.verify().is_ok() {
-                            cleanup_failed_download_staging(&working_path, &error).await;
-                        }
-                        Err(error)
-                    }
+                    // A failed durability/identity check cannot establish
+                    // ownership of the current pathname. Preserve it.
+                    Err(error) => Err(error),
                 }
             }
             Err(error) => {
