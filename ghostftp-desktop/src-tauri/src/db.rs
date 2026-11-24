@@ -724,14 +724,14 @@ impl Db {
 
     /// Bounded, read-only snapshot for filesystem reconciliation. The phase
     /// is deliberately returned separately from the immutable intent payload.
-    pub(crate) fn download_recovery_snapshot(&self) -> Result<Vec<(String, String)>> {
+    pub(crate) fn download_recovery_snapshot(&self) -> Result<Vec<(String, String, String)>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT phase, CASE WHEN length(CAST(payload AS BLOB)) <= 65536
+            "SELECT id, phase, CASE WHEN length(CAST(payload AS BLOB)) <= 65536
                 THEN payload ELSE '' END
              FROM download_recovery ORDER BY updated_ms, id LIMIT 129",
         )?;
-        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }
