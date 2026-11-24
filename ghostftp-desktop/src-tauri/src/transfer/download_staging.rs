@@ -156,6 +156,97 @@ fn pin_download_parent(parent: &Path) -> Result<std::fs::File> {
         .context("pin common download parent directory")
 }
 
+/// Hold the initially resolved directory for the lifetime of a download.
+/// Existing path-based backend I/O still needs identity checks at boundaries.
+pub(super) struct DownloadParentGuard {
+    path: PathBuf,
+    handle: std::fs::File,
+}
+
+impl DownloadParentGuard {
+    pub(super) fn open(target: &Path) -> Result<Self> {
+        let path = target.parent().context("download target has no parent")?;
+        let path = if path.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            path
+        };
+        Ok(Self {
+            path: path.to_path_buf(),
+            handle: open_download_directory(path)?,
+        })
+    }
+
+    pub(super) fn verify(&self) -> Result<()> {
+        let current = open_download_directory(&self.path)?;
+        anyhow::ensure!(
+            same_download_directory(&self.handle, &current)?,
+            "download parent directory changed during transfer"
+        );
+        Ok(())
+    }
+}
+
+fn open_download_directory(path: &Path) -> Result<std::fs::File> {
+    #[cfg(target_os = "linux")]
+    let file = pin_download_parent(path)?;
+    #[cfg(windows)]
+    let file = {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS;
+
+        std::fs::OpenOptions::new()
+            .access_mode(0)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+            .open(path)
+            .context("open download parent directory handle")?
+    };
+    #[cfg(not(any(target_os = "linux", windows)))]
+    let file = std::fs::File::open(path)?;
+    anyhow::ensure!(
+        file.metadata()?.is_dir(),
+        "download parent is not a directory"
+    );
+    Ok(file)
+}
+
+fn same_download_directory(a: &std::fs::File, b: &std::fs::File) -> Result<bool> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let a = a.metadata()?;
+        let b = b.metadata()?;
+        Ok(a.dev() == b.dev() && a.ino() == b.ino())
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+        };
+
+        fn identity(file: &std::fs::File) -> Result<(u32, u64)> {
+            let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::uninit();
+            // SAFETY: the handle is live and the output buffer is writable.
+            let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle(), info.as_mut_ptr()) };
+            if ok == 0 {
+                return Err(std::io::Error::last_os_error()).context("query directory identity");
+            }
+            // SAFETY: a successful call initialized the information structure.
+            let info = unsafe { info.assume_init() };
+            let index = (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow);
+            Ok((info.dwVolumeSerialNumber, index))
+        }
+
+        Ok(identity(a)? == identity(b)?)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (a, b);
+        anyhow::bail!("download directory identity is unsupported on this platform")
+    }
+}
+
 #[cfg(target_os = "linux")]
 fn pinned_entry(parent: &std::fs::File, name: &std::ffi::OsStr) -> Result<Option<libc::stat>> {
     use std::os::fd::AsRawFd;
@@ -231,10 +322,12 @@ fn promote_pinned_download(
     })();
     if let Err(error) = promotion {
         if let Some(ref original) = original {
-            let recoverable = pinned_entry(parent, backup)
-                .is_ok_and(|entry| entry.is_some_and(|current| pinned_same_file(original, &current)));
+            let recoverable = pinned_entry(parent, backup).is_ok_and(|entry| {
+                entry.is_some_and(|current| pinned_same_file(original, &current))
+            });
             if !recoverable {
-                return Err(error).context("download promotion failed; backup identity is uncertain");
+                return Err(error)
+                    .context("download promotion failed; backup identity is uncertain");
             }
             return match rename_pinned_siblings(parent, backup, target) {
                 Ok(()) => Err(error).context("download promotion failed; original target restored"),
@@ -436,7 +529,9 @@ pub(super) async fn promote_staged_download(
     let backup = download_backup_path(final_path, id);
     #[cfg(target_os = "linux")]
     if staging.parent() == final_path.parent() && backup.parent() == final_path.parent() {
-        let parent = final_path.parent().context("download target has no parent")?;
+        let parent = final_path
+            .parent()
+            .context("download target has no parent")?;
         let staging_name = staging
             .file_name()
             .context("staging has no basename")?
@@ -786,6 +881,25 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn download_parent_guard_rejects_replaced_directory() {
+        let root = std::env::temp_dir().join(format!("ghostftp-parent-guard-{}", Uuid::new_v4()));
+        let parent = root.join("parent");
+        let moved = root.join("moved");
+        std::fs::create_dir_all(&parent).unwrap();
+        let guard = DownloadParentGuard::open(&parent.join("target.bin")).unwrap();
+        guard.verify().unwrap();
+        std::fs::rename(&parent, &moved).unwrap();
+        std::fs::create_dir(&parent).unwrap();
+        assert!(guard.verify().is_err());
+        std::fs::remove_dir(&parent).unwrap();
+        std::fs::rename(&moved, &parent).unwrap();
+        guard.verify().unwrap();
+        drop(guard);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn pinned_promotion_preserves_replacement_directory_and_backup() {
@@ -814,7 +928,10 @@ mod tests {
         assert_eq!(std::fs::read(moved.join("final.bin")).unwrap(), b"new");
         assert!(!moved.join("backup").exists());
         assert!(!moved.join("stage.part").exists());
-        assert_eq!(std::fs::read(parent.join("final.bin")).unwrap(), b"unrelated");
+        assert_eq!(
+            std::fs::read(parent.join("final.bin")).unwrap(),
+            b"unrelated"
+        );
         assert_eq!(std::fs::read(parent.join("backup")).unwrap(), b"keep");
         std::fs::remove_dir_all(root).unwrap();
     }
