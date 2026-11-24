@@ -396,11 +396,7 @@ impl RecoveryJournal {
         };
         let destination_key = recovery_destination_key(parent_identity, &self.target)?;
         self.db
-            .download_recovery_begin(
-                &self.id,
-                &serde_json::to_string(&record)?,
-                &destination_key,
-            )
+            .download_recovery_begin(&self.id, &serde_json::to_string(&record)?, &destination_key)
             .context("persist recovery intent before backup")
     }
 
@@ -869,7 +865,11 @@ fn promote_pinned_download(
             journal.begin(
                 (directory.dev(), directory.ino()),
                 (staged.st_dev, staged.st_ino, u64::try_from(staged.st_size)?),
-                (original.st_dev, original.st_ino, u64::try_from(original.st_size)?),
+                (
+                    original.st_dev,
+                    original.st_ino,
+                    u64::try_from(original.st_size)?,
+                ),
             )?;
         }
         rename_pinned_siblings(parent, target, backup)
@@ -920,8 +920,12 @@ fn promote_pinned_download(
 
     if let Some(original) = original {
         if let Some(journal) = journal {
-            if journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted).is_err()
-                || journal.advance(RecoveryPhase::Promoted, RecoveryPhase::CleanupPending).is_err()
+            if journal
+                .advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted)
+                .is_err()
+                || journal
+                    .advance(RecoveryPhase::Promoted, RecoveryPhase::CleanupPending)
+                    .is_err()
             {
                 // The new file is already published. Preserve the original
                 // backup and recovery evidence if phase persistence fails.
@@ -1106,8 +1110,16 @@ fn windows_promote_with_backup(
         let (original_volume, original_index) = windows_staging_identity(&original)?;
         journal.begin(
             (u64::from(volume), index),
-            (u64::from(source_volume), source_index, source.metadata()?.len()),
-            (u64::from(original_volume), original_index, original.metadata()?.len()),
+            (
+                u64::from(source_volume),
+                source_index,
+                source.metadata()?.len(),
+            ),
+            (
+                u64::from(original_volume),
+                original_index,
+                original.metadata()?.len(),
+            ),
         )?;
     }
     windows_rename_handle(&original, parent, backup, false)
@@ -1132,8 +1144,12 @@ fn windows_promote_with_backup(
         };
     }
     if let Some(journal) = journal {
-        if journal.advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted).is_err()
-            || journal.advance(RecoveryPhase::Promoted, RecoveryPhase::CleanupPending).is_err()
+        if journal
+            .advance(RecoveryPhase::BackupSaved, RecoveryPhase::Promoted)
+            .is_err()
+            || journal
+                .advance(RecoveryPhase::Promoted, RecoveryPhase::CleanupPending)
+                .is_err()
         {
             tracing::warn!("download published; recovery phase could not be persisted");
             return Ok(());
@@ -1472,7 +1488,14 @@ pub(super) async fn promote_staged_download(
         let parent = parent.to_path_buf();
         return tokio::task::spawn_blocking(move || {
             let pinned = pin_download_parent(&parent)?;
-            promote_pinned_download(&pinned, &staging_name, &target_name, &backup_name, None, None)
+            promote_pinned_download(
+                &pinned,
+                &staging_name,
+                &target_name,
+                &backup_name,
+                None,
+                None,
+            )
         })
         .await
         .context("join pinned download promotion")?;
@@ -1639,7 +1662,10 @@ mod tests {
             .promote(&stage, &target, "different-id", false, &verified)
             .await
             .is_err());
-        assert!(guard.promote_delta(&stage, &target, &verified).await.is_err());
+        assert!(guard
+            .promote_delta(&stage, &target, &verified)
+            .await
+            .is_err());
         assert_eq!(tokio::fs::read(&target).await.unwrap(), b"old");
         assert_eq!(tokio::fs::read(&backup).await.unwrap(), b"keep");
         assert_eq!(tokio::fs::read(&stage).await.unwrap(), b"new");
