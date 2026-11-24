@@ -3383,9 +3383,9 @@ fn windows_rename_handle(
     name: &std::ffi::OsStr,
     replace: bool,
 ) -> Result<()> {
+    use std::ffi::c_void;
     use std::os::windows::ffi::OsStrExt;
     use std::os::windows::io::AsRawHandle;
-    use std::ffi::c_void;
     use windows_sys::Win32::Foundation::HANDLE;
     use windows_sys::Win32::Storage::FileSystem::FILE_RENAME_INFO;
 
