@@ -361,7 +361,10 @@ impl Db {
     pub(crate) fn recovery_scope(&self) -> Result<String> {
         use sha2::{Digest, Sha256};
 
-        let root = self.recovery_root.as_ref().context("missing recovery root")?;
+        let root = self
+            .recovery_root
+            .as_ref()
+            .context("missing recovery root")?;
         #[cfg(windows)]
         let bytes = root.to_string_lossy().to_uppercase().into_bytes();
         #[cfg(not(windows))]
@@ -372,7 +375,10 @@ impl Db {
     /// Keep this file open through the entire promotion, including blocking
     /// workers. Never unlink the lock file on release.
     pub(crate) fn recovery_lock(&self) -> Result<std::fs::File> {
-        let root = self.recovery_root.as_ref().context("missing recovery root")?;
+        let root = self
+            .recovery_root
+            .as_ref()
+            .context("missing recovery root")?;
         let path = root.join("ghostftp.recovery.lock");
         let mut options = std::fs::OpenOptions::new();
         options.read(true).write(true).create(true).truncate(false);
@@ -384,7 +390,9 @@ impl Db {
         {
             use std::os::windows::fs::OpenOptionsExt;
             use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
-            options.share_mode(3).custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+            options
+                .share_mode(3)
+                .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
         }
         let file = options.open(&path).context("open recovery lock")?;
         let metadata = file.metadata()?;
@@ -1647,8 +1655,10 @@ mod tests {
             std::thread::sleep(Duration::from_secs(30));
             return;
         }
-        let root = std::env::temp_dir()
-            .join(format!("ghostftp-recovery-process-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!(
+            "ghostftp-recovery-process-{}",
+            uuid::Uuid::new_v4()
+        ));
         std::fs::create_dir_all(&root).unwrap();
         let db = Db::open(&root.join("ghostftp.db")).unwrap();
         let mut child = std::process::Command::new(std::env::current_exe().unwrap())

@@ -969,7 +969,9 @@ impl GlobalRecoveryLedger {
 
     fn parse_manifest(payload: &str) -> Result<(u64, Vec<[u8; 32]>)> {
         use base64::Engine;
-        let encoded = payload.strip_prefix("v2:").context("invalid recovery manifest version")?;
+        let encoded = payload
+            .strip_prefix("v2:")
+            .context("invalid recovery manifest version")?;
         anyhow::ensure!(encoded.len() <= 704, "recovery manifest too large");
         let bytes = base64::engine::general_purpose::STANDARD.decode(encoded)?;
         anyhow::ensure!(
@@ -988,10 +990,7 @@ impl GlobalRecoveryLedger {
         Ok((generation, shards))
     }
 
-    fn from_shards(
-        generation: u64,
-        shards: impl IntoIterator<Item = Vec<u8>>,
-    ) -> Result<Self> {
+    fn from_shards(generation: u64, shards: impl IntoIterator<Item = Vec<u8>>) -> Result<Self> {
         let mut ledger = Self {
             generation,
             sharded: true,
@@ -1187,28 +1186,31 @@ impl GlobalRecoveryLedger {
         match (key, stored) {
             (Some(key), Some(stored)) => {
                 let mut ledger = Self::with_key(&key, |key| {
-                anyhow::ensure!(stored.len() <= 1200, "recovery index envelope too large");
-                let signed: AuthenticatedRecovery = serde_json::from_str(&stored)?;
-                signed.verify(&scope, key)?;
-                anyhow::ensure!(
-                    signed.key_id == Uuid::nil() && signed.phases.is_empty(),
-                    "invalid global recovery index envelope"
-                );
-                if signed.payload.starts_with("v2:") {
-                    let (generation, digests) = Self::parse_manifest(&signed.payload)?;
-                    let shards = digests
-                        .iter()
-                        .map(|digest| get_recovery_blob(&scope, digest))
-                        .collect::<Result<Vec<_>>>()?;
-                    Self::from_shards(generation, shards)
-                } else {
-                    Self::decode(&signed.payload)
-                }
-                })?;
+                    anyhow::ensure!(stored.len() <= 1200, "recovery index envelope too large");
+                    let signed: AuthenticatedRecovery = serde_json::from_str(&stored)?;
+                    signed.verify(&scope, key)?;
+                    anyhow::ensure!(
+                        signed.key_id == Uuid::nil() && signed.phases.is_empty(),
+                        "invalid global recovery index envelope"
+                    );
+                    if signed.payload.starts_with("v2:") {
+                        let (generation, digests) = Self::parse_manifest(&signed.payload)?;
+                        let shards = digests
+                            .iter()
+                            .map(|digest| get_recovery_blob(&scope, digest))
+                            .collect::<Result<Vec<_>>>()?;
+                        Self::from_shards(generation, shards)
+                    } else {
+                        Self::decode(&signed.payload)
+                    }
+                 })?;
                 if initialize && !ledger.sharded {
                     ledger.check_rows(db)?;
                     for row in db.download_recovery_snapshot()? {
-                        let destination = row.destination_key.as_deref().context("legacy reservation missing")?;
+                        let destination = row
+                            .destination_key
+                            .as_deref()
+                            .context("legacy reservation missing")?;
                         let signed: AuthenticatedRecovery = serde_json::from_str(&row.payload)?;
                         anyhow::ensure!(
                             signed.authenticate(&row.id, &row.payload)?.as_str() == row.phase,
@@ -1297,7 +1299,10 @@ impl GlobalRecoveryLedger {
                 "global recovery index capacity reached"
             );
             let stored = Self::store_record(db, id, phase, destination, payload)?;
-            anyhow::ensure!(stored == proof, "redundant recovery record digest mismatch");
+            anyhow::ensure!(
+                stored == proof,
+                "redundant recovery record digest mismatch"
+            );
             self.entries.insert(identity, proof);
         } else {
             self.entries.remove(&identity);
@@ -1535,9 +1540,11 @@ impl AuthenticatedRecovery {
     fn authenticate(&self, id: &str, envelope: &str) -> Result<RecoveryPhase> {
         Self::with_key(self.key_id, |key| {
             let phase = self.verify_phases(id, key)?;
-            let stored =
-                crate::credentials::vault_get_strict(RECOVERY_ANCHOR_SERVICE, &self.key_id.to_string())?
-                    .context("recovery anchor is unavailable")?;
+            let stored = crate::credentials::vault_get_strict(
+                RECOVERY_ANCHOR_SERVICE,
+                &self.key_id.to_string(),
+            )?
+            .context("recovery anchor is unavailable")?;
             let anchor: Self = serde_json::from_str(&stored)?;
             verify_recovery_anchor(&anchor, id, self.key_id, envelope, key)?;
             Ok(phase)
@@ -1632,8 +1639,7 @@ impl AuthenticatedRecovery {
             let encoded = serde_json::to_string(&anchor)?;
             let account = self.key_id.to_string();
             crate::credentials::vault_set(RECOVERY_ANCHOR_SERVICE, &account, &encoded)?;
-            let readback =
-                crate::credentials::vault_get_strict(RECOVERY_ANCHOR_SERVICE, &account)?;
+            let readback = crate::credentials::vault_get_strict(RECOVERY_ANCHOR_SERVICE, &account)?;
             anyhow::ensure!(
                 readback.as_deref() == Some(encoded.as_str()),
                 "recovery anchor readback mismatch"
@@ -3281,26 +3287,28 @@ mod tests {
             destination_key: Some("destination".into()),
         };
         let mut ledger = GlobalRecoveryLedger::default();
-        let (id, proof) = recovery_index_entry(
-            "id",
-            "backup_saved",
-            Some("destination"),
-            "current",
-        )
-        .unwrap();
+        let (id, proof) =
+            recovery_index_entry("id", "backup_saved", Some("destination"), "current").unwrap();
         ledger.entries.insert(id, proof);
         let ledger = GlobalRecoveryLedger::decode(&ledger.encode()).unwrap();
         assert_eq!(
-            ledger.differences(&[row("id", "backup_saved", "current")]).unwrap(),
+            ledger
+                .differences(&[row("id", "backup_saved", "current")])
+                .unwrap(),
             RecoveryIndexDifference::default()
         );
         assert_eq!(ledger.differences(&[]).unwrap().missing, 1);
         assert_eq!(
-            ledger.differences(&[row("id", "prepared", "old")]).unwrap().divergent,
+            ledger
+                .differences(&[row("id", "prepared", "old")])
+                .unwrap()
+                .divergent,
             1
         );
         assert_eq!(
-            ledger.differences(&[row("other", "prepared", "other")]).unwrap(),
+            ledger
+                .differences(&[row("other", "prepared", "other")])
+                .unwrap(),
             RecoveryIndexDifference {
                 missing: 1,
                 unindexed: 1,
@@ -3330,7 +3338,10 @@ mod tests {
         assert!(signed.verify("scope", &key).is_ok());
         assert!(signed.verify("other", &key).is_err());
         assert_eq!(
-            GlobalRecoveryLedger::decode(&signed.payload).unwrap().entries.len(),
+            GlobalRecoveryLedger::decode(&signed.payload)
+                .unwrap()
+                .entries
+                .len(),
             RECOVERY_SHARD_SIZE
         );
         signed.payload.push('A');
