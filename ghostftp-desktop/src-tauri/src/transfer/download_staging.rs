@@ -158,7 +158,7 @@ async fn move_local_noreplace(from: &Path, to: &Path) -> Result<()> {
                 };
                 let pinned = std::fs::OpenOptions::new()
                     .read(true)
-                    .custom_flags(libc::O_DIRECTORY | libc::O_CLOEXEC)
+                    .custom_flags(libc::O_PATH | libc::O_DIRECTORY | libc::O_CLOEXEC)
                     .open(directory)
                     .context("pin common download parent directory")?;
                 return rename_pinned_siblings(&pinned, source, target);
@@ -580,8 +580,7 @@ mod tests {
         std::fs::create_dir(&parent).unwrap();
         std::fs::write(parent.join("stage.part"), b"unrelated").unwrap();
 
-        rename_pinned_siblings(&pinned, OsStr::new("stage.part"), OsStr::new("final.bin"))
-            .unwrap();
+        rename_pinned_siblings(&pinned, OsStr::new("stage.part"), OsStr::new("final.bin")).unwrap();
         assert_eq!(std::fs::read(moved.join("final.bin")).unwrap(), b"verified");
         assert_eq!(
             std::fs::read(parent.join("stage.part")).unwrap(),
