@@ -849,7 +849,7 @@ fn read_gc_keys(scope: &str, key: &[u8; 32]) -> Result<RecoveryGcKeys> {
         "invalid recovery key GC page size"
     );
     let mut keys = RecoveryGcKeys::new();
-    for chunk in bytes.chunks_exact(16) {
+    for chunk in bytes.as_chunks::<16>().0 {
         let id = Uuid::from_slice(chunk)?;
         anyhow::ensure!(
             !id.is_nil() && keys.insert(id),
@@ -926,7 +926,7 @@ fn read_gc_page(scope: &str, page: usize, key: &[u8; 32]) -> Result<RecoveryGcPa
         "invalid recovery GC page size"
     );
     let mut entries = RecoveryGcPage::new();
-    for entry in bytes.chunks_exact(36) {
+    for entry in bytes.as_chunks::<36>().0 {
         let digest: [u8; 32] = entry[..32].try_into()?;
         let length = u32::from_be_bytes(entry[32..].try_into()?) as usize;
         anyhow::ensure!(
@@ -1161,7 +1161,7 @@ impl GlobalRecoveryLedger {
         );
         let generation = u64::from_be_bytes(bytes[..8].try_into()?);
         let mut entries = std::collections::BTreeMap::new();
-        for entry in bytes[8..].chunks_exact(64) {
+        for entry in bytes[8..].as_chunks::<64>().0 {
             let id: [u8; 32] = entry[..32].try_into()?;
             let proof: [u8; 32] = entry[32..].try_into()?;
             anyhow::ensure!(
@@ -1221,10 +1221,7 @@ impl GlobalRecoveryLedger {
             "invalid recovery manifest"
         );
         let generation = u64::from_be_bytes(bytes[..8].try_into()?);
-        let shards: Vec<[u8; 32]> = bytes[8..]
-            .chunks_exact(32)
-            .map(|chunk| chunk.try_into().map_err(Into::into))
-            .collect::<Result<_>>()?;
+        let shards = bytes[8..].as_chunks::<32>().0.to_vec();
         anyhow::ensure!(
             shards.len() <= RECOVERY_INDEX_LIMIT / RECOVERY_SHARD_SIZE,
             "too many recovery shards"
@@ -1246,7 +1243,7 @@ impl GlobalRecoveryLedger {
                     && shard.len() % 64 == 0,
                 "invalid recovery shard"
             );
-            for entry in shard.chunks_exact(64) {
+            for entry in shard.as_chunks::<64>().0 {
                 let id: [u8; 32] = entry[..32].try_into()?;
                 let proof: [u8; 32] = entry[32..].try_into()?;
                 anyhow::ensure!(
@@ -2448,7 +2445,7 @@ impl DownloadParentGuard {
                 .to_owned();
             let parent = self.handle.try_clone()?;
             let verified = verified.try_clone().await?.into_std().await;
-            return tokio::task::spawn_blocking(move || {
+            tokio::task::spawn_blocking(move || {
                 let _lock = _recovery_lock;
                 use std::os::fd::AsRawFd;
                 use std::os::unix::ffi::OsStrExt;
@@ -2483,7 +2480,7 @@ impl DownloadParentGuard {
                 }
             })
             .await
-            .context("join guarded delta promotion")?;
+            .context("join guarded delta promotion")?
         }
         #[cfg(windows)]
         {
@@ -3388,9 +3385,28 @@ fn windows_rename_handle(
 ) -> Result<()> {
     use std::os::windows::ffi::OsStrExt;
     use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::Storage::FileSystem::{
-        FileRenameInfo, SetFileInformationByHandle, FILE_RENAME_INFO,
-    };
+    use std::ffi::c_void;
+    use windows_sys::Win32::Foundation::HANDLE;
+    use windows_sys::Win32::Storage::FileSystem::FILE_RENAME_INFO;
+
+    #[repr(C)]
+    struct IoStatusBlock {
+        status_or_pointer: usize,
+        information: usize,
+    }
+
+    #[link(name = "ntdll")]
+    extern "system" {
+        fn NtSetInformationFile(
+            file_handle: HANDLE,
+            io_status_block: *mut IoStatusBlock,
+            file_information: *mut c_void,
+            length: u32,
+            file_information_class: u32,
+        ) -> i32;
+        fn RtlNtStatusToDosError(status: i32) -> u32;
+    }
+    const FILE_RENAME_INFORMATION: u32 = 10;
 
     let wide: Vec<u16> = name.encode_wide().collect();
     anyhow::ensure!(
@@ -3414,7 +3430,11 @@ fn windows_rename_handle(
     let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
     // SAFETY: the aligned buffer has room for the fixed header, UTF-16 name,
     // and zero terminator. Both file handles remain live throughout the call.
-    let ok = unsafe {
+    let mut iosb = IoStatusBlock {
+        status_or_pointer: 0,
+        information: 0,
+    };
+    let status = unsafe {
         (*info).Anonymous.ReplaceIfExists = u8::from(replace);
         (*info).RootDirectory = parent.as_raw_handle();
         (*info).FileNameLength = name_len;
@@ -3423,11 +3443,23 @@ fn windows_rename_handle(
             buffer.as_mut_ptr().cast::<u8>().add(offset).cast::<u16>(),
             wide.len(),
         );
-        SetFileInformationByHandle(source.as_raw_handle(), FileRenameInfo, info.cast(), len_u32)
+        // The Win32 wrapper rejected the retained root handle with error 87.
+        // Use the native FileRenameInformation class and the same pinned root.
+        NtSetInformationFile(
+            source.as_raw_handle(),
+            &mut iosb,
+            info.cast(),
+            len_u32,
+            FILE_RENAME_INFORMATION,
+        )
     };
-    if ok == 0 {
-        return Err(std::io::Error::last_os_error()).context("rename verified Windows file handle");
+    if status < 0 {
+        // SAFETY: this conversion accepts any NTSTATUS.
+        let error = unsafe { RtlNtStatusToDosError(status) };
+        return Err(std::io::Error::from_raw_os_error(error as i32))
+            .context("rename verified Windows file handle");
     }
+    anyhow::ensure!(status == 0, "Windows recovery rename did not complete");
     Ok(())
 }
 
@@ -4612,8 +4644,10 @@ mod tests {
 
     #[test]
     fn sharded_index_round_trips_more_than_eight_entries() {
-        let mut ledger = GlobalRecoveryLedger::default();
-        ledger.generation = 42;
+        let mut ledger = GlobalRecoveryLedger {
+            generation: 42,
+            ..GlobalRecoveryLedger::default()
+        };
         for index in 0..RECOVERY_INDEX_LIMIT {
             let (id, proof) = recovery_index_entry(
                 &index.to_string(),

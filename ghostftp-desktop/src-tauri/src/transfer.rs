@@ -4988,10 +4988,12 @@ async fn run_download_task(
             &id,
             &session,
             &remote_path,
-            &working_path,
-            allow_replace,
+            DownloadAttempt {
+                final_path: &working_path,
+                allow_replace,
+                owner: &owner,
+            },
             &app,
-            &owner,
         )
         .await;
         if let Err(error) = parent_guard.verify() {
@@ -5199,6 +5201,13 @@ async fn verify_download_writer(file: &tokio::fs::File, transferred: u64) -> Res
     Ok(())
 }
 
+/// Keep the destination, overwrite intent and staging ownership together.
+struct DownloadAttempt<'a> {
+    final_path: &'a Path,
+    allow_replace: bool,
+    owner: &'a DownloadStageOwner,
+}
+
 /// Backend dispatch for a single-file download. Extracted so the runner (and
 /// manual retry) can re-invoke it.
 async fn dispatch_download(
@@ -5206,11 +5215,14 @@ async fn dispatch_download(
     id: &str,
     session: &Arc<Session>,
     remote_path: &str,
-    final_path: &Path,
-    allow_replace: bool,
+    request: DownloadAttempt<'_>,
     app: &AppHandle,
-    owner: &DownloadStageOwner,
 ) -> Result<Option<tokio::fs::File>> {
+    let DownloadAttempt {
+        final_path,
+        allow_replace,
+        owner,
+    } = request;
     match &**session {
         Session::Ssh(ssh) => mgr
             .run_ssh_download(id, ssh.clone(), remote_path, final_path, app, owner)
