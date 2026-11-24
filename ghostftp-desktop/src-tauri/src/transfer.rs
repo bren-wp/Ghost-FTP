@@ -618,7 +618,8 @@ use download_staging::{
     cleanup_failed_download_staging, cleanup_owned_regular_staging_file,
     create_new_delta_upload_patch, create_new_download_staging, download_staging_path,
     fresh_download_staging_path, local_path_exists_fail_closed, local_path_exists_sync_fail_closed,
-    open_resumable_download_staging, DownloadParentGuard, DownloadStagingOpenFailure,
+    open_owned_resumable_download_staging, DownloadParentGuard, DownloadStageOwner,
+    DownloadStagingOpenFailure,
 };
 #[cfg(test)]
 use download_staging::{
@@ -1654,6 +1655,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: Option<&AppHandle>,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use base64::Engine as _;
         use ghostftp_agent_proto::msg::{Request, Response};
@@ -1663,7 +1665,7 @@ impl TransferManager {
         let (expected_remote_len, remote_exists) = agent_stat(session, remote_path).await?;
         anyhow::ensure!(remote_exists, "Agent download source does not exist");
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
-        let mut local_file = open_resumable_download_staging(local_path).await?;
+        let mut local_file = open_owned_resumable_download_staging(local_path, owner).await?;
         let local_len = local_file.metadata().await?.len();
         let mut offset = if requested_offset > 0 && local_len >= requested_offset {
             requested_offset
@@ -1754,12 +1756,13 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
 
         let requested_offset = self.get(id).await.map(|t| t.transferred).unwrap_or(0);
-        let mut prior = open_resumable_download_staging(local_path).await?;
+        let mut prior = open_owned_resumable_download_staging(local_path, owner).await?;
         let local_len = prior.metadata().await?.len();
         let resume_offset = if requested_offset > 0 && local_len >= requested_offset {
             requested_offset
@@ -2368,8 +2371,9 @@ impl TransferManager {
     ) -> Result<()> {
         let parent_guard = DownloadParentGuard::open(local_path)?;
         let staging = download_staging_path(local_path, id);
+        let owner = DownloadStageOwner::default();
         let result = self
-            .agent_download_core(id, session, remote_path, &staging, app)
+            .agent_download_core(id, session, remote_path, &staging, app, &owner)
             .await;
         parent_guard.verify()?;
         match result {
@@ -2385,10 +2389,8 @@ impl TransferManager {
                 result
             }
             Err(error) => {
-                if error.downcast_ref::<RestartFromPause>().is_none()
-                    && parent_guard.verify().is_ok()
-                {
-                    cleanup_failed_download_staging(&staging, &error).await;
+                if error.downcast_ref::<RestartFromPause>().is_none() {
+                    owner.cleanup(&parent_guard, &staging).await;
                 }
                 Err(error)
             }
@@ -2958,6 +2960,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
@@ -2979,6 +2982,7 @@ impl TransferManager {
         let final_path = local_path.to_path_buf();
         let path = remote_path.to_string();
 
+        let owner = owner.clone();
         let (outcome, file) = match session
             .with_stream(move |stream| {
                 let remote_len = stream.size(&path).ok().map(|size| size as u64);
@@ -3004,6 +3008,9 @@ impl TransferManager {
                     .open(&final_path)
                     .map_err(DownloadStagingOpenFailure)
                     .with_context(|| format!("open {}", final_path.display()))?;
+                if offset == 0 {
+                    owner.record_std(&file)?;
+                }
                 if offset > 0 {
                     file.set_len(offset)?;
                     file.seek(SeekFrom::Start(offset))?;
@@ -3306,6 +3313,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
         use tokio::io::AsyncWriteExt;
@@ -3325,7 +3333,7 @@ impl TransferManager {
         // the earlier queue estimate may be stale or unavailable.
         let expected_size = u64::try_from(get.meta.size)
             .context("object storage reported an invalid download length")?;
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         let mut stream = get.into_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -3475,6 +3483,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
@@ -3490,7 +3499,7 @@ impl TransferManager {
             .with_context(|| format!("GET {remote_path}"))?;
         let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -3574,6 +3583,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
@@ -3589,7 +3599,7 @@ impl TransferManager {
             .with_context(|| format!("GET {remote_path}"))?;
         let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -3630,6 +3640,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
@@ -3642,7 +3653,7 @@ impl TransferManager {
 
         let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -3759,6 +3770,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
@@ -3766,7 +3778,7 @@ impl TransferManager {
 
         self.checkpoint(id, 0).await?;
         let data = crate::remotefs::shopify::read_asset(&session, remote_path).await?;
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
@@ -3808,6 +3820,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
@@ -3815,7 +3828,7 @@ impl TransferManager {
 
         self.checkpoint(id, 0).await?;
         let data = crate::remotefs::hubspot::read_file(&session, remote_path).await?;
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
@@ -3858,6 +3871,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         self.update(id, |t| t.status = TransferStatus::Transferring)
             .await;
@@ -3865,7 +3879,7 @@ impl TransferManager {
 
         self.checkpoint(id, 0).await?;
         let data = crate::remotefs::dynamics::read_file(&session, remote_path).await?;
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         file.write_all(&data).await?;
         file.flush().await?;
         self.update(id, |t| t.transferred = data.len() as u64).await;
@@ -3906,6 +3920,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
@@ -3917,7 +3932,7 @@ impl TransferManager {
 
         let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -4113,6 +4128,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
@@ -4129,7 +4145,7 @@ impl TransferManager {
 
         let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -4251,6 +4267,7 @@ impl TransferManager {
         remote_path: &str,
         local_path: &Path,
         app: &AppHandle,
+        owner: &DownloadStageOwner,
     ) -> Result<tokio::fs::File> {
         use futures::StreamExt;
 
@@ -4267,7 +4284,7 @@ impl TransferManager {
 
         let expected_length = declared_full_http_download_length(resp.status(), resp.headers())?;
 
-        let mut file = create_new_download_staging(local_path).await?;
+        let mut file = owner.create(local_path).await?;
         let mut stream = resp.bytes_stream();
         let mut transferred: u64 = 0;
         let mut last_emit = Instant::now();
@@ -4944,6 +4961,7 @@ async fn run_download_task(
     } else {
         final_path.clone()
     };
+    let mut owner = DownloadStageOwner::default();
     let res = loop {
         if let Err(error) = parent_guard.verify() {
             finalize(&mgr, &id, &app, Err(error)).await;
@@ -4952,6 +4970,7 @@ async fn run_download_task(
         }
         if staged_download && !byte_resume {
             working_path = fresh_download_staging_path(&final_path, &id);
+            owner = DownloadStageOwner::default();
         }
         let attempt = dispatch_download(
             &mgr,
@@ -4961,6 +4980,7 @@ async fn run_download_task(
             &working_path,
             allow_replace,
             &app,
+            &owner,
         )
         .await;
         if let Err(error) = parent_guard.verify() {
@@ -4969,12 +4989,9 @@ async fn run_download_task(
             mgr.bump_queue(&app).await;
             return;
         }
-        if staged_download && !byte_resume {
-            if let Err(error) = &attempt {
-                // A create_new failure proves the path is NOT ours. Cleanup
-                // must not remove another user's file or a planted symlink.
-                cleanup_failed_download_staging(&working_path, error).await;
-            }
+        if staged_download && !byte_resume && attempt.is_err() {
+            // Only the handle recorded after exclusive creation can grant cleanup.
+            owner.cleanup(&parent_guard, &working_path).await;
         }
         match attempt {
             Err(e) if e.downcast_ref::<RestartFromPause>().is_some() => {
@@ -5043,9 +5060,7 @@ async fn run_download_task(
                 "download adapter did not return its staging writer"
             )),
             Err(error) => {
-                if parent_guard.verify().is_ok() {
-                    cleanup_failed_download_staging(&working_path, &error).await;
-                }
+                owner.cleanup(&parent_guard, &working_path).await;
                 Err(error)
             }
         }
@@ -5183,54 +5198,55 @@ async fn dispatch_download(
     final_path: &Path,
     allow_replace: bool,
     app: &AppHandle,
+    owner: &DownloadStageOwner,
 ) -> Result<Option<tokio::fs::File>> {
     match &**session {
         Session::Ssh(ssh) => mgr
-            .run_ssh_download(id, ssh.clone(), remote_path, final_path, app)
+            .run_ssh_download(id, ssh.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Ftp(ftp) => mgr
-            .run_ftp_download(id, ftp.clone(), remote_path, final_path, app)
+            .run_ftp_download(id, ftp.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Object(obj) => mgr
-            .run_object_download(id, obj.clone(), remote_path, final_path, app)
+            .run_object_download(id, obj.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Webdav(dav) => mgr
-            .run_webdav_download(id, dav.clone(), remote_path, final_path, app)
+            .run_webdav_download(id, dav.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Http(http) => mgr
-            .run_http_download(id, http.clone(), remote_path, final_path, app)
+            .run_http_download(id, http.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Dropbox(dbx) => mgr
-            .run_dropbox_download(id, dbx.clone(), remote_path, final_path, app)
+            .run_dropbox_download(id, dbx.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::OneDrive(od) => mgr
-            .run_onedrive_download(id, od.clone(), remote_path, final_path, app)
+            .run_onedrive_download(id, od.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::GDrive(gd) => mgr
-            .run_gdrive_download(id, gd.clone(), remote_path, final_path, app)
+            .run_gdrive_download(id, gd.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Box(bx) => mgr
-            .run_box_download(id, bx.clone(), remote_path, final_path, app)
+            .run_box_download(id, bx.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Shopify(sh) => mgr
-            .run_shopify_download(id, sh.clone(), remote_path, final_path, app)
+            .run_shopify_download(id, sh.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::HubSpot(hs) => mgr
-            .run_hubspot_download(id, hs.clone(), remote_path, final_path, app)
+            .run_hubspot_download(id, hs.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Dynamics(dynm) => mgr
-            .run_dynamics_download(id, dynm.clone(), remote_path, final_path, app)
+            .run_dynamics_download(id, dynm.clone(), remote_path, final_path, app, owner)
             .await
             .map(Some),
         Session::Agent(agent) => {
