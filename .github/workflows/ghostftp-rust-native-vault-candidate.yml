@@ -9,6 +9,31 @@ permissions:
   contents: read
 
 jobs:
+  format:
+    name: Candidate Rust formatting
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Generate exact formatting patch and enforce clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/candidate-format
+          git rev-parse HEAD > build/candidate-format/source-sha.txt
+          rustfmt --version > build/candidate-format/rustfmt-version.txt
+          (cd ghostftp-desktop/src-tauri && cargo fmt --all)
+          git diff --binary > build/candidate-format/rustfmt.patch
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: GhostFTP-Candidate-Rustfmt-Patch
+          path: build/candidate-format/
+          if-no-files-found: error
   recovery:
     runs-on: ubuntu-22.04
     timeout-minutes: 300
@@ -24,12 +49,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf dbus gnome-keyring libsecret-tools libsecret-1-dev
-      - name: Required Rust formatting
-        id: candidate_format
-        working-directory: ghostftp-desktop/src-tauri
-        run: cargo fmt --all -- --check
       - name: Build and check feature-gated adapter
-        if: ${{ !cancelled() && (steps.candidate_format.outcome == 'success' || steps.candidate_format.outcome == 'failure') }}
         working-directory: ghostftp-desktop/src-tauri
         run: |
           set -euo pipefail
@@ -37,6 +57,7 @@ jobs:
           printf '<!doctype html><html><body></body></html>\n' > ../dist/index.html
           cargo clippy --locked -p ghostftp --lib --tests --features native-vault-candidate -- -D warnings
           cargo test --locked -p ghostftp --lib --features native-vault-candidate candidate_requires_explicit_test_selection
+          cargo test --locked -p ghostftp --lib --features native-vault-candidate mutation_readback_mismatch_is_not_success
           cargo test --locked -p ghostftp --lib --features native-vault-candidate credential_mutation_journal::tests
           cargo test --locked -p ghostftp --lib --features native-vault-candidate credential_transaction_ledger::tests
           cargo test --locked -p ghostftp --lib --features native-vault-candidate native_vault_end_to_end_benchmark --no-run

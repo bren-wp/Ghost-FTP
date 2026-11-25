@@ -1,4 +1,5 @@
 //! Test-only append-only credential ledger; external anchor is authoritative.
+use super::credential_mutation_journal::Commitment;
 use aes_gcm::{
     aead::{Aead, KeyInit, Payload},
     Aes256Gcm, Nonce,
@@ -38,21 +39,6 @@ impl Head {
 trait Anchor {
     fn read(&mut self) -> Result<Head>;
     fn advance(&mut self, previous: Head, next: Head) -> Result<()>;
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-enum Commitment {
-    Absent,
-    Present([u8; 32]),
-}
-
-impl Commitment {
-    fn of(value: Option<&str>) -> Self {
-        match value {
-            None => Self::Absent,
-            Some(value) => Self::Present(Sha256::digest(value.as_bytes()).into()),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

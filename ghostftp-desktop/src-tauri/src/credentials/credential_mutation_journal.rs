@@ -15,13 +15,13 @@ const DOMAIN: &[u8] = b"ghostftp.credential-mutation-intent.v1";
 const LIMIT: usize = 16384;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-enum Commitment {
+pub(super) enum Commitment {
     Absent,
     Present([u8; 32]),
 }
 
 impl Commitment {
-    fn of(value: Option<&str>) -> Self {
+    pub(super) fn of(value: Option<&str>) -> Self {
         match value {
             None => Self::Absent,
             Some(value) => Self::Present(Sha256::digest(value.as_bytes()).into()),
