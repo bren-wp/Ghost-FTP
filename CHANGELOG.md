@@ -1,6 +1,11 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.86 Preview — 25 November 2026 (development candidate; not yet published)
+## 0.99.87 Preview — 26 November 2026 (development candidate; publication pending)
+
+- Include native C sources and headers in the static security inventory, with regression coverage for the credential bridge and native acceptance harnesses.
+- Clarify static audit scope and refresh published Preview download links while retaining screenshot provenance.
+
+## 0.99.86 Preview — 25 November 2026 (published)
 
 - Add a disposable direct libsecret compatibility and lookup benchmark candidate; GNOME lookup-only compatibility passed. Add a test-only Rust integration with cancellable sessions and owner checks; production backend remains unchanged pending acceptance.
 - Add test-only encrypted portable ledger-key export and independently trusted receipt verification with read-only recovery reconstruction.
