@@ -79,8 +79,13 @@ impl Intent {
 #[derive(Serialize, Deserialize)]
 enum Event {
     Prepared(Intent),
-    Observed { id: String, state: Observation },
-    Archived { id: String },
+    Observed {
+        id: String,
+        state: Observation,
+    },
+    Archived {
+        id: String,
+    },
     Rotated {
         next_segment: u64,
         base: Head,
@@ -818,7 +823,10 @@ fn publication_digest(path: &Path) -> Result<[u8; 32]> {
     );
     let mut bytes = Vec::new();
     file.take(4097).read_to_end(&mut bytes)?;
-    ensure!(bytes.len() as u64 == meta.len(), "publication marker changed");
+    ensure!(
+        bytes.len() as u64 == meta.len(),
+        "publication marker changed"
+    );
     Ok(Sha256::digest(bytes).into())
 }
 
@@ -957,7 +965,10 @@ fn export_portable_key(
     generation: &Path,
     package: &Path,
 ) -> Result<RecoveryReceipt> {
-    ensure!(ledger_key != wrapping_key, "recovery key must be independent");
+    ensure!(
+        ledger_key != wrapping_key,
+        "recovery key must be independent"
+    );
     let history = verify_generation(ledger_key, scope, anchor, generation)?;
     let id = generation
         .file_name()
@@ -986,14 +997,20 @@ fn export_portable_key(
     plaintext.fill(0);
     let encrypted = encrypted.map_err(|_| anyhow!("portable key encryption failed"))?;
     let sealed = [nonce.as_slice(), encrypted.as_slice()].concat();
-    ensure!(sealed.len() as u64 <= MAX_PACKAGE, "portable package too large");
+    ensure!(
+        sealed.len() as u64 <= MAX_PACKAGE,
+        "portable package too large"
+    );
     let parent = package
         .parent()
         .ok_or_else(|| anyhow!("missing package directory"))?;
     check_private_directory(parent)?;
     write_new_copy(package, &sealed)?;
     File::open(parent)?.sync_all()?;
-    ensure!(read_package(package)? == sealed, "package readback mismatch");
+    ensure!(
+        read_package(package)? == sealed,
+        "package readback mismatch"
+    );
     ensure!(anchor.read()? == history.head, "source head changed");
     Ok(RecoveryReceipt {
         scope: scope.into(),
@@ -1062,12 +1079,8 @@ fn recover_portable(
             "portable generation mismatch"
         );
         let mut anchor = RecoveryAnchor(receipt.head);
-        let history = verify_generation(
-            &payload.ledger_key,
-            &receipt.scope,
-            &mut anchor,
-            generation,
-        )?;
+        let history =
+            verify_generation(&payload.ledger_key, &receipt.scope, &mut anchor, generation)?;
         restore_generation(
             &payload.ledger_key,
             &receipt.scope,
@@ -1656,10 +1669,10 @@ mod tests {
         let receipt =
             export_portable_key(&KEY, &wrapping, SCOPE, &mut anchor, &generation, &package)
                 .unwrap();
-        assert!(export_portable_key(
-            &KEY, &wrapping, SCOPE, &mut anchor, &generation, &package
-        )
-        .is_err());
+        assert!(
+            export_portable_key(&KEY, &wrapping, SCOPE, &mut anchor, &generation, &package)
+                .is_err()
+        );
         assert!(recover_portable(&[0; 32], &receipt, &package, &generation, &destination).is_err());
         let mut stale = receipt.clone();
         stale.head = Head::genesis();
@@ -1675,11 +1688,15 @@ mod tests {
             recover_portable(&wrapping, &receipt, &package, &generation, &destination).unwrap(),
             expected
         );
-        assert!(recover_portable(&wrapping, &receipt, &package, &generation, &destination).is_err());
+        assert!(
+            recover_portable(&wrapping, &receipt, &package, &generation, &destination).is_err()
+        );
         let mut sealed = std::fs::read(&package).unwrap();
         sealed[15] ^= 1;
         std::fs::write(&package, sealed).unwrap();
-        assert!(recover_portable(&wrapping, &receipt, &package, &generation, &destination).is_err());
+        assert!(
+            recover_portable(&wrapping, &receipt, &package, &generation, &destination).is_err()
+        );
         assert_eq!(ledger.verify(&KEY, &mut anchor).unwrap(), expected);
         drop(ledger);
         for path in [source, backup, transport, destination] {
@@ -1698,7 +1715,8 @@ mod tests {
                 .try_into()
                 .unwrap();
             let receipt: RecoveryReceipt =
-                serde_json::from_slice(&std::fs::read(root.join("trust/receipt")).unwrap()).unwrap();
+                serde_json::from_slice(&std::fs::read(root.join("trust/receipt")).unwrap())
+                    .unwrap();
             let generation = std::fs::read_dir(root.join("media"))
                 .unwrap()
                 .next()
