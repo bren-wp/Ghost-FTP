@@ -1,6 +1,13 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.84 Preview — 25 November 2026 (development candidate; not yet published)
+## 0.99.85 Preview — 25 November 2026 (development candidate; not yet published)
+
+- Advance the source version after v0.99.84 was published from an earlier immutable commit; preserve its tag and assets.
+- Include the merged 128-active-journal benchmark, fixed-category native helper profiler, strict Linux deletion read-back optimization and paired A/B evidence tooling.
+- Paired Linux ABBA CI (45513814163) observed 482 to 457 lookups per promotion, with descriptive median-of-medians duration reductions of 3.31% (1 MiB) and 4.16% (16 MiB).
+- The 128-journal native runs and exact-head CI remain separate verification requirements; no stable or physical power-loss certification is claimed.
+
+## 0.99.84 Preview — published 25 November 2026
 
 - Revalidate the live crash probe, original boot identity and checkpoint before an authorized guest hard reset.
 - Adapt Linux Secret Service polling to the remaining deadline and profile native helper operations in tests only.
