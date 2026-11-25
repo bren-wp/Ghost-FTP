@@ -88,7 +88,9 @@ fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<O
                     .map(Some)
                     .map_err(|_| anyhow!("native vault returned invalid UTF-8"))
             }
-            -2 => Err(anyhow!("native vault mutation outcome unknown; reconcile before retry")),
+            -2 => Err(anyhow!(
+                "native vault mutation outcome unknown; reconcile before retry"
+            )),
             _ => Err(anyhow!("native vault operation refused or interrupted")),
         };
         output.fill(0);
@@ -161,7 +163,8 @@ fn journal_native_vault_anchor_reconciliation() {
         Ok("disposable-fixtures")
     );
     configure_direct_candidate();
-    let root = std::env::temp_dir().join(format!("ghostftp-native-intent-{}", uuid::Uuid::new_v4()));
+    let root =
+        std::env::temp_dir().join(format!("ghostftp-native-intent-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir(&root).unwrap();
     let service = "com.ghostftp.native-vault.journal.fixture";
     let scope = uuid::Uuid::new_v4().to_string();
@@ -177,8 +180,8 @@ fn journal_native_vault_anchor_reconciliation() {
     let permit = journal
         .prepare(&key, service, &scope, Some("old"), Some("new"), |anchor| {
             store(service, &anchor_account, &encoding.encode(anchor))?;
-            let readback = lookup(service, &anchor_account)?
-                .ok_or_else(|| anyhow!("anchor unavailable"))?;
+            let readback =
+                lookup(service, &anchor_account)?.ok_or_else(|| anyhow!("anchor unavailable"))?;
             encoding
                 .decode(readback)?
                 .try_into()

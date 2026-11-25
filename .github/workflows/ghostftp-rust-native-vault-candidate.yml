@@ -34,6 +34,7 @@ jobs:
           cargo clippy --locked -p ghostftp --lib --tests --features native-vault-candidate -- -D warnings
           cargo test --locked -p ghostftp --lib --features native-vault-candidate candidate_requires_explicit_test_selection
           cargo test --locked -p ghostftp --lib --features native-vault-candidate credential_mutation_journal::tests
+          cargo test --locked -p ghostftp --lib --features native-vault-candidate credential_transaction_ledger::tests
           cargo test --locked -p ghostftp --lib --features native-vault-candidate native_vault_end_to_end_benchmark --no-run
       - name: Native journal anchor and reconciliation
         shell: bash

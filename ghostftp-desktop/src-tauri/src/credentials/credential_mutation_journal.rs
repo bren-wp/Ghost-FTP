@@ -333,7 +333,10 @@ mod tests {
         let _ = child.kill();
         child.wait().unwrap();
         assert!(ready);
-        let anchor: [u8; 32] = std::fs::read(root.join("anchor")).unwrap().try_into().unwrap();
+        let anchor: [u8; 32] = std::fs::read(root.join("anchor"))
+            .unwrap()
+            .try_into()
+            .unwrap();
         let journal = Journal::open(&root.join("journal.db"), SCOPE).unwrap();
         assert_eq!(
             journal

@@ -15,6 +15,10 @@ use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 #[cfg(all(test, feature = "native-vault-candidate"))]
+#[path = "credential_transaction_ledger.rs"]
+mod credential_transaction_ledger;
+
+#[cfg(all(test, feature = "native-vault-candidate"))]
 #[path = "credential_mutation_journal.rs"]
 mod credential_mutation_journal;
 
