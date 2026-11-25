@@ -126,11 +126,16 @@ struct History {
 
 impl History {
     fn active_segment(&self) -> u64 {
-        self.segments.last_key_value().map_or(0, |(_, value)| *value)
+        self.segments
+            .last_key_value()
+            .map_or(0, |(_, value)| *value)
     }
 
     fn segment_for(&self, seq: u64) -> u64 {
-        self.segments.range(..=seq).next_back().map_or(0, |(_, value)| *value)
+        self.segments
+            .range(..=seq)
+            .next_back()
+            .map_or(0, |(_, value)| *value)
     }
 
     fn apply(&mut self, event: Event) -> Result<()> {
@@ -400,10 +405,7 @@ impl Ledger {
         write_new_copy(&destination.join("manifest.pending"), &sealed)?;
         File::open(&destination)?.sync_all()?;
         hook("manifest_synced")?;
-        ensure!(
-            anchor.read()? == head,
-            "anchor advanced before publication"
-        );
+        ensure!(anchor.read()? == head, "anchor advanced before publication");
         // Atomic no-replace publication in the same directory. A torn or
         // unverified generation never authorizes mutation or source deletion.
         std::fs::hard_link(
@@ -451,6 +453,11 @@ impl Ledger {
             .and_then(|name| name.to_str())
             .ok_or_else(|| anyhow!("invalid generation identity"))?;
         let manifest_digest = publication_digest(generation)?;
+        ensure!(
+            verify_generation(key, &self.scope, anchor, generation)? == history
+                && publication_digest(generation)? == manifest_digest,
+            "rotation publication changed"
+        );
         self.append(
             key,
             anchor,
@@ -693,7 +700,11 @@ fn file_digest(path: &Path) -> Result<[u8; 32]> {
 }
 
 fn manifest_aad(scope: &str) -> Vec<u8> {
-    [b"ghostftp.credential-generation.v1".as_slice(), scope.as_bytes()].concat()
+    [
+        b"ghostftp.credential-generation.v1".as_slice(),
+        scope.as_bytes(),
+    ]
+    .concat()
 }
 
 fn seal_manifest(key: &[u8; 32], scope: &str, manifest: &GenerationManifest) -> Result<Vec<u8>> {
@@ -1340,10 +1351,7 @@ mod tests {
             assert_eq!(ledger.verify(&KEY, &mut anchor).unwrap().head.seq, 2);
             drop(ledger);
             let selected = select_generation(&KEY, SCOPE, &mut anchor, &backup);
-            if matches!(
-                phase,
-                "marker_linked" | "marker_synced" | "root_synced"
-            ) {
+            if matches!(phase, "marker_linked" | "marker_synced" | "root_synced") {
                 assert_ne!(selected.unwrap(), previous);
             } else {
                 assert!(selected.is_err());
@@ -1375,17 +1383,17 @@ mod tests {
         let _ = ledger
             .prepare(&KEY, &mut anchor, intent("a", "one"))
             .unwrap();
-        assert!(
-            ledger
-                .rotate_on_independent_device(&KEY, &mut anchor, &backup)
-                .is_err()
-        );
+        assert!(ledger
+            .rotate_on_independent_device(&KEY, &mut anchor, &backup)
+            .is_err());
         let previous = ledger
             .publish_generation(&KEY, &mut anchor, &backup, |_| Ok(()))
             .unwrap();
         // Internal rotation boundary exercised without pretending the
         // temporary directories represent independent hardware.
-        ledger.rotate_verified(&KEY, &mut anchor, &previous).unwrap();
+        ledger
+            .rotate_verified(&KEY, &mut anchor, &previous)
+            .unwrap();
         let _ = ledger
             .prepare(&KEY, &mut anchor, intent("b", "two"))
             .unwrap();
@@ -1418,5 +1426,47 @@ mod tests {
         for path in [source, backup, migrated, restored] {
             std::fs::remove_dir_all(path).unwrap();
         }
+    }
+
+    #[test]
+    fn ledger_rotation_anchor_failure_preserves_old_copy() {
+        struct RefuseAdvance(Head);
+        impl Anchor for RefuseAdvance {
+            fn read(&mut self) -> Result<Head> {
+                Ok(self.0)
+            }
+            fn advance(&mut self, _: Head, _: Head) -> Result<()> {
+                Err(anyhow!("anchor unavailable"))
+            }
+        }
+
+        let source = root();
+        let backup = root();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&backup, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let mut anchor = FixtureAnchor(Head::genesis());
+        let mut ledger = Ledger::open(&source, SCOPE).unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("a", "one"))
+            .unwrap();
+        let generation = ledger
+            .publish_generation(&KEY, &mut anchor, &backup, |_| Ok(()))
+            .unwrap();
+        let mut refused = RefuseAdvance(anchor.0);
+        assert!(ledger
+            .rotate_verified(&KEY, &mut refused, &generation)
+            .is_err());
+        assert!(ledger.verify(&KEY, &mut anchor).is_err());
+        assert!(ledger
+            .prepare(&KEY, &mut anchor, intent("b", "two"))
+            .is_err());
+        assert!(verify_generation(&KEY, SCOPE, &mut anchor, &generation).is_ok());
+        assert_eq!(ledger.envelopes().unwrap().len(), 2);
+        drop(ledger);
+        let ledger = Ledger::open(&source, SCOPE).unwrap();
+        assert!(ledger.verify(&KEY, &mut anchor).is_err());
+        drop(ledger);
+        std::fs::remove_dir_all(source).unwrap();
+        std::fs::remove_dir_all(backup).unwrap();
     }
 }

@@ -24,13 +24,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf dbus gnome-keyring libsecret-tools libsecret-1-dev
+      - name: Required Rust formatting
+        id: candidate_format
+        working-directory: ghostftp-desktop/src-tauri
+        run: cargo fmt --all -- --check
       - name: Build and check feature-gated adapter
+        if: ${{ !cancelled() && (steps.candidate_format.outcome == 'success' || steps.candidate_format.outcome == 'failure') }}
         working-directory: ghostftp-desktop/src-tauri
         run: |
           set -euo pipefail
           mkdir -p ../dist
           printf '<!doctype html><html><body></body></html>\n' > ../dist/index.html
-          cargo fmt --all -- --check
           cargo clippy --locked -p ghostftp --lib --tests --features native-vault-candidate -- -D warnings
           cargo test --locked -p ghostftp --lib --features native-vault-candidate candidate_requires_explicit_test_selection
           cargo test --locked -p ghostftp --lib --features native-vault-candidate credential_mutation_journal::tests
