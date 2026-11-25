@@ -11,8 +11,8 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
-use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
-use std::path::Path;
+use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt};
+use std::path::{Path, PathBuf};
 
 const LIMIT: u64 = 4096;
 const MAX_ENVELOPE: usize = 16384;
@@ -227,11 +227,11 @@ impl Ledger {
     fn verify(&self, key: &[u8; 32], anchor: &mut impl Anchor) -> Result<History> {
         let trusted = anchor.read()?;
         ensure!(trusted.seq <= LIMIT, "ledger capacity exceeded");
-        let count: u64 = self.conn.query_row(
-            "SELECT count(*) FROM credential_events",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: u64 =
+            self.conn
+                .query_row("SELECT count(*) FROM credential_events", [], |row| {
+                    row.get(0)
+                })?;
         ensure!(count == trusted.seq, "ledger count differs from anchor");
         let history = replay(key, &self.scope, trusted, &self.envelopes()?)?;
         ensure!(
@@ -269,6 +269,16 @@ impl Ledger {
         anchor: &mut impl Anchor,
         destination: &Path,
     ) -> Result<()> {
+        self.checkpoint_with_hook(key, anchor, destination, |_| Ok(()))
+    }
+
+    fn checkpoint_with_hook(
+        &self,
+        key: &[u8; 32],
+        anchor: &mut impl Anchor,
+        destination: &Path,
+        hook: impl Fn(&str) -> Result<()>,
+    ) -> Result<()> {
         let history = self.verify(key, anchor)?;
         let rows = self.envelopes()?;
         ensure!(
@@ -291,13 +301,67 @@ impl Ledger {
             .map_err(|_| anyhow!("checkpoint encryption failed"))?;
         let checkpoint = [nonce.as_slice(), encrypted.as_slice()].concat();
         write_new_copy(&destination.join("events.json"), &archive)?;
+        hook("events_synced")?;
         write_new_copy(&destination.join("checkpoint.bin"), &checkpoint)?;
+        hook("checkpoint_synced")?;
         File::open(destination)?.sync_all()?;
         ensure!(
             verify_copy(key, &self.scope, anchor, destination)? == history,
             "checkpoint readback mismatch"
         );
         Ok(())
+    }
+
+    // Publication is deliberately separate from the active ledger. The caller
+    // chooses a private backup root; physical independence is not inferred.
+    fn publish_generation(
+        &self,
+        key: &[u8; 32],
+        anchor: &mut impl Anchor,
+        backup: &Path,
+        hook: impl Fn(&str) -> Result<()>,
+    ) -> Result<PathBuf> {
+        check_private_directory(backup)?;
+        let head = self.verify(key, anchor)?.head;
+        let id = format!("generation-{:016}-{}", head.seq, uuid::Uuid::new_v4());
+        let destination = backup.join(&id);
+        std::fs::DirBuilder::new()
+            .mode(0o700)
+            .create(&destination)?;
+        File::open(backup)?.sync_all()?;
+        hook("directory_synced")?;
+        self.checkpoint_with_hook(key, anchor, &destination, &hook)?;
+        hook("copy_verified")?;
+
+        let manifest = GenerationManifest {
+            id: id.clone(),
+            head,
+            events: file_digest(&destination.join("events.json"))?,
+            checkpoint: file_digest(&destination.join("checkpoint.bin"))?,
+        };
+        let sealed = seal_manifest(key, &self.scope, &manifest)?;
+        write_new_copy(&destination.join("manifest.pending"), &sealed)?;
+        File::open(&destination)?.sync_all()?;
+        hook("manifest_synced")?;
+        ensure!(
+            anchor.read()? == head,
+            "anchor advanced before publication"
+        );
+        // Atomic no-replace publication in the same directory. A torn or
+        // unverified generation never authorizes mutation or source deletion.
+        std::fs::hard_link(
+            destination.join("manifest.pending"),
+            destination.join("manifest.committed"),
+        )?;
+        hook("marker_linked")?;
+        File::open(&destination)?.sync_all()?;
+        // The pending name is intentionally retained. The committed marker
+        // is allowed exactly these two links, checked by the verifier.
+        hook("marker_synced")?;
+        File::open(backup)?.sync_all()?;
+        hook("root_synced")?;
+        verify_generation(key, &self.scope, anchor, &destination)?;
+        Ok(destination)
     }
 
     fn append(&mut self, key: &[u8; 32], anchor: &mut impl Anchor, event: Event) -> Result<()> {
@@ -336,7 +400,10 @@ impl Ledger {
         tx.commit()?;
         // Never roll back or delete a committed record if this step fails.
         anchor.advance(previous, next)?;
-        ensure!(self.verify(key, anchor)?.head == next, "anchor readback failed");
+        ensure!(
+            self.verify(key, anchor)?.head == next,
+            "anchor readback failed"
+        );
         Ok(())
     }
 
@@ -383,12 +450,7 @@ fn event_aad(scope: &str, seq: u64) -> Vec<u8> {
     [DOMAIN, &size, scope.as_bytes(), &seq].concat()
 }
 
-fn replay(
-    key: &[u8; 32],
-    scope: &str,
-    trusted: Head,
-    rows: &[(u64, Vec<u8>)],
-) -> Result<History> {
+fn replay(key: &[u8; 32], scope: &str, trusted: Head, rows: &[(u64, Vec<u8>)]) -> Result<History> {
     ensure!(
         trusted.seq <= LIMIT && rows.len() as u64 == trusted.seq,
         "ledger count differs from anchor"
@@ -494,6 +556,130 @@ fn verify_copy(
     ensure!(projection == history, "checkpoint projection mismatch");
     ensure!(anchor.read()? == head, "anchor changed during recovery");
     Ok(history)
+}
+
+#[derive(Serialize, Deserialize)]
+struct GenerationManifest {
+    id: String,
+    head: Head,
+    events: [u8; 32],
+    checkpoint: [u8; 32],
+}
+
+fn check_private_directory(path: &Path) -> Result<()> {
+    let meta = std::fs::symlink_metadata(path)?;
+    ensure!(
+        meta.is_dir() && meta.mode() & 0o077 == 0,
+        "unsafe recovery directory"
+    );
+    Ok(())
+}
+
+fn file_digest(path: &Path) -> Result<[u8; 32]> {
+    Ok(Sha256::digest(read_copy(path)?).into())
+}
+
+fn manifest_aad(scope: &str) -> Vec<u8> {
+    [b"ghostftp.credential-generation.v1".as_slice(), scope.as_bytes()].concat()
+}
+
+fn seal_manifest(key: &[u8; 32], scope: &str, manifest: &GenerationManifest) -> Result<Vec<u8>> {
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| anyhow!("invalid ledger key"))?;
+    let mut nonce = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce);
+    let bytes = serde_json::to_vec(manifest)?;
+    let encrypted = cipher
+        .encrypt(
+            Nonce::from_slice(&nonce),
+            Payload {
+                msg: &bytes,
+                aad: &manifest_aad(scope),
+            },
+        )
+        .map_err(|_| anyhow!("manifest authentication failed"))?;
+    Ok([nonce.as_slice(), encrypted.as_slice()].concat())
+}
+
+fn verify_generation(
+    key: &[u8; 32],
+    scope: &str,
+    anchor: &mut impl Anchor,
+    path: &Path,
+) -> Result<History> {
+    check_private_directory(path)?;
+    let pending = std::fs::symlink_metadata(path.join("manifest.pending"))?;
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+        .open(path.join("manifest.committed"))?;
+    let meta = file.metadata()?;
+    ensure!(
+        meta.is_file()
+            && pending.is_file()
+            && meta.nlink() == 2
+            && pending.dev() == meta.dev()
+            && pending.ino() == meta.ino()
+            && meta.mode() & 0o077 == 0
+            && (28..=4096).contains(&meta.len()),
+        "invalid publication marker"
+    );
+    let mut sealed = Vec::new();
+    file.take(4097).read_to_end(&mut sealed)?;
+    ensure!(sealed.len() as u64 == meta.len(), "manifest changed");
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| anyhow!("invalid ledger key"))?;
+    let bytes = cipher
+        .decrypt(
+            Nonce::from_slice(&sealed[..12]),
+            Payload {
+                msg: &sealed[12..],
+                aad: &manifest_aad(scope),
+            },
+        )
+        .map_err(|_| anyhow!("manifest authentication failed"))?;
+    let manifest: GenerationManifest = serde_json::from_slice(&bytes)?;
+    ensure!(
+        path.file_name().and_then(|name| name.to_str()) == Some(manifest.id.as_str()),
+        "generation identity mismatch"
+    );
+    ensure!(manifest.head == anchor.read()?, "generation is not current");
+    ensure!(
+        manifest.events == file_digest(&path.join("events.json"))?
+            && manifest.checkpoint == file_digest(&path.join("checkpoint.bin"))?,
+        "generation file digest mismatch"
+    );
+    let history = verify_copy(key, scope, anchor, path)?;
+    ensure!(history.head == manifest.head, "generation head mismatch");
+    Ok(history)
+}
+
+// Select only a verified generation matching the current trusted head.
+// A stale generation can be retained for manual forensic recovery, but must
+// never be used to roll back live credential state. Errors preserve all files.
+fn select_generation(
+    key: &[u8; 32],
+    scope: &str,
+    anchor: &mut impl Anchor,
+    backup: &Path,
+) -> Result<PathBuf> {
+    check_private_directory(backup)?;
+    let head = anchor.read()?;
+    let prefix = format!("generation-{:016}-", head.seq);
+    let mut candidates = Vec::new();
+    for entry in std::fs::read_dir(backup)? {
+        let entry = entry?;
+        if entry.file_name().to_string_lossy().starts_with(&prefix) {
+            candidates.push(entry.path());
+            ensure!(candidates.len() <= 128, "too many recovery candidates");
+        }
+    }
+    candidates.sort();
+    for path in candidates {
+        if verify_generation(key, scope, anchor, &path).is_ok() {
+            ensure!(anchor.read()? == head, "anchor changed during selection");
+            return Ok(path);
+        }
+    }
+    Err(anyhow!("no current verified recovery generation"))
 }
 
 // Holds the exclusive ledger borrow (and therefore the OS lock) until consumed.
@@ -740,7 +926,10 @@ mod tests {
                 &serde_json::to_string(&Head::genesis())?,
             )?;
             let mut anchor = Self { account };
-            ensure!(anchor.read()? == Head::genesis(), "anchor enrollment failed");
+            ensure!(
+                anchor.read()? == Head::genesis(),
+                "anchor enrollment failed"
+            );
             Ok(anchor)
         }
     }
@@ -759,11 +948,7 @@ mod tests {
                 next.seq == previous.seq + 1 && self.read()? == previous,
                 "native anchor compare failed"
             );
-            store(
-                Self::SERVICE,
-                &self.account,
-                &serde_json::to_string(&next)?,
-            )?;
+            store(Self::SERVICE, &self.account, &serde_json::to_string(&next)?)?;
             ensure!(self.read()? == next, "native anchor readback failed");
             Ok(())
         }
@@ -810,5 +995,105 @@ mod tests {
         clear_direct_candidate();
         std::fs::remove_dir_all(backup).unwrap();
         std::fs::remove_dir_all(source).unwrap();
+    }
+
+    #[test]
+    fn ledger_publication_crash_matrix() {
+        const ROOT: &str = "GHOSTFTP_GENERATION_CRASH_FIXTURE";
+        const PHASE: &str = "GHOSTFTP_GENERATION_CRASH_PHASE";
+        if let Some(path) = std::env::var_os(ROOT) {
+            let path = PathBuf::from(path);
+            let phase = std::env::var(PHASE).unwrap();
+            let head: Head =
+                serde_json::from_slice(&std::fs::read(path.join("head")).unwrap()).unwrap();
+            let mut anchor = FixtureAnchor(head);
+            let ledger = Ledger::open(&path.join("source"), SCOPE).unwrap();
+            ledger
+                .publish_generation(&KEY, &mut anchor, &path.join("backup"), |stage| {
+                    if stage == phase {
+                        std::fs::write(path.join("ready"), b"1")?;
+                        loop {
+                            std::thread::sleep(std::time::Duration::from_secs(1));
+                        }
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            panic!("fixture did not reach selected phase");
+        }
+        let path = root();
+        let source = path.join("source");
+        let backup = path.join("backup");
+        std::fs::DirBuilder::new()
+            .mode(0o700)
+            .create(&source)
+            .unwrap();
+        std::fs::DirBuilder::new()
+            .mode(0o700)
+            .create(&backup)
+            .unwrap();
+        let mut anchor = FixtureAnchor(Head::genesis());
+        let mut ledger = Ledger::open(&source, SCOPE).unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("a", "one"))
+            .unwrap();
+        let previous = ledger
+            .publish_generation(&KEY, &mut anchor, &backup, |_| Ok(()))
+            .unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("b", "two"))
+            .unwrap();
+        std::fs::write(path.join("head"), serde_json::to_vec(&anchor.0).unwrap()).unwrap();
+        drop(ledger);
+        assert!(select_generation(&KEY, SCOPE, &mut anchor, &backup).is_err());
+        for phase in [
+            "directory_synced",
+            "events_synced",
+            "checkpoint_synced",
+            "copy_verified",
+            "manifest_synced",
+            "marker_linked",
+            "marker_synced",
+            "root_synced",
+        ] {
+            let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+                .arg("ledger_publication_crash_matrix")
+                .env(ROOT, &path)
+                .env(PHASE, phase)
+                .spawn()
+                .unwrap();
+            let ready = path.join("ready");
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            while !ready.exists() && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            let held = ready.exists() && Ledger::open(&source, SCOPE).is_err();
+            let _ = child.kill();
+            child.wait().unwrap();
+            assert!(held, "failed to reach publication phase {phase}");
+            std::fs::remove_file(ready).unwrap();
+            assert!(previous.join("manifest.committed").exists());
+            let ledger = Ledger::open(&source, SCOPE).unwrap();
+            assert_eq!(ledger.verify(&KEY, &mut anchor).unwrap().head.seq, 2);
+            drop(ledger);
+            let selected = select_generation(&KEY, SCOPE, &mut anchor, &backup);
+            if matches!(
+                phase,
+                "marker_linked" | "marker_synced" | "root_synced"
+            ) {
+                assert_ne!(selected.unwrap(), previous);
+            } else {
+                assert!(selected.is_err());
+            }
+        }
+        let selected = select_generation(&KEY, SCOPE, &mut anchor, &backup).unwrap();
+        assert_eq!(
+            verify_generation(&KEY, SCOPE, &mut anchor, &selected)
+                .unwrap()
+                .head
+                .seq,
+            2
+        );
+        std::fs::remove_dir_all(path).unwrap();
     }
 }
