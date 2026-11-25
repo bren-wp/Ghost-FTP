@@ -2,7 +2,25 @@ name: Rust native vault integration (candidate)
 
 on:
   push:
-    branches: [perf/recovery-gc-marker-v0.99.86]
+    branches: [main, perf/recovery-gc-marker-v0.99.86]
+    paths:
+      - 'ghostftp-desktop/src-tauri/src/credentials/**'
+      - 'ghostftp-desktop/src-tauri/src/credentials.rs'
+      - 'ghostftp-desktop/src-tauri/build.rs'
+      - 'ghostftp-desktop/src-tauri/Cargo.toml'
+      - 'ghostftp-desktop/src-tauri/Cargo.lock'
+      - 'tools/native-vault/**'
+      - '.github/workflows/ghostftp-rust-native-vault-candidate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ghostftp-desktop/src-tauri/src/credentials/**'
+      - 'ghostftp-desktop/src-tauri/src/credentials.rs'
+      - 'ghostftp-desktop/src-tauri/build.rs'
+      - 'ghostftp-desktop/src-tauri/Cargo.toml'
+      - 'ghostftp-desktop/src-tauri/Cargo.lock'
+      - 'tools/native-vault/**'
+      - '.github/workflows/ghostftp-rust-native-vault-candidate.yml'
   workflow_dispatch:
 
 permissions:
@@ -15,6 +33,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -39,6 +60,9 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -56,6 +80,7 @@ jobs:
           mkdir -p ../dist
           printf '<!doctype html><html><body></body></html>\n' > ../dist/index.html
           cargo clippy --locked -p ghostftp --lib --tests --features native-vault-candidate -- -D warnings
+          cargo test --locked -p ghostftp --lib --features native-vault-candidate secret_input_is_bounded_and_nul_terminated
           cargo test --locked -p ghostftp --lib --features native-vault-candidate candidate_requires_explicit_test_selection
           cargo test --locked -p ghostftp --lib --features native-vault-candidate mutation_readback_mismatch_is_not_success
           cargo test --locked -p ghostftp --lib --features native-vault-candidate credential_mutation_journal::tests
@@ -76,6 +101,7 @@ jobs:
             cargo test --locked -p ghostftp --lib --features native-vault-candidate ledger_native_anchor_checkpoint -- --ignored --nocapture
           '
       - name: Compare full recovery promotions on same runner (ABBA)
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/perf/recovery-gc-marker-v0.99.86'
         shell: bash
         run: |
           set -euo pipefail
@@ -108,6 +134,7 @@ jobs:
             ) 2>&1 | tee "build/rust-native-vault/run-$index-$variant.log"
           done
       - name: Summarize full recovery observations
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/perf/recovery-gc-marker-v0.99.86'
         run: |
           python3 - <<'PY'
           import pathlib, re, statistics, math
@@ -128,7 +155,7 @@ jobs:
           print("\n".join(lines))
           PY
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/perf/recovery-gc-marker-v0.99.86')
         with:
           name: GhostFTP-Rust-Native-Vault-Recovery
           path: build/rust-native-vault/
