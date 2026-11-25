@@ -8,6 +8,7 @@
 
 extern void *ghostftp_vault_session_new(void);
 extern void ghostftp_vault_session_free(void *);
+extern void ghostftp_vault_set_mutation_gate(void *, void (*)(int, void *), void *);
 extern int ghostftp_vault_call(void *, int, const char *, const char *,
     const char *, uint8_t *, size_t, size_t *, uint32_t);
 
@@ -31,6 +32,18 @@ static void gate(const char *root, const char *name) {
     g_free(ready);
     g_free(go);
 }
+typedef struct {
+    const char *root;
+    int stage;
+    const char *name;
+} MutationGate;
+
+static void mutation_gate(int stage, void *data) {
+    MutationGate *g = data;
+    if (stage == g->stage)
+        gate(g->root, g->name);
+}
+
 static int invoke(void *s, int op, const char *input, unsigned ms, gboolean verify) {
     uint8_t output[8191] = {0};
     size_t length = 0;
@@ -71,6 +84,34 @@ int main(int argc, char **argv) {
         gate(argv[2], "restart");
         invoke(s, 0, "", 3000, TRUE);
         puts("new service session retained fixture");
+
+        // Kill after acknowledged write, before final owner validation. A
+        // successful mutation reply is deliberately not returned to the caller.
+        MutationGate g = {argv[2], 1, "write-commit"};
+        ghostftp_vault_set_mutation_gate(s, mutation_gate, &g);
+        require(invoke(s, 1, "replacement-fixture", 15000, FALSE) == -2,
+                "write commit uncertainty");
+        ghostftp_vault_set_mutation_gate(s, NULL, NULL);
+        gate(argv[2], "write-restart");
+        value = "replacement-fixture";
+        invoke(s, 0, "", 3000, TRUE);
+        puts("uncertain_write reconciled without replay");
+
+        // Same boundary for deletion: confirmed absence after restart, not
+        // an assumption that the cancelled caller rolled the operation back.
+        g.name = "delete-commit";
+        ghostftp_vault_set_mutation_gate(s, mutation_gate, &g);
+        require(invoke(s, 2, "", 15000, FALSE) == -2,
+                "delete commit uncertainty");
+        ghostftp_vault_set_mutation_gate(s, NULL, NULL);
+        gate(argv[2], "delete-restart");
+        require(invoke(s, 0, "", 3000, FALSE) == 0,
+                "uncertain delete reconciled as absent");
+        puts("uncertain_delete reconciled without replay");
+
+        // Recreate only as a new explicit fixture operation for cleanup.
+        require(invoke(s, 1, value, 3000, FALSE) == 0, "new fixture");
+        invoke(s, 0, "", 3000, TRUE);
     } else {
         require(strcmp(argv[1], "provider-crud") == 0, "unknown mode");
     }

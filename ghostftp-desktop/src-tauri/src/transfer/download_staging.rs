@@ -4163,8 +4163,7 @@ mod tests {
         crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
         let result = std::panic::catch_unwind(|| {
             let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
-            let samples = if std::env::var("GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN")
-                .as_deref()
+            let samples = if std::env::var("GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN").as_deref()
                 == Ok("disposable-fixtures")
             {
                 std::env::var("GHOSTFTP_RECOVERY_BENCH_SAMPLES")

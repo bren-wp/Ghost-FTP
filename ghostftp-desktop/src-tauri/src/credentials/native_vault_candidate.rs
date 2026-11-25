@@ -59,9 +59,10 @@ fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<O
         if slot.is_none() {
             // SAFETY: factory returns an owned opaque session or null.
             let ptr = unsafe { ghostftp_vault_session_new() };
-            *slot = Some(Session(
-                NonNull::new(ptr).ok_or_else(|| anyhow!("native vault session unavailable"))?,
-            ));
+            *slot =
+                Some(Session(NonNull::new(ptr).ok_or_else(|| {
+                    anyhow!("native vault session unavailable")
+                })?));
         }
         let mut output = [0u8; 8191];
         let mut length = 0;
@@ -87,6 +88,7 @@ fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<O
                     .map(Some)
                     .map_err(|_| anyhow!("native vault returned invalid UTF-8"))
             }
+            -2 => Err(anyhow!("native vault mutation outcome unknown; reconcile before retry")),
             _ => Err(anyhow!("native vault operation refused or interrupted")),
         };
         output.fill(0);
@@ -108,20 +110,35 @@ pub(super) fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         "invalid secret length"
     );
     call(1, service, account, secret)?;
-    ensure!(
-        lookup(service, account)?.as_deref() == Some(secret),
-        "native vault write readback mismatch"
-    );
-    Ok(())
+    verify_mutation(lookup(service, account), Some(secret))
 }
 
 pub(super) fn remove(service: &str, account: &str) -> Result<()> {
     call(2, service, account, "")?;
-    ensure!(
-        lookup(service, account)?.is_none(),
-        "native vault delete readback mismatch"
-    );
-    Ok(())
+    verify_mutation(lookup(service, account), None)
+}
+
+// A failed post-mutation observation is not proof of rollback. Invalidate the
+// session without replaying the operation or consulting a different backend.
+fn verify_mutation(observed: Result<Option<String>>, expected: Option<&str>) -> Result<()> {
+    if matches!(observed, Ok(ref value) if value.as_deref() == expected) {
+        return Ok(());
+    }
+    STATE.with(|state| {
+        if let Some(slot) = state.borrow_mut().as_mut() {
+            *slot = None;
+        }
+    });
+    Err(anyhow!(
+        "native vault mutation outcome unknown; reconcile before retry"
+    ))
+}
+
+#[test]
+fn mutation_readback_mismatch_is_not_success() {
+    assert!(verify_mutation(Ok(Some("old".into())), Some("new")).is_err());
+    assert!(verify_mutation(Err(anyhow!("unavailable")), None).is_err());
+    assert!(verify_mutation(Ok(None), None).is_ok());
 }
 
 #[test]

@@ -7,6 +7,9 @@
 typedef struct {
     SecretService *service;
     gchar *owner;
+    /* Only the isolated failure harness installs this callback. */
+    void (*mutation_gate)(int, void *);
+    void *gate_data;
 } VaultSession;
 
 typedef struct {
@@ -41,6 +44,12 @@ void ghostftp_vault_session_free(void *ptr) {
     VaultSession *s = ptr;
     reset(s);
     g_free(s);
+}
+
+void ghostftp_vault_set_mutation_gate(void *ptr, void (*gate)(int, void *), void *data) {
+    VaultSession *s = ptr;
+    s->mutation_gate = gate;
+    s->gate_data = data;
 }
 
 static gchar *owner_now(SecretService *s, GCancellable *cancel, GError **error) {
@@ -86,7 +95,8 @@ static GHashTable *attributes(const char *service, const char *account) {
 
 static int execute(VaultSession *s, int operation, const char *service,
                    const char *account, const char *input, uint8_t *output,
-                   size_t capacity, size_t *length, GCancellable *cancel) {
+                   size_t capacity, size_t *length, GCancellable *cancel,
+                   gboolean *mutation_attempted) {
     GError *error = NULL;
     SecretCollection *collection = NULL, *session = NULL;
     GHashTable *a = NULL;
@@ -133,6 +143,11 @@ static int execute(VaultSession *s, int operation, const char *service,
         }
     } else if (operation == 1) {
         value = secret_value_new(input, -1, "text/plain");
+        if (s->mutation_gate)
+            s->mutation_gate(0, s->gate_data);
+        if (g_cancellable_is_cancelled(cancel))
+            goto done;
+        *mutation_attempted = TRUE;
         gboolean stored = item
             ? secret_item_set_secret_sync(item, value, cancel, &error)
             : secret_service_store_sync(s->service, NULL, a, path,
@@ -140,9 +155,20 @@ static int execute(VaultSession *s, int operation, const char *service,
         if (stored && !error)
             result = 0;
     } else if (operation == 2) {
-        if (!item || (secret_item_delete_sync(item, cancel, &error) && !error))
+        if (!item) {
             result = 0;
+        } else {
+            if (s->mutation_gate)
+                s->mutation_gate(0, s->gate_data);
+            if (g_cancellable_is_cancelled(cancel))
+                goto done;
+            *mutation_attempted = TRUE;
+            if (secret_item_delete_sync(item, cancel, &error) && !error)
+                result = 0;
+        }
     }
+    if (result == 0 && *mutation_attempted && s->mutation_gate)
+        s->mutation_gate(1, s->gate_data);
     if (result >= 0 && !same_owner(s, cancel, &error))
         result = -1;
 done:
@@ -171,8 +197,9 @@ int ghostftp_vault_call(void *ptr, int operation, const char *service,
     d.cancel = g_cancellable_new();
     *length = 0;
     GThread *timer = g_thread_new("vault-deadline", cancel_at_deadline, &d);
+    gboolean mutation_attempted = FALSE;
     int result = execute(s, operation, service, account, input,
-                         output, capacity, length, d.cancel);
+                         output, capacity, length, d.cancel, &mutation_attempted);
     g_mutex_lock(&d.mutex);
     d.finished = TRUE;
     g_cond_signal(&d.cond);
@@ -186,6 +213,9 @@ int ghostftp_vault_call(void *ptr, int operation, const char *service,
     if (result < 0) {
         reset(s);
         *length = 0;
+        /* Once dispatched, cancellation does not establish non-commit. */
+        if (mutation_attempted)
+            return -2;
     }
     return result;
 }

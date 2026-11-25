@@ -17,7 +17,10 @@ fn build_native_vault_candidate() {
         .args(["--cflags", "libsecret-1", "gio-2.0"])
         .output()
         .expect("pkg-config required for native vault candidate");
-    assert!(flags.status.success(), "libsecret development headers required");
+    assert!(
+        flags.status.success(),
+        "libsecret development headers required"
+    );
     let flags = String::from_utf8(flags.stdout).expect("pkg-config flags");
     let object = out.join("native_vault_candidate.o");
     let status = Command::new("cc")

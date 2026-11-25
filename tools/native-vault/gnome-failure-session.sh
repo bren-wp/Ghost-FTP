@@ -14,13 +14,20 @@ cleanup() {
 trap cleanup EXIT
 owner_pid() {
   local result pid
-  result="$(gdbus call --session --dest org.freedesktop.DBus \
-    --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.GetConnectionUnixProcessID org.freedesktop.secrets)"
-  [[ "$result" =~ uint32[[:space:]]([0-9]+) ]]
-  pid="${BASH_REMATCH[1]}"
-  [[ "$(basename "$(readlink -f "/proc/$pid/exe")")" == gnome-keyring-daemon ]]
+  # Trigger D-Bus activation and wait for the actual provider registration.
+  for _ in {1..100}; do
+    if result="$(gdbus call --session --dest org.freedesktop.DBus \
+      --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.GetConnectionUnixProcessID org.freedesktop.secrets 2>/dev/null)" &&
+      [[ "$result" =~ uint32[[:space:]]([0-9]+) ]]; then
+      pid="${BASH_REMATCH[1]}"
+      break
+    fi
+    sleep .1
+  done
+  [[ -n "${pid:-}" ]] || return 1
+  [[ "$(basename "$(readlink -f "/proc/$pid/exe")")" == gnome-keyring-daemon ]] || return 1
   # Prove the daemon belongs to this disposable HOME, not another session.
-  grep -zFxq "HOME=$HOME" "/proc/$pid/environ"
+  grep -zFxq "HOME=$HOME" "/proc/$pid/environ" || return 1
   printf '%s\n' "$pid"
 }
 wait_ready() {
@@ -31,8 +38,13 @@ wait_ready() {
   done
   return 1
 }
-printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
-daemon_pid="$(owner_pid)"
+start_provider() {
+  printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+  timeout 10s gdbus call --session --dest org.freedesktop.secrets \
+    --object-path /org/freedesktop/secrets --method org.freedesktop.DBus.Peer.Ping >/dev/null
+  daemon_pid="$(owner_pid)"
+}
+start_provider
 "$probe" gnome-faults "$root" &
 child=$!
 wait_ready block
@@ -50,9 +62,19 @@ kill -KILL "$daemon_pid"
 old="$daemon_pid"
 daemon_pid=
 wait_ready restart
-printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
-daemon_pid="$(owner_pid)"
+start_provider
 [[ "$old" != "$daemon_pid" ]]
 touch "$root/restart.go"
+for operation in write delete; do
+  wait_ready "$operation-commit"
+  old="$daemon_pid"
+  kill -KILL "$daemon_pid"
+  daemon_pid=
+  touch "$root/$operation-commit.go"
+  wait_ready "$operation-restart"
+  start_provider
+  [[ "$old" != "$daemon_pid" ]]
+  touch "$root/$operation-restart.go"
+done
 wait "$child"
 child=
