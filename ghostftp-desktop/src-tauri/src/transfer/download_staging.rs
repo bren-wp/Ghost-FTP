@@ -4175,7 +4175,12 @@ mod tests {
                     crate::credentials::start_linux_helper_profile();
                     let started = std::time::Instant::now();
                     native_fixture_promote(&db, &stage, &target, &id).unwrap();
-                    timings.push(started.elapsed().as_micros());
+                    let elapsed_us = started.elapsed().as_micros();
+                    timings.push(elapsed_us);
+                    eprintln!(
+                        "recovery_e2e_sample platform={} bytes={size} sample={sample} elapsed_us={elapsed_us}",
+                        std::env::consts::OS
+                    );
                     #[cfg(target_os = "linux")]
                     crate::credentials::finish_linux_helper_profile();
                     verify_benchmark_pattern(&target, size, 0x79).unwrap();

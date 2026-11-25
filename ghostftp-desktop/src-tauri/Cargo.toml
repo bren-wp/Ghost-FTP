@@ -169,6 +169,8 @@ tokio = { version = "1", features = ["test-util"] }
 
 [features]
 default = ["custom-protocol"]
+# Experimental native vault is reachable only by disposable test binaries.
+native-vault-candidate = []
 custom-protocol = ["tauri/custom-protocol"]
 # On-demand virtual folders (Plan 9): the Windows Cloud Filter provider —
 # OneDrive-style placeholders that hydrate on open and free-up-space to evict.

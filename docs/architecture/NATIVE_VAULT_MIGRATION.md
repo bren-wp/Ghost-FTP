@@ -16,3 +16,7 @@ Evaluate a maintained direct Secret Service binding over D-Bus or libsecret, wit
 ## Isolated direct API prototype
 
 `tools/native-vault/direct-secret-service.c` exercises a reusable libsecret service session, exact existing attribute matching, persistent default-collection selection, strict unique-item lookup without unlocking prompts, verified writes/deletes and compatibility with secret-tool. The workflow uses disposable GNOME Keyring sessions, tests a locked collection and attempts a fresh service session with the same isolated persistent data. It compares repeated lookup latency on the same runner, using ABBA ordering and raw samples. The prototype is not linked into the production Rust application; the outer test-process deadline is not a production cancellation mechanism. KWallet and in-process reconnect/cancellation remain explicit acceptance gates.
+
+## Rust integration candidate
+
+The `native-vault-candidate` Cargo feature builds a native bridge for Linux test binaries only. Explicit disposable native recovery fixtures may select it; normal release builds retain secret-tool. A thread-owned service session uses a joined GCancellable deadline worker and checks the current D-Bus service owner before and after each operation. Uncertain operations invalidate the session and are never automatically replayed. Existing attributes, read-back, and recovery locks are preserved. Cancellation is cooperative, not a hard OS process kill; live blocked-provider, KWallet and restart-during-operation acceptance remain required.
