@@ -1099,6 +1099,18 @@ fn recovery_blob_account(scope: &str, digest: &[u8; 32], part: &str) -> String {
 // Existing bytes must match exactly; a missing or corrupt chunk never permits
 // reading a different generation. All credentials use persistent strict reads.
 fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
+    anyhow::ensure!(
+        !bytes.is_empty() && bytes.len() <= RECOVERY_BLOB_LIMIT,
+        "invalid recovery blob size"
+    );
+    let digest = recovery_digest(bytes);
+    register_recovery_gc(scope, digest, bytes.len())?;
+    write_registered_recovery_blob(scope, bytes)
+}
+
+// Only call after durable GC registration under the recovery lock. The
+// digest is derived from the actual bytes, not accepted from the caller.
+fn write_registered_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
     use base64::Engine;
 
     anyhow::ensure!(
@@ -1106,7 +1118,6 @@ fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
         "invalid recovery blob size"
     );
     let digest = recovery_digest(bytes);
-    register_recovery_gc(scope, digest, bytes.len())?;
     let put = |part: &str, value: &str| -> Result<()> {
         let account = recovery_blob_account(scope, &digest, part);
         if let Some(existing) =
@@ -1580,8 +1591,16 @@ impl GlobalRecoveryLedger {
         let key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, &scope)?
             .context("recovery index key unavailable")?;
         Self::with_key(&key, |key| {
-            let shards = self
-                .shard_bytes()
+            let shard_bytes = self.shard_bytes();
+            let candidates: Vec<_> = shard_bytes
+                .iter()
+                .map(|bytes| (recovery_digest(bytes), bytes.len()))
+                .filter(|(digest, _)| !reusable.contains(digest))
+                .collect();
+            // Persist all new shard GC candidates before writing any blob.
+            // On partial registration failure the old root remains authoritative.
+            register_recovery_gc_batch(&scope, &candidates)?;
+            let shards = shard_bytes
                 .iter()
                 .map(|bytes| {
                     let digest = recovery_digest(bytes);
@@ -1592,7 +1611,7 @@ impl GlobalRecoveryLedger {
                         );
                         return Ok(digest);
                     }
-                    put_recovery_blob(&scope, bytes)
+                    write_registered_recovery_blob(&scope, bytes)
                 })
                 .collect::<Result<Vec<_>>>()?;
             let manifest = Self::manifest(self.generation, &shards)?;
@@ -4635,6 +4654,8 @@ mod tests {
                 let original_hash = recovery_file_hash(&original, original_identity).unwrap();
                 let started = std::time::Instant::now();
                 let _lock = guard.check_recovery_destination(&target).unwrap();
+                let destination_check_us = started.elapsed().as_micros();
+                let begin_started = std::time::Instant::now();
                 journal
                     .begin(
                         parent_identity,
@@ -4644,7 +4665,31 @@ mod tests {
                         original_hash,
                     )
                     .unwrap();
-                admissions.push(started.elapsed().as_micros());
+                let begin_us = begin_started.elapsed().as_micros();
+                let elapsed_us = started.elapsed().as_micros();
+                admissions.push(elapsed_us);
+                eprintln!(
+                    "recovery_active_sample platform={} active_before={index} active_after={} admission_us={elapsed_us} destination_check_us={destination_check_us} begin_us={begin_us}",
+                    std::env::consts::OS,
+                    index + 1
+                );
+            }
+
+            // Keep the original aggregate percentile for comparability, but
+            // report occupancy bands before the samples are sorted.
+            for (from, to) in [(0, 1), (1, 8), (8, 16), (16, 32), (32, 64), (64, 128)] {
+                let mut band = admissions[from..to].to_vec();
+                band.sort_unstable();
+                let count = band.len();
+                eprintln!(
+                    "recovery_active_band platform={} active_after_min={} active_after_max={to} samples={count} median_us={} p95_us={} p99_us={} max_us={}",
+                    std::env::consts::OS,
+                    from + 1,
+                    band[count / 2],
+                    band[(count * 95).div_ceil(100) - 1],
+                    band[(count * 99).div_ceil(100) - 1],
+                    band[count - 1]
+                );
             }
 
             // Reopen the database to observe 128 persisted rows at once.
@@ -4814,6 +4859,55 @@ mod tests {
                     .as_deref(),
                 Some("keep")
             );
+        }
+        crate::credentials::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_manifest_batch_registers_all_new_shards_before_publication() {
+        let root = std::env::temp_dir().join(format!("ghostftp-gc-shards-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+        {
+            let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            let mut ledger = GlobalRecoveryLedger::load(&db, true).unwrap();
+            let scope = db.recovery_scope().unwrap();
+            let old_root = crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)
+                .unwrap()
+                .unwrap();
+            for index in 0..RECOVERY_SHARD_SIZE + 1 {
+                let bytes = index.to_be_bytes();
+                ledger.entries.insert(
+                    recovery_digest(&bytes),
+                    recovery_digest(&[&bytes[..], b"proof"].concat()),
+                );
+            }
+            let shards = ledger.shard_bytes();
+            assert_eq!(shards.len(), 2);
+            let candidates: Vec<_> = shards
+                .iter()
+                .map(|bytes| (recovery_digest(bytes), bytes.len()))
+                .collect();
+            // A length conflict on the second shard must abort before any
+            // new shard is written or the manifest is replaced.
+            register_recovery_gc(&scope, candidates[1].0, candidates[1].1 + 1).unwrap();
+            assert!(ledger.save(&db).is_err());
+            assert_eq!(
+                crate::credentials::vault_get_strict(RECOVERY_INDEX_SERVICE, &scope)
+                    .unwrap()
+                    .as_deref(),
+                Some(old_root.as_str())
+            );
+            for (digest, _) in candidates {
+                let account = recovery_blob_account(&scope, &digest, "length");
+                assert!(
+                    crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)
+                        .unwrap()
+                        .is_none()
+                );
+            }
         }
         crate::credentials::clear_recovery_test_vault();
         std::fs::remove_dir_all(root).unwrap();
