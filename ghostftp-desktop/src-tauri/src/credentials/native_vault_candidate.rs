@@ -147,3 +147,72 @@ fn candidate_requires_explicit_test_selection() {
     assert!(!enabled());
     assert!(lookup("fixture", "fixture").is_err());
 }
+
+// Native acceptance uses an independent vault anchor, not a SQLite-derived
+// key or an automatic replay path. All accounts are disposable UUID fixtures.
+#[test]
+#[ignore = "requires isolated unlocked native Secret Service"]
+fn journal_native_vault_anchor_reconciliation() {
+    use super::credential_mutation_journal::{Journal, Observation};
+    use rand::{rngs::OsRng, RngCore};
+
+    assert_eq!(
+        std::env::var("GHOSTFTP_DIRECT_VAULT_TEST").as_deref(),
+        Ok("disposable-fixtures")
+    );
+    configure_direct_candidate();
+    let root = std::env::temp_dir().join(format!("ghostftp-native-intent-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir(&root).unwrap();
+    let service = "com.ghostftp.native-vault.journal.fixture";
+    let scope = uuid::Uuid::new_v4().to_string();
+    let anchor_account = format!("{scope}-anchor");
+    let key_account = format!("{scope}-key");
+    let mut key = [0u8; 32];
+    OsRng.fill_bytes(&mut key);
+    use base64::Engine;
+    let encoding = base64::engine::general_purpose::STANDARD;
+    store(service, &key_account, &encoding.encode(key)).unwrap();
+    store(service, &scope, "old").unwrap();
+    let mut journal = Journal::open(&root.join("journal.db"), &scope).unwrap();
+    let permit = journal
+        .prepare(&key, service, &scope, Some("old"), Some("new"), |anchor| {
+            store(service, &anchor_account, &encoding.encode(anchor))?;
+            let readback = lookup(service, &anchor_account)?
+                .ok_or_else(|| anyhow!("anchor unavailable"))?;
+            encoding
+                .decode(readback)?
+                .try_into()
+                .map_err(|_| anyhow!("invalid anchor length"))
+        })
+        .unwrap();
+    permit
+        .dispatch(|| {
+            store(service, &scope, "new")?;
+            Err(anyhow!("synthetic lost acknowledgement"))
+        })
+        .unwrap_err();
+    drop(journal);
+    clear_direct_candidate();
+    configure_direct_candidate();
+    let key: [u8; 32] = encoding
+        .decode(lookup(service, &key_account).unwrap().unwrap())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let anchor: [u8; 32] = encoding
+        .decode(lookup(service, &anchor_account).unwrap().unwrap())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let journal = Journal::open(&root.join("journal.db"), &scope).unwrap();
+    assert_eq!(
+        journal.reconcile(&key, &anchor, lookup).unwrap(),
+        Observation::DesiredObserved
+    );
+    drop(journal);
+    remove(service, &scope).unwrap();
+    remove(service, &anchor_account).unwrap();
+    remove(service, &key_account).unwrap();
+    clear_direct_candidate();
+    std::fs::remove_dir_all(root).unwrap();
+}

@@ -33,7 +33,21 @@ jobs:
           cargo fmt --all -- --check
           cargo clippy --locked -p ghostftp --lib --tests --features native-vault-candidate -- -D warnings
           cargo test --locked -p ghostftp --lib --features native-vault-candidate candidate_requires_explicit_test_selection
+          cargo test --locked -p ghostftp --lib --features native-vault-candidate credential_mutation_journal::tests
           cargo test --locked -p ghostftp --lib --features native-vault-candidate native_vault_end_to_end_benchmark --no-run
+      - name: Native journal anchor and reconciliation
+        shell: bash
+        working-directory: ghostftp-desktop/src-tauri
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="$(mktemp -d)" XDG_DATA_HOME="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          trap 'rm -rf -- "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"' EXIT
+          export GHOSTFTP_DIRECT_VAULT_TEST=disposable-fixtures
+          timeout --kill-after=5s 120s dbus-run-session -- bash -euo pipefail -c '
+            printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            cargo test --locked -p ghostftp --lib --features native-vault-candidate journal_native_vault_anchor_reconciliation -- --ignored --nocapture
+          '
       - name: Compare full recovery promotions on same runner (ABBA)
         shell: bash
         run: |
