@@ -3,6 +3,7 @@
 ## 0.99.86 Preview — 25 November 2026 (development candidate; not yet published)
 
 - Add a disposable direct libsecret compatibility and lookup benchmark candidate; GNOME lookup-only compatibility passed. Add a test-only Rust integration with cancellable sessions and owner checks; production backend remains unchanged pending acceptance.
+- Add test-only encrypted portable ledger-key export and independently trusted receipt verification with read-only recovery reconstruction.
 - Add test-only authenticated logical ledger rotation, conservative media topology checks, generation migration and empty-ledger reconstruction.
 - Add test-only multi-phase recovery generation publication and authenticated manifest selection, preserving all old copies.
 - Add test-only native anchor and authenticated checkpoint exports with no-overwrite retention, independent replay and process-kill lock tests.

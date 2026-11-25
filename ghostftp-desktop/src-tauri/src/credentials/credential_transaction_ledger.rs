@@ -926,6 +926,182 @@ fn restore_generation(
     Ok(())
 }
 
+// Portable recovery uses a separately transported random 256-bit wrapping
+// key and an independently trusted receipt. A package cannot establish
+// its own freshness, and cannot authorize writes to a native vault.
+const PORTABLE_AAD: &[u8] = b"ghostftp.portable-recovery-key.v1";
+const MAX_PACKAGE: u64 = 16384;
+
+#[derive(Serialize, Deserialize)]
+struct PortablePayload {
+    version: u32,
+    scope: String,
+    head: Head,
+    generation: String,
+    manifest_digest: [u8; 32],
+    ledger_key: [u8; 32],
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct RecoveryReceipt {
+    scope: String,
+    head: Head,
+    package_digest: [u8; 32],
+}
+
+// This object is intentionally observation-only. It cannot enroll or advance
+// a native anchor. The trusted receipt must be obtained outside the backup.
+struct RecoveryAnchor(Head);
+
+impl Anchor for RecoveryAnchor {
+    fn read(&mut self) -> Result<Head> {
+        Ok(self.0)
+    }
+
+    fn advance(&mut self, _: Head, _: Head) -> Result<()> {
+        Err(anyhow!("portable recovery anchor is read-only"))
+    }
+}
+
+fn export_portable_key(
+    ledger_key: &[u8; 32],
+    wrapping_key: &[u8; 32],
+    scope: &str,
+    anchor: &mut impl Anchor,
+    generation: &Path,
+    package: &Path,
+) -> Result<RecoveryReceipt> {
+    ensure!(ledger_key != wrapping_key, "recovery key must be independent");
+    let history = verify_generation(ledger_key, scope, anchor, generation)?;
+    let id = generation
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow!("invalid recovery generation"))?;
+    let payload = PortablePayload {
+        version: 1,
+        scope: scope.into(),
+        head: history.head,
+        generation: id.into(),
+        manifest_digest: publication_digest(generation)?,
+        ledger_key: *ledger_key,
+    };
+    let cipher =
+        Aes256Gcm::new_from_slice(wrapping_key).map_err(|_| anyhow!("invalid wrapping key"))?;
+    let mut nonce = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce);
+    let mut plaintext = serde_json::to_vec(&payload)?;
+    let encrypted = cipher.encrypt(
+        Nonce::from_slice(&nonce),
+        Payload {
+            msg: &plaintext,
+            aad: PORTABLE_AAD,
+        },
+    );
+    plaintext.fill(0);
+    let encrypted = encrypted.map_err(|_| anyhow!("portable key encryption failed"))?;
+    let sealed = [nonce.as_slice(), encrypted.as_slice()].concat();
+    ensure!(sealed.len() as u64 <= MAX_PACKAGE, "portable package too large");
+    let parent = package
+        .parent()
+        .ok_or_else(|| anyhow!("missing package directory"))?;
+    check_private_directory(parent)?;
+    write_new_copy(package, &sealed)?;
+    File::open(parent)?.sync_all()?;
+    ensure!(read_package(package)? == sealed, "package readback mismatch");
+    ensure!(anchor.read()? == history.head, "source head changed");
+    Ok(RecoveryReceipt {
+        scope: scope.into(),
+        head: history.head,
+        package_digest: Sha256::digest(&sealed).into(),
+    })
+}
+
+fn read_package(path: &Path) -> Result<Vec<u8>> {
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+        .open(path)?;
+    let meta = file.metadata()?;
+    ensure!(
+        meta.is_file()
+            && meta.nlink() == 1
+            && meta.mode() & 0o077 == 0
+            && (28..=MAX_PACKAGE).contains(&meta.len()),
+        "invalid portable recovery package"
+    );
+    let mut bytes = Vec::new();
+    file.take(MAX_PACKAGE + 1).read_to_end(&mut bytes)?;
+    ensure!(bytes.len() as u64 == meta.len(), "package changed");
+    Ok(bytes)
+}
+
+fn recover_portable(
+    wrapping_key: &[u8; 32],
+    receipt: &RecoveryReceipt,
+    package: &Path,
+    generation: &Path,
+    destination: &Path,
+) -> Result<History> {
+    let sealed = read_package(package)?;
+    ensure!(
+        <[u8; 32]>::from(Sha256::digest(&sealed)) == receipt.package_digest,
+        "package differs from independent receipt"
+    );
+    let cipher =
+        Aes256Gcm::new_from_slice(wrapping_key).map_err(|_| anyhow!("invalid wrapping key"))?;
+    let mut plaintext = cipher
+        .decrypt(
+            Nonce::from_slice(&sealed[..12]),
+            Payload {
+                msg: &sealed[12..],
+                aad: PORTABLE_AAD,
+            },
+        )
+        .map_err(|_| anyhow!("portable recovery authentication failed"))?;
+    let decoded = serde_json::from_slice::<PortablePayload>(&plaintext);
+    plaintext.fill(0);
+    let mut payload = decoded?;
+    let result = (|| {
+        ensure!(
+            payload.version == 1
+                && payload.scope == receipt.scope
+                && payload.head == receipt.head
+                && receipt.head.seq <= LIMIT,
+            "portable receipt identity or head mismatch"
+        );
+        ensure!(
+            generation.file_name().and_then(|name| name.to_str())
+                == Some(payload.generation.as_str())
+                && publication_digest(generation)? == payload.manifest_digest,
+            "portable generation mismatch"
+        );
+        let mut anchor = RecoveryAnchor(receipt.head);
+        let history = verify_generation(
+            &payload.ledger_key,
+            &receipt.scope,
+            &mut anchor,
+            generation,
+        )?;
+        restore_generation(
+            &payload.ledger_key,
+            &receipt.scope,
+            &mut anchor,
+            generation,
+            destination,
+        )?;
+        // Reopen the reconstructed ledger and compare to the independently
+        // authenticated history. No mutation permit or credential is returned.
+        let ledger = Ledger::open(destination, &receipt.scope)?;
+        ensure!(
+            ledger.verify(&payload.ledger_key, &mut anchor)? == history,
+            "portable recovery readback mismatch"
+        );
+        Ok(history)
+    })();
+    payload.ledger_key.fill(0);
+    result
+}
+
 // Select only a verified generation matching the current trusted head.
 // A stale generation can be retained for manual forensic recovery, but must
 // never be used to roll back live credential state. Errors preserve all files.
@@ -1468,5 +1644,155 @@ mod tests {
         drop(ledger);
         std::fs::remove_dir_all(source).unwrap();
         std::fs::remove_dir_all(backup).unwrap();
+    }
+
+    #[test]
+    fn ledger_portable_recovery_rejects_wrong_key_and_stale_receipt() {
+        let source = root();
+        let backup = root();
+        let transport = root();
+        let destination = root();
+        use std::os::unix::fs::PermissionsExt;
+        for path in [&backup, &transport, &destination] {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let mut anchor = FixtureAnchor(Head::genesis());
+        let mut ledger = Ledger::open(&source, SCOPE).unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("a", "one"))
+            .unwrap();
+        let generation = ledger
+            .publish_generation(&KEY, &mut anchor, &backup, |_| Ok(()))
+            .unwrap();
+        let mut wrapping = [0u8; 32];
+        OsRng.fill_bytes(&mut wrapping);
+        let package = transport.join("recovery.key");
+        let receipt =
+            export_portable_key(&KEY, &wrapping, SCOPE, &mut anchor, &generation, &package)
+                .unwrap();
+        assert!(export_portable_key(
+            &KEY, &wrapping, SCOPE, &mut anchor, &generation, &package
+        )
+        .is_err());
+        assert!(recover_portable(&[0; 32], &receipt, &package, &generation, &destination).is_err());
+        let mut stale = receipt.clone();
+        stale.head = Head::genesis();
+        assert!(recover_portable(&wrapping, &stale, &package, &generation, &destination).is_err());
+        let mut wrong_scope = receipt.clone();
+        wrong_scope.scope = "other".into();
+        assert!(
+            recover_portable(&wrapping, &wrong_scope, &package, &generation, &destination).is_err()
+        );
+        assert!(std::fs::read_dir(&destination).unwrap().next().is_none());
+        let expected = ledger.verify(&KEY, &mut anchor).unwrap();
+        assert_eq!(
+            recover_portable(&wrapping, &receipt, &package, &generation, &destination).unwrap(),
+            expected
+        );
+        assert!(recover_portable(&wrapping, &receipt, &package, &generation, &destination).is_err());
+        let mut sealed = std::fs::read(&package).unwrap();
+        sealed[15] ^= 1;
+        std::fs::write(&package, sealed).unwrap();
+        assert!(recover_portable(&wrapping, &receipt, &package, &generation, &destination).is_err());
+        assert_eq!(ledger.verify(&KEY, &mut anchor).unwrap(), expected);
+        drop(ledger);
+        for path in [source, backup, transport, destination] {
+            std::fs::remove_dir_all(path).unwrap();
+        }
+    }
+
+    #[test]
+    fn ledger_portable_recovery_fresh_process() {
+        const ROOT: &str = "GHOSTFTP_PORTABLE_RECOVERY_FIXTURE";
+        if let Some(path) = std::env::var_os(ROOT) {
+            let root = PathBuf::from(path);
+            // Test-only files simulate separately transported trust material.
+            let wrapping: [u8; 32] = std::fs::read(root.join("trust/wrapping"))
+                .unwrap()
+                .try_into()
+                .unwrap();
+            let receipt: RecoveryReceipt =
+                serde_json::from_slice(&std::fs::read(root.join("trust/receipt")).unwrap()).unwrap();
+            let generation = std::fs::read_dir(root.join("media"))
+                .unwrap()
+                .next()
+                .unwrap()
+                .unwrap()
+                .path();
+            let history = recover_portable(
+                &wrapping,
+                &receipt,
+                &root.join("transport/recovery.key"),
+                &generation,
+                &root.join("replacement"),
+            )
+            .unwrap();
+            assert_eq!(history.head, receipt.head);
+            assert_eq!(history.entries.len(), 2);
+            assert!(history.entries.values().all(|entry| !entry.archived));
+            return;
+        }
+        let path = root();
+        for name in ["source", "media", "transport", "trust", "replacement"] {
+            std::fs::DirBuilder::new()
+                .mode(0o700)
+                .create(path.join(name))
+                .unwrap();
+        }
+        let mut anchor = FixtureAnchor(Head::genesis());
+        let mut ledger = Ledger::open(&path.join("source"), SCOPE).unwrap();
+        let mut key = [0u8; 32];
+        let mut wrapping = [0u8; 32];
+        OsRng.fill_bytes(&mut key);
+        OsRng.fill_bytes(&mut wrapping);
+        let _ = ledger
+            .prepare(&key, &mut anchor, intent("a", "one"))
+            .unwrap();
+        let _ = ledger
+            .prepare(&key, &mut anchor, intent("b", "two"))
+            .unwrap();
+        let generation = ledger
+            .publish_generation(&key, &mut anchor, &path.join("media"), |_| Ok(()))
+            .unwrap();
+        let receipt = export_portable_key(
+            &key,
+            &wrapping,
+            SCOPE,
+            &mut anchor,
+            &generation,
+            &path.join("transport/recovery.key"),
+        )
+        .unwrap();
+        write_new_copy(&path.join("trust/wrapping"), &wrapping).unwrap();
+        write_new_copy(
+            &path.join("trust/receipt"),
+            &serde_json::to_vec(&receipt).unwrap(),
+        )
+        .unwrap();
+        drop(ledger);
+        // A fresh process receives only the copied generation, encrypted
+        // package and independent receipt/key fixture, not the source DB.
+        std::fs::rename(path.join("source"), path.join("source-retained")).unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("ledger_portable_recovery_fresh_process")
+            .env(ROOT, &path)
+            .spawn()
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if std::time::Instant::now() >= deadline {
+                let _ = child.kill();
+                child.wait().unwrap();
+                panic!("portable recovery fixture timed out");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        assert!(status.success());
+        assert!(path.join("source-retained/credential-ledger.db").exists());
+        assert!(path.join("replacement/credential-ledger.db").exists());
+        std::fs::remove_dir_all(path).unwrap();
     }
 }
