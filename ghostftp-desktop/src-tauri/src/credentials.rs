@@ -41,6 +41,8 @@ pub(crate) fn configure_native_recovery_test_vault(
     RECOVERY_TEST_VAULT.with(|state| {
         state.borrow_mut().as_mut().unwrap().native = true;
     });
+    #[cfg(all(target_os = "linux", feature = "native-vault-candidate"))]
+    linux_secret_service::configure_direct_candidate();
 }
 
 #[cfg(test)]
@@ -114,6 +116,8 @@ pub(crate) fn cleanup_native_recovery_test_vault(root: &std::path::Path) -> Resu
 #[cfg(test)]
 pub(crate) fn clear_recovery_test_vault() {
     RECOVERY_TEST_VAULT.with(|state| *state.borrow_mut() = None);
+    #[cfg(all(target_os = "linux", feature = "native-vault-candidate"))]
+    linux_secret_service::clear_direct_candidate();
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ name: Native active recovery benchmark (candidate)
 
 on:
   push:
-    branches: [test/native-active-recovery-128-candidate, perf/native-vault-delete-readback-candidate]
+    branches: [test/native-active-recovery-128-candidate, perf/native-vault-delete-readback-candidate, perf/recovery-gc-marker-v0.99.86]
   workflow_dispatch:
 
 permissions:
@@ -95,10 +95,27 @@ jobs:
           export XDG_DATA_HOME="$(mktemp -d)"
           chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
           trap 'rm -rf -- "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"' EXIT
+          mkdir -p "$GITHUB_WORKSPACE/build/recovery-active"
+          {
+            git rev-parse HEAD
+            uname -srmo
+            rustc --version
+            cargo --version
+            lscpu
+            df -T .
+          } > "$GITHUB_WORKSPACE/build/recovery-active/environment.txt"
           dbus-run-session -- bash -euo pipefail -c '
             printf "%s" "isolated-ci-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
             cargo test --locked -p ghostftp --lib helper_profile_counts_only_fixed_categories_and_operations -- --nocapture
             GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN=disposable-fixtures cargo test --locked -p ghostftp --lib native_strict_delete_retains_verified_absence_with_two_lookups -- --ignored --nocapture
             cargo test --locked -p ghostftp --lib native_vault_end_to_end_benchmark -- --ignored --nocapture
             GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN=disposable-fixtures cargo test --locked -p ghostftp --lib native_vault_active_recovery_benchmark -- --ignored --nocapture
-          '
+          ' 2>&1 | tee "$GITHUB_WORKSPACE/build/recovery-active/native.log"
+
+      - name: Upload active recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Native-Active-Recovery
+          path: build/recovery-active/
+          if-no-files-found: error

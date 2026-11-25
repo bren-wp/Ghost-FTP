@@ -1,6 +1,23 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.85 Preview — 25 November 2026 (development candidate; not yet published)
+## 0.99.86 Preview — 25 November 2026 (development candidate; not yet published)
+
+- Add a disposable direct libsecret compatibility and lookup benchmark candidate; GNOME lookup-only compatibility passed. Add a test-only Rust integration with cancellable sessions and owner checks; production backend remains unchanged pending acceptance.
+- Add test-only encrypted portable ledger-key export and independently trusted receipt verification with read-only recovery reconstruction.
+- Add test-only authenticated logical ledger rotation, conservative media topology checks, generation migration and empty-ledger reconstruction.
+- Add test-only multi-phase recovery generation publication and authenticated manifest selection, preserving all old copies.
+- Add test-only native anchor and authenticated checkpoint exports with no-overwrite retention, independent replay and process-kill lock tests.
+- Add a feature-gated append-only transaction ledger candidate with multiple unresolved intents, verified chain/anchor and logical archives.
+- Add a feature-gated authenticated persistent mutation intent prototype and deterministic read-only reconciliation tests; native failure injection passed in the preceding candidate.
+- Distinguish uncertain dispatched mutations, invalidate sessions after failed readback, and test write/delete acknowledgement interruption with restart reconciliation.
+- Add native failure-injection coverage for blocked lookups and provider interruption/restart, an explicit KWallet provider CRUD acceptance harness, and expanded paired recovery measurement configuration.
+- Avoid a redundant GC length-marker read while retaining exact chunk lengths, SHA-256 verification and strict deletion semantics.
+- Batch superseded and new immutable shard registration with authenticated page reads, capacity preflight and durable per-page read-back; add conflict, overflow, tampering and unpublished-root regression coverage.
+- Record raw admission and occupancy-band latency for 128 real persisted journals and archive the native benchmark logs. Align active documentation with the current Preview source and published predecessor.
+- Add a regression test for mismatched length and same-size corrupted chunks. Native CI and benchmarks are required before publication.
+- Update public links to v0.99.85 and its native QA archive; retain historical screenshot provenance.
+
+## 0.99.85 Preview — published 25 November 2026
 
 - Advance the source version after v0.99.84 was published from an earlier immutable commit; preserve its tag and assets.
 - Include the merged 128-active-journal benchmark, fixed-category native helper profiler, strict Linux deletion read-back optimization and paired A/B evidence tooling.

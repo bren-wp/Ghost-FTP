@@ -23,11 +23,11 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 ## Download Ghost FTP
 
-**[Get v0.99.84 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.84)** — choose a portable or installable edition for your desktop from the previously published v0.99.84.
+**[Get v0.99.85 Preview](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.85)** — choose a portable or installable edition for your desktop.
 
 [Windows & Linux package options](#choose-your-platform) · [**Releases**](https://github.com/bren-wp/Ghost-FTP/releases)
 
-**Ghost FTP 0.99.85 Preview** is in development. See the [release notes](docs/releases/0.99.85.md) for details.
+**Ghost FTP 0.99.86 Preview** is the development candidate. Download the previously published v0.99.85 above; see its [published release notes](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.85).
 
 ## Built for the way you work
 
@@ -44,7 +44,7 @@ Explore the two-pane workspace, saved connections, transfer queue and preference
 
 **Windows 0.99.71 native captures:** [Windows & Linux build QA — 20 November 2026](https://github.com/bren-wp/Ghost-FTP/actions/runs/44665767749) (artifact **GhostFTP-Windows-x64-Preview-QA**; files, sites, transfers, settings, About, properties and responsive compact/minimum windows). The embedded images below retain their documented earlier-version provenance; current QA capture bundles are linked rather than silently relabeled.
 
-**Published v0.99.84 Windows native QA package:** [GhostFTP-Windows-x64-v0.99.84-Native-QA.zip](https://github.com/bren-wp/Ghost-FTP/releases/download/v0.99.84/GhostFTP-Windows-x64-v0.99.84-Native-QA.zip). The archive accompanies that published release; the gallery below shows earlier builds with their original capture information.
+**Published v0.99.85 Windows native QA package:** [GhostFTP-Windows-x64-v0.99.85-Native-QA.zip](https://github.com/bren-wp/Ghost-FTP/releases/download/v0.99.85/GhostFTP-Windows-x64-v0.99.85-Native-QA.zip). The archive accompanies that published release; the gallery below shows earlier builds with their original capture information.
 
 <a href="docs/assets/screenshots/ghostftp-native-files.png"><img src="docs/assets/screenshots/ghostftp-native-files.png" alt="Ghost FTP on Windows: actual local and remote file workspace" width="100%"></a>
 
@@ -118,7 +118,7 @@ Each published version includes its own SHA-256 checksums. Pick the package for 
 
 The **Sites** workspace makes better use of the desktop window, with a simpler first-connection experience and a responsive layout for saved connections. Browse, transfer and manage remote files from the same familiar workspace.
 
-For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The previously published v0.99.84 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
+For the latest *published* packages, select [Releases](https://github.com/bren-wp/Ghost-FTP/releases). The published v0.99.85 Preview and full technical history are documented in the [changelog](CHANGELOG.md). Features vary by protocol and server.
 
 ## Your trust matters
 
@@ -126,7 +126,7 @@ FTP transmits data without encryption; use FTPS or SFTP for sensitive operations
 
 [Features](docs/product/FEATURES.md) · [Security](SECURITY.md) · [Privacy](docs/legal/PRIVACY.md) · [Release notes](CHANGELOG.md) · [Support](https://ghostftp.com/hr/support)
 
-<sub>Ghost FTP 0.99.85 is the current source version; consult GitHub Releases for published downloads. The images above are authentic, documented native captures from earlier builds, not certified v0.99.85 screenshots. A Stable release requires separate signing, installed-upgrade and native-platform verification.</sub>
+<sub>The images above are authentic, documented native captures from earlier builds; consult GitHub Releases for current downloads and native QA evidence. A Stable release requires separate signing, installed-upgrade and native-platform verification.</sub>
 
 ---
 

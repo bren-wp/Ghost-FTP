@@ -2,7 +2,7 @@ name: Native Recovery paired A-B benchmark (candidate)
 
 on:
   push:
-    branches: [perf/native-recovery-paired-ab-candidate]
+    branches: [perf/native-recovery-paired-ab-candidate, perf/recovery-gc-marker-v0.99.86]
   workflow_dispatch:
 
 permissions:
@@ -56,7 +56,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash .github/scripts/benchmark-native-recovery-paired.sh
+          if [ "$GITHUB_REF_NAME" = "perf/recovery-gc-marker-v0.99.86" ]; then
+            bash .github/scripts/benchmark-native-recovery-paired.sh 9c5de4599e53f5156476ccdda2c4fb3a95997a15 "$GITHUB_SHA"
+          else
+            bash .github/scripts/benchmark-native-recovery-paired.sh
+          fi
 
       - name: Upload paired benchmark evidence
         if: always()

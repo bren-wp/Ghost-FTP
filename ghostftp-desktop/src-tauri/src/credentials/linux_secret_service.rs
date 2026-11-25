@@ -14,6 +14,20 @@ use std::os::fd::AsRawFd;
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
+#[cfg(all(test, feature = "native-vault-candidate"))]
+#[path = "credential_transaction_ledger.rs"]
+mod credential_transaction_ledger;
+
+#[cfg(all(test, feature = "native-vault-candidate"))]
+#[path = "credential_mutation_journal.rs"]
+mod credential_mutation_journal;
+
+#[cfg(all(test, feature = "native-vault-candidate"))]
+#[path = "native_vault_candidate.rs"]
+mod native_vault_candidate;
+#[cfg(all(test, feature = "native-vault-candidate"))]
+pub(super) use native_vault_candidate::{clear_direct_candidate, configure_direct_candidate};
+
 // GNOME libsecret's secret-tool currently reads at most 8192 bytes from a
 // piped password; reject larger values instead of truncating private material.
 const MAX_SECRET_BYTES: usize = 8191;
@@ -317,6 +331,10 @@ fn command(operation: &str, service: &str, account: &str) -> Command {
 }
 
 pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
+    #[cfg(all(test, feature = "native-vault-candidate"))]
+    if native_vault_candidate::enabled() {
+        return native_vault_candidate::lookup(service, account);
+    }
     let output = profile_helper(0, service, || {
         let child = command("lookup", service, account)
             .spawn()
@@ -344,6 +362,10 @@ pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
 }
 
 pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
+    #[cfg(all(test, feature = "native-vault-candidate"))]
+    if native_vault_candidate::enabled() {
+        return native_vault_candidate::store(service, account, secret);
+    }
     if secret.is_empty() || secret.len() > MAX_SECRET_BYTES {
         return Err(anyhow!("Invalid Linux Secret Service credential length"));
     }
@@ -381,6 +403,10 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
 }
 
 pub fn remove(service: &str, account: &str) -> Result<()> {
+    #[cfg(all(test, feature = "native-vault-candidate"))]
+    if native_vault_candidate::enabled() {
+        return native_vault_candidate::remove(service, account);
+    }
     let output = profile_helper(2, service, || {
         let child = command("clear", service, account)
             .spawn()

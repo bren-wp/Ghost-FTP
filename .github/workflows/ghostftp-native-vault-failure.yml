@@ -1,0 +1,45 @@
+name: Native vault failure injection (candidate)
+
+on:
+  push:
+    branches: [perf/recovery-gc-marker-v0.99.86]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gnome-faults:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install native test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libsecret-tools gnome-keyring dbus
+      - name: Build exact candidate bridge and failure probe
+        run: |
+          mkdir -p build/vault-failure
+          cc -std=c11 -Wall -Wextra -Werror \
+            ghostftp-desktop/src-tauri/src/credentials/native_vault_candidate.c \
+            tools/native-vault/failure-probe.c \
+            $(pkg-config --cflags --libs libsecret-1 gio-2.0) -o build/vault-failure/probe
+      - name: Interrupt real isolated GNOME Secret Service
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)"
+          trap 'rm -rf -- "$root"' EXIT
+          export HOME="$root/home" XDG_DATA_HOME="$root/data" XDG_CONFIG_HOME="$root/config" XDG_RUNTIME_DIR="$root/runtime"
+          mkdir -p "$HOME" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          export GHOSTFTP_VAULT_PROBE_OPT_IN=disposable-fixtures
+          timeout --kill-after=5s 120s dbus-run-session -- bash tools/native-vault/gnome-failure-session.sh \
+            "$root" "$GITHUB_WORKSPACE/build/vault-failure/probe" 2>&1 | tee build/vault-failure/native.log
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: GhostFTP-Native-Vault-Failure-Evidence
+          path: build/vault-failure/native.log
+          if-no-files-found: warn
