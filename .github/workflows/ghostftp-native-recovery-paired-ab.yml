@@ -1,0 +1,67 @@
+name: Native Recovery paired A-B benchmark (candidate)
+
+on:
+  push:
+    branches: [perf/native-recovery-paired-ab-candidate]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-paired-ab-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  paired:
+    name: Paired Linux native vault measurements
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Linux desktop prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          apt_retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "APT attempt $attempt/3: $*"
+              if sudo env DEBIAN_FRONTEND=noninteractive \
+                timeout --signal=TERM --kill-after=30s 8m \
+                apt-get -o Acquire::Retries=3 \
+                  -o Acquire::http::Timeout=30 \
+                  -o Acquire::https::Timeout=30 \
+                  -o Dpkg::Use-Pty=0 "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 10))
+              fi
+            done
+            echo "::error::APT prerequisites failed after 3 bounded attempts."
+            return 1
+          }
+
+          apt_retry update
+          apt_retry install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf dbus gnome-keyring libsecret-tools
+
+      - name: Run pinned baseline and optimized revisions on the same runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/benchmark-native-recovery-paired.sh
+
+      - name: Upload paired benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Native-Recovery-Paired-AB
+          path: build/recovery-paired-ab/
+          if-no-files-found: error

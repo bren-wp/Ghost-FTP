@@ -34,15 +34,50 @@ fn next_poll_interval(interval: Duration) -> Duration {
 // Opt-in, test-only aggregate process timing. No credential bytes, identifiers
 // or command arguments are recorded. Normal production builds retain no samples.
 #[cfg(test)]
+const PROFILE_CATEGORIES: [&str; 8] = [
+    "transaction-key",
+    "anchor",
+    "manifest",
+    "index-key",
+    "blob",
+    "gc-page",
+    "gc-keys",
+    "other",
+];
+
+#[cfg(test)]
+fn profile_category(service: &str) -> usize {
+    match service {
+        "com.ghostftp.download-recovery.v1" => 0,
+        "com.ghostftp.download-recovery-anchor.v1" => 1,
+        "com.ghostftp.download-recovery-index.v1" => 2,
+        "com.ghostftp.download-recovery-index-key.v1" => 3,
+        "com.ghostftp.download-recovery-blob.v2" => 4,
+        "com.ghostftp.download-recovery-gc.v1" => 5,
+        "com.ghostftp.download-recovery-gc-keys.v1" => 6,
+        _ => 7,
+    }
+}
+
+#[cfg(test)]
+struct HelperProfile {
+    operations: [Vec<u128>; 3],
+    categories: [[(usize, u128); 3]; 8],
+}
+
+#[cfg(test)]
 std::thread_local! {
-    static HELPER_PROFILE: std::cell::RefCell<Option<[Vec<u128>; 3]>> =
+    static HELPER_PROFILE: std::cell::RefCell<Option<HelperProfile>> =
         const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
 pub(crate) fn start_linux_helper_profile() {
     HELPER_PROFILE.with(|profile| {
-        *profile.borrow_mut() = Some(std::array::from_fn(|_| Vec::new()));
+        *profile.borrow_mut() = Some(HelperProfile {
+            operations: std::array::from_fn(|_| Vec::new()),
+            categories: [[(0, 0); 3]; 8],
+        });
     });
 }
 
@@ -50,7 +85,21 @@ pub(crate) fn start_linux_helper_profile() {
 pub(crate) fn finish_linux_helper_profile() {
     HELPER_PROFILE.with(|profile| {
         if let Some(mut groups) = profile.borrow_mut().take() {
-            for (operation, samples) in ["lookup", "store", "clear"].into_iter().zip(&mut groups) {
+            for (category, counters) in PROFILE_CATEGORIES.into_iter().zip(groups.categories) {
+                for (operation, (calls, total_us)) in
+                    ["lookup", "store", "clear"].into_iter().zip(counters)
+                {
+                    if calls != 0 {
+                        eprintln!(
+                            "recovery_linux_helper_category category={category} operation={operation} calls={calls} total_us={total_us}"
+                        );
+                    }
+                }
+            }
+            for (operation, samples) in ["lookup", "store", "clear"]
+                .into_iter()
+                .zip(&mut groups.operations)
+            {
                 if samples.is_empty() {
                     continue;
                 }
@@ -70,14 +119,22 @@ pub(crate) fn finish_linux_helper_profile() {
     });
 }
 
-fn profile_helper(_operation: usize, run: impl FnOnce() -> Result<Output>) -> Result<Output> {
+fn profile_helper(
+    _operation: usize,
+    _service: &str,
+    run: impl FnOnce() -> Result<Output>,
+) -> Result<Output> {
     #[cfg(test)]
     let started = Instant::now();
     let result = run();
     #[cfg(test)]
     HELPER_PROFILE.with(|profile| {
         if let Some(groups) = profile.borrow_mut().as_mut() {
-            groups[_operation].push(started.elapsed().as_micros());
+            let elapsed = started.elapsed().as_micros();
+            groups.operations[_operation].push(elapsed);
+            let counter = &mut groups.categories[profile_category(_service)][_operation];
+            counter.0 += 1;
+            counter.1 += elapsed;
         }
     });
     result
@@ -260,7 +317,7 @@ fn command(operation: &str, service: &str, account: &str) -> Command {
 }
 
 pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
-    let output = profile_helper(0, || {
+    let output = profile_helper(0, service, || {
         let child = command("lookup", service, account)
             .spawn()
             .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
@@ -306,7 +363,7 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let output = profile_helper(1, || {
+    let output = profile_helper(1, service, || {
         let child = command.spawn().map_err(|_| {
             anyhow!("Linux Secret Service client is unavailable; install libsecret-tools")
         })?;
@@ -324,7 +381,7 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
 }
 
 pub fn remove(service: &str, account: &str) -> Result<()> {
-    let output = profile_helper(2, || {
+    let output = profile_helper(2, service, || {
         let child = command("clear", service, account)
             .spawn()
             .map_err(|_| anyhow!("Linux Secret Service client unavailable during deletion"))?;
@@ -344,6 +401,63 @@ pub fn remove(service: &str, account: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn helper_profile_counts_only_fixed_categories_and_operations() {
+        start_linux_helper_profile();
+        let service = "com.ghostftp.download-recovery-blob.v2";
+        assert!(profile_helper(0, service, || Err(anyhow!("fixture"))).is_err());
+        assert!(profile_helper(1, "unrecognized-service", || Err(anyhow!("fixture"))).is_err());
+        HELPER_PROFILE.with(|profile| {
+            let profile = profile.borrow();
+            let profile = profile.as_ref().unwrap();
+            assert_eq!(profile.operations[0].len(), 1);
+            assert_eq!(profile.operations[1].len(), 1);
+            assert_eq!(profile.categories[4][0].0, 1);
+            assert_eq!(profile.categories[7][1].0, 1);
+            assert_eq!(profile.categories[4][1].0, 0);
+        });
+        finish_linux_helper_profile();
+        HELPER_PROFILE.with(|profile| assert!(profile.borrow().is_none()));
+    }
+
+    #[test]
+    #[ignore = "requires an isolated unlocked native Secret Service"]
+    fn native_strict_delete_retains_verified_absence_with_two_lookups() {
+        assert_eq!(
+            std::env::var("GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN")
+                .ok()
+                .as_deref(),
+            Some("disposable-fixtures")
+        );
+        let root =
+            std::env::temp_dir().join(format!("ghostftp-delete-bench-{}", uuid::Uuid::new_v4()));
+        super::super::configure_native_recovery_test_vault(root.clone(), None);
+        let result = std::panic::catch_unwind(|| {
+            let service = "com.ghostftp.download-recovery.v1";
+            let account = uuid::Uuid::new_v4().to_string();
+            super::super::vault_set(service, &account, "test-only-value").unwrap();
+            for expected_clears in [1, 0] {
+                start_linux_helper_profile();
+                super::super::vault_delete_strict(service, &account).unwrap();
+                HELPER_PROFILE.with(|profile| {
+                    let profile = profile.borrow();
+                    let profile = profile.as_ref().unwrap();
+                    assert_eq!(profile.operations[0].len(), 2);
+                    assert_eq!(profile.operations[1].len(), 0);
+                    assert_eq!(profile.operations[2].len(), expected_clears);
+                });
+                finish_linux_helper_profile();
+                assert!(lookup(service, &account).unwrap().is_none());
+            }
+        });
+        super::super::cleanup_native_recovery_test_vault(&root).unwrap();
+        super::super::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
+        if let Err(error) = result {
+            std::panic::resume_unwind(error);
+        }
+    }
 
     #[test]
     fn adaptive_polling_is_capped_and_respects_remaining_deadline() {

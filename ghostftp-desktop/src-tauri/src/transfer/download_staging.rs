@@ -4524,6 +4524,124 @@ mod tests {
 
     #[cfg(any(target_os = "linux", windows))]
     #[test]
+    #[ignore = "128 real prepared recovery journals; dedicated native vault session required"]
+    fn native_vault_active_recovery_benchmark() {
+        assert_eq!(
+            std::env::var("GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN")
+                .ok()
+                .as_deref(),
+            Some("disposable-fixtures")
+        );
+        let root = std::env::temp_dir().join(format!("ghostftp-active-bench-{}", Uuid::new_v4()));
+        std::fs::create_dir(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
+        let result = std::panic::catch_unwind(|| {
+            let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
+            let mut admissions = Vec::new();
+            for index in 0..128 {
+                let id = format!("active-{index}");
+                let target = root.join(format!("{id}-target"));
+                let stage = root.join(format!("{id}-stage"));
+                write_durable_fixture(&target, b"old").unwrap();
+                write_durable_fixture(&stage, b"new").unwrap();
+                let guard = DownloadParentGuard::with_db(&target, Some(db.clone())).unwrap();
+                let journal = guard
+                    .recovery_journal(&stage, &target, &id)
+                    .unwrap()
+                    .unwrap();
+                let original = std::fs::File::open(&target).unwrap();
+                let staged = std::fs::File::open(&stage).unwrap();
+                let original_identity = recovery_file_identity(&original).unwrap();
+                let stage_identity = recovery_file_identity(&staged).unwrap();
+                #[cfg(target_os = "linux")]
+                let parent_identity = {
+                    use std::os::unix::fs::MetadataExt;
+                    let metadata = guard.handle.metadata().unwrap();
+                    (metadata.dev(), metadata.ino())
+                };
+                #[cfg(windows)]
+                let parent_identity = {
+                    let (volume, index) = windows_file_identity(&*guard.handle).unwrap();
+                    (u64::from(volume), index)
+                };
+                let stage_hash = recovery_file_hash(&staged, stage_identity).unwrap();
+                let original_hash = recovery_file_hash(&original, original_identity).unwrap();
+                let started = std::time::Instant::now();
+                let _lock = guard.check_recovery_destination(&target).unwrap();
+                journal
+                    .begin(
+                        parent_identity,
+                        stage_identity,
+                        original_identity,
+                        stage_hash,
+                        original_hash,
+                    )
+                    .unwrap();
+                admissions.push(started.elapsed().as_micros());
+            }
+
+            // Reopen the database to observe 128 persisted rows at once.
+            drop(db);
+            let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            let started = std::time::Instant::now();
+            let mut ledger = GlobalRecoveryLedger::load(&db, false).unwrap();
+            ledger.reconcile_metadata(&db).unwrap();
+            ledger.check_rows(&db).unwrap();
+            GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+            let rows = db.download_recovery_snapshot().unwrap();
+            assert_eq!(rows.len(), 128);
+            let reconcile_us = started.elapsed().as_micros();
+            let mut inspections = Vec::new();
+            let mut ids = std::collections::BTreeSet::new();
+            for row in rows {
+                let started = std::time::Instant::now();
+                assert!(ids.insert(row.id.clone()));
+                assert_eq!(row.phase, "prepared");
+                let signed: AuthenticatedRecovery = serde_json::from_str(&row.payload).unwrap();
+                assert_eq!(
+                    signed.authenticate(&row.id, &row.payload).unwrap(),
+                    RecoveryPhase::Prepared
+                );
+                let record: RecoveryInspectionRecord =
+                    serde_json::from_str(&signed.payload).unwrap();
+                assert!(record.matches_reservation(row.destination_key.as_deref()));
+                assert_eq!(record.inspect(), RecoveryObservation::OriginalPresent);
+                assert_eq!(std::fs::read(&record.target).unwrap(), b"old");
+                assert_eq!(std::fs::read(&record.stage).unwrap(), b"new");
+                assert!(!record.backup.exists());
+                inspections.push(started.elapsed().as_micros());
+            }
+            assert_eq!(ids.len(), 128);
+            ledger.check_rows(&db).unwrap();
+            assert_eq!(db.download_recovery_snapshot().unwrap().len(), 128);
+            for (phase, samples) in [
+                ("admission", &mut admissions),
+                ("inspection", &mut inspections),
+            ] {
+                samples.sort_unstable();
+                let count = samples.len();
+                eprintln!(
+                    "recovery_active_benchmark platform={} phase={phase} samples={count} median_us={} p95_us={} p99_us={} max_us={} reconcile_us={reconcile_us}",
+                    std::env::consts::OS,
+                    samples[count / 2],
+                    samples[(count * 95).div_ceil(100) - 1],
+                    samples[(count * 99).div_ceil(100) - 1],
+                    samples[count - 1]
+                );
+            }
+        });
+        crate::credentials::cleanup_native_recovery_test_vault(&root.join("vault")).unwrap();
+        crate::credentials::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
+        if let Err(error) = result {
+            std::panic::resume_unwind(error);
+        }
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
     #[ignore = "native vault manifest benchmark; run on dedicated test session"]
     fn native_vault_manifest_benchmark() {
         for count in [1usize, 8, 32, 128] {

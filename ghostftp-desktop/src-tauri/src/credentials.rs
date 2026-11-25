@@ -293,12 +293,17 @@ pub(crate) fn vault_delete_strict(service: &str, account: &str) -> Result<()> {
     #[cfg(target_os = "linux")]
     {
         if linux_secret_service::lookup(service, account)?.is_some() {
+            // remove() verifies the persistent read-back after a successful
+            // clear, under this same VAULT_LOCK. Do not immediately repeat it.
             linux_secret_service::remove(service, account)?;
+        } else {
+            // Preserve the existing second absence observation when no
+            // clear was performed. Errors still fail closed.
+            anyhow::ensure!(
+                linux_secret_service::lookup(service, account)?.is_none(),
+                "persistent credential still exists after removal"
+            );
         }
-        anyhow::ensure!(
-            linux_secret_service::lookup(service, account)?.is_none(),
-            "persistent credential still exists after removal"
-        );
     }
     #[cfg(not(target_os = "linux"))]
     {
