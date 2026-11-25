@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::Path;
 
@@ -102,12 +103,14 @@ struct Record {
     event: Event,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct Entry {
     intent: Intent,
     last: Option<Observation>,
     archived: bool,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct History {
     head: Head,
     entries: BTreeMap<String, Entry>,
@@ -218,9 +221,7 @@ impl Ledger {
     }
 
     fn aad(&self, seq: u64) -> Vec<u8> {
-        let size = (self.scope.len() as u64).to_be_bytes();
-        let seq = seq.to_be_bytes();
-        [DOMAIN, &size, self.scope.as_bytes(), &seq].concat()
+        event_aad(&self.scope, seq)
     }
 
     fn verify(&self, key: &[u8; 32], anchor: &mut impl Anchor) -> Result<History> {
@@ -232,44 +233,71 @@ impl Ledger {
             |row| row.get(0),
         )?;
         ensure!(count == trusted.seq, "ledger count differs from anchor");
-        let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| anyhow!("invalid ledger key"))?;
-        let mut history = History {
-            head: Head::genesis(),
-            entries: BTreeMap::new(),
-        };
+        let history = replay(key, &self.scope, trusted, &self.envelopes()?)?;
+        ensure!(
+            anchor.read()? == trusted,
+            "anchor changed during verification"
+        );
+        Ok(history)
+    }
+
+    fn envelopes(&self) -> Result<Vec<(u64, Vec<u8>)>> {
         let mut stmt = self.conn.prepare(
             "SELECT seq, length(envelope), CASE WHEN length(envelope) <= 16384
-             THEN envelope ELSE NULL END FROM credential_events ORDER BY seq",
+             THEN envelope ELSE NULL END FROM credential_events ORDER BY seq LIMIT 4097",
         )?;
         let mut rows = stmt.query([])?;
+        let mut envelopes = Vec::new();
         while let Some(row) = rows.next()? {
             let seq: u64 = row.get(0)?;
             let size: usize = row.get(1)?;
             ensure!(
-                seq == history.head.seq + 1 && (28..=MAX_ENVELOPE).contains(&size),
-                "invalid ledger sequence or size"
+                (28..=MAX_ENVELOPE).contains(&size),
+                "invalid ledger envelope size"
             );
-            let envelope: Vec<u8> = row.get(2)?;
-            let bytes = cipher
-                .decrypt(
-                    Nonce::from_slice(&envelope[..12]),
-                    Payload {
-                        msg: &envelope[12..],
-                        aad: &self.aad(seq),
-                    },
-                )
-                .map_err(|_| anyhow!("ledger authentication failed"))?;
-            let record: Record = serde_json::from_slice(&bytes)?;
-            ensure!(record.previous == history.head, "ledger chain mismatch");
-            history.apply(record.event)?;
-            history.head = Head {
-                seq,
-                digest: Sha256::digest(&envelope).into(),
-            };
+            envelopes.push((seq, row.get(2)?));
         }
-        ensure!(history.head == trusted, "ledger root mismatch");
-        ensure!(anchor.read()? == trusted, "anchor changed during verification");
-        Ok(history)
+        ensure!(envelopes.len() as u64 <= LIMIT, "ledger capacity exceeded");
+        Ok(envelopes)
+    }
+
+    // Retain the complete source ledger. A compact authenticated projection
+    // is exported alongside the original encrypted chain, never in its place.
+    fn checkpoint(
+        &self,
+        key: &[u8; 32],
+        anchor: &mut impl Anchor,
+        destination: &Path,
+    ) -> Result<()> {
+        let history = self.verify(key, anchor)?;
+        let rows = self.envelopes()?;
+        ensure!(
+            replay(key, &self.scope, history.head, &rows)? == history,
+            "checkpoint source changed"
+        );
+        let archive = serde_json::to_vec(&rows)?;
+        let projection = serde_json::to_vec(&history)?;
+        let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| anyhow!("invalid ledger key"))?;
+        let mut nonce = [0u8; 12];
+        OsRng.fill_bytes(&mut nonce);
+        let encrypted = cipher
+            .encrypt(
+                Nonce::from_slice(&nonce),
+                Payload {
+                    msg: &projection,
+                    aad: &checkpoint_aad(&self.scope, history.head),
+                },
+            )
+            .map_err(|_| anyhow!("checkpoint encryption failed"))?;
+        let checkpoint = [nonce.as_slice(), encrypted.as_slice()].concat();
+        write_new_copy(&destination.join("events.json"), &archive)?;
+        write_new_copy(&destination.join("checkpoint.bin"), &checkpoint)?;
+        File::open(destination)?.sync_all()?;
+        ensure!(
+            verify_copy(key, &self.scope, anchor, destination)? == history,
+            "checkpoint readback mismatch"
+        );
+        Ok(())
     }
 
     fn append(&mut self, key: &[u8; 32], anchor: &mut impl Anchor, event: Event) -> Result<()> {
@@ -347,6 +375,125 @@ impl Ledger {
         )?;
         Ok(state)
     }
+}
+
+fn event_aad(scope: &str, seq: u64) -> Vec<u8> {
+    let size = (scope.len() as u64).to_be_bytes();
+    let seq = seq.to_be_bytes();
+    [DOMAIN, &size, scope.as_bytes(), &seq].concat()
+}
+
+fn replay(
+    key: &[u8; 32],
+    scope: &str,
+    trusted: Head,
+    rows: &[(u64, Vec<u8>)],
+) -> Result<History> {
+    ensure!(
+        trusted.seq <= LIMIT && rows.len() as u64 == trusted.seq,
+        "ledger count differs from anchor"
+    );
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| anyhow!("invalid ledger key"))?;
+    let mut history = History {
+        head: Head::genesis(),
+        entries: BTreeMap::new(),
+    };
+    for (seq, envelope) in rows {
+        ensure!(
+            *seq == history.head.seq + 1 && (28..=MAX_ENVELOPE).contains(&envelope.len()),
+            "invalid ledger sequence or size"
+        );
+        let bytes = cipher
+            .decrypt(
+                Nonce::from_slice(&envelope[..12]),
+                Payload {
+                    msg: &envelope[12..],
+                    aad: &event_aad(scope, *seq),
+                },
+            )
+            .map_err(|_| anyhow!("ledger authentication failed"))?;
+        let record: Record = serde_json::from_slice(&bytes)?;
+        ensure!(record.previous == history.head, "ledger chain mismatch");
+        history.apply(record.event)?;
+        history.head = Head {
+            seq: *seq,
+            digest: Sha256::digest(envelope).into(),
+        };
+    }
+    ensure!(history.head == trusted, "ledger root mismatch");
+    Ok(history)
+}
+
+fn checkpoint_aad(scope: &str, head: Head) -> Vec<u8> {
+    [
+        b"ghostftp.credential-checkpoint.v1".as_slice(),
+        &(scope.len() as u64).to_be_bytes(),
+        scope.as_bytes(),
+        &head.seq.to_be_bytes(),
+        &head.digest,
+    ]
+    .concat()
+}
+
+// Bounded by the existing ledger event/size limit, including JSON expansion.
+const MAX_COPY: u64 = LIMIT * MAX_ENVELOPE as u64 * 4 + 1024 * 1024;
+
+fn write_new_copy(path: &Path, bytes: &[u8]) -> Result<()> {
+    ensure!(bytes.len() as u64 <= MAX_COPY, "recovery copy too large");
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    Ok(())
+}
+
+fn read_copy(path: &Path) -> Result<Vec<u8>> {
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+        .open(path)?;
+    let meta = file.metadata()?;
+    ensure!(
+        meta.is_file() && meta.nlink() == 1 && meta.mode() & 0o077 == 0,
+        "unsafe recovery copy"
+    );
+    ensure!(meta.len() <= MAX_COPY, "recovery copy too large");
+    let mut bytes = Vec::new();
+    file.take(MAX_COPY + 1).read_to_end(&mut bytes)?;
+    ensure!(bytes.len() as u64 == meta.len(), "recovery copy changed");
+    Ok(bytes)
+}
+
+fn verify_copy(
+    key: &[u8; 32],
+    scope: &str,
+    anchor: &mut impl Anchor,
+    destination: &Path,
+) -> Result<History> {
+    let head = anchor.read()?;
+    let rows: Vec<(u64, Vec<u8>)> =
+        serde_json::from_slice(&read_copy(&destination.join("events.json"))?)?;
+    let history = replay(key, scope, head, &rows)?;
+    let checkpoint = read_copy(&destination.join("checkpoint.bin"))?;
+    ensure!(checkpoint.len() >= 28, "invalid checkpoint");
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| anyhow!("invalid ledger key"))?;
+    let bytes = cipher
+        .decrypt(
+            Nonce::from_slice(&checkpoint[..12]),
+            Payload {
+                msg: &checkpoint[12..],
+                aad: &checkpoint_aad(scope, head),
+            },
+        )
+        .map_err(|_| anyhow!("checkpoint authentication failed"))?;
+    let projection: History = serde_json::from_slice(&bytes)?;
+    ensure!(projection == history, "checkpoint projection mismatch");
+    ensure!(anchor.read()? == head, "anchor changed during recovery");
+    Ok(history)
 }
 
 // Holds the exclusive ledger borrow (and therefore the OS lock) until consumed.
@@ -479,17 +626,13 @@ mod tests {
         let root = root();
         let mut anchor = FixtureAnchor(Head::genesis());
         let mut ledger = Ledger::open(&root, SCOPE).unwrap();
-        drop(
-            ledger
-                .prepare(&KEY, &mut anchor, intent("a", "one"))
-                .unwrap(),
-        );
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("a", "one"))
+            .unwrap();
         let first = anchor.0;
-        drop(
-            ledger
-                .prepare(&KEY, &mut anchor, intent("b", "two"))
-                .unwrap(),
-        );
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("b", "two"))
+            .unwrap();
         let latest = anchor.0;
         anchor.0 = first;
         assert!(ledger.verify(&KEY, &mut anchor).is_err());
@@ -505,5 +648,167 @@ mod tests {
             .is_err());
         drop(ledger);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ledger_checkpoint_preserves_source_and_rejects_tampering() {
+        let source = root();
+        let backup = root();
+        let mut anchor = FixtureAnchor(Head::genesis());
+        let mut ledger = Ledger::open(&source, SCOPE).unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("a", "one"))
+            .unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("b", "two"))
+            .unwrap();
+        ledger.checkpoint(&KEY, &mut anchor, &backup).unwrap();
+        assert!(ledger.checkpoint(&KEY, &mut anchor, &backup).is_err());
+        let history = ledger.verify(&KEY, &mut anchor).unwrap();
+        assert_eq!(history.head.seq, 2);
+        drop(ledger);
+        assert_eq!(
+            verify_copy(&KEY, SCOPE, &mut anchor, &backup).unwrap(),
+            history
+        );
+        let old = anchor.0;
+        anchor.0 = Head::genesis();
+        assert!(verify_copy(&KEY, SCOPE, &mut anchor, &backup).is_err());
+        anchor.0 = old;
+        let path = backup.join("checkpoint.bin");
+        let mut bytes = std::fs::read(&path).unwrap();
+        bytes[15] ^= 1;
+        std::fs::write(path, bytes).unwrap();
+        assert!(verify_copy(&KEY, SCOPE, &mut anchor, &backup).is_err());
+        let ledger = Ledger::open(&source, SCOPE).unwrap();
+        assert_eq!(ledger.verify(&KEY, &mut anchor).unwrap(), history);
+        drop(ledger);
+        std::fs::remove_dir_all(backup).unwrap();
+        std::fs::remove_dir_all(source).unwrap();
+    }
+
+    #[test]
+    fn ledger_lock_released_after_two_process_kills() {
+        const ROOT: &str = "GHOSTFTP_LEDGER_LOCK_FIXTURE";
+        if let Some(path) = std::env::var_os(ROOT) {
+            let path = std::path::PathBuf::from(path);
+            let _ledger = Ledger::open(&path, SCOPE).unwrap();
+            std::fs::write(path.join("ready"), b"1").unwrap();
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
+        let source = root();
+        for _ in 0..2 {
+            let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+                .arg("ledger_lock_released_after_two_process_kills")
+                .env(ROOT, &source)
+                .spawn()
+                .unwrap();
+            let ready = source.join("ready");
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            while !ready.exists() && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            let held = ready.exists() && Ledger::open(&source, SCOPE).is_err();
+            let _ = child.kill();
+            child.wait().unwrap();
+            assert!(held);
+            std::fs::remove_file(ready).unwrap();
+            assert!(Ledger::open(&source, SCOPE).is_ok());
+        }
+        std::fs::remove_dir_all(source).unwrap();
+    }
+
+    // A real independent Secret Service entry, only in a disposable session.
+    struct NativeAnchor {
+        account: String,
+    }
+
+    impl NativeAnchor {
+        const SERVICE: &'static str = "com.ghostftp.native-vault.ledger.fixture";
+
+        fn enroll(account: String) -> Result<Self> {
+            use super::super::native_vault_candidate::{lookup, store};
+            ensure!(
+                lookup(Self::SERVICE, &account)?.is_none(),
+                "anchor already enrolled"
+            );
+            store(
+                Self::SERVICE,
+                &account,
+                &serde_json::to_string(&Head::genesis())?,
+            )?;
+            let mut anchor = Self { account };
+            ensure!(anchor.read()? == Head::genesis(), "anchor enrollment failed");
+            Ok(anchor)
+        }
+    }
+
+    impl Anchor for NativeAnchor {
+        fn read(&mut self) -> Result<Head> {
+            use super::super::native_vault_candidate::lookup;
+            let encoded = lookup(Self::SERVICE, &self.account)?
+                .ok_or_else(|| anyhow!("trusted native anchor missing"))?;
+            Ok(serde_json::from_str(&encoded)?)
+        }
+
+        fn advance(&mut self, previous: Head, next: Head) -> Result<()> {
+            use super::super::native_vault_candidate::store;
+            ensure!(
+                next.seq == previous.seq + 1 && self.read()? == previous,
+                "native anchor compare failed"
+            );
+            store(
+                Self::SERVICE,
+                &self.account,
+                &serde_json::to_string(&next)?,
+            )?;
+            ensure!(self.read()? == next, "native anchor readback failed");
+            Ok(())
+        }
+    }
+
+    #[test]
+    #[ignore = "requires isolated unlocked native Secret Service"]
+    fn ledger_native_anchor_checkpoint() {
+        use super::super::native_vault_candidate::{
+            clear_direct_candidate, configure_direct_candidate, remove,
+        };
+        assert_eq!(
+            std::env::var("GHOSTFTP_DIRECT_VAULT_TEST").as_deref(),
+            Ok("disposable-fixtures")
+        );
+        configure_direct_candidate();
+        let source = root();
+        let backup = root();
+        let account = uuid::Uuid::new_v4().to_string();
+        let mut anchor = NativeAnchor::enroll(account.clone()).unwrap();
+        let mut key = [0u8; 32];
+        OsRng.fill_bytes(&mut key);
+        let mut ledger = Ledger::open(&source, &account).unwrap();
+        let _ = ledger
+            .prepare(&key, &mut anchor, intent("a", "one"))
+            .unwrap();
+        let _ = ledger
+            .prepare(&key, &mut anchor, intent("b", "two"))
+            .unwrap();
+        ledger.checkpoint(&key, &mut anchor, &backup).unwrap();
+        drop(ledger);
+        clear_direct_candidate();
+        configure_direct_candidate();
+        let mut anchor = NativeAnchor { account };
+        assert_eq!(
+            verify_copy(&key, &anchor.account.clone(), &mut anchor, &backup)
+                .unwrap()
+                .head
+                .seq,
+            2
+        );
+        remove(NativeAnchor::SERVICE, &anchor.account).unwrap();
+        assert!(anchor.read().is_err());
+        clear_direct_candidate();
+        std::fs::remove_dir_all(backup).unwrap();
+        std::fs::remove_dir_all(source).unwrap();
     }
 }

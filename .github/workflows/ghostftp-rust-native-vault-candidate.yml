@@ -48,6 +48,7 @@ jobs:
           timeout --kill-after=5s 120s dbus-run-session -- bash -euo pipefail -c '
             printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
             cargo test --locked -p ghostftp --lib --features native-vault-candidate journal_native_vault_anchor_reconciliation -- --ignored --nocapture
+            cargo test --locked -p ghostftp --lib --features native-vault-candidate ledger_native_anchor_checkpoint -- --ignored --nocapture
           '
       - name: Compare full recovery promotions on same runner (ABBA)
         shell: bash
