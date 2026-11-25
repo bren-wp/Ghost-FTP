@@ -95,6 +95,12 @@ enum Event {
     Prepared(Intent),
     Observed { id: String, state: Observation },
     Archived { id: String },
+    Rotated {
+        next_segment: u64,
+        base: Head,
+        generation: String,
+        manifest_digest: [u8; 32],
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -114,9 +120,19 @@ struct Entry {
 struct History {
     head: Head,
     entries: BTreeMap<String, Entry>,
+    #[serde(default)]
+    segments: BTreeMap<u64, u64>,
 }
 
 impl History {
+    fn active_segment(&self) -> u64 {
+        self.segments.last_key_value().map_or(0, |(_, value)| *value)
+    }
+
+    fn segment_for(&self, seq: u64) -> u64 {
+        self.segments.range(..=seq).next_back().map_or(0, |(_, value)| *value)
+    }
+
     fn apply(&mut self, event: Event) -> Result<()> {
         match event {
             Event::Prepared(intent) => {
@@ -167,6 +183,23 @@ impl History {
                 );
                 entry.archived = true;
             }
+            Event::Rotated {
+                next_segment,
+                base,
+                generation,
+                manifest_digest,
+            } => {
+                ensure!(
+                    base == self.head
+                        && next_segment == self.active_segment() + 1
+                        && generation.starts_with("generation-")
+                        && manifest_digest != [0; 32],
+                    "invalid segment rotation"
+                );
+                // The rotation record belongs to the old segment; the
+                // first subsequent record belongs to the new segment.
+                self.segments.insert(self.head.seq + 2, next_segment);
+            }
         }
         Ok(())
     }
@@ -175,6 +208,7 @@ impl History {
 struct Ledger {
     conn: Connection,
     scope: String,
+    root: PathBuf,
     _lock: File,
 }
 
@@ -211,11 +245,17 @@ impl Ledger {
             "CREATE TABLE IF NOT EXISTS credential_events (
                 seq INTEGER PRIMARY KEY CHECK(seq > 0),
                 envelope BLOB NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS credential_segment_events (
+                seq INTEGER PRIMARY KEY CHECK(seq > 0),
+                segment INTEGER NOT NULL CHECK(segment > 0),
+                envelope BLOB NOT NULL
             );",
         )?;
         Ok(Self {
             conn,
             scope: scope.into(),
+            root: root.canonicalize()?,
             _lock: lock,
         })
     }
@@ -227,13 +267,27 @@ impl Ledger {
     fn verify(&self, key: &[u8; 32], anchor: &mut impl Anchor) -> Result<History> {
         let trusted = anchor.read()?;
         ensure!(trusted.seq <= LIMIT, "ledger capacity exceeded");
-        let count: u64 =
-            self.conn
-                .query_row("SELECT count(*) FROM credential_events", [], |row| {
-                    row.get(0)
-                })?;
+        let count: u64 = self.conn.query_row(
+            "SELECT (SELECT count(*) FROM credential_events) +
+                    (SELECT count(*) FROM credential_segment_events)",
+            [],
+            |row| row.get(0),
+        )?;
         ensure!(count == trusted.seq, "ledger count differs from anchor");
         let history = replay(key, &self.scope, trusted, &self.envelopes()?)?;
+        let mut statement = self.conn.prepare(
+            "SELECT seq, 0 FROM credential_events
+             UNION ALL SELECT seq, segment FROM credential_segment_events ORDER BY seq",
+        )?;
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let seq: u64 = row.get(0)?;
+            let segment: u64 = row.get(1)?;
+            ensure!(
+                history.segment_for(seq) == segment,
+                "physical row assigned to wrong logical segment"
+            );
+        }
         ensure!(
             anchor.read()? == trusted,
             "anchor changed during verification"
@@ -244,7 +298,10 @@ impl Ledger {
     fn envelopes(&self) -> Result<Vec<(u64, Vec<u8>)>> {
         let mut stmt = self.conn.prepare(
             "SELECT seq, length(envelope), CASE WHEN length(envelope) <= 16384
-             THEN envelope ELSE NULL END FROM credential_events ORDER BY seq LIMIT 4097",
+             THEN envelope ELSE NULL END FROM (
+               SELECT seq, envelope FROM credential_events
+               UNION ALL SELECT seq, envelope FROM credential_segment_events
+             ) ORDER BY seq LIMIT 4097",
         )?;
         let mut rows = stmt.query([])?;
         let mut envelopes = Vec::new();
@@ -364,9 +421,52 @@ impl Ledger {
         Ok(destination)
     }
 
+    fn rotate_on_independent_device(
+        &mut self,
+        key: &[u8; 32],
+        anchor: &mut impl Anchor,
+        backup: &Path,
+    ) -> Result<()> {
+        verify_distinct_block_devices(&self.root, backup)?;
+        let generation = self.publish_generation(key, anchor, backup, |_| Ok(()))?;
+        // Detect mount changes around publication. This is a conservative
+        // topology check, not proof of independent hardware or power domains.
+        verify_distinct_block_devices(&self.root, backup)?;
+        self.rotate_verified(key, anchor, &generation)
+    }
+
+    fn rotate_verified(
+        &mut self,
+        key: &[u8; 32],
+        anchor: &mut impl Anchor,
+        generation: &Path,
+    ) -> Result<()> {
+        let history = self.verify(key, anchor)?;
+        ensure!(
+            verify_generation(key, &self.scope, anchor, generation)? == history,
+            "rotation checkpoint differs from ledger"
+        );
+        let id = generation
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| anyhow!("invalid generation identity"))?;
+        let manifest_digest = publication_digest(generation)?;
+        self.append(
+            key,
+            anchor,
+            Event::Rotated {
+                next_segment: history.active_segment() + 1,
+                base: history.head,
+                generation: id.into(),
+                manifest_digest,
+            },
+        )
+    }
+
     fn append(&mut self, key: &[u8; 32], anchor: &mut impl Anchor, event: Event) -> Result<()> {
         let mut history = self.verify(key, anchor)?;
         let previous = history.head;
+        let segment = history.active_segment();
         ensure!(previous.seq < LIMIT, "ledger full; preserve history");
         let seq = previous.seq + 1;
         let bytes = serde_json::to_vec(&Record { previous, event })?;
@@ -393,10 +493,7 @@ impl Ledger {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        tx.execute(
-            "INSERT INTO credential_events(seq, envelope) VALUES(?1, ?2)",
-            params![seq, envelope],
-        )?;
+        insert_envelope(&tx, segment, seq, &envelope)?;
         tx.commit()?;
         // Never roll back or delete a committed record if this step fails.
         anchor.advance(previous, next)?;
@@ -444,6 +541,21 @@ impl Ledger {
     }
 }
 
+fn insert_envelope(conn: &Connection, segment: u64, seq: u64, bytes: &[u8]) -> Result<()> {
+    if segment == 0 {
+        conn.execute(
+            "INSERT INTO credential_events(seq, envelope) VALUES(?1, ?2)",
+            params![seq, bytes],
+        )?;
+    } else {
+        conn.execute(
+            "INSERT INTO credential_segment_events(seq, segment, envelope) VALUES(?1, ?2, ?3)",
+            params![seq, segment, bytes],
+        )?;
+    }
+    Ok(())
+}
+
 fn event_aad(scope: &str, seq: u64) -> Vec<u8> {
     let size = (scope.len() as u64).to_be_bytes();
     let seq = seq.to_be_bytes();
@@ -459,6 +571,7 @@ fn replay(key: &[u8; 32], scope: &str, trusted: Head, rows: &[(u64, Vec<u8>)]) -
     let mut history = History {
         head: Head::genesis(),
         entries: BTreeMap::new(),
+        segments: BTreeMap::new(),
     };
     for (seq, envelope) in rows {
         ensure!(
@@ -650,6 +763,156 @@ fn verify_generation(
     let history = verify_copy(key, scope, anchor, path)?;
     ensure!(history.head == manifest.head, "generation head mismatch");
     Ok(history)
+}
+
+// Linux block topology: accept only a directly identifiable non-virtual
+// whole block device or its partition. Reject overlay, network, loop, RAID,
+// device-mapper and unknown topology instead of claiming independence.
+fn block_root(path: &Path) -> Result<PathBuf> {
+    let dev = std::fs::metadata(path)?.dev();
+    let node = PathBuf::from(format!(
+        "/sys/dev/block/{}:{}",
+        libc::major(dev),
+        libc::minor(dev)
+    ))
+    .canonicalize()?;
+    let disk = if node.join("partition").exists() {
+        node.parent()
+            .ok_or_else(|| anyhow!("unknown partition parent"))?
+            .to_path_buf()
+    } else {
+        node
+    };
+    ensure!(
+        disk.starts_with("/sys/devices") && !disk.starts_with("/sys/devices/virtual"),
+        "virtual or unknown block topology"
+    );
+    ensure!(
+        disk.join("device").exists() && std::fs::read_dir(disk.join("slaves"))?.next().is_none(),
+        "layered or unknown block topology"
+    );
+    Ok(disk)
+}
+
+fn verify_distinct_block_devices(source: &Path, backup: &Path) -> Result<()> {
+    check_private_directory(backup)?;
+    ensure!(
+        std::fs::metadata(source)?.dev() != std::fs::metadata(backup)?.dev(),
+        "source and backup share filesystem device"
+    );
+    ensure!(
+        block_root(source)? != block_root(backup)?,
+        "source and backup share underlying block device"
+    );
+    Ok(())
+}
+
+// Read the verified publication marker without using the generic single-link
+// reader. Its identity and content are checked again by verify_generation.
+fn publication_digest(path: &Path) -> Result<[u8; 32]> {
+    let file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+        .open(path.join("manifest.committed"))?;
+    let meta = file.metadata()?;
+    ensure!(
+        meta.is_file() && meta.nlink() == 2 && (28..=4096).contains(&meta.len()),
+        "invalid publication marker"
+    );
+    let mut bytes = Vec::new();
+    file.take(4097).read_to_end(&mut bytes)?;
+    ensure!(bytes.len() as u64 == meta.len(), "publication marker changed");
+    Ok(Sha256::digest(bytes).into())
+}
+
+// Copy without changing the authenticated generation identity. A partially
+// copied directory never has a committed marker. Never overwrite a copy.
+fn migrate_generation(
+    key: &[u8; 32],
+    scope: &str,
+    anchor: &mut impl Anchor,
+    source: &Path,
+    destination_root: &Path,
+) -> Result<PathBuf> {
+    let history = verify_generation(key, scope, anchor, source)?;
+    check_private_directory(destination_root)?;
+    let id = source
+        .file_name()
+        .ok_or_else(|| anyhow!("missing generation identity"))?;
+    let destination = destination_root.join(id);
+    std::fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&destination)?;
+    File::open(destination_root)?.sync_all()?;
+    for name in ["events.json", "checkpoint.bin"] {
+        let bytes = read_copy(&source.join(name))?;
+        write_new_copy(&destination.join(name), &bytes)?;
+    }
+    let marker = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+        .open(source.join("manifest.committed"))?;
+    let mut sealed = Vec::new();
+    marker.take(4097).read_to_end(&mut sealed)?;
+    ensure!(
+        sealed.len() <= 4096
+            && <[u8; 32]>::from(Sha256::digest(&sealed)) == publication_digest(source)?,
+        "source marker changed"
+    );
+    write_new_copy(&destination.join("manifest.pending"), &sealed)?;
+    File::open(&destination)?.sync_all()?;
+    ensure!(
+        verify_copy(key, scope, anchor, &destination)? == history,
+        "migrated checkpoint differs from source"
+    );
+    std::fs::hard_link(
+        destination.join("manifest.pending"),
+        destination.join("manifest.committed"),
+    )?;
+    File::open(&destination)?.sync_all()?;
+    File::open(destination_root)?.sync_all()?;
+    ensure!(
+        verify_generation(key, scope, anchor, &destination)? == history,
+        "migrated generation readback failed"
+    );
+    Ok(destination)
+}
+
+// Restore into a new empty ledger only. No secret writes, no automatic
+// enrollment of anchor or key, no dispatch permit returned by restoration.
+fn restore_generation(
+    key: &[u8; 32],
+    scope: &str,
+    anchor: &mut impl Anchor,
+    generation: &Path,
+    new_root: &Path,
+) -> Result<()> {
+    let history = verify_generation(key, scope, anchor, generation)?;
+    check_private_directory(new_root)?;
+    ensure!(
+        std::fs::read_dir(new_root)?.next().is_none(),
+        "restore destination not empty"
+    );
+    let rows: Vec<(u64, Vec<u8>)> =
+        serde_json::from_slice(&read_copy(&generation.join("events.json"))?)?;
+    ensure!(
+        replay(key, scope, history.head, &rows)? == history,
+        "restore source changed"
+    );
+    let mut ledger = Ledger::open(new_root, scope)?;
+    let tx = ledger
+        .conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)?;
+    for (seq, envelope) in rows {
+        insert_envelope(&tx, history.segment_for(seq), seq, &envelope)?;
+    }
+    tx.commit()?;
+    File::open(new_root)?.sync_all()?;
+    ensure!(
+        ledger.verify(key, anchor)? == history,
+        "restored ledger readback failed"
+    );
+    Ok(())
 }
 
 // Select only a verified generation matching the current trusted head.
@@ -1095,5 +1358,65 @@ mod tests {
             2
         );
         std::fs::remove_dir_all(path).unwrap();
+    }
+
+    #[test]
+    fn ledger_rotated_segment_and_replacement_restore() {
+        let source = root();
+        let backup = root();
+        let migrated = root();
+        let restored = root();
+        for path in [&backup, &migrated, &restored] {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let mut anchor = FixtureAnchor(Head::genesis());
+        let mut ledger = Ledger::open(&source, SCOPE).unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("a", "one"))
+            .unwrap();
+        assert!(
+            ledger
+                .rotate_on_independent_device(&KEY, &mut anchor, &backup)
+                .is_err()
+        );
+        let previous = ledger
+            .publish_generation(&KEY, &mut anchor, &backup, |_| Ok(()))
+            .unwrap();
+        // Internal rotation boundary exercised without pretending the
+        // temporary directories represent independent hardware.
+        ledger.rotate_verified(&KEY, &mut anchor, &previous).unwrap();
+        let _ = ledger
+            .prepare(&KEY, &mut anchor, intent("b", "two"))
+            .unwrap();
+        let history = ledger.verify(&KEY, &mut anchor).unwrap();
+        assert_eq!(history.active_segment(), 1);
+        assert_eq!(history.head.seq, 3);
+        assert_eq!(history.segment_for(2), 0);
+        assert_eq!(history.segment_for(3), 1);
+        let generation = ledger
+            .publish_generation(&KEY, &mut anchor, &backup, |_| Ok(()))
+            .unwrap();
+        let moved = migrate_generation(&KEY, SCOPE, &mut anchor, &generation, &migrated).unwrap();
+        assert!(migrate_generation(&KEY, SCOPE, &mut anchor, &generation, &migrated).is_err());
+        restore_generation(&KEY, SCOPE, &mut anchor, &moved, &restored).unwrap();
+        assert!(restore_generation(&KEY, SCOPE, &mut anchor, &moved, &restored).is_err());
+        let replacement = Ledger::open(&restored, SCOPE).unwrap();
+        assert_eq!(replacement.verify(&KEY, &mut anchor).unwrap(), history);
+        drop(replacement);
+        assert!(previous.join("manifest.committed").exists());
+        assert!(generation.join("manifest.committed").exists());
+        ledger
+            .conn
+            .execute(
+                "UPDATE credential_segment_events SET segment = 2 WHERE seq = 3",
+                [],
+            )
+            .unwrap();
+        assert!(ledger.verify(&KEY, &mut anchor).is_err());
+        drop(ledger);
+        for path in [source, backup, migrated, restored] {
+            std::fs::remove_dir_all(path).unwrap();
+        }
     }
 }
