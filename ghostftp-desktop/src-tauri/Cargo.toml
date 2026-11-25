@@ -164,6 +164,8 @@ windows = { version = "0.58", optional = true, features = [
 ] }
 
 [dev-dependencies]
+# Test-only native credential buffers use optimizer-resistant RAII erasure.
+zeroize = "=1.9.1"
 # Paused-clock tokio tests for the transfer token bucket (Plan 17).
 tokio = { version = "1", features = ["test-util"] }
 
