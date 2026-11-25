@@ -1,0 +1,83 @@
+name: Direct Secret Service compatibility (candidate)
+
+on:
+  push:
+    branches: [perf/recovery-gc-marker-v0.99.86]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gnome:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Native fixture prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libsecret-tools gnome-keyring dbus
+      - name: Build direct libsecret candidate
+        run: |
+          mkdir -p build/direct-vault
+          cc -std=c11 -Wall -Wextra -Werror tools/native-vault/direct-secret-service.c \
+            $(pkg-config --cflags --libs libsecret-1 gio-2.0) -o build/direct-vault/probe
+      - name: Test isolated persistence, lock semantics and paired lookups
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)"
+          trap 'rm -rf -- "$root"' EXIT
+          export HOME="$root/home" XDG_DATA_HOME="$root/data" XDG_CONFIG_HOME="$root/config"
+          export XDG_RUNTIME_DIR="$root/runtime"
+          mkdir -p "$HOME" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          export GHOSTFTP_VAULT_PROBE_OPT_IN=disposable-fixtures
+          export PROBE="$GITHUB_WORKSPACE/build/direct-vault/probe"
+          {
+            git rev-parse HEAD
+            uname -srmo
+            pkg-config --modversion libsecret-1
+          } > build/direct-vault/environment.txt
+          timeout --kill-after=5s 180s dbus-run-session -- bash -euo pipefail -c '
+            printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            printf %s ghostftp-test-only-credential | secret-tool store --label="Ghost FTP fixture" -- application ghostftp service com.ghostftp.native-vault.compat.fixture account legacy
+            "$PROBE" exercise
+            test "$(secret-tool lookup -- application ghostftp service com.ghostftp.native-vault.compat.fixture account direct)" = ghostftp-test-only-credential
+            "$PROBE" lock
+          ' 2>&1 | tee build/direct-vault/session-one.log
+          # A new D-Bus session with the same disposable persistent data.
+          rm -rf -- "$XDG_RUNTIME_DIR"
+          mkdir -m 700 "$XDG_RUNTIME_DIR"
+          timeout --kill-after=5s 90s dbus-run-session -- bash -euo pipefail -c '
+            printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            "$PROBE" reopen
+          ' 2>&1 | tee build/direct-vault/session-two.log
+      - name: Summarize raw ABBA lookup samples
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, statistics, math
+          p = pathlib.Path("build/direct-vault")
+          rows = re.findall(r"lookup_sample variant=([AB]) round=(\d+) sample=(\d+) elapsed_us=(\d+)", (p / "session-one.log").read_text())
+          assert len(rows) == 400
+          lines = ["Lookup-only microbenchmark; excludes connection setup and full recovery workload."]
+          for variant in "AB":
+              xs = sorted(int(t) for v, _, _, t in rows if v == variant)
+              assert len(xs) == 200
+              lines.append(f"{variant}: n={len(xs)} median_us={statistics.median(xs)} p95_us={xs[math.ceil(.95*len(xs))-1]} p99_us={xs[math.ceil(.99*len(xs))-1]} max_us={xs[-1]}")
+          (p / "summary.txt").write_text("\n".join(lines) + "\n")
+          print("\n".join(lines))
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: GhostFTP-Direct-Vault-Evidence
+          path: build/direct-vault/*.txt
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: GhostFTP-Direct-Vault-Raw-Logs
+          path: build/direct-vault/*.log
+          if-no-files-found: warn

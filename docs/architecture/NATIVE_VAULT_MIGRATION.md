@@ -13,4 +13,6 @@ Evaluate a maintained direct Secret Service binding over D-Bus or libsecret, wit
 - Test GNOME Keyring and supported KWallet configurations, persistent survival across service/OS restart, existing profile and OAuth compatibility, revocation and no credential disclosure in logs.
 - Compare exact-source native ABBA runs and occupancy bands, publish raw observations, and keep the subprocess implementation until equivalence and failure semantics are verified.
 
-Status: evaluation only; no direct backend or production migration is implemented in this change.
+## Isolated direct API prototype
+
+`tools/native-vault/direct-secret-service.c` exercises a reusable libsecret service session, exact existing attribute matching, persistent default-collection selection, strict unique-item lookup without unlocking prompts, verified writes/deletes and compatibility with secret-tool. The workflow uses disposable GNOME Keyring sessions, tests a locked collection and attempts a fresh service session with the same isolated persistent data. It compares repeated lookup latency on the same runner, using ABBA ordering and raw samples. The prototype is not linked into the production Rust application; the outer test-process deadline is not a production cancellation mechanism. KWallet and in-process reconnect/cancellation remain explicit acceptance gates.

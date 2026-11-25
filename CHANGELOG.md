@@ -2,6 +2,7 @@
 
 ## 0.99.86 Preview — 25 November 2026 (development candidate; not yet published)
 
+- Add a disposable direct libsecret compatibility and lookup benchmark candidate; production backend remains unchanged pending acceptance.
 - Avoid a redundant GC length-marker read while retaining exact chunk lengths, SHA-256 verification and strict deletion semantics.
 - Batch superseded and new immutable shard registration with authenticated page reads, capacity preflight and durable per-page read-back; add conflict, overflow, tampering and unpublished-root regression coverage.
 - Record raw admission and occupancy-band latency for 128 real persisted journals and archive the native benchmark logs. Align active documentation with the current Preview source and published predecessor.
