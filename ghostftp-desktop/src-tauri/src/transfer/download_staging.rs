@@ -1004,7 +1004,7 @@ fn delete_recovery_blob(scope: &str, digest: &[u8; 32], length: usize) -> Result
             "recovery GC length mismatch"
         );
         anyhow::ensure!(
-            get_recovery_blob(scope, digest)?.len() == length,
+            read_recovery_blob_chunks(scope, digest, length)?.len() == length,
             "recovery GC blob verification failed"
         );
         // Removing the length first marks a verified deletion in progress.
@@ -1080,6 +1080,16 @@ fn put_recovery_blob(scope: &str, bytes: &[u8]) -> Result<[u8; 32]> {
 }
 
 fn get_recovery_blob(scope: &str, digest: &[u8; 32]) -> Result<Vec<u8>> {
+    let account = recovery_blob_account(scope, digest, "length");
+    let length: usize = crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?
+        .context("recovery blob part missing")?
+        .parse()?;
+    read_recovery_blob_chunks(scope, digest, length)
+}
+
+// GC already compares the persisted length to its authenticated candidate
+// under the recovery lock. Verify every chunk and the digest before deletion.
+fn read_recovery_blob_chunks(scope: &str, digest: &[u8; 32], length: usize) -> Result<Vec<u8>> {
     use base64::Engine;
 
     let get = |part: &str| -> Result<String> {
@@ -1087,7 +1097,6 @@ fn get_recovery_blob(scope: &str, digest: &[u8; 32]) -> Result<Vec<u8>> {
         crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &account)?
             .context("recovery blob part missing")
     };
-    let length: usize = get("length")?.parse()?;
     anyhow::ensure!(
         length > 0 && length <= RECOVERY_BLOB_LIMIT,
         "invalid recovery blob size"
@@ -4748,6 +4757,67 @@ mod tests {
                     .as_deref(),
                 Some("keep")
             );
+        }
+        crate::credentials::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_gc_checks_marker_and_digest_before_removing_blob() {
+        use base64::Engine;
+
+        let root = std::env::temp_dir().join(format!("ghostftp-gc-blob-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+        {
+            let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            GlobalRecoveryLedger::load(&db, true).unwrap();
+            let scope = db.recovery_scope().unwrap();
+            let bytes = vec![42u8; RECOVERY_BLOB_CHUNK + 1];
+            let digest = put_recovery_blob(&scope, &bytes).unwrap();
+            let marker = recovery_blob_account(&scope, &digest, "length");
+            let first = recovery_blob_account(&scope, &digest, "0");
+            let last = recovery_blob_account(&scope, &digest, "1");
+            let original = crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &first)
+                .unwrap()
+                .unwrap();
+            let length = bytes.len().to_string();
+            crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &marker, "1").unwrap();
+            assert!(GlobalRecoveryLedger::collect_garbage(&db).is_err());
+            assert_eq!(
+                crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &first)
+                    .unwrap()
+                    .as_deref(),
+                Some(original.as_str())
+            );
+            crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &marker, &length).unwrap();
+
+            let corrupt =
+                base64::engine::general_purpose::STANDARD.encode(vec![43u8; RECOVERY_BLOB_CHUNK]);
+            crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &first, &corrupt).unwrap();
+            assert!(GlobalRecoveryLedger::collect_garbage(&db).is_err());
+            assert_eq!(
+                crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &marker)
+                    .unwrap()
+                    .as_deref(),
+                Some(length.as_str())
+            );
+            assert!(
+                crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, &last)
+                    .unwrap()
+                    .is_some()
+            );
+            crate::credentials::vault_set(RECOVERY_BLOB_SERVICE, &first, &original).unwrap();
+            assert_eq!(get_recovery_blob(&scope, &digest).unwrap(), bytes);
+            GlobalRecoveryLedger::collect_garbage(&db).unwrap();
+            for account in [&marker, &first, &last] {
+                assert!(
+                    crate::credentials::vault_get_strict(RECOVERY_BLOB_SERVICE, account)
+                        .unwrap()
+                        .is_none()
+                );
+            }
         }
         crate::credentials::clear_recovery_test_vault();
         std::fs::remove_dir_all(root).unwrap();

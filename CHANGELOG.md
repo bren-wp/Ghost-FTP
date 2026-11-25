@@ -1,6 +1,12 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.85 Preview — 25 November 2026 (development candidate; not yet published)
+## 0.99.86 Preview — 25 November 2026 (development candidate; not yet published)
+
+- Avoid a redundant GC length-marker read while retaining exact chunk lengths, SHA-256 verification and strict deletion semantics.
+- Add a regression test for mismatched length and same-size corrupted chunks. Native CI and benchmarks are required before publication.
+- Update public links to v0.99.85 and its native QA archive; retain historical screenshot provenance.
+
+## 0.99.85 Preview — published 25 November 2026
 
 - Advance the source version after v0.99.84 was published from an earlier immutable commit; preserve its tag and assets.
 - Include the merged 128-active-journal benchmark, fixed-category native helper profiler, strict Linux deletion read-back optimization and paired A/B evidence tooling.
