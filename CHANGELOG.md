@@ -3,6 +3,7 @@
 ## 0.99.86 Preview — 25 November 2026 (development candidate; not yet published)
 
 - Avoid a redundant GC length-marker read while retaining exact chunk lengths, SHA-256 verification and strict deletion semantics.
+- Batch superseded shard registration with authenticated page reads, capacity preflight and durable per-page read-back; add conflict, overflow and tampering regression coverage.
 - Add a regression test for mismatched length and same-size corrupted chunks. Native CI and benchmarks are required before publication.
 - Update public links to v0.99.85 and its native QA archive; retain historical screenshot provenance.
 

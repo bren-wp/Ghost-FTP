@@ -994,6 +994,61 @@ fn register_recovery_gc(scope: &str, digest: [u8; 32], length: usize) -> Result<
     })
 }
 
+// Register a group of superseded immutable shards before publishing a new
+// root. Caller holds the interprocess recovery lock. Each changed page is
+// authenticated, persisted and read back before the caller can publish.
+// No vault key or page snapshot is retained beyond this operation.
+fn register_recovery_gc_batch(scope: &str, candidates: &[([u8; 32], usize)]) -> Result<()> {
+    match candidates {
+        [] => return Ok(()),
+        [(digest, length)] => return register_recovery_gc(scope, *digest, *length),
+        _ => {}
+    }
+    let encoded_key = crate::credentials::vault_get_strict(RECOVERY_INDEX_KEY_SERVICE, scope)?
+        .context("recovery index key unavailable")?;
+    GlobalRecoveryLedger::with_key(&encoded_key, |key| {
+        let mut pages = (0..RECOVERY_GC_PAGES)
+            .map(|page| read_gc_page(scope, page, key))
+            .collect::<Result<Vec<_>>>()?;
+        let mut registered = RecoveryGcPage::new();
+        for entries in &pages {
+            for (digest, length) in entries {
+                anyhow::ensure!(
+                    registered.insert(*digest, *length).is_none(),
+                    "duplicate recovery GC candidate across pages"
+                );
+            }
+        }
+        let mut changed = [false; RECOVERY_GC_PAGES];
+        // Preflight every candidate and capacity before changing the vault.
+        for &(digest, length) in candidates {
+            anyhow::ensure!(
+                length > 0 && length <= RECOVERY_BLOB_LIMIT,
+                "invalid GC length"
+            );
+            if let Some(existing) = registered.get(&digest) {
+                anyhow::ensure!(*existing == length, "recovery GC length mismatch");
+                continue;
+            }
+            let (page, entries) = pages
+                .iter_mut()
+                .enumerate()
+                .find(|(_, entries)| entries.len() < RECOVERY_GC_PAGE_SIZE)
+                .context("recovery GC queue full; reconcile before writing")?;
+            entries.insert(digest, length);
+            registered.insert(digest, length);
+            changed[page] = true;
+        }
+        for (page, entries) in pages.iter().enumerate() {
+            if changed[page] {
+                write_gc_page(scope, page, key, entries)?;
+                recovery_fault_checkpoint("gc_registered");
+            }
+        }
+        Ok(())
+    })
+}
+
 fn delete_recovery_blob(scope: &str, digest: &[u8; 32], length: usize) -> Result<()> {
     let length_account = recovery_blob_account(scope, digest, "length");
     if let Some(marker) =
@@ -1680,15 +1735,17 @@ impl GlobalRecoveryLedger {
             .map(|shard| recovery_digest(shard))
             .collect();
         let mut reusable = std::collections::BTreeSet::new();
+        let mut superseded = Vec::new();
         for shard in previous_shards {
             let digest = recovery_digest(&shard);
             if current.contains(&digest) {
                 reusable.insert(digest);
             } else {
-                // Register superseded root references before publication.
-                register_recovery_gc(&scope, digest, shard.len())?;
+                superseded.push((digest, shard.len()));
             }
         }
+        // All superseded root references must be registered before publication.
+        register_recovery_gc_batch(&scope, &superseded)?;
         self.generation = self
             .generation
             .checked_add(1)
@@ -4757,6 +4814,72 @@ mod tests {
                     .as_deref(),
                 Some("keep")
             );
+        }
+        crate::credentials::clear_recovery_test_vault();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_gc_batch_preflights_all_candidates_and_preserves_registered_pages() {
+        let root = std::env::temp_dir().join(format!("ghostftp-gc-batch-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        crate::credentials::configure_recovery_test_vault(root.join("vault"), None);
+        {
+            let db = crate::db::Db::open(&root.join("ghostftp.db")).unwrap();
+            let _lock = db.recovery_lock().unwrap();
+            GlobalRecoveryLedger::load(&db, true).unwrap();
+            let scope = db.recovery_scope().unwrap();
+            let candidates: Vec<_> = (0..RECOVERY_GC_PAGE_SIZE + 1)
+                .map(|index| (recovery_digest(&index.to_be_bytes()), index + 1))
+                .collect();
+            register_recovery_gc_batch(&scope, &candidates).unwrap();
+            let snapshot = || {
+                (0..RECOVERY_GC_PAGES)
+                    .map(|page| {
+                        crate::credentials::vault_get_strict(
+                            RECOVERY_GC_SERVICE,
+                            &gc_page_account(&scope, page),
+                        )
+                        .unwrap()
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let before = snapshot();
+            assert!(before[0].is_some() && before[1].is_some());
+            register_recovery_gc_batch(&scope, &candidates).unwrap();
+            assert_eq!(snapshot(), before);
+
+            let extra = (recovery_digest(b"extra"), 5);
+            let conflicting = (candidates[0].0, candidates[0].1 + 1);
+            assert!(register_recovery_gc_batch(&scope, &[extra, conflicting]).is_err());
+            assert_eq!(snapshot(), before);
+
+            let overflow: Vec<_> = (0..RECOVERY_GC_PAGES * RECOVERY_GC_PAGE_SIZE)
+                .map(|index| (recovery_digest(&[b'x', index as u8]), 1))
+                .collect();
+            assert!(register_recovery_gc_batch(&scope, &overflow).is_err());
+            assert_eq!(snapshot(), before);
+
+            let account = gc_page_account(&scope, 1);
+            let mut signed: AuthenticatedRecovery =
+                serde_json::from_str(before[1].as_deref().unwrap()).unwrap();
+            signed.tag[0] ^= 1;
+            crate::credentials::vault_set(
+                RECOVERY_GC_SERVICE,
+                &account,
+                &serde_json::to_string(&signed).unwrap(),
+            )
+            .unwrap();
+            let tampered = snapshot();
+            assert!(register_recovery_gc_batch(&scope, &[extra, candidates[0]]).is_err());
+            assert_eq!(snapshot(), tampered);
+            crate::credentials::vault_set(
+                RECOVERY_GC_SERVICE,
+                &account,
+                before[1].as_deref().unwrap(),
+            )
+            .unwrap();
+            GlobalRecoveryLedger::collect_garbage(&db).unwrap();
         }
         crate::credentials::clear_recovery_test_vault();
         std::fs::remove_dir_all(root).unwrap();

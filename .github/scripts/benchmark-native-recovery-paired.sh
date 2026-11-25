@@ -3,8 +3,10 @@
 # ordinary end-to-end benchmark; build and session setup are outside timings.
 set -euo pipefail
 
-baseline=899459c5e91361294fa61b4335539dc5a34f396e
-optimized=f26482d87666f302a7fe655a52b6b3a24545a75c
+baseline=${1:-899459c5e91361294fa61b4335539dc5a34f396e}
+optimized=${2:-f26482d87666f302a7fe655a52b6b3a24545a75c}
+[[ "$baseline" =~ ^[0-9a-f]{40}$ && "$optimized" =~ ^[0-9a-f]{40}$ ]]
+[[ "$baseline" != "$optimized" ]]
 repo="$(git rev-parse --show-toplevel)"
 evidence="$repo/build/recovery-paired-ab"
 mkdir -p "$evidence"
