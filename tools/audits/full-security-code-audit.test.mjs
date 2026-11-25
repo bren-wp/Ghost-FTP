@@ -4,7 +4,7 @@ import test from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {scanDangerous,audit,inspectPlatformSecurityConfig,inspectFreshStagedSftpUpload,inspectWindowsShellSecurity} from "./full-security-code-audit.mjs";
+import {trackedSourceFiles,scanDangerous,audit,inspectPlatformSecurityConfig,inspectFreshStagedSftpUpload,inspectWindowsShellSecurity} from "./full-security-code-audit.mjs";
 
 test("detects explicit TLS and SSH trust verification bypasses in shipping paths",()=>{
   const cases=[
@@ -266,4 +266,17 @@ test("Windows shell and deep-link checks reject search-path hijacking and weaken
   attempt(files[4], "stdout_decoder.push(data)", "String::from_utf8_lossy(data)", "stdout_decoder");
   attempt(files[2], "open_with_shell(path.as_os_str())",
     'Command::new("rundll32.exe").spawn()', "Do not search Windows PATH");
+});
+
+
+test("native C credential bridge and acceptance harnesses are included in the security inventory", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const files = trackedSourceFiles(root);
+  for (const file of [
+    "ghostftp-desktop/src-tauri/src/credentials/native_vault_candidate.c",
+    "tools/native-vault/direct-secret-service.c",
+    "tools/native-vault/failure-probe.c",
+  ]) assert.ok(files.includes(file), file);
+  assert.ok(audit(root).inventory.byExtension.c >= 3);
+  assert.equal(scanDangerous("ghostftp-desktop/src-tauri/src/credentials/native_vault_candidate.c", "curl --insecure https://example.invalid")[0]?.id, "unsafe-curl-tls");
 });
