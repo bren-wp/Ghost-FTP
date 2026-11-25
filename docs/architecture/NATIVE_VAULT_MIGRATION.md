@@ -60,3 +60,7 @@ A targeted normalized nine-line cross-file clone scan of eight vault/recovery so
 ## Candidate memory ownership and provider identity (0.99.87)
 
 The candidate uses the already locked zeroize crate for RAII erasure of its temporary NUL-terminated input buffer and fixed output buffer. UTF-8 is validated before allocating the returned string; post-mutation readback strings are zeroized after comparison. The C bridge explicitly erases its caller-owned output on failed calls, including uncertain outcomes. The failure harness pre-fills output and requires zero bytes on failure. KWallet CRUD checks provider identity before and after the probe. These are scoped changes, pending exact-source native CI; caller-owned successful lookup strings, provider/library internal buffers, process aborts and system memory dumps are outside this erasure guarantee. No production backend selection changes.
+
+## Production helper memory ownership (0.99.87)
+
+The existing Linux secret-tool subprocess path now scopes captured stdout/stderr and read scratch buffers with Zeroizing, reserves the bounded capture before reading, and avoids formatting captured bytes in Debug. Lookup validates UTF-8 before transferring a successful String to its caller; temporary mutation readback is zeroized. Existing deadlines, helper status semantics, byte limits and backend selection are unchanged. Caller-owned returned strings, operating-system pipe buffers, provider internals and process aborts remain outside this guarantee. Exact-source Rust and native acceptance are pending.

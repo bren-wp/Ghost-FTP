@@ -140,6 +140,8 @@ rand = "0.8"
 # provider. Using the wrapper instead of hand-rolled `windows`-crate FFI keeps
 # the unsafe surface tiny for code that can only be verified manually in Explorer.
 [target.'cfg(unix)'.dependencies]
+# Linux credential helper and native candidate use the existing locked version.
+zeroize = "=1.9.1"
 # POSIX no-follow and close-on-exec flags protect known_hosts and backup
 libc = "0.2"
 
@@ -164,8 +166,6 @@ windows = { version = "0.58", optional = true, features = [
 ] }
 
 [dev-dependencies]
-# Test-only native credential buffers use optimizer-resistant RAII erasure.
-zeroize = "=1.9.1"
 # Paused-clock tokio tests for the transfer token bucket (Plan 17).
 tokio = { version = "1", features = ["test-util"] }
 
