@@ -4163,9 +4163,21 @@ mod tests {
         crate::credentials::configure_native_recovery_test_vault(root.join("vault"), None);
         let result = std::panic::catch_unwind(|| {
             let db = std::sync::Arc::new(crate::db::Db::open(&root.join("ghostftp.db")).unwrap());
+            let samples = if std::env::var("GHOSTFTP_ACTIVE_RECOVERY_BENCH_OPT_IN")
+                .as_deref()
+                == Ok("disposable-fixtures")
+            {
+                std::env::var("GHOSTFTP_RECOVERY_BENCH_SAMPLES")
+                    .ok()
+                    .map(|value| value.parse::<usize>().expect("benchmark sample count"))
+                    .unwrap_or(3)
+            } else {
+                3
+            };
+            assert!((3..=100).contains(&samples));
             for &size in sizes {
                 let mut timings = Vec::new();
-                for sample in 0..3 {
+                for sample in 0..samples {
                     let id = format!("bench-{size}-{sample}");
                     let target = root.join(format!("{id}-target"));
                     let stage = root.join(format!("{id}-stage"));
@@ -4195,8 +4207,10 @@ mod tests {
                 }
                 timings.sort_unstable();
                 eprintln!(
-                    "recovery_e2e_benchmark platform={} bytes={size} samples=3 median_us={} max_us={}",
-                    std::env::consts::OS, timings[1], timings[2]
+                    "recovery_e2e_benchmark platform={} bytes={size} samples={samples} median_us={} max_us={}",
+                    std::env::consts::OS,
+                    timings[samples / 2],
+                    timings[samples - 1]
                 );
             }
         });

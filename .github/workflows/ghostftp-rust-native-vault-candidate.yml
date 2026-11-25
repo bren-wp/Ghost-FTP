@@ -11,7 +11,7 @@ permissions:
 jobs:
   recovery:
     runs-on: ubuntu-22.04
-    timeout-minutes: 180
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -47,8 +47,9 @@ jobs:
             uname -srmo
             pkg-config --modversion libsecret-1
           } > build/rust-native-vault/environment.txt
+          export GHOSTFTP_RECOVERY_BENCH_SAMPLES=25
           index=0
-          for variant in A B B A; do
+          for variant in A B B A B A A B; do
             index=$((index + 1))
             (
               root="$(mktemp -d)"
@@ -59,7 +60,7 @@ jobs:
               unset GHOSTFTP_DIRECT_VAULT_TEST
               if [ "$variant" = B ]; then export GHOSTFTP_DIRECT_VAULT_TEST=disposable-fixtures; fi
               cd ghostftp-desktop/src-tauri
-              timeout --kill-after=10s 20m dbus-run-session -- bash -euo pipefail -c '
+              timeout --kill-after=10s 30m dbus-run-session -- bash -euo pipefail -c '
                 printf %s isolated-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets >/dev/null
                 cargo test --locked -p ghostftp --lib --features native-vault-candidate native_vault_end_to_end_benchmark -- --ignored --nocapture
               '
@@ -71,15 +72,16 @@ jobs:
           import pathlib, re, statistics, math
           root = pathlib.Path("build/rust-native-vault")
           samples = {}
-          for index, variant in enumerate("ABBA", 1):
+          for index, variant in enumerate("ABBABAAB", 1):
               rows = re.findall(r"recovery_e2e_sample platform=linux bytes=(\d+) sample=(\d+) elapsed_us=(\d+)", (root / f"run-{index}-{variant}.log").read_text())
-              assert len(rows) == 6
-              assert {(int(b), int(i)) for b, i, _ in rows} == {(b,i) for b in (1048576,16777216) for i in range(3)}
+              assert len(rows) == 50
+              assert {(int(b), int(i)) for b, i, _ in rows} == {(b,i) for b in (1048576,16777216) for i in range(25)}
               for size, _, value in rows:
                   samples.setdefault((variant, size), []).append(int(value))
-          lines = ["Full recovery promotion ABBA; six samples per variant and size. Tail values are descriptive, not robust P99 estimates."]
+          lines = ["Full recovery promotion ABBA/BAAB; 100 samples per variant and size. P99 is an empirical nearest-rank estimate, not a production SLA."]
           for (variant, size), values in sorted(samples.items()):
               xs = sorted(values)
+              assert len(xs) == 100
               lines.append(f"{variant} bytes={size} n={len(xs)} median_us={statistics.median(xs)} p95_us={xs[math.ceil(.95*len(xs))-1]} p99_us={xs[math.ceil(.99*len(xs))-1]} max_us={xs[-1]}")
           (root / "summary.txt").write_text("\n".join(lines) + "\n")
           print("\n".join(lines))

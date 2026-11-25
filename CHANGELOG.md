@@ -3,6 +3,7 @@
 ## 0.99.86 Preview — 25 November 2026 (development candidate; not yet published)
 
 - Add a disposable direct libsecret compatibility and lookup benchmark candidate; GNOME lookup-only compatibility passed. Add a test-only Rust integration with cancellable sessions and owner checks; production backend remains unchanged pending acceptance.
+- Add native failure-injection coverage for blocked lookups and provider interruption/restart, an explicit KWallet provider CRUD acceptance harness, and expanded paired recovery measurement configuration.
 - Avoid a redundant GC length-marker read while retaining exact chunk lengths, SHA-256 verification and strict deletion semantics.
 - Batch superseded and new immutable shard registration with authenticated page reads, capacity preflight and durable per-page read-back; add conflict, overflow, tampering and unpublished-root regression coverage.
 - Record raw admission and occupancy-band latency for 128 real persisted journals and archive the native benchmark logs. Align active documentation with the current Preview source and published predecessor.
