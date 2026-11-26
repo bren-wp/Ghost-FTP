@@ -378,6 +378,11 @@ original user data and staged restore were preserved for repair"
                         st.transfers.set_concurrency(n);
                     }
                 }
+                if let Ok(Some(raw)) = st.db.settings_get("adaptiveConcurrency") {
+                    if let Ok(enabled) = serde_json::from_str::<bool>(&raw) {
+                        st.transfers.set_adaptive_concurrency(enabled);
+                    }
+                }
                 if let Ok(Some(raw)) = st.db.settings_get("transferThrottleKbps") {
                     if let Ok(kbps) = serde_json::from_str::<u64>(&raw) {
                         st.transfers.set_throttle_kbps(kbps);
@@ -543,8 +548,10 @@ original user data and staged restore were preserved for repair"
             commands::transfer_pause_all,
             commands::transfer_resume_all,
             commands::transfer_set_concurrency,
+            commands::transfer_set_adaptive_concurrency,
             commands::transfer_set_max_retries,
             commands::transfer_set_throttle,
+            commands::transfer_profile_throttle,
             commands::transfer_set_delta_sync,
             commands::transfer_queue_state,
             commands::rename_path,

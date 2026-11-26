@@ -1,6 +1,22 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.88 Preview — 26 November 2026 (development candidate; publication pending)
+## 0.99.89 Preview — 27 November 2026 (development candidate; publication pending)
+
+- Require native vault failure injection and Rust native candidate acceptance for every exact main SHA before automatic release promotion.
+- Add static release gate regression checks; retain the production credential backend and all historical releases unchanged.
+- Align published download links and release lineage with v0.99.88.
+- Fix FIFO admission wakeups, reordering while the slot pool is full, and live queue snapshots; add regression tests.
+- Share a bounded exponential retry delay with jitter across safe upload and download retry paths.
+- Implement queue-local High/Normal/Low priorities and authoritative Transfer Center controls.
+- Add work-conserving weighted admission and a matching queue projection to prevent lower-priority starvation.
+- Persist selected priorities in the existing transfer ledger and preserve them across retry and restart.
+- Bound bandwidth credit at low rates and account correctly for live rate changes and unlimited periods.
+- Apply the shared global byte budget to FTP/FTPS data-loop callbacks and full-upload recovery reads.
+- Add persisted per-site bandwidth limits for FTP, FTPS and SFTP with Site Manager controls.
+- Avoid additive wait time between global and per-site bandwidth budgets.
+- Add opt-in adaptive concurrency driven by safe retry feedback and successful completion.
+
+## 0.99.88 Preview — 26 November 2026 (published)
 
 - Recover the four unmerged native-vault security commits: KWallet identity, candidate and production helper buffer zeroization and native CI coverage.
 - Preserve absolute POSIX root destinations in synchronization plans; add path regression coverage.

@@ -284,7 +284,7 @@ export const ipc = {
   transferRetry: (transferId: string) =>
     invoke<void>("transfer_retry", { transferId }),
 
-  transferMove: (transferId: string, direction: "up" | "down") =>
+  transferMove: (transferId: string, direction: "up" | "down" | "high" | "normal" | "low") =>
     invoke<void>("transfer_move", { transferId, direction }),
 
   transferPauseAll: () => invoke<void>("transfer_pause_all"),
@@ -294,11 +294,17 @@ export const ipc = {
   transferSetConcurrency: (count: number) =>
     invoke<void>("transfer_set_concurrency", { count }),
 
+  transferSetAdaptiveConcurrency: (enabled: boolean) =>
+    invoke<void>("transfer_set_adaptive_concurrency", { enabled }),
+
   transferSetMaxRetries: (attempts: number) =>
     invoke<void>("transfer_set_max_retries", { attempts }),
 
   transferSetThrottle: (kbps: number) =>
     invoke<void>("transfer_set_throttle", { kbps }),
+
+  transferProfileThrottle: (profileId: string, kbps?: number) =>
+    invoke<number>("transfer_profile_throttle", { profileId, kbps: kbps ?? null }),
 
   transferSetDeltaSync: (enabled: boolean) =>
     invoke<void>("transfer_set_delta_sync", { enabled }),

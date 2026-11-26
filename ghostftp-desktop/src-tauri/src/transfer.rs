@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::future::Future;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
@@ -80,12 +80,38 @@ impl std::error::Error for UploadPromotionUnconfirmed {
     }
 }
 
-/// Payload of the `transfer://queue` event: the FIFO of waiting transfer ids
+/// Transfer priority retained across explicit retry and process recovery.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TransferPriority {
+    Low,
+    #[default]
+    Normal,
+    High,
+}
+
+// Weighted round-robin by admission, not by bytes or elapsed time. The
+// scheduler skips empty tiers, so available slots are never left idle.
+const QUEUE_TIER_CYCLE: [usize; 7] = [2, 2, 2, 2, 1, 1, 0];
+
+fn next_queue_tier(cursor: usize, available: [bool; 3]) -> Option<(usize, usize)> {
+    for offset in 0..QUEUE_TIER_CYCLE.len() {
+        let index = (cursor + offset) % QUEUE_TIER_CYCLE.len();
+        let tier = QUEUE_TIER_CYCLE[index];
+        if available[tier] {
+            return Some((tier, (index + 1) % QUEUE_TIER_CYCLE.len()));
+        }
+    }
+    None
+}
+
+/// Payload of the `transfer://queue` event: the ordered waiting transfer ids
 /// plus the manager-level state the panel header renders.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueueState {
     pub waiting: Vec<String>,
+    pub priorities: HashMap<String, TransferPriority>,
     pub paused_all: bool,
     pub concurrency: usize,
     pub throttle_kbps: u64,
@@ -213,70 +239,298 @@ async fn read_cloud_upload_bounded(path: &Path, expected: u64) -> Result<Vec<u8>
     Ok(data)
 }
 
-/// Global bandwidth cap shared by every active copy loop:
-/// a token bucket refilling at `rate` bytes/sec (0 = unlimited). Because all
-/// transfers draw from this one bucket, the cap is split across active
-/// transfers rather than applied per transfer.
+/// Shared byte budget for copy loops that call the transfer checkpoint.
+/// A one-second burst ceiling also applies at low configured rates.
 struct TokenBucket {
-    inner: Mutex<BucketInner>,
-    rate_bps: AtomicU64,
+    inner: StdMutex<BucketInner>,
 }
 
 struct BucketInner {
     tokens: f64,
+    rate_bps: u64,
     // tokio's Instant (not std's) so `start_paused` tests drive refills.
     last: tokio::time::Instant,
+}
+
+impl BucketInner {
+    fn refill(&mut self, now: tokio::time::Instant) {
+        let elapsed = now.duration_since(self.last).as_secs_f64();
+        let rate = self.rate_bps as f64;
+        self.tokens = (self.tokens + elapsed * rate).min(rate);
+        self.last = now;
+    }
 }
 
 impl TokenBucket {
     fn new() -> Self {
         Self {
-            inner: Mutex::new(BucketInner {
+            inner: StdMutex::new(BucketInner {
                 tokens: 0.0,
+                rate_bps: 0,
                 last: tokio::time::Instant::now(),
             }),
-            rate_bps: AtomicU64::new(0),
         }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, BucketInner> {
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
     }
 
     fn rate_kbps(&self) -> u64 {
-        self.rate_bps.load(Ordering::Relaxed) / 1024
+        self.lock().rate_bps / 1024
     }
 
     fn set_rate_kbps(&self, kbps: u64) {
-        self.rate_bps
-            .store(kbps.saturating_mul(1024), Ordering::Relaxed);
+        let mut state = self.lock();
+        // Settle time at the previous rate before applying a new limit.
+        // Unlimited time must not accumulate credit at the next finite rate.
+        state.refill(tokio::time::Instant::now());
+        state.rate_bps = kbps.saturating_mul(1024);
+        state.tokens = state.tokens.min(state.rate_bps as f64);
     }
 
-    /// Wait until `bytes` may flow under the cap. Drawn in tranches capped at
-    /// one second's worth of rate (min 64 KiB) so a large chunk is charged in
-    /// full while a 1 KiB file never waits a whole token window.
+    /// Shared accounting step for async and blocking protocol adapters.
+    /// The lock is released before either caller sleeps.
+    fn debit_step(&self, remaining: &mut f64) -> Duration {
+        let mut state = self.lock();
+        let rate = state.rate_bps as f64;
+        if rate == 0.0 {
+            *remaining = 0.0;
+            return Duration::ZERO;
+        }
+        state.refill(tokio::time::Instant::now());
+        let tranche = remaining.min(rate);
+        if state.tokens >= tranche {
+            state.tokens -= tranche;
+            *remaining -= tranche;
+            return Duration::ZERO;
+        }
+        Duration::from_secs_f64((tranche - state.tokens) / rate)
+            .clamp(Duration::from_nanos(1), Duration::from_millis(250))
+    }
+
     async fn acquire(&self, bytes: u64) {
         let mut remaining = bytes as f64;
         while remaining > 0.0 {
-            let rate = self.rate_bps.load(Ordering::Relaxed);
-            if rate == 0 {
-                return;
+            let wait = self.debit_step(&mut remaining);
+            if !wait.is_zero() {
+                tokio::time::sleep(wait).await;
             }
-            let wait = {
-                let mut g = self.inner.lock().await;
-                let now = tokio::time::Instant::now();
-                let elapsed = now.duration_since(g.last).as_secs_f64();
-                let rate_f = rate as f64;
-                let cap = rate_f.max(64.0 * 1024.0);
-                g.tokens = (g.tokens + elapsed * rate_f).min(cap);
-                g.last = now;
-                let tranche = remaining.min(cap);
-                if g.tokens >= tranche {
-                    g.tokens -= tranche;
-                    remaining -= tranche;
-                    continue;
-                }
-                Duration::from_secs_f64((tranche - g.tokens) / rate_f)
-            };
-            // Cap the sleep so a live rate change takes effect promptly.
-            tokio::time::sleep(wait.min(Duration::from_millis(250))).await;
         }
+    }
+
+    /// Charge both budgets over the same elapsed interval rather than
+    /// serializing their waits and reducing throughput below either cap.
+    async fn acquire_hierarchical(&self, profile: Option<&TokenBucket>, bytes: u64) {
+        if let Some(profile) = profile {
+            tokio::join!(self.acquire(bytes), profile.acquire(bytes));
+        } else {
+            self.acquire(bytes).await;
+        }
+    }
+
+    /// Called only on FTP's blocking worker. Poll both budgets and control
+    /// between bounded sleeps; never block a Tokio executor thread.
+    fn acquire_ftp<F>(
+        &self,
+        profile: Option<&TokenBucket>,
+        bytes: u64,
+        mut control: F,
+    ) -> FtpTransferControl
+    where
+        F: FnMut() -> FtpTransferControl,
+    {
+        let mut global_remaining = bytes as f64;
+        let mut profile_remaining = if profile.is_some() { bytes as f64 } else { 0.0 };
+        loop {
+            let decision = control();
+            if decision != FtpTransferControl::Continue
+                || (global_remaining <= 0.0 && profile_remaining <= 0.0)
+            {
+                return decision;
+            }
+            let global_wait = if global_remaining > 0.0 {
+                self.debit_step(&mut global_remaining)
+            } else {
+                Duration::ZERO
+            };
+            let profile_wait = match profile {
+                Some(bucket) if profile_remaining > 0.0 => {
+                    bucket.debit_step(&mut profile_remaining)
+                }
+                _ => Duration::ZERO,
+            };
+            let wait = global_wait.max(profile_wait);
+            if !wait.is_zero() {
+                std::thread::sleep(wait);
+            }
+        }
+    }
+}
+
+const PROFILE_BANDWIDTH_KEY: &str = "transferProfileBandwidthLimits";
+pub const MAX_PROFILE_BANDWIDTH_KIB: u64 = 1_048_576;
+
+/// A persistent cap is shared by every transfer of the same saved profile.
+/// Zero means no additional cap. Global accounting remains mandatory.
+struct ProfileBandwidth {
+    buckets: StdMutex<HashMap<String, Arc<TokenBucket>>>,
+    load_failed: bool,
+}
+
+impl ProfileBandwidth {
+    fn from_db(db: Option<&crate::db::Db>) -> Self {
+        let result = (|| -> Result<HashMap<String, u64>> {
+            let Some(db) = db else {
+                return Ok(HashMap::new());
+            };
+            let Some(raw) = db.settings_get(PROFILE_BANDWIDTH_KEY)? else {
+                return Ok(HashMap::new());
+            };
+            let rates: HashMap<String, u64> = serde_json::from_str(&raw)?;
+            anyhow::ensure!(
+                rates
+                    .values()
+                    .all(|rate| *rate <= MAX_PROFILE_BANDWIDTH_KIB),
+                "invalid saved profile bandwidth limit"
+            );
+            Ok(rates)
+        })();
+        let load_failed = result.is_err();
+        if load_failed {
+            tracing::warn!("saved profile bandwidth limits could not be loaded");
+        }
+        let buckets = result
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|(_, rate)| *rate != 0)
+            .map(|(id, rate)| {
+                let bucket = Arc::new(TokenBucket::new());
+                bucket.set_rate_kbps(rate);
+                (id, bucket)
+            })
+            .collect();
+        Self {
+            buckets: StdMutex::new(buckets),
+            load_failed,
+        }
+    }
+
+    fn ensure_loaded(&self) -> Result<()> {
+        anyhow::ensure!(
+            !self.load_failed,
+            "saved profile bandwidth limits are unavailable; existing settings were preserved"
+        );
+        Ok(())
+    }
+
+    fn lookup(&self, id: &str) -> Option<Arc<TokenBucket>> {
+        self.buckets
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .get(id)
+            .cloned()
+    }
+
+    fn rate(&self, id: &str) -> Result<u64> {
+        self.ensure_loaded()?;
+        Ok(self.lookup(id).map_or(0, |bucket| bucket.rate_kbps()))
+    }
+
+    fn set(&self, db: Option<&crate::db::Db>, id: &str, rate: u64) -> Result<()> {
+        self.ensure_loaded()?;
+        anyhow::ensure!(
+            rate <= MAX_PROFILE_BANDWIDTH_KIB,
+            "profile bandwidth limit exceeds supported range"
+        );
+        let mut buckets = self
+            .buckets
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let mut rates: HashMap<_, _> = buckets
+            .iter()
+            .map(|(id, bucket)| (id.clone(), bucket.rate_kbps()))
+            .collect();
+        if rate == 0 {
+            rates.remove(id);
+        } else {
+            rates.insert(id.to_string(), rate);
+        }
+        if let Some(db) = db {
+            db.settings_set(PROFILE_BANDWIDTH_KEY, &serde_json::to_string(&rates)?)?;
+        }
+        if rate == 0 {
+            if let Some(bucket) = buckets.remove(id) {
+                // Release callers holding this old bucket during a live change.
+                bucket.set_rate_kbps(0);
+            }
+        } else {
+            buckets
+                .entry(id.to_string())
+                .or_insert_with(|| Arc::new(TokenBucket::new()))
+                .set_rate_kbps(rate);
+        }
+        Ok(())
+    }
+}
+
+/// One FTP attempt, using the same budget as asynchronous transfers.
+struct FtpBudget {
+    bucket: Arc<TokenBucket>,
+    profile: Option<(Arc<ProfileBandwidth>, String)>,
+    pause_all: PauseGate,
+    pause: Option<PauseGate>,
+    canceled: Arc<AtomicBool>,
+    accounted: u64,
+}
+
+impl FtpBudget {
+    fn control(&mut self, transferred: u64) -> FtpTransferControl {
+        let bytes = transferred.saturating_sub(self.accounted);
+        self.accounted = transferred;
+        let decision = || {
+            if self.canceled.load(Ordering::Acquire) {
+                FtpTransferControl::Cancel
+            } else if self.pause_all.is_paused()
+                || self.pause.as_ref().is_some_and(|gate| gate.is_paused())
+            {
+                FtpTransferControl::Pause
+            } else {
+                FtpTransferControl::Continue
+            }
+        };
+        let profile = self
+            .profile
+            .as_ref()
+            .and_then(|(limits, id)| limits.lookup(id));
+        self.bucket.acquire_ftp(profile.as_deref(), bytes, decision)
+    }
+}
+
+/// Preserve the established full-upload recovery path while charging bytes
+/// before handing them to SuppaFTP's writer. An interrupted read is an error,
+/// never EOF, so a partially written remote staging file cannot look complete.
+struct BudgetedFtpReader<R> {
+    inner: R,
+    budget: FtpBudget,
+    stop: FtpTransferControl,
+}
+
+impl<R: std::io::Read> std::io::Read for BudgetedFtpReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.stop = self.budget.control(self.budget.accounted);
+        if self.stop == FtpTransferControl::Continue {
+            let count = self.inner.read(buf)?;
+            self.stop = self
+                .budget
+                .control(self.budget.accounted.saturating_add(count as u64));
+            if self.stop == FtpTransferControl::Continue {
+                return Ok(count);
+            }
+        }
+        Err(std::io::Error::other("FTP recovery upload interrupted"))
     }
 }
 
@@ -323,7 +577,7 @@ pub struct Transfer {
     pub status: TransferStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    /// Auto-retry round in progress (1- or 2-of-2), for the panel's
+    /// Auto-retry round in progress, for the panel's
     /// "retrying in Ns (attempt N/total)" state.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_attempt: Option<u32>,
@@ -432,6 +686,8 @@ struct PersistedTransferEnvelope {
     schema: u32,
     transfer: Transfer,
     retry: PersistedRetryInfo,
+    #[serde(default)]
+    priority: TransferPriority,
 }
 
 const TRANSFER_LEDGER_SCHEMA: u32 = 1;
@@ -454,9 +710,34 @@ struct TransferSlot {
     state: Arc<StdMutex<ConcurrencyState>>,
 }
 
-#[derive(Default)]
+const ADAPTIVE_COOLDOWN: Duration = Duration::from_secs(10);
+const ADAPTIVE_SUCCESS_WINDOW: usize = 4;
+
 struct ConcurrencyState {
     pending_shrink: usize,
+    ceiling: usize,
+    adaptive: bool,
+    successes: usize,
+    last_adjustment: Option<tokio::time::Instant>,
+}
+
+impl Default for ConcurrencyState {
+    fn default() -> Self {
+        Self {
+            pending_shrink: 0,
+            ceiling: DEFAULT_CONCURRENCY,
+            adaptive: false,
+            successes: 0,
+            last_adjustment: None,
+        }
+    }
+}
+
+impl ConcurrencyState {
+    fn can_adjust(&self, now: tokio::time::Instant) -> bool {
+        self.last_adjustment
+            .is_none_or(|last| now.duration_since(last) >= ADAPTIVE_COOLDOWN)
+    }
 }
 
 impl Drop for TransferSlot {
@@ -465,10 +746,13 @@ impl Drop for TransferSlot {
             .state
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        if state.pending_shrink > 0 {
-            state.pending_shrink -= 1;
-            if let Some(permit) = self.permit.take() {
+        if let Some(permit) = self.permit.take() {
+            if state.pending_shrink > 0 {
+                state.pending_shrink -= 1;
                 permit.forget();
+            } else {
+                // Return the permit while serialized with pool resizing.
+                drop(permit);
             }
         }
     }
@@ -477,10 +761,15 @@ impl Drop for TransferSlot {
 pub struct TransferManager {
     transfers: Mutex<HashMap<String, Transfer>>,
     tasks: Mutex<HashMap<String, JoinHandle<()>>>,
-    /// FIFO of transfer ids waiting for a slot. An id is popped only
+    /// FIFO within each priority tier for transfer ids waiting for a slot. An id is popped only
     /// once it is at the front, the pause-all gate is open, and a concurrency
     /// permit is available — until then it waits as `Queued`.
     waiting: Mutex<VecDeque<String>>,
+    // Non-default priorities for retained transfer rows, including retry history.
+    // Queue mutations hold waiting; ledger writes hold ledger_serial. No guard across await.
+    queue_priorities: StdMutex<HashMap<String, TransferPriority>>,
+    // Read and advance only under the waiting lock, on successful admission.
+    queue_cursor: AtomicUsize,
     semaphore: Arc<Semaphore>,
     concurrency: AtomicUsize,
     concurrency_state: Arc<StdMutex<ConcurrencyState>>,
@@ -517,7 +806,8 @@ pub struct TransferManager {
     /// Bumped on every queue change so admission waiters re-check their turn.
     queue_gen: watch::Sender<u64>,
     /// Global bandwidth cap every copy loop draws from per chunk.
-    bucket: TokenBucket,
+    bucket: Arc<TokenBucket>,
+    profile_bandwidth: Arc<ProfileBandwidth>,
     /// Maximum automatic retries for transient network/timeout failures.
     max_auto_retries: AtomicUsize,
     /// Delta-sync master switch: the `deltaSync` setting,
@@ -778,7 +1068,9 @@ impl TransferManager {
     fn from_db(db: Option<Arc<crate::db::Db>>) -> Self {
         let mut transfers = HashMap::new();
         let mut persisted_retry = HashMap::new();
+        let mut queue_priorities = HashMap::new();
         let mut recovered_retry = HashSet::new();
+        let profile_bandwidth = Arc::new(ProfileBandwidth::from_db(db.as_deref()));
 
         if let Some(store) = db.as_ref() {
             // A recovery intent is evidence, never authorization to delete or
@@ -857,6 +1149,9 @@ impl TransferManager {
                     if needs_session_reattach {
                         recovered_retry.insert(row_id.clone());
                     }
+                    if envelope.priority != TransferPriority::Normal {
+                        queue_priorities.insert(row_id.clone(), envelope.priority);
+                    }
                     persisted_retry.insert(row_id.clone(), envelope.retry);
                     transfers.insert(row_id, envelope.transfer);
                 }
@@ -867,6 +1162,8 @@ impl TransferManager {
             transfers: Mutex::new(transfers),
             tasks: Mutex::new(HashMap::new()),
             waiting: Mutex::new(VecDeque::new()),
+            queue_priorities: StdMutex::new(queue_priorities),
+            queue_cursor: AtomicUsize::new(0),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
             concurrency: AtomicUsize::new(DEFAULT_CONCURRENCY),
             concurrency_state: Arc::new(StdMutex::new(ConcurrencyState::default())),
@@ -881,7 +1178,8 @@ impl TransferManager {
             retry_serial: Mutex::new(()),
             persisted_at: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
-            bucket: TokenBucket::new(),
+            bucket: Arc::new(TokenBucket::new()),
+            profile_bandwidth,
             max_auto_retries: AtomicUsize::new(DEFAULT_MAX_AUTO_RETRIES),
             delta_enabled: AtomicBool::new(true),
         }
@@ -1058,10 +1356,16 @@ impl TransferManager {
                 .insert(transfer.id.clone(), Instant::now());
         }
 
+        let priority = self
+            .priority_overrides()
+            .get(&transfer.id)
+            .copied()
+            .unwrap_or_default();
         let envelope = PersistedTransferEnvelope {
             schema: TRANSFER_LEDGER_SCHEMA,
             transfer,
             retry,
+            priority,
         };
         if let Ok(payload) = serde_json::to_string(&envelope) {
             if db
@@ -1135,6 +1439,7 @@ impl TransferManager {
                 pauses.remove(id);
                 cancels.remove(id);
                 persisted_at.remove(id);
+                self.priority_overrides().remove(id);
             }
         }
 
@@ -1184,9 +1489,42 @@ impl TransferManager {
 
     // ---------- Queue scheduling ----------
 
-    fn build_queue_state(&self, waiting: &VecDeque<String>) -> QueueState {
+    fn priority_overrides(&self) -> std::sync::MutexGuard<'_, HashMap<String, TransferPriority>> {
+        self.queue_priorities
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+    }
+
+    async fn build_queue_state(&self, waiting: &VecDeque<String>) -> QueueState {
+        let pauses = self.pauses.lock().await;
+        let overrides = self.priority_overrides();
+        let priorities: HashMap<_, _> = waiting
+            .iter()
+            .map(|id| (id.clone(), overrides.get(id).copied().unwrap_or_default()))
+            .collect();
+        let mut tiers: [VecDeque<String>; 3] = std::array::from_fn(|_| VecDeque::new());
+        let mut parked = Vec::new();
+        for id in waiting {
+            if pauses.get(id).is_some_and(|gate| gate.is_paused()) {
+                parked.push(id.clone());
+            } else {
+                tiers[priorities[id] as usize].push_back(id.clone());
+            }
+        }
+        let mut ordered = Vec::with_capacity(waiting.len());
+        let mut cursor = self.queue_cursor.load(Ordering::Relaxed);
+        while let Some((tier, next)) =
+            next_queue_tier(cursor, std::array::from_fn(|i| !tiers[i].is_empty()))
+        {
+            if let Some(id) = tiers[tier].pop_front() {
+                ordered.push(id);
+            }
+            cursor = next;
+        }
+        ordered.extend(parked);
         QueueState {
-            waiting: waiting.iter().cloned().collect(),
+            waiting: ordered,
+            priorities,
             paused_all: self.pause_all.is_paused(),
             concurrency: self.concurrency.load(Ordering::Relaxed),
             throttle_kbps: self.bucket.rate_kbps(),
@@ -1196,21 +1534,21 @@ impl TransferManager {
     /// Current queue snapshot for the panel's initial load.
     pub async fn queue_state(&self) -> QueueState {
         let w = self.waiting.lock().await;
-        self.build_queue_state(&w)
+        self.build_queue_state(&w).await
     }
 
     /// Emit `transfer://queue` and bump the generation so admission waiters
     /// re-check whether it is their turn.
-    async fn bump_queue(&self, app: &AppHandle) {
+    pub(crate) async fn bump_queue(&self, app: &AppHandle) {
         let state = {
             let w = self.waiting.lock().await;
-            self.build_queue_state(&w)
+            self.build_queue_state(&w).await
         };
         self.queue_gen.send_modify(|g| *g += 1);
         let _ = app.emit("transfer://queue", &state);
     }
 
-    /// Wait until this transfer is at the front of the FIFO with the pause-all
+    /// Wait until this transfer is selected by the weighted scheduler with the pause-all
     /// gate open, take a concurrency permit, and pop it from the queue.
     /// Returns `None` if the id left the queue (canceled while waiting).
     /// The permit is returned so the caller holds it for the transfer's life.
@@ -1238,13 +1576,29 @@ impl TransferManager {
                     continue;
                 }
             }
-            // My turn: take a permit, then pop.
-            let permit = self.reserve_slot().await?;
+            // A pause, cancel or reorder may change the head while all
+            // slots are occupied. Drop the pending semaphore acquisition and
+            // re-evaluate the FIFO on every queue generation change.
+            let permit = tokio::select! {
+                result = self.reserve_slot() => result?,
+                changed = rx.changed() => {
+                    changed.ok()?;
+                    continue;
+                }
+            };
             let mut w = self.waiting.lock().await;
-            if self.is_my_turn(&w, id).await {
+            if let Some((_, next_cursor)) = self
+                .next_runnable(&w)
+                .await
+                .filter(|(next, _)| next.as_str() == id)
+            {
+                self.queue_cursor.store(next_cursor, Ordering::Relaxed);
                 if let Some(pos) = w.iter().position(|x| x == id) {
                     w.remove(pos);
                 }
+                // The next waiter can use another free slot immediately,
+                // rather than waiting for this transfer to finish.
+                self.queue_gen.send_modify(|g| *g += 1);
                 return Some(permit);
             }
             // Lost a race (pause engaged mid-acquire): release, re-evaluate.
@@ -1256,19 +1610,34 @@ impl TransferManager {
         }
     }
 
-    /// Is `id` the first waiting transfer allowed to run? Strict FIFO except
-    /// that per-transfer-paused rows are skipped (a paused row must not
-    /// head-of-line block the queue); pause-all blocks everyone. Caller must
-    /// hold the `waiting` lock; lock order is waiting → pauses.
-    async fn is_my_turn(&self, w: &VecDeque<String>, id: &str) -> bool {
+    /// Select one runnable FIFO head per tier, then apply the weighted cycle.
+    /// Paused rows never head-of-line block the queue; pause-all blocks everyone.
+    /// Caller holds waiting; lock order is waiting → pauses → priority overrides.
+    async fn next_runnable<'a>(&self, w: &'a VecDeque<String>) -> Option<(&'a String, usize)> {
         if self.pause_all.is_paused() {
-            return false;
+            return None;
         }
         let pauses = self.pauses.lock().await;
-        let first_open = w
-            .iter()
-            .position(|x| pauses.get(x).is_none_or(|g| !g.is_paused()));
-        first_open == w.iter().position(|x| x == id)
+        let priorities = self.priority_overrides();
+        let mut heads = [None; 3];
+        for id in w {
+            if pauses.get(id).is_some_and(|gate| gate.is_paused()) {
+                continue;
+            }
+            let tier = priorities.get(id).copied().unwrap_or_default() as usize;
+            if heads[tier].is_none() {
+                heads[tier] = Some(id);
+            }
+        }
+        let cursor = self.queue_cursor.load(Ordering::Relaxed);
+        let (tier, next) = next_queue_tier(cursor, std::array::from_fn(|i| heads[i].is_some()))?;
+        heads[tier].map(|id| (id, next))
+    }
+
+    async fn is_my_turn(&self, w: &VecDeque<String>, id: &str) -> bool {
+        self.next_runnable(w)
+            .await
+            .is_some_and(|(next, _)| next == id)
     }
 
     /// Reorder a waiting transfer (active transfers are untouched).
@@ -1278,17 +1647,89 @@ impl TransferManager {
             let Some(pos) = w.iter().position(|x| x == id) else {
                 anyhow::bail!("transfer {id} is not waiting in the queue");
             };
+            let priorities = self.priority_overrides();
+            let priority = priorities.get(id).copied().unwrap_or_default();
+            let same_tier =
+                |index: usize| priorities.get(&w[index]).copied().unwrap_or_default() == priority;
             let swap_with = if up {
-                pos.checked_sub(1)
-            } else if pos + 1 < w.len() {
-                Some(pos + 1)
+                (0..pos).rev().find(|&index| same_tier(index))
             } else {
-                None
+                (pos + 1..w.len()).find(|&index| same_tier(index))
             };
             if let Some(other) = swap_with {
                 w.swap(pos, other);
             }
         }
+        self.bump_queue(app).await;
+        Ok(())
+    }
+
+    /// Assign a queued row to a priority tier. Moving between tiers puts it
+    /// behind existing work of the new tier; assigning the same tier is a no-op.
+    async fn change_waiting_priority(&self, id: &str, priority: TransferPriority) -> Result<()> {
+        // Serialize with progress/terminal writes so a stale ledger snapshot
+        // cannot overwrite a newly selected priority.
+        let _ledger = self.ledger_serial.lock().await;
+        let mut waiting = self.waiting.lock().await;
+        let pos = waiting
+            .iter()
+            .position(|queued| queued == id)
+            .ok_or_else(|| anyhow::anyhow!("transfer {id} is not waiting in the queue"))?;
+        let previous = self
+            .priority_overrides()
+            .get(id)
+            .copied()
+            .unwrap_or_default();
+        if previous == priority {
+            return Ok(());
+        }
+        // Commit first. A failed SQLite write must not produce an apparently
+        // successful priority change in the live queue.
+        if let Some(db) = &self.db {
+            let transfer = self
+                .get(id)
+                .await
+                .ok_or_else(|| anyhow::anyhow!("transfer {id} not found"))?;
+            anyhow::ensure!(
+                !is_terminal_transfer_status(transfer.status),
+                "terminal transfer cannot change queue priority"
+            );
+            let retry = self
+                .persisted_retry
+                .lock()
+                .await
+                .get(id)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("transfer {id} has no recovery descriptor"))?;
+            let envelope = PersistedTransferEnvelope {
+                schema: TRANSFER_LEDGER_SCHEMA,
+                transfer,
+                retry,
+                priority,
+            };
+            let payload = serde_json::to_string(&envelope)?;
+            db.transfer_ledger_upsert(id, &payload)
+                .context("persist transfer priority")?;
+        }
+        let mut overrides = self.priority_overrides();
+        if priority == TransferPriority::Normal {
+            overrides.remove(id);
+        } else {
+            overrides.insert(id.to_string(), priority);
+        }
+        if let Some(queued) = waiting.remove(pos) {
+            waiting.push_back(queued);
+        }
+        Ok(())
+    }
+
+    pub async fn set_queue_priority(
+        &self,
+        id: &str,
+        priority: TransferPriority,
+        app: &AppHandle,
+    ) -> Result<()> {
+        self.change_waiting_priority(id, priority).await?;
         self.bump_queue(app).await;
         Ok(())
     }
@@ -1314,7 +1755,21 @@ impl TransferManager {
     /// transfer (or the whole manager) is paused — parks until resumed and
     /// returns `RestartFromPause` so the runner re-runs the file from byte 0.
     async fn checkpoint(&self, id: &str, bytes: u64) -> Result<()> {
-        self.bucket.acquire(bytes).await;
+        let profile_id = self
+            .persisted_retry
+            .lock()
+            .await
+            .get(id)
+            .map(|retry| retry.profile_id().to_string());
+        let profile = if let Some(id) = profile_id {
+            self.profile_bandwidth.ensure_loaded()?;
+            self.profile_bandwidth.lookup(&id)
+        } else {
+            None
+        };
+        self.bucket
+            .acquire_hierarchical(profile.as_deref(), bytes)
+            .await;
         let gate = self.pauses.lock().await.get(id).cloned();
         let parked = self.pause_all.is_paused() || gate.as_ref().is_some_and(|g| g.is_paused());
         if !parked {
@@ -1352,6 +1807,7 @@ impl TransferManager {
         if let Some(t) = self.get(id).await {
             let _ = app.emit("transfer://updated", &t);
         }
+        self.bump_queue(app).await;
         Ok(())
     }
 
@@ -1488,6 +1944,14 @@ impl TransferManager {
         self.bucket.set_rate_kbps(kbps);
     }
 
+    pub fn profile_throttle_kbps(&self, id: &str) -> Result<u64> {
+        self.profile_bandwidth.rate(id)
+    }
+
+    pub fn set_profile_throttle_kbps(&self, id: &str, kbps: u64) -> Result<()> {
+        self.profile_bandwidth.set(self.db.as_deref(), id, kbps)
+    }
+
     /// Resize the global pool without leaving stale asynchronous shrink tasks.
     /// Retire free permits immediately; occupied slots are retired on Drop.
     /// A subsequent increase cancels outstanding retirement debt first.
@@ -1497,6 +1961,16 @@ impl TransferManager {
             .concurrency_state
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
+        state.ceiling = n;
+        let target = if state.adaptive {
+            self.concurrency.load(Ordering::Relaxed).min(n)
+        } else {
+            n
+        };
+        self.resize_concurrency(&mut state, target);
+    }
+
+    fn resize_concurrency(&self, state: &mut ConcurrencyState, n: usize) {
         let old = self.concurrency.swap(n, Ordering::Relaxed);
         if n < old {
             let retired = self.semaphore.forget_permits(old - n);
@@ -1508,6 +1982,61 @@ impl TransferManager {
             if increase > cancelled {
                 self.semaphore.add_permits(increase - cancelled);
             }
+        }
+    }
+
+    /// Manual concurrency remains the default. Adaptive mode never exceeds
+    /// the configured ceiling and never interrupts an active transfer.
+    pub fn set_adaptive_concurrency(&self, enabled: bool) {
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if state.adaptive == enabled {
+            return;
+        }
+        state.adaptive = enabled;
+        state.successes = 0;
+        state.last_adjustment = None;
+        let ceiling = state.ceiling;
+        self.resize_concurrency(&mut state, ceiling);
+    }
+
+    fn record_adaptive_retry(&self) {
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if !state.adaptive {
+            return;
+        }
+        state.successes = 0;
+        let now = tokio::time::Instant::now();
+        let current = self.concurrency.load(Ordering::Relaxed);
+        if current > 1 && state.can_adjust(now) {
+            state.last_adjustment = Some(now);
+            self.resize_concurrency(&mut state, (current / 2).max(1));
+        }
+    }
+
+    fn record_adaptive_success(&self) {
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if !state.adaptive {
+            return;
+        }
+        let current = self.concurrency.load(Ordering::Relaxed);
+        if current >= state.ceiling {
+            return;
+        }
+        state.successes = (state.successes + 1).min(ADAPTIVE_SUCCESS_WINDOW);
+        let now = tokio::time::Instant::now();
+        if state.successes >= ADAPTIVE_SUCCESS_WINDOW && state.can_adjust(now) {
+            state.successes = 0;
+            state.last_adjustment = Some(now);
+            self.resize_concurrency(&mut state, current + 1);
         }
     }
 
@@ -2998,6 +3527,12 @@ impl TransferManager {
         let path = remote_path.to_string();
 
         let owner = owner.clone();
+        let bucket = Arc::clone(&self.bucket);
+        self.profile_bandwidth.ensure_loaded()?;
+        let profile = (
+            Arc::clone(&self.profile_bandwidth),
+            session.profile.id.clone(),
+        );
         let (outcome, file) = match session
             .with_stream(move |stream| {
                 let remote_len = stream.size(&path).ok().map(|size| size as u64);
@@ -3013,17 +3548,16 @@ impl TransferManager {
                 anyhow::ensure!(offset == 0, "FTP resume requires a verified prefix");
                 let file = owner.create_std(&final_path)?;
                 let mut writer = std::io::BufWriter::new(file);
-                let outcome = stream.retr_resumable(&path, offset, &mut writer, |_| {
-                    if canceled.load(Ordering::Acquire) {
-                        FtpTransferControl::Cancel
-                    } else if pause_all.is_paused()
-                        || pause.as_ref().is_some_and(|gate| gate.is_paused())
-                    {
-                        FtpTransferControl::Pause
-                    } else {
-                        FtpTransferControl::Continue
-                    }
-                })?;
+                let mut budget = FtpBudget {
+                    bucket,
+                    profile: Some(profile),
+                    pause_all,
+                    pause,
+                    canceled,
+                    accounted: offset,
+                };
+                let outcome = stream
+                    .retr_resumable(&path, offset, &mut writer, |bytes| budget.control(bytes))?;
                 writer.flush().context("flush FTP download destination")?;
                 writer
                     .get_ref()
@@ -3139,6 +3673,14 @@ impl TransferManager {
         let local = local_path.to_path_buf();
         let remote = remote_path.to_string();
 
+        let bucket = Arc::clone(&self.bucket);
+        let retry_bucket = Arc::clone(&self.bucket);
+        self.profile_bandwidth.ensure_loaded()?;
+        let profile = (
+            Arc::clone(&self.profile_bandwidth),
+            session.profile.id.clone(),
+        );
+        let retry_profile = profile.clone();
         let retry_pause = pause.clone();
         let retry_pause_all = pause_all.clone();
         let retry_canceled = canceled.clone();
@@ -3169,17 +3711,16 @@ impl TransferManager {
                     file.seek(SeekFrom::Start(offset))?;
                 }
                 let mut reader = std::io::BufReader::new(file);
-                let outcome = stream.stor_resumable(&remote, offset, &mut reader, |_| {
-                    if canceled.load(Ordering::Acquire) {
-                        FtpTransferControl::Cancel
-                    } else if pause_all.is_paused()
-                        || pause.as_ref().is_some_and(|gate| gate.is_paused())
-                    {
-                        FtpTransferControl::Pause
-                    } else {
-                        FtpTransferControl::Continue
-                    }
-                })?;
+                let mut budget = FtpBudget {
+                    bucket,
+                    profile: Some(profile),
+                    pause_all,
+                    pause,
+                    canceled,
+                    accounted: offset,
+                };
+                let outcome = stream
+                    .stor_resumable(&remote, offset, &mut reader, |bytes| budget.control(bytes))?;
                 first_source_snapshot.verify(&reader.get_ref().metadata()?)?;
 
                 // Some FTP/FTPS servers can acknowledge a resumed transfer but
@@ -3218,7 +3759,7 @@ impl TransferManager {
                 .await
                 .context("reconnect FTP session before safe upload restart")?;
 
-            outcome = session
+            let restart = session
                 .with_stream(move |stream| {
                     if retry_canceled.load(Ordering::Acquire) {
                         return Ok(crate::session::ftp::FtpTransferOutcome {
@@ -3244,9 +3785,29 @@ impl TransferManager {
                     let restart_file = std::fs::File::open(&retry_local)
                         .with_context(|| format!("reopen {}", retry_local.display()))?;
                     retry_source_snapshot.verify(&restart_file.metadata()?)?;
-                    let mut restart_reader = std::io::BufReader::new(restart_file);
-                    let written = stream.put_from_reader(&retry_remote, &mut restart_reader)?;
-                    retry_source_snapshot.verify(&restart_reader.get_ref().metadata()?)?;
+                    let mut restart_reader = BudgetedFtpReader {
+                        inner: std::io::BufReader::new(restart_file),
+                        budget: FtpBudget {
+                            bucket: retry_bucket,
+                            profile: Some(retry_profile),
+                            pause_all: retry_pause_all,
+                            pause: retry_pause,
+                            canceled: retry_canceled,
+                            accounted: 0,
+                        },
+                        stop: FtpTransferControl::Continue,
+                    };
+                    let written = match stream.put_from_reader(&retry_remote, &mut restart_reader) {
+                        Ok(written) => written,
+                        Err(_) if restart_reader.stop != FtpTransferControl::Continue => {
+                            return Ok(crate::session::ftp::FtpTransferOutcome {
+                                transferred: 0,
+                                control: restart_reader.stop,
+                            });
+                        }
+                        Err(error) => return Err(error),
+                    };
+                    retry_source_snapshot.verify(&restart_reader.inner.get_ref().metadata()?)?;
                     if written != local_len {
                         anyhow::bail!(
                             "FTP recovery upload wrote {} bytes, expected {}",
@@ -3269,7 +3830,18 @@ impl TransferManager {
                         control: FtpTransferControl::Continue,
                     })
                 })
-                .await?;
+                .await;
+            outcome = match restart {
+                Ok(outcome) => outcome,
+                Err(error) => {
+                    return Err(match session.reconnect().await {
+                        Ok(()) => error,
+                        Err(reconnect_error) => error.context(format!(
+                            "additionally failed to reconnect FTP session after recovery upload failure: {reconnect_error:#}"
+                        )),
+                    });
+                }
+            };
         }
 
         self.update(id, |t| t.transferred = outcome.transferred)
@@ -4858,6 +5430,20 @@ fn is_transient_download(error: &anyhow::Error) -> bool {
     .any(|status| message.contains(status))
 }
 
+/// Bounded exponential backoff with jitter prevents transfers on a failed
+/// endpoint from retrying in lockstep. The entropy is supplied separately so
+/// the complete delay range can be tested without a timer or random source.
+fn retry_delay_seconds(attempt: u32, entropy: u64) -> u64 {
+    let exponent = attempt.saturating_sub(1).min(3);
+    let ceiling = (8_u64 << exponent).min(60);
+    let floor = ceiling * 2 / 3;
+    floor + entropy % (ceiling - floor + 1)
+}
+
+fn next_retry_delay_seconds(attempt: u32) -> u64 {
+    retry_delay_seconds(attempt, Uuid::new_v4().as_u128() as u64)
+}
+
 /// Re-enter the global FIFO after retry backoff without monopolizing a
 /// concurrency slot. Keeping retries in the same queue as fresh work prevents
 /// an offline endpoint from repeatedly jumping ahead of already-waiting sites.
@@ -4887,6 +5473,7 @@ async fn readmit_after_retry_backoff(
         mgr.bump_queue(app).await;
 
         let permit = mgr.admit(id).await?;
+        mgr.bump_queue(app).await;
 
         let runnable = {
             let mut transfers = mgr.transfers.lock().await;
@@ -4918,7 +5505,7 @@ async fn readmit_after_retry_backoff(
 
 /// Shared download runner: admission → run loop → finalize → wake
 /// the queue. The loop re-runs the file from byte 0 after a resume-from-pause
-/// (Phase 2) and auto-retries transient errors with 5s/20s backoff.
+/// (Phase 2) and auto-retries transient errors with bounded jittered backoff.
 /// Retry backoff releases the concurrency permit so an unreachable server
 /// cannot reduce throughput for unrelated queued transfers. The transfer must
 /// reacquire a permit before its next network attempt.
@@ -4934,6 +5521,7 @@ async fn run_download_task(
     let Some(initial_permit) = mgr.admit(&id).await else {
         return;
     };
+    mgr.bump_queue(&app).await;
     let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
@@ -5015,11 +5603,7 @@ async fn run_download_task(
             }
             Err(e) if auto_retries < max_auto_retries && is_transient_download(&e) => {
                 auto_retries += 1;
-                let delay = match auto_retries {
-                    1 => 5,
-                    2 => 20,
-                    _ => 60,
-                };
+                let delay = next_retry_delay_seconds(auto_retries);
                 mgr.update(&id, |t| {
                     t.transferred = 0;
                     t.retry_attempt = Some(auto_retries);
@@ -5036,7 +5620,9 @@ async fn run_download_task(
                 // A retry that is only waiting must not occupy one of the
                 // global transfer slots. This keeps healthy sites moving when
                 // another endpoint is offline or timing out.
+                mgr.record_adaptive_retry();
                 drop(permit.take());
+                mgr.bump_queue(&app).await;
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 // Re-enter through the same FIFO as every other transfer.
                 // This also keeps a transfer alive if the user pauses it during
@@ -5097,6 +5683,7 @@ async fn run_upload_task(
     let Some(initial_permit) = mgr.admit(&id).await else {
         return;
     };
+    mgr.bump_queue(&app).await;
     let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
@@ -5141,11 +5728,7 @@ async fn run_upload_task(
                     && is_safe_staged_upload_retry(&e) =>
             {
                 auto_retries += 1;
-                let delay = match auto_retries {
-                    1 => 5,
-                    2 => 20,
-                    _ => 60,
-                };
+                let delay = next_retry_delay_seconds(auto_retries);
                 mgr.update(&id, |t| {
                     t.transferred = 0;
                     t.retry_attempt = Some(auto_retries);
@@ -5162,7 +5745,9 @@ async fn run_upload_task(
                 // A retry that is only waiting must not occupy one of the
                 // global transfer slots. This keeps healthy sites moving when
                 // another endpoint is offline or timing out.
+                mgr.record_adaptive_retry();
                 drop(permit.take());
+                mgr.bump_queue(&app).await;
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 // Re-enter through the same FIFO as every other transfer.
                 // This also keeps a transfer alive if the user pauses it during
@@ -5433,6 +6018,7 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
     if let Some(transfer) = mgr.finish_transfer(id, result).await {
         match transfer.status {
             TransferStatus::Done => {
+                mgr.record_adaptive_success();
                 let _ = app.emit("transfer://done", &transfer);
             }
             TransferStatus::Error => {

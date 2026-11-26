@@ -208,6 +208,14 @@ function PerformanceCard() {
         max={32}
         onChange={s.setTransferConcurrency}
       />
+      <ToggleRow
+        label="Adaptive concurrency"
+        checked={s.adaptiveConcurrency}
+        onChange={s.setAdaptiveConcurrency}
+      />
+      <div className="-mt-1 text-[10px] text-text-dim">
+        Adjusts the active transfer limit on network retries, up to Concurrent Transfers.
+      </div>
       <RangeRow
         label="Max Retry Attempts"
         value={s.maxRetryAttempts}

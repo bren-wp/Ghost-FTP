@@ -16,6 +16,28 @@ The current transfer implementation also enforces:
 - Active queue filtering no longer duplicates terminal history.
 - Progress is represented semantically.
 
+## 0.99.89 Preview retry scheduling
+
+- Automatic retry uses a shared bounded exponential delay with jitter: 5–8, 10–16, 21–32, then 40–60 seconds for subsequent retries. The selected delay is passed to the existing transfer status message and timer.
+- Sleeping retries continue to release their global concurrency slot and re-enter the FIFO queue. The maximum retry count and protocol-specific restrictions are unchanged; ambiguous remote upload completion must never trigger automatic replay.
+- Regression tests cover the full delay range and saturation. Exact-source native CI and real-server failure tests remain required.
+
+## 0.99.89 Preview queue priority
+
+- High/Normal/Low apply only to waiting transfers; FIFO is retained within each tier and paused entries are skipped. Existing active transfers are not interrupted. Priority changes move the entry to the end of its new tier; a repeated assignment is a no-op.
+- Backend queue snapshots expose actual order and priority. The Transfer Center does not show editable priority for an active or terminal transfer. Priorities are retained in the existing credential-free SQLite envelope; legacy rows default to Normal. Explicit retry and automatic retry retain the selected priority. A recovered row still requires user-authorized retry and a matching profile. A failed priority ledger write leaves the previous queue order unchanged. Weighted round-robin reserves four High, two Normal and one Low admission per cycle when all tiers are runnable; empty tiers are skipped. Paused rows appear last in the snapshot. This is fairness by admission count, not byte or per-profile fairness.
+- Unit coverage exercises tiers, paused high-priority rows, removal on admission, reset to Normal and rejection of missing rows. Additional tests cover two full weighted cycles, empty tiers and parity between projected queue order and actual admission.
+
+## 0.99.89 Preview bandwidth accounting
+
+- The shared token bucket uses a one-second credit ceiling even at 1 KiB/s, settles elapsed time at the old rate on live changes, and never grants finite-rate credit for time spent unlimited. Four virtual-time regressions cover these transitions and idle bursts.
+- This bounds credit in checkpoint-integrated adapters; FTP/FTPS blocking transfer callbacks and the full-upload recovery reader now share the same bucket. Main FTP/FTPS loops account committed application bytes at chunk boundaries; recovery upload accounts bytes before writing. Saved FTP/FTPS/SFTP sites now support a persisted additional shared site cap in Site Manager, applied alongside the global byte budget. Zero disables only the site cap. Global and site debit waits now overlap in both async and blocking adapters rather than adding sequential delays. Three virtual-time regressions cover equal limits, the slower limit and shared blocking credits. Provider-specific buffered transfers, strict wire-level shaping and adaptive concurrency remain outstanding. Real-server timing and interruption acceptance are still required.
+
+## 0.99.89 Preview adaptive concurrency
+
+- Opt-in Performance setting; manual mode remains the default. The existing concurrency setting is the ceiling. Safe automatic retry feedback halves the active slot target, down to one; four successful completions permit additive recovery by one slot, bounded by a ten-second adjustment cooldown. Active work is never preempted. The heuristic is global, not a measured network congestion detector or per-site controller.
+- Deterministic tests exercise cooldown, recovery, manual mode, the ceiling, the floor and retiring occupied permits. Real-server throughput and installed UI acceptance remain required.
+
 ## CI truth
 
 Rust workspace tests and frontend production builds are release quality gates. Compatibility tooling does not simulate successful file transfers and is not used as proof of protocol correctness.

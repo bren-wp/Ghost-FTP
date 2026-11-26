@@ -658,6 +658,190 @@ async fn token_bucket_tiny_file_skips_full_window() {
     assert!(start.elapsed() < Duration::from_millis(100));
 }
 
+#[tokio::test(start_paused = true)]
+async fn token_bucket_enable_does_not_credit_unlimited_idle_time() {
+    let bucket = TokenBucket::new();
+    tokio::time::sleep(Duration::from_secs(120)).await;
+    bucket.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    bucket.acquire(1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+}
+
+#[tokio::test(start_paused = true)]
+async fn token_bucket_low_rate_caps_idle_burst_at_one_second() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(120)).await;
+    let start = tokio::time::Instant::now();
+    bucket.acquire(2048).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert!(start.elapsed() <= Duration::from_millis(1250));
+}
+
+#[tokio::test(start_paused = true)]
+async fn token_bucket_rate_increase_does_not_refill_retroactively() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    bucket.set_rate_kbps(4);
+    let start = tokio::time::Instant::now();
+    bucket.acquire(4096).await;
+    assert!(start.elapsed() >= Duration::from_millis(750));
+}
+
+#[tokio::test(start_paused = true)]
+async fn token_bucket_rate_decrease_discards_excess_credit() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(64);
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    bucket.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    bucket.acquire(2048).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert_eq!(bucket.rate_kbps(), 1);
+}
+
+#[tokio::test(start_paused = true)]
+async fn ftp_and_async_adapters_debit_the_same_bucket() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(
+        bucket.acquire_ftp(None, 1024, || FtpTransferControl::Continue),
+        FtpTransferControl::Continue
+    );
+    let start = tokio::time::Instant::now();
+    bucket.acquire(1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+}
+
+#[test]
+fn ftp_budget_honors_pause_and_cancel_before_waiting() {
+    let bucket = Arc::new(TokenBucket::new());
+    bucket.set_rate_kbps(1);
+    let canceled = Arc::new(AtomicBool::new(false));
+    let pause = PauseGate::new();
+    pause.set(true);
+    let mut budget = FtpBudget {
+        bucket,
+        profile: None,
+        pause_all: PauseGate::new(),
+        pause: Some(pause),
+        canceled: Arc::clone(&canceled),
+        accounted: 0,
+    };
+    assert_eq!(budget.control(65536), FtpTransferControl::Pause);
+    canceled.store(true, Ordering::Release);
+    assert_eq!(budget.control(65536), FtpTransferControl::Cancel);
+}
+
+#[test]
+fn budgeted_ftp_reader_does_not_report_eof_on_cancellation() {
+    let canceled = Arc::new(AtomicBool::new(true));
+    let mut reader = BudgetedFtpReader {
+        inner: std::io::Cursor::new(b"payload"),
+        budget: FtpBudget {
+            bucket: Arc::new(TokenBucket::new()),
+            profile: None,
+            pause_all: PauseGate::new(),
+            pause: None,
+            canceled,
+            accounted: 0,
+        },
+        stop: FtpTransferControl::Continue,
+    };
+    let mut buf = [0; 8];
+    assert!(std::io::Read::read(&mut reader, &mut buf).is_err());
+    assert_eq!(reader.stop, FtpTransferControl::Cancel);
+    assert_eq!(reader.inner.position(), 0);
+}
+
+#[tokio::test(start_paused = true)]
+async fn profile_bandwidth_is_shared_and_persisted() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    let mgr = TransferManager::with_db(db.clone());
+    mgr.set_profile_throttle_kbps("site-a", 1).unwrap();
+    mgr.set_profile_throttle_kbps("site-b", 4).unwrap();
+    let a = mgr.profile_bandwidth.lookup("site-a").unwrap();
+    let a2 = mgr.profile_bandwidth.lookup("site-a").unwrap();
+    assert!(Arc::ptr_eq(&a, &a2));
+    assert!(!Arc::ptr_eq(
+        &a,
+        &mgr.profile_bandwidth.lookup("site-b").unwrap()
+    ));
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    a.acquire(1024).await;
+    let start = tokio::time::Instant::now();
+    a2.acquire(1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    let restored = TransferManager::with_db(db);
+    assert_eq!(restored.profile_throttle_kbps("site-a").unwrap(), 1);
+    assert_eq!(restored.profile_throttle_kbps("site-b").unwrap(), 4);
+    let held = restored.profile_bandwidth.lookup("site-a").unwrap();
+    restored.set_profile_throttle_kbps("site-a", 0).unwrap();
+    assert_eq!(held.rate_kbps(), 0);
+    assert!(restored.profile_bandwidth.lookup("site-a").is_none());
+}
+
+#[test]
+fn corrupt_profile_bandwidth_settings_are_not_replaced() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    db.settings_set(PROFILE_BANDWIDTH_KEY, "invalid").unwrap();
+    let mgr = TransferManager::with_db(db.clone());
+    assert!(mgr.profile_throttle_kbps("site").is_err());
+    assert!(mgr.set_profile_throttle_kbps("site", 10).is_err());
+    assert_eq!(
+        db.settings_get(PROFILE_BANDWIDTH_KEY).unwrap().as_deref(),
+        Some("invalid")
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn hierarchical_budgets_wait_concurrently_at_equal_rates() {
+    let global = TokenBucket::new();
+    let profile = TokenBucket::new();
+    global.set_rate_kbps(1);
+    profile.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    global.acquire_hierarchical(Some(&profile), 1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert!(start.elapsed() < Duration::from_millis(1500));
+    // Both credits must have been consumed.
+    let start = tokio::time::Instant::now();
+    tokio::join!(global.acquire(1024), profile.acquire(1024));
+    assert!(start.elapsed() >= Duration::from_secs(1));
+}
+
+#[tokio::test(start_paused = true)]
+async fn hierarchical_budgets_respect_the_slower_limit() {
+    let global = TokenBucket::new();
+    let profile = TokenBucket::new();
+    global.set_rate_kbps(4);
+    profile.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    global.acquire_hierarchical(Some(&profile), 2048).await;
+    assert!(start.elapsed() >= Duration::from_secs(2));
+    assert!(start.elapsed() < Duration::from_millis(2250));
+}
+
+#[tokio::test(start_paused = true)]
+async fn blocking_hierarchical_budget_consumes_both_credits() {
+    let global = TokenBucket::new();
+    let profile = TokenBucket::new();
+    global.set_rate_kbps(1);
+    profile.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(
+        global.acquire_ftp(Some(&profile), 1024, || FtpTransferControl::Continue),
+        FtpTransferControl::Continue
+    );
+    let start = tokio::time::Instant::now();
+    global.acquire_hierarchical(Some(&profile), 1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert!(start.elapsed() < Duration::from_millis(1500));
+}
+
 // ---------- PauseGate + checkpoint ----------
 
 #[tokio::test]
@@ -893,6 +1077,7 @@ async fn persisted_failed_transfer_can_reattach_after_restart() {
     let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
     let envelope = PersistedTransferEnvelope {
         schema: TRANSFER_LEDGER_SCHEMA,
+        priority: TransferPriority::Normal,
         transfer: Transfer {
             id: "failed-before-restart".to_string(),
             kind: TransferKind::Upload,
@@ -1119,6 +1304,286 @@ async fn fifo_skips_paused_and_pause_all_blocks_everyone() {
 }
 
 #[tokio::test]
+async fn queue_priority_is_ordered_fifo_within_tiers_and_skips_paused_rows() {
+    let mgr = TransferManager::new();
+    mgr.waiting
+        .lock()
+        .await
+        .extend(["a", "b", "c", "d", "e"].into_iter().map(str::to_string));
+    mgr.change_waiting_priority("b", TransferPriority::High)
+        .await
+        .unwrap();
+    mgr.change_waiting_priority("d", TransferPriority::High)
+        .await
+        .unwrap();
+    mgr.change_waiting_priority("a", TransferPriority::Low)
+        .await
+        .unwrap();
+    mgr.change_waiting_priority("b", TransferPriority::High)
+        .await
+        .unwrap();
+
+    let state = mgr.queue_state().await;
+    assert_eq!(state.waiting, ["b", "d", "c", "e", "a"]);
+    assert_eq!(state.priorities["b"], TransferPriority::High);
+    assert_eq!(state.priorities["c"], TransferPriority::Normal);
+    let gate = PauseGate::new();
+    gate.set(true);
+    mgr.pauses.lock().await.insert("b".into(), gate);
+    let slot = mgr.admit("d").await.unwrap();
+    assert!(!mgr.queue_state().await.priorities.contains_key("d"));
+    assert_eq!(
+        mgr.priority_overrides().get("d"),
+        Some(&TransferPriority::High)
+    );
+    drop(slot);
+
+    mgr.change_waiting_priority("a", TransferPriority::Normal)
+        .await
+        .unwrap();
+    assert_eq!(mgr.queue_state().await.waiting, ["c", "e", "a", "b"]);
+    assert!(mgr
+        .change_waiting_priority("missing", TransferPriority::High)
+        .await
+        .is_err());
+}
+
+#[tokio::test]
+async fn queue_priority_survives_sqlite_restart_and_explicit_retry() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    let mgr = TransferManager::with_db(db.clone());
+    let id = "priority-recovery";
+    mgr.persisted_retry.lock().await.insert(
+        id.into(),
+        PersistedRetryInfo::Upload {
+            profile_id: "saved-profile".into(),
+            local: PathBuf::from("/tmp/source.bin"),
+            final_remote: "/remote/source.bin".into(),
+            allow_replace: false,
+        },
+    );
+    mgr.insert(terminal_race_test_row(id, TransferStatus::Queued))
+        .await;
+    mgr.waiting.lock().await.push_back(id.into());
+    mgr.change_waiting_priority(id, TransferPriority::High)
+        .await
+        .unwrap();
+    let slot = mgr.admit(id).await.unwrap();
+    drop(slot);
+    mgr.finish_transfer(id, Err(anyhow::anyhow!("network timeout")))
+        .await
+        .unwrap();
+    drop(mgr);
+
+    let restored = TransferManager::with_db(db);
+    assert_eq!(
+        restored.recovery_profile_id(id).await.as_deref(),
+        Some("saved-profile")
+    );
+    assert!(restored.queue_state().await.waiting.is_empty());
+    restored.reset_for_retry(id).await.unwrap();
+    restored.waiting.lock().await.push_back(id.into());
+    assert_eq!(
+        restored.queue_state().await.priorities[id],
+        TransferPriority::High
+    );
+    restored
+        .change_waiting_priority(id, TransferPriority::Normal)
+        .await
+        .unwrap();
+    assert_eq!(
+        restored.queue_state().await.priorities[id],
+        TransferPriority::Normal
+    );
+}
+
+#[tokio::test]
+async fn priority_write_without_recovery_descriptor_fails_without_reordering() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    let mgr = TransferManager::with_db(db);
+    mgr.insert(terminal_race_test_row("a", TransferStatus::Queued))
+        .await;
+    mgr.waiting.lock().await.extend(["a".into(), "b".into()]);
+    assert!(mgr
+        .change_waiting_priority("a", TransferPriority::High)
+        .await
+        .is_err());
+    let state = mgr.queue_state().await;
+    assert_eq!(state.waiting, ["a", "b"]);
+    assert_eq!(state.priorities["a"], TransferPriority::Normal);
+}
+
+#[tokio::test]
+async fn weighted_admission_serves_low_priority_under_continuous_high_load() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(1);
+    mgr.waiting.lock().await.extend(
+        [
+            "h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "n1", "n2", "n3", "n4", "l1", "l2",
+        ]
+        .into_iter()
+        .map(str::to_string),
+    );
+    for id in ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"] {
+        mgr.change_waiting_priority(id, TransferPriority::High)
+            .await
+            .unwrap();
+    }
+    for id in ["l1", "l2"] {
+        mgr.change_waiting_priority(id, TransferPriority::Low)
+            .await
+            .unwrap();
+    }
+    let expected = [
+        "h1", "h2", "h3", "h4", "n1", "n2", "l1", "h5", "h6", "h7", "h8", "n3", "n4", "l2",
+    ];
+    assert_eq!(mgr.queue_state().await.waiting, expected);
+    for id in expected {
+        assert_eq!(mgr.queue_state().await.waiting[0], id);
+        let slot = tokio::time::timeout(Duration::from_secs(2), mgr.admit(id))
+            .await
+            .expect("projected queue head must be admitted")
+            .unwrap();
+        drop(slot);
+    }
+    assert!(mgr.queue_state().await.waiting.is_empty());
+}
+
+#[test]
+fn weighted_cycle_skips_empty_tiers_and_never_reserves_a_missing_slot() {
+    for cursor in 0..QUEUE_TIER_CYCLE.len() {
+        assert_eq!(next_queue_tier(cursor, [false; 3]), None);
+        for tier in 0..3 {
+            let mut available = [false; 3];
+            available[tier] = true;
+            let (selected, next) = next_queue_tier(cursor, available).unwrap();
+            assert_eq!(selected, tier);
+            assert!(next < QUEUE_TIER_CYCLE.len());
+        }
+    }
+}
+
+#[tokio::test]
+async fn admission_wakes_next_waiter_before_first_slot_is_released() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(2);
+    mgr.waiting.lock().await.extend(["a".into(), "b".into()]);
+
+    let mut second = std::pin::pin!(mgr.admit("b"));
+    std::future::poll_fn(|cx| {
+        assert!(second.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+
+    let first = mgr.admit("a").await.unwrap();
+    let second = tokio::time::timeout(Duration::from_secs(2), second)
+        .await
+        .expect("next FIFO waiter must wake while the first slot is occupied")
+        .unwrap();
+    assert_eq!(mgr.semaphore.available_permits(), 0);
+    assert!(mgr.waiting.lock().await.is_empty());
+    drop((first, second));
+}
+
+#[tokio::test]
+async fn admission_rechecks_reordered_head_while_slots_are_occupied() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(1);
+    let active = mgr.reserve_slot().await.unwrap();
+    mgr.waiting.lock().await.extend(["a".into(), "b".into()]);
+    let mut first = std::pin::pin!(mgr.admit("a"));
+    std::future::poll_fn(|cx| {
+        assert!(first.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+
+    mgr.waiting.lock().await.swap(0, 1);
+    mgr.queue_gen.send_modify(|g| *g += 1);
+    std::future::poll_fn(|cx| {
+        assert!(first.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(active);
+
+    let second = tokio::time::timeout(Duration::from_secs(2), mgr.admit("b"))
+        .await
+        .expect("reordered head must not wait behind obsolete semaphore waiter")
+        .unwrap();
+    assert_eq!(
+        mgr.waiting.lock().await.front().map(String::as_str),
+        Some("a")
+    );
+    drop(second);
+    assert!(tokio::time::timeout(Duration::from_secs(2), first)
+        .await
+        .unwrap()
+        .is_some());
+}
+
+#[tokio::test]
+async fn admission_rejects_missing_id_when_every_waiting_row_is_paused() {
+    let mgr = TransferManager::new();
+    mgr.waiting.lock().await.push_back("a".into());
+    let gate = PauseGate::new();
+    gate.set(true);
+    mgr.pauses.lock().await.insert("a".into(), gate);
+    let waiting = mgr.waiting.lock().await;
+    assert!(!mgr.is_my_turn(&waiting, "missing").await);
+}
+
+#[tokio::test(start_paused = true)]
+async fn adaptive_concurrency_reduces_and_recovers_with_cooldown() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(8);
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 8);
+    mgr.set_adaptive_concurrency(true);
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 4);
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 4);
+    for _ in 0..ADAPTIVE_SUCCESS_WINDOW {
+        mgr.record_adaptive_success();
+    }
+    assert_eq!(mgr.queue_state().await.concurrency, 4);
+    tokio::time::sleep(ADAPTIVE_COOLDOWN).await;
+    mgr.record_adaptive_success();
+    assert_eq!(mgr.queue_state().await.concurrency, 5);
+    mgr.set_concurrency(2);
+    assert_eq!(mgr.queue_state().await.concurrency, 2);
+    mgr.set_concurrency(6);
+    assert_eq!(mgr.queue_state().await.concurrency, 2);
+    mgr.set_adaptive_concurrency(false);
+    assert_eq!(mgr.queue_state().await.concurrency, 6);
+}
+
+#[tokio::test(start_paused = true)]
+async fn adaptive_shrink_preserves_active_slots_and_floor() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(4);
+    mgr.set_adaptive_concurrency(true);
+    let mut slots = Vec::new();
+    for _ in 0..4 {
+        slots.push(mgr.reserve_slot().await.unwrap());
+    }
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 2);
+    assert_eq!(mgr.semaphore.available_permits(), 0);
+    drop(slots);
+    assert_eq!(mgr.semaphore.available_permits(), 2);
+    tokio::time::sleep(ADAPTIVE_COOLDOWN).await;
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 1);
+    tokio::time::sleep(ADAPTIVE_COOLDOWN).await;
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 1);
+    assert_eq!(mgr.semaphore.available_permits(), 1);
+}
+
+#[tokio::test]
 async fn concurrency_resize_cancels_stale_shrink_debt() {
     let mgr = TransferManager::new();
     mgr.set_concurrency(4);
@@ -1175,6 +1640,23 @@ async fn concurrency_grows_and_shrinks() {
 }
 
 // ---------- Retry classification ----------
+
+#[test]
+fn retry_backoff_is_exponential_jittered_and_bounded() {
+    for (attempt, floor, ceiling) in [(1, 5, 8), (2, 10, 16), (3, 21, 32), (4, 40, 60)] {
+        assert_eq!(retry_delay_seconds(attempt, 0), floor);
+        assert_eq!(retry_delay_seconds(attempt, ceiling - floor), ceiling);
+        for entropy in 0..128 {
+            assert!((floor..=ceiling).contains(&retry_delay_seconds(attempt, entropy)));
+        }
+    }
+    for attempt in [5, 8, u32::MAX] {
+        assert_eq!(retry_delay_seconds(attempt, 0), 40);
+        assert_eq!(retry_delay_seconds(attempt, 20), 60);
+        assert!((40..=60).contains(&retry_delay_seconds(attempt, u64::MAX)));
+    }
+    assert_eq!(retry_delay_seconds(0, 0), retry_delay_seconds(1, 0));
+}
 
 #[test]
 fn transient_errors_retry_permanent_ones_dont() {

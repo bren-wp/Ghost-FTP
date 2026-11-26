@@ -733,6 +733,9 @@ export function SiteManagerDialog({ onClose, initialView = "all" }: Props) {
                     />
                   </EditField>
                 </fieldset>
+                {DIRECT_EDIT_PROTOCOLS.has(selected.protocol) && (
+                  <SiteBandwidthLimit key={selected.id} profileId={selected.id} disabled={editing || Boolean(action)} />
+                )}
 
                 <div className="mt-5 flex gap-2">
                   <button
@@ -855,5 +858,65 @@ function EditField({
         {children}
       </div>
     </label>
+  );
+}
+
+
+function SiteBandwidthLimit({ profileId, disabled }: { profileId: string; disabled: boolean }) {
+  const [saved, setSaved] = useState<number | null>(null);
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    ipc.transferProfileThrottle(profileId).then((rate) => {
+      if (!active) return;
+      setSaved(rate);
+      setValue(String(rate));
+    }).catch((error) => {
+      if (!active) return;
+      setLoadError(true);
+      toastError(error, "Couldn't load site bandwidth limit");
+    });
+    return () => { active = false; };
+  }, [profileId]);
+  const rate = Number(value);
+  const valid = value.trim() !== "" && Number.isSafeInteger(rate) && rate >= 0 && rate <= 1048576;
+  const save = async () => {
+    if (busy || disabled || saved === null || !valid || rate === saved) return;
+    setBusy(true);
+    try {
+      const confirmed = await ipc.transferProfileThrottle(profileId, rate);
+      setSaved(confirmed);
+      setValue(String(confirmed));
+      toast.success("Site bandwidth limit saved");
+    } catch (error) {
+      toastError(error, "Couldn't save site bandwidth limit");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-4 border-t border-border pt-3">
+      <label className="block text-[11px] text-text-muted">
+        Transfer limit (KiB/s)
+        <input
+          className="ghost-ref-input mt-1 w-full"
+          type="number" min={0} max={1048576} step={1}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          disabled={disabled || busy || saved === null}
+        />
+      </label>
+      <p className="mt-1 text-[10px] text-text-muted">
+        0 = no site limit. The global limit still applies.
+      </p>
+      {loadError && <p role="alert" className="mt-1 text-[11px] text-danger">Site limit unavailable.</p>}
+      <button type="button" className="ghost-mini-button mt-2"
+        disabled={disabled || busy || saved === null || !valid || rate === saved}
+        onClick={() => void save()}>
+        {busy ? "Saving…" : "Apply limit"}
+      </button>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   LOCAL_SESSION,
   type SessionId,
   type Transfer,
+  type TransferPriority,
   type OverwritePolicy,
 } from "@/lib/types";
 
@@ -56,8 +57,9 @@ interface TransfersState {
   activeCount: number;
   /** Rolling rates derived from real backend progress byte deltas. */
   rateById: Record<string, TransferRateSample>;
-  /** Waiting (queued) transfer ids in FIFO order — position = index + 1. */
+  /** Waiting transfer ids in weighted admission order, FIFO within each tier. */
   queue: string[];
+  queuePriorities: Record<string, TransferPriority>;
   pausedAll: boolean;
   concurrency: number;
   throttleKbps: number;
@@ -108,7 +110,7 @@ interface TransfersState {
   pause: (id: string) => Promise<void>;
   resume: (id: string) => Promise<void>;
   retry: (id: string) => Promise<void>;
-  move: (id: string, dir: "up" | "down") => Promise<void>;
+  move: (id: string, dir: "up" | "down" | TransferPriority) => Promise<void>;
   pauseAll: () => Promise<void>;
   resumeAll: () => Promise<void>;
   setConcurrency: (n: number) => Promise<void>;
@@ -353,6 +355,7 @@ export const useTransfers = create<TransfersState>((set, get) => ({
   activeCount: 0,
   rateById: {},
   queue: [],
+  queuePriorities: {},
   pausedAll: false,
   concurrency: 3,
   throttleKbps: 0,
@@ -392,6 +395,7 @@ export const useTransfers = create<TransfersState>((set, get) => ({
         queueEventRevision++;
         set({
           queue: q.waiting,
+          queuePriorities: q.priorities ?? {},
           pausedAll: q.pausedAll,
           concurrency: q.concurrency,
           throttleKbps: q.throttleKbps,
@@ -442,6 +446,7 @@ export const useTransfers = create<TransfersState>((set, get) => ({
         activeCount: countActiveTransfers(byId),
         rateById: transferChangedWhileLoading ? state.rateById : {},
         queue: queueChangedWhileLoading ? state.queue : q.waiting,
+        queuePriorities: queueChangedWhileLoading ? state.queuePriorities : (q.priorities ?? {}),
         pausedAll: queueChangedWhileLoading ? state.pausedAll : q.pausedAll,
         concurrency: queueChangedWhileLoading ? state.concurrency : q.concurrency,
         throttleKbps: queueChangedWhileLoading

@@ -1310,8 +1310,8 @@ pub async fn transfer_retry(
     state.transfers.retry(&transfer_id, &app).await.map_err(err)
 }
 
-/// Reorder a waiting transfer in the queue FIFO (Plan 17). `direction` is
-/// "up" (sooner) or "down" (later); active transfers are untouched.
+/// Reorder a waiting transfer within its priority tier or assign a new tier.
+/// Active transfers are untouched. Unknown operations fail closed.
 #[tauri::command]
 pub async fn transfer_move(
     transfer_id: String,
@@ -1319,11 +1319,27 @@ pub async fn transfer_move(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state
-        .transfers
-        .move_in_queue(&transfer_id, direction == "up", &app)
-        .await
-        .map_err(err)
+    use crate::transfer::TransferPriority;
+    match direction.as_str() {
+        "up" | "down" => state
+            .transfers
+            .move_in_queue(&transfer_id, direction == "up", &app)
+            .await
+            .map_err(err),
+        "high" | "normal" | "low" => {
+            let priority = match direction.as_str() {
+                "high" => TransferPriority::High,
+                "low" => TransferPriority::Low,
+                _ => TransferPriority::Normal,
+            };
+            state
+                .transfers
+                .set_queue_priority(&transfer_id, priority, &app)
+                .await
+                .map_err(err)
+        }
+        _ => Err("Invalid transfer queue operation".into()),
+    }
 }
 
 /// Pause admission of new transfers; running ones keep going.
@@ -1344,11 +1360,25 @@ pub async fn transfer_resume_all(app: AppHandle, state: State<'_, AppState>) -> 
 pub async fn transfer_set_concurrency(
     count: u32,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     if !(1..=32).contains(&count) {
         return Err("transfer concurrency must be between 1 and 32".into());
     }
     state.transfers.set_concurrency(count as usize);
+    state.transfers.bump_queue(&app).await;
+    Ok(())
+}
+
+/// Opt-in retry-feedback control, bounded by the manual concurrency ceiling.
+#[tauri::command]
+pub async fn transfer_set_adaptive_concurrency(
+    enabled: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    state.transfers.set_adaptive_concurrency(enabled);
+    state.transfers.bump_queue(&app).await;
     Ok(())
 }
 
@@ -1371,6 +1401,35 @@ pub async fn transfer_set_max_retries(
 pub async fn transfer_set_throttle(kbps: u64, state: State<'_, AppState>) -> Result<(), String> {
     state.transfers.set_throttle_kbps(kbps);
     Ok(())
+}
+
+/// Read or change the independent saved-site cap (KiB/s, 0 = no site cap).
+/// Restrict this first UI integration to the streaming desktop file protocols.
+#[tauri::command]
+pub async fn transfer_profile_throttle(
+    profile_id: String,
+    kbps: Option<u64>,
+    state: State<'_, AppState>,
+) -> Result<u64, String> {
+    let profile = state
+        .profiles
+        .get(&profile_id)
+        .await
+        .map_err(err)?
+        .ok_or_else(|| "Saved profile not found".to_string())?;
+    if !matches!(profile.protocol.as_str(), "ftp" | "ftps" | "sftp") {
+        return Err("Site bandwidth limits require FTP, FTPS or SFTP".into());
+    }
+    if let Some(rate) = kbps {
+        state
+            .transfers
+            .set_profile_throttle_kbps(&profile_id, rate)
+            .map_err(err)?;
+    }
+    state
+        .transfers
+        .profile_throttle_kbps(&profile_id)
+        .map_err(err)
 }
 
 /// Live-adjust the delta-sync switch (Plan 23). Applies to the next transfer
