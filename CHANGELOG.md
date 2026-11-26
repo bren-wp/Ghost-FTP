@@ -1,6 +1,12 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.87 Preview — 26 November 2026 (development candidate; publication pending)
+## 0.99.88 Preview — 26 November 2026 (development candidate; publication pending)
+
+- Recover the four unmerged native-vault security commits: KWallet identity, candidate and production helper buffer zeroization and native CI coverage.
+- Preserve absolute POSIX root destinations in synchronization plans; add path regression coverage.
+- Document capability gaps and evidence-based Windows/Linux product roadmap.
+
+## 0.99.87 Preview — 26 November 2026 (published)
 
 - Include native C sources and headers in the static security inventory, with regression coverage for the credential bridge and native acceptance harnesses.
 - Clarify static audit scope and refresh published Preview download links while retaining screenshot provenance.
