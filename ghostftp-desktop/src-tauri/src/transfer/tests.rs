@@ -1119,6 +1119,77 @@ async fn fifo_skips_paused_and_pause_all_blocks_everyone() {
 }
 
 #[tokio::test]
+async fn admission_wakes_next_waiter_before_first_slot_is_released() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(2);
+    mgr.waiting.lock().await.extend(["a".into(), "b".into()]);
+
+    let mut second = std::pin::pin!(mgr.admit("b"));
+    std::future::poll_fn(|cx| {
+        assert!(second.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+
+    let first = mgr.admit("a").await.unwrap();
+    let second = tokio::time::timeout(Duration::from_secs(2), second)
+        .await
+        .expect("next FIFO waiter must wake while the first slot is occupied")
+        .unwrap();
+    assert_eq!(mgr.semaphore.available_permits(), 0);
+    assert!(mgr.waiting.lock().await.is_empty());
+    drop((first, second));
+}
+
+#[tokio::test]
+async fn admission_rechecks_reordered_head_while_slots_are_occupied() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(1);
+    let active = mgr.reserve_slot().await.unwrap();
+    mgr.waiting.lock().await.extend(["a".into(), "b".into()]);
+    let mut first = std::pin::pin!(mgr.admit("a"));
+    std::future::poll_fn(|cx| {
+        assert!(first.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+
+    mgr.waiting.lock().await.swap(0, 1);
+    mgr.queue_gen.send_modify(|g| *g += 1);
+    std::future::poll_fn(|cx| {
+        assert!(first.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(active);
+
+    let second = tokio::time::timeout(Duration::from_secs(2), mgr.admit("b"))
+        .await
+        .expect("reordered head must not wait behind obsolete semaphore waiter")
+        .unwrap();
+    assert_eq!(
+        mgr.waiting.lock().await.front().map(String::as_str),
+        Some("a")
+    );
+    drop(second);
+    assert!(tokio::time::timeout(Duration::from_secs(2), first)
+        .await
+        .unwrap()
+        .is_some());
+}
+
+#[tokio::test]
+async fn admission_rejects_missing_id_when_every_waiting_row_is_paused() {
+    let mgr = TransferManager::new();
+    mgr.waiting.lock().await.push_back("a".into());
+    let gate = PauseGate::new();
+    gate.set(true);
+    mgr.pauses.lock().await.insert("a".into(), gate);
+    let waiting = mgr.waiting.lock().await;
+    assert!(!mgr.is_my_turn(&waiting, "missing").await);
+}
+
+#[tokio::test]
 async fn concurrency_resize_cancels_stale_shrink_debt() {
     let mgr = TransferManager::new();
     mgr.set_concurrency(4);

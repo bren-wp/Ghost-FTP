@@ -5,6 +5,7 @@
 - Require native vault failure injection and Rust native candidate acceptance for every exact main SHA before automatic release promotion.
 - Add static release gate regression checks; retain the production credential backend and all historical releases unchanged.
 - Align published download links and release lineage with v0.99.88.
+- Fix FIFO admission wakeups, reordering while the slot pool is full, and live queue snapshots; add regression tests.
 
 ## 0.99.88 Preview — 26 November 2026 (published)
 

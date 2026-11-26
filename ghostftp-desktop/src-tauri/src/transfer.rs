@@ -1238,13 +1238,24 @@ impl TransferManager {
                     continue;
                 }
             }
-            // My turn: take a permit, then pop.
-            let permit = self.reserve_slot().await?;
+            // A pause, cancel or reorder may change the head while all
+            // slots are occupied. Drop the pending semaphore acquisition and
+            // re-evaluate the FIFO on every queue generation change.
+            let permit = tokio::select! {
+                result = self.reserve_slot() => result?,
+                changed = rx.changed() => {
+                    changed.ok()?;
+                    continue;
+                }
+            };
             let mut w = self.waiting.lock().await;
             if self.is_my_turn(&w, id).await {
                 if let Some(pos) = w.iter().position(|x| x == id) {
                     w.remove(pos);
                 }
+                // The next waiter can use another free slot immediately,
+                // rather than waiting for this transfer to finish.
+                self.queue_gen.send_modify(|g| *g += 1);
                 return Some(permit);
             }
             // Lost a race (pause engaged mid-acquire): release, re-evaluate.
@@ -1268,7 +1279,7 @@ impl TransferManager {
         let first_open = w
             .iter()
             .position(|x| pauses.get(x).is_none_or(|g| !g.is_paused()));
-        first_open == w.iter().position(|x| x == id)
+        first_open.is_some_and(|pos| w.get(pos).is_some_and(|x| x == id))
     }
 
     /// Reorder a waiting transfer (active transfers are untouched).
@@ -1352,6 +1363,7 @@ impl TransferManager {
         if let Some(t) = self.get(id).await {
             let _ = app.emit("transfer://updated", &t);
         }
+        self.bump_queue(app).await;
         Ok(())
     }
 
@@ -4887,6 +4899,7 @@ async fn readmit_after_retry_backoff(
         mgr.bump_queue(app).await;
 
         let permit = mgr.admit(id).await?;
+        mgr.bump_queue(app).await;
 
         let runnable = {
             let mut transfers = mgr.transfers.lock().await;
@@ -4934,6 +4947,7 @@ async fn run_download_task(
     let Some(initial_permit) = mgr.admit(&id).await else {
         return;
     };
+    mgr.bump_queue(&app).await;
     let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
@@ -5097,6 +5111,7 @@ async fn run_upload_task(
     let Some(initial_permit) = mgr.admit(&id).await else {
         return;
     };
+    mgr.bump_queue(&app).await;
     let mut permit = Some(initial_permit);
     let mut auto_retries = 0u32;
     let max_auto_retries = mgr.max_auto_retries.load(Ordering::Relaxed) as u32;
