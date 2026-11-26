@@ -1412,7 +1412,10 @@ pub async fn transfer_profile_throttle(
             .set_profile_throttle_kbps(&profile_id, rate)
             .map_err(err)?;
     }
-    state.transfers.profile_throttle_kbps(&profile_id).map_err(err)
+    state
+        .transfers
+        .profile_throttle_kbps(&profile_id)
+        .map_err(err)
 }
 
 /// Live-adjust the delta-sync switch (Plan 23). Applies to the next transfer

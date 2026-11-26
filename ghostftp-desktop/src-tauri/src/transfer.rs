@@ -307,7 +307,8 @@ impl TokenBucket {
             *remaining -= tranche;
             return Duration::ZERO;
         }
-        Duration::from_secs_f64((tranche - state.tokens) / rate).min(Duration::from_millis(250))
+        Duration::from_secs_f64((tranche - state.tokens) / rate)
+            .clamp(Duration::from_nanos(1), Duration::from_millis(250))
     }
 
     async fn acquire(&self, bytes: u64) {
@@ -320,19 +321,50 @@ impl TokenBucket {
         }
     }
 
-    /// Called only on FTP's blocking worker. Poll pause/cancel and live rate
-    /// changes between bounded sleeps; never block a Tokio executor thread.
-    fn acquire_ftp<F>(&self, bytes: u64, mut control: F) -> FtpTransferControl
+    /// Charge both budgets over the same elapsed interval rather than
+    /// serializing their waits and reducing throughput below either cap.
+    async fn acquire_hierarchical(&self, profile: Option<&TokenBucket>, bytes: u64) {
+        if let Some(profile) = profile {
+            tokio::join!(self.acquire(bytes), profile.acquire(bytes));
+        } else {
+            self.acquire(bytes).await;
+        }
+    }
+
+    /// Called only on FTP's blocking worker. Poll both budgets and control
+    /// between bounded sleeps; never block a Tokio executor thread.
+    fn acquire_ftp<F>(
+        &self,
+        profile: Option<&TokenBucket>,
+        bytes: u64,
+        mut control: F,
+    ) -> FtpTransferControl
     where
         F: FnMut() -> FtpTransferControl,
     {
-        let mut remaining = bytes as f64;
+        let mut global_remaining = bytes as f64;
+        let mut profile_remaining = if profile.is_some() {
+            bytes as f64
+        } else {
+            0.0
+        };
         loop {
             let decision = control();
-            if decision != FtpTransferControl::Continue || remaining <= 0.0 {
+            if decision != FtpTransferControl::Continue
+                || (global_remaining <= 0.0 && profile_remaining <= 0.0)
+            {
                 return decision;
             }
-            let wait = self.debit_step(&mut remaining);
+            let global_wait = if global_remaining > 0.0 {
+                self.debit_step(&mut global_remaining)
+            } else {
+                Duration::ZERO
+            };
+            let profile_wait = match profile {
+                Some(bucket) if profile_remaining > 0.0 => bucket.debit_step(&mut profile_remaining),
+                _ => Duration::ZERO,
+            };
+            let wait = global_wait.max(profile_wait);
             if !wait.is_zero() {
                 std::thread::sleep(wait);
             }
@@ -361,7 +393,9 @@ impl ProfileBandwidth {
             };
             let rates: HashMap<String, u64> = serde_json::from_str(&raw)?;
             anyhow::ensure!(
-                rates.values().all(|rate| *rate <= MAX_PROFILE_BANDWIDTH_KIB),
+                rates
+                    .values()
+                    .all(|rate| *rate <= MAX_PROFILE_BANDWIDTH_KIB),
                 "invalid saved profile bandwidth limit"
             );
             Ok(rates)
@@ -469,18 +503,11 @@ impl FtpBudget {
                 FtpTransferControl::Continue
             }
         };
-        let global = self.bucket.acquire_ftp(bytes, decision);
-        if global != FtpTransferControl::Continue {
-            return global;
-        }
-        if let Some(bucket) = self
+        let profile = self
             .profile
             .as_ref()
-            .and_then(|(limits, id)| limits.lookup(id))
-        {
-            return bucket.acquire_ftp(bytes, decision);
-        }
-        decision()
+            .and_then(|(limits, id)| limits.lookup(id));
+        self.bucket.acquire_ftp(profile.as_deref(), bytes, decision)
     }
 }
 
@@ -1702,19 +1729,21 @@ impl TransferManager {
     /// transfer (or the whole manager) is paused — parks until resumed and
     /// returns `RestartFromPause` so the runner re-runs the file from byte 0.
     async fn checkpoint(&self, id: &str, bytes: u64) -> Result<()> {
-        self.bucket.acquire(bytes).await;
         let profile_id = self
             .persisted_retry
             .lock()
             .await
             .get(id)
             .map(|retry| retry.profile_id().to_string());
-        if let Some(id) = profile_id {
+        let profile = if let Some(id) = profile_id {
             self.profile_bandwidth.ensure_loaded()?;
-            if let Some(bucket) = self.profile_bandwidth.lookup(&id) {
-                bucket.acquire(bytes).await;
-            }
-        }
+            self.profile_bandwidth.lookup(&id)
+        } else {
+            None
+        };
+        self.bucket
+            .acquire_hierarchical(profile.as_deref(), bytes)
+            .await;
         let gate = self.pauses.lock().await.get(id).cloned();
         let parked = self.pause_all.is_paused() || gate.as_ref().is_some_and(|g| g.is_paused());
         if !parked {

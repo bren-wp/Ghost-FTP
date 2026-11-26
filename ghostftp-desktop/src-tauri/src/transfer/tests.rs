@@ -708,7 +708,7 @@ async fn ftp_and_async_adapters_debit_the_same_bucket() {
     bucket.set_rate_kbps(1);
     tokio::time::sleep(Duration::from_secs(1)).await;
     assert_eq!(
-        bucket.acquire_ftp(1024, || FtpTransferControl::Continue),
+        bucket.acquire_ftp(None, 1024, || FtpTransferControl::Continue),
         FtpTransferControl::Continue
     );
     let start = tokio::time::Instant::now();
@@ -795,6 +795,51 @@ fn corrupt_profile_bandwidth_settings_are_not_replaced() {
         db.settings_get(PROFILE_BANDWIDTH_KEY).unwrap().as_deref(),
         Some("invalid")
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn hierarchical_budgets_wait_concurrently_at_equal_rates() {
+    let global = TokenBucket::new();
+    let profile = TokenBucket::new();
+    global.set_rate_kbps(1);
+    profile.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    global.acquire_hierarchical(Some(&profile), 1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert!(start.elapsed() < Duration::from_millis(1500));
+    // Both credits must have been consumed.
+    let start = tokio::time::Instant::now();
+    tokio::join!(global.acquire(1024), profile.acquire(1024));
+    assert!(start.elapsed() >= Duration::from_secs(1));
+}
+
+#[tokio::test(start_paused = true)]
+async fn hierarchical_budgets_respect_the_slower_limit() {
+    let global = TokenBucket::new();
+    let profile = TokenBucket::new();
+    global.set_rate_kbps(4);
+    profile.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    global.acquire_hierarchical(Some(&profile), 2048).await;
+    assert!(start.elapsed() >= Duration::from_secs(2));
+    assert!(start.elapsed() < Duration::from_millis(2250));
+}
+
+#[tokio::test(start_paused = true)]
+async fn blocking_hierarchical_budget_consumes_both_credits() {
+    let global = TokenBucket::new();
+    let profile = TokenBucket::new();
+    global.set_rate_kbps(1);
+    profile.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(
+        global.acquire_ftp(Some(&profile), 1024, || FtpTransferControl::Continue),
+        FtpTransferControl::Continue
+    );
+    let start = tokio::time::Instant::now();
+    global.acquire_hierarchical(Some(&profile), 1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert!(start.elapsed() < Duration::from_millis(1500));
 }
 
 // ---------- PauseGate + checkpoint ----------

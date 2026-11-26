@@ -13,6 +13,7 @@
 - Bound bandwidth credit at low rates and account correctly for live rate changes and unlimited periods.
 - Apply the shared global byte budget to FTP/FTPS data-loop callbacks and full-upload recovery reads.
 - Add persisted per-site bandwidth limits for FTP, FTPS and SFTP with Site Manager controls.
+- Avoid additive wait time between global and per-site bandwidth budgets.
 
 ## 0.99.88 Preview — 26 November 2026 (published)
 
