@@ -2,7 +2,25 @@ name: Native vault failure injection (candidate)
 
 on:
   push:
-    branches: [perf/recovery-gc-marker-v0.99.86]
+    branches: [main, perf/recovery-gc-marker-v0.99.86]
+    paths:
+      - 'ghostftp-desktop/src-tauri/src/credentials/**'
+      - 'ghostftp-desktop/src-tauri/src/credentials.rs'
+      - 'ghostftp-desktop/src-tauri/build.rs'
+      - 'ghostftp-desktop/src-tauri/Cargo.toml'
+      - 'ghostftp-desktop/src-tauri/Cargo.lock'
+      - 'tools/native-vault/**'
+      - '.github/workflows/ghostftp-native-vault-failure.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ghostftp-desktop/src-tauri/src/credentials/**'
+      - 'ghostftp-desktop/src-tauri/src/credentials.rs'
+      - 'ghostftp-desktop/src-tauri/build.rs'
+      - 'ghostftp-desktop/src-tauri/Cargo.toml'
+      - 'ghostftp-desktop/src-tauri/Cargo.lock'
+      - 'tools/native-vault/**'
+      - '.github/workflows/ghostftp-native-vault-failure.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,6 +32,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify KWallet identity boundary (mocked, not KDE acceptance)
+        run: bash tools/native-vault/test-kwallet-identity.sh
       - name: Install native test prerequisites
         run: |
           sudo apt-get update

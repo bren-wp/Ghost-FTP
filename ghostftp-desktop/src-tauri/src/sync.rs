@@ -62,9 +62,16 @@ pub struct SyncPlan {
 }
 
 fn join(base: &str, rel: &str) -> String {
+    // Preserve the absolute POSIX root instead of silently turning it into
+    // a path relative to the server's working directory.
+    let absolute_posix = base.starts_with('/');
     let base = base.trim_end_matches('/').trim_end_matches('\\');
     if base.is_empty() {
-        return rel.to_string();
+        return if absolute_posix {
+            format!("/{rel}")
+        } else {
+            rel.to_string()
+        };
     }
     // For local Windows paths, mirror the backslash separator. Everywhere
     // else POSIX `/` is fine.
@@ -227,6 +234,15 @@ mod index_tests {
     use std::time::{Duration, UNIX_EPOCH};
 
     static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    #[test]
+    fn sync_destination_retains_absolute_root_and_relative_paths() {
+        assert_eq!(join("/", "nested/file.txt"), "/nested/file.txt");
+        assert_eq!(join("/srv/", "file.txt"), "/srv/file.txt");
+        assert_eq!(join(".", "file.txt"), "./file.txt");
+        assert_eq!(join("", "file.txt"), "file.txt");
+        assert_eq!(join("C:\\", "nested/file.txt"), "C:\\nested\\file.txt");
+    }
 
     fn scratch(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);

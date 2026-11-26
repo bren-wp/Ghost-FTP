@@ -3,6 +3,7 @@ use anyhow::{anyhow, ensure, Result};
 use std::cell::RefCell;
 use std::ffi::{c_char, c_int, c_void, CString};
 use std::ptr::NonNull;
+use zeroize::Zeroizing;
 
 extern "C" {
     fn ghostftp_vault_session_new() -> *mut c_void;
@@ -47,10 +48,21 @@ pub(super) fn enabled() -> bool {
     STATE.with(|state| state.borrow().is_some())
 }
 
+// Validate before allocating so a rejected embedded NUL does not create a
+// non-erasing CString error buffer. Reserve room for the terminator once.
+fn secret_input(input: &str) -> Result<Zeroizing<Vec<u8>>> {
+    ensure!(!input.as_bytes().contains(&0), "invalid vault input");
+    ensure!(input.len() <= 8191, "invalid secret length");
+    let mut bytes = Zeroizing::new(Vec::with_capacity(input.len() + 1));
+    bytes.extend_from_slice(input.as_bytes());
+    bytes.push(0);
+    Ok(bytes)
+}
+
 fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<Option<String>> {
     let service = CString::new(service).map_err(|_| anyhow!("invalid vault service"))?;
     let account = CString::new(account).map_err(|_| anyhow!("invalid vault account"))?;
-    let input = CString::new(input).map_err(|_| anyhow!("invalid vault input"))?;
+    let input = secret_input(input)?;
     STATE.with(|state| {
         let mut state = state.borrow_mut();
         let slot = state
@@ -64,7 +76,7 @@ fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<O
                     anyhow!("native vault session unavailable")
                 })?));
         }
-        let mut output = [0u8; 8191];
+        let mut output = Zeroizing::new([0u8; 8191]);
         let mut length = 0;
         // SAFETY: valid C strings and bounded writable output for the whole call;
         // the synchronous bridge joins its cancellation worker before returning.
@@ -74,7 +86,7 @@ fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<O
                 operation,
                 service.as_ptr(),
                 account.as_ptr(),
-                input.as_ptr(),
+                input.as_ptr().cast::<c_char>(),
                 output.as_mut_ptr(),
                 output.len(),
                 &mut length,
@@ -83,17 +95,16 @@ fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<O
         };
         let result = match status {
             0 if length == 0 => Ok(None),
-            1 if operation == 0 && length <= output.len() => {
-                String::from_utf8(output[..length].to_vec())
-                    .map(Some)
-                    .map_err(|_| anyhow!("native vault returned invalid UTF-8"))
-            }
+            1 if operation == 0 && length <= output.len() => std::str::from_utf8(&output[..length])
+                .map(|value| Some(value.to_owned()))
+                .map_err(|_| anyhow!("native vault returned invalid UTF-8")),
             -2 => Err(anyhow!(
                 "native vault mutation outcome unknown; reconcile before retry"
             )),
             _ => Err(anyhow!("native vault operation refused or interrupted")),
         };
-        output.fill(0);
+        // RAII wipes the temporary input and output on every normal/unwinding exit.
+        // A successful lookup transfers the returned String to the caller.
         if result.is_err() {
             // Never replay an uncertain mutation or fall back to another store.
             *slot = None;
@@ -123,7 +134,15 @@ pub(super) fn remove(service: &str, account: &str) -> Result<()> {
 // A failed post-mutation observation is not proof of rollback. Invalidate the
 // session without replaying the operation or consulting a different backend.
 fn verify_mutation(observed: Result<Option<String>>, expected: Option<&str>) -> Result<()> {
-    if matches!(observed, Ok(ref value) if value.as_deref() == expected) {
+    let matches_expected = match observed {
+        Ok(Some(value)) => {
+            let value = Zeroizing::new(value);
+            Some(value.as_str()) == expected
+        }
+        Ok(None) => expected.is_none(),
+        Err(_) => false,
+    };
+    if matches_expected {
         return Ok(());
     }
     STATE.with(|state| {
@@ -134,6 +153,15 @@ fn verify_mutation(observed: Result<Option<String>>, expected: Option<&str>) -> 
     Err(anyhow!(
         "native vault mutation outcome unknown; reconcile before retry"
     ))
+}
+
+#[test]
+fn secret_input_is_bounded_and_nul_terminated() {
+    let bytes = secret_input("fixture-ž").unwrap();
+    assert_eq!(bytes.as_slice(), "fixture-ž\0".as_bytes());
+    assert!(secret_input("fixture\0suffix").is_err());
+    assert!(secret_input(&"x".repeat(8192)).is_err());
+    assert_eq!(secret_input(&"x".repeat(8191)).unwrap().len(), 8192);
 }
 
 #[test]

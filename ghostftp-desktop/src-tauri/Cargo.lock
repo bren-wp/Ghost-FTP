@@ -2318,7 +2318,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp"
-version = "0.99.87"
+version = "0.99.88"
 dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
@@ -2369,11 +2369,12 @@ dependencies = [
  "windows 0.58.0",
  "windows-sys 0.59.0",
  "winreg 0.52.0",
+ "zeroize",
 ]
 
 [[package]]
 name = "ghostftp-agent-proto"
-version = "0.99.87"
+version = "0.99.88"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2390,7 +2391,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp-agentd"
-version = "0.99.87"
+version = "0.99.88"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

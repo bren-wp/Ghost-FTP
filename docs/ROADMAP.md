@@ -1,8 +1,10 @@
 # Ghost FTP — Windows/Linux development roadmap
 
-**Development candidate:** v0.99.87 Preview; previously published v0.99.86. **Future Stable target:** v1.0.0, after acceptance.
+**Development candidate:** v0.99.88 Preview; previously published v0.99.87. **Future Stable target:** v1.0.0, after acceptance.
 
 ## Development priorities
+
+See the [capability and acceptance roadmap](product/CAPABILITY_ROADMAP.md) for implementation order, product gaps and verification requirements.
 
 1. File transfer integrity: reject unsolicited partial HTTP/cloud GET responses, validate stream length before writes, sync staging, then advance remote hash verification where available, transfer resume/restart, orphan cleanup and stress tests.
 2. Security and dead-code quality: strict SSH/FTPS identity, protected credentials, safe file operations, dependency analysis and independent audits.
