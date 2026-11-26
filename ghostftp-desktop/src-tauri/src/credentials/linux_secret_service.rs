@@ -224,7 +224,11 @@ fn drain_pipe<P: Read>(
 
 // One deadline covers process exit AND pipe EOF. Inherited descriptors held
 // by descendants cannot strand a scoped reader/writer thread after child exit.
-fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration) -> Result<HelperOutput> {
+fn supervise_helper(
+    child: &mut Child,
+    secret: Option<&[u8]>,
+    timeout: Duration,
+) -> Result<HelperOutput> {
     let started = Instant::now();
     let mut stdin = child.stdin.take();
     let mut stdout = child.stdout.take();
@@ -472,10 +476,15 @@ mod tests {
     #[test]
     fn lookup_decode_preserves_exact_bytes_and_error_semantics() {
         let valid = fixture_output(0, "fixture-ž\n".as_bytes(), b"");
-        assert_eq!(decode_lookup(valid).unwrap().as_deref(), Some("fixture-ž\n"));
+        assert_eq!(
+            decode_lookup(valid).unwrap().as_deref(),
+            Some("fixture-ž\n")
+        );
         assert!(decode_lookup(fixture_output(0, &[0xff], b"")).is_err());
         assert!(decode_lookup(fixture_output(0, &vec![0; MAX_SECRET_BYTES + 1], b"")).is_err());
-        assert!(decode_lookup(fixture_output(1, b"", b"")).unwrap().is_none());
+        assert!(decode_lookup(fixture_output(1, b"", b""))
+            .unwrap()
+            .is_none());
         assert!(decode_lookup(fixture_output(1, b"", b"locked")).is_err());
         assert!(decode_lookup(fixture_output(2, b"", b"")).is_err());
     }

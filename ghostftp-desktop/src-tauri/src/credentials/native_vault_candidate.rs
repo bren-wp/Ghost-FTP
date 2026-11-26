@@ -95,11 +95,9 @@ fn call(operation: c_int, service: &str, account: &str, input: &str) -> Result<O
         };
         let result = match status {
             0 if length == 0 => Ok(None),
-            1 if operation == 0 && length <= output.len() => {
-                std::str::from_utf8(&output[..length])
-                    .map(|value| Some(value.to_owned()))
-                    .map_err(|_| anyhow!("native vault returned invalid UTF-8"))
-            }
+            1 if operation == 0 && length <= output.len() => std::str::from_utf8(&output[..length])
+                .map(|value| Some(value.to_owned()))
+                .map_err(|_| anyhow!("native vault returned invalid UTF-8")),
             -2 => Err(anyhow!(
                 "native vault mutation outcome unknown; reconcile before retry"
             )),
