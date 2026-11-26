@@ -56,3 +56,11 @@ The portable export wraps the 256-bit ledger key using AES-256-GCM with a separa
 ## Stabilization review
 
 A targeted normalized nine-line cross-file clone scan of eight vault/recovery source files (9,699 lines at 78a7643) identified the duplicated Commitment representation and hashing implementation. Both candidate journals now share the same implementation without changing the serialized representation. This is not a complete semantic-equivalence or repository-wide audit. Candidate formatting has an independent CI job with an exact-source patch artifact so compiler diagnostics cannot hide the formatting result; the formatting gate remains mandatory. Native session ownership/cancellation, key copies in memory, external anchor non-atomicity, replacement-machine trust and KWallet acceptance remain review gates. No production backend routing or stored user credentials changed.
+
+## Candidate memory ownership and provider identity (0.99.87)
+
+The candidate uses the already locked zeroize crate for RAII erasure of its temporary NUL-terminated input buffer and fixed output buffer. UTF-8 is validated before allocating the returned string; post-mutation readback strings are zeroized after comparison. The C bridge explicitly erases its caller-owned output on failed calls, including uncertain outcomes. The failure harness pre-fills output and requires zero bytes on failure. KWallet CRUD checks provider identity before and after the probe. These are scoped changes, pending exact-source native CI; caller-owned successful lookup strings, provider/library internal buffers, process aborts and system memory dumps are outside this erasure guarantee. No production backend selection changes.
+
+## Production helper memory ownership (0.99.87)
+
+The existing Linux secret-tool subprocess path now scopes captured stdout/stderr and read scratch buffers with Zeroizing, reserves the bounded capture before reading, and avoids formatting captured bytes in Debug. Lookup validates UTF-8 before transferring a successful String to its caller; temporary mutation readback is zeroized. Existing deadlines, helper status semantics, byte limits and backend selection are unchanged. Caller-owned returned strings, operating-system pipe buffers, provider internals and process aborts remain outside this guarantee. Exact-source Rust and native acceptance are pending.

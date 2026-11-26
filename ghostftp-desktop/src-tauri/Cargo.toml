@@ -1,6 +1,6 @@
 [package]
 name = "ghostftp"
-version = "0.99.87"
+version = "0.99.88"
 edition = "2021"
 description = "Ghost FTP — secure modern FTP, FTPS, SFTP and SSH file transfer client."
 authors = ["Brendigo LTD", "Brendigo, obrt za programiranje"]
@@ -140,6 +140,8 @@ rand = "0.8"
 # provider. Using the wrapper instead of hand-rolled `windows`-crate FFI keeps
 # the unsafe surface tiny for code that can only be verified manually in Explorer.
 [target.'cfg(unix)'.dependencies]
+# Linux credential helper and native candidate use the existing locked version.
+zeroize = "=1.9.1"
 # POSIX no-follow and close-on-exec flags protect known_hosts and backup
 libc = "0.2"
 

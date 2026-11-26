@@ -185,6 +185,17 @@ done:
     return result;
 }
 
+/* The caller owns the buffer; erase any partial output before a failed
+ * call returns, including an owner change after a successful secret read.
+ * Volatile writes are intentional: ordinary memset may be optimized away. */
+static void wipe_output(uint8_t *output, size_t capacity) {
+    volatile uint8_t *bytes = output;
+    while (capacity > 0) {
+        *bytes++ = 0;
+        --capacity;
+    }
+}
+
 int ghostftp_vault_call(void *ptr, int operation, const char *service,
                        const char *account, const char *input, uint8_t *output,
                        size_t capacity, size_t *length, uint32_t timeout_ms) {
@@ -211,6 +222,7 @@ int ghostftp_vault_call(void *ptr, int operation, const char *service,
     g_cond_clear(&d.cond);
     g_mutex_clear(&d.mutex);
     if (result < 0) {
+        wipe_output(output, capacity);
         reset(s);
         *length = 0;
         /* Once dispatched, cancellation does not establish non-commit. */

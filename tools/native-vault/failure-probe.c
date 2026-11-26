@@ -45,15 +45,19 @@ static void mutation_gate(int stage, void *data) {
 }
 
 static int invoke(void *s, int op, const char *input, unsigned ms, gboolean verify) {
-    uint8_t output[8191] = {0};
+    uint8_t output[8191];
+    memset(output, 0xa5, sizeof(output));
     size_t length = 0;
     int result = ghostftp_vault_call(s, op, service, account, input,
         output, sizeof(output), &length, ms);
     if (verify)
         require(result == 1 && length == strlen(value) &&
             memcmp(output, value, length) == 0, "credential readback");
-    if (result < 0)
+    if (result < 0) {
         require(length == 0, "failed call must not publish length");
+        for (size_t i = 0; i < sizeof(output); ++i)
+            require(output[i] == 0, "failed call must erase output");
+    }
     memset(output, 0, sizeof(output));
     return result;
 }

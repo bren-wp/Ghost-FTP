@@ -11,8 +11,25 @@
 use anyhow::{anyhow, Result};
 use std::io::{ErrorKind, Read, Write};
 use std::os::fd::AsRawFd;
-use std::process::{Child, Command, Output, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
+use zeroize::Zeroizing;
+
+// Own captured data until it is explicitly transferred to a successful caller.
+// Do not derive Debug: helper output may contain credentials or provider data.
+struct HelperOutput {
+    status: ExitStatus,
+    stdout: Zeroizing<Vec<u8>>,
+    stderr: Zeroizing<Vec<u8>>,
+}
+
+impl std::fmt::Debug for HelperOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HelperOutput")
+            .field("status", &self.status)
+            .finish_non_exhaustive()
+    }
+}
 
 #[cfg(all(test, feature = "native-vault-candidate"))]
 #[path = "credential_transaction_ledger.rs"]
@@ -136,8 +153,8 @@ pub(crate) fn finish_linux_helper_profile() {
 fn profile_helper(
     _operation: usize,
     _service: &str,
-    run: impl FnOnce() -> Result<Output>,
-) -> Result<Output> {
+    run: impl FnOnce() -> Result<HelperOutput>,
+) -> Result<HelperOutput> {
     #[cfg(test)]
     let started = Instant::now();
     let result = run();
@@ -178,16 +195,16 @@ fn set_nonblocking(pipe: &impl AsRawFd) -> Result<()> {
 // oversized output without prematurely closing a producing helper's pipe.
 fn drain_pipe<P: Read>(
     pipe: &mut Option<P>,
-    output: &mut Vec<u8>,
+    output: &mut Zeroizing<Vec<u8>>,
     max_bytes: usize,
 ) -> Result<bool> {
     let mut progressed = false;
     let Some(reader) = pipe.as_mut() else {
         return Ok(false);
     };
-    let mut buffer = [0u8; 8192];
+    let mut buffer = Zeroizing::new([0u8; 8192]);
     for _ in 0..8 {
-        match reader.read(&mut buffer) {
+        match reader.read(&mut buffer[..]) {
             Ok(0) => {
                 *pipe = None;
                 return Ok(true);
@@ -207,7 +224,7 @@ fn drain_pipe<P: Read>(
 
 // One deadline covers process exit AND pipe EOF. Inherited descriptors held
 // by descendants cannot strand a scoped reader/writer thread after child exit.
-fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration) -> Result<Output> {
+fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration) -> Result<HelperOutput> {
     let started = Instant::now();
     let mut stdin = child.stdin.take();
     let mut stdout = child.stdout.take();
@@ -230,8 +247,18 @@ fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration)
 
     let input = secret.unwrap_or_default();
     let mut written = 0;
-    let mut out = Vec::new();
-    let mut err = Vec::new();
+    // Reserve the entire bounded capture before reading any bytes, avoiding
+    // reallocations that could leave earlier secret copies in freed memory.
+    let mut out = Zeroizing::new(Vec::with_capacity(if stdout.is_some() {
+        MAX_SECRET_BYTES + 1
+    } else {
+        0
+    }));
+    let mut err = Zeroizing::new(Vec::with_capacity(if stderr.is_some() {
+        MAX_HELPER_STDERR_BYTES + 1
+    } else {
+        0
+    }));
     let mut status = None;
     let mut interval = CHILD_POLL_MIN_INTERVAL;
     loop {
@@ -273,7 +300,7 @@ fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration)
                 return Err(anyhow!("Linux Secret Service refused credential input"));
             }
             if stdout.is_none() && stderr.is_none() {
-                return Ok(Output {
+                return Ok(HelperOutput {
                     status: exit,
                     stdout: out,
                     stderr: err,
@@ -292,7 +319,7 @@ fn supervise_helper(child: &mut Child, secret: Option<&[u8]>, timeout: Duration)
     }
 }
 
-fn run_bounded(mut child: Child, secret: Option<&[u8]>, timeout: Duration) -> Result<Output> {
+fn run_bounded(mut child: Child, secret: Option<&[u8]>, timeout: Duration) -> Result<HelperOutput> {
     let result = supervise_helper(&mut child, secret, timeout);
     if result.is_err() {
         // Pipe endpoints have already been dropped. Terminate/reap only our
@@ -303,11 +330,11 @@ fn run_bounded(mut child: Child, secret: Option<&[u8]>, timeout: Duration) -> Re
     result
 }
 
-fn wait_bounded(child: Child, timeout: Duration) -> Result<Output> {
+fn wait_bounded(child: Child, timeout: Duration) -> Result<HelperOutput> {
     run_bounded(child, None, timeout)
 }
 
-fn write_then_wait_bounded(child: Child, secret: &[u8], timeout: Duration) -> Result<Output> {
+fn write_then_wait_bounded(child: Child, secret: &[u8], timeout: Duration) -> Result<HelperOutput> {
     run_bounded(child, Some(secret), timeout)
 }
 
@@ -341,14 +368,18 @@ pub fn lookup(service: &str, account: &str) -> Result<Option<String>> {
             .map_err(|_| anyhow!("Linux Secret Service client not installed or unavailable"))?;
         wait_bounded(child, SECRET_TOOL_TIMEOUT)
     })?;
+    decode_lookup(output)
+}
+
+fn decode_lookup(output: HelperOutput) -> Result<Option<String>> {
     if output.status.success() {
         if output.stdout.len() > MAX_SECRET_BYTES {
             return Err(anyhow!(
                 "Linux Secret Service credential exceeds maximum length"
             ));
         }
-        return String::from_utf8(output.stdout)
-            .map(Some)
+        return std::str::from_utf8(&output.stdout)
+            .map(|value| Some(value.to_owned()))
             .map_err(|_| anyhow!("Linux Secret Service returned a non-textual credential"));
     }
     // secret-tool exits 1 with empty stderr when no entry exists. All other
@@ -396,8 +427,8 @@ pub fn store(service: &str, account: &str, secret: &str) -> Result<()> {
             "Linux Secret Service refused to save the credential"
         ));
     }
-    match lookup(service, account)? {
-        Some(saved) if saved == secret => Ok(()),
+    match lookup(service, account)?.map(Zeroizing::new) {
+        Some(saved) if saved.as_str() == secret => Ok(()),
         _ => Err(anyhow!("Linux Secret Service write could not be verified")),
     }
 }
@@ -416,7 +447,7 @@ pub fn remove(service: &str, account: &str) -> Result<()> {
     if !output.status.success() {
         return Err(anyhow!("Linux Secret Service refused credential deletion"));
     }
-    if lookup(service, account)?.is_some() {
+    if lookup(service, account)?.map(Zeroizing::new).is_some() {
         return Err(anyhow!(
             "Linux Secret Service credential still exists after deletion"
         ));
@@ -427,6 +458,35 @@ pub fn remove(service: &str, account: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fixture_output(code: i32, stdout: &[u8], stderr: &[u8]) -> HelperOutput {
+        use std::os::unix::process::ExitStatusExt;
+
+        HelperOutput {
+            status: ExitStatus::from_raw(code << 8),
+            stdout: Zeroizing::new(stdout.to_vec()),
+            stderr: Zeroizing::new(stderr.to_vec()),
+        }
+    }
+
+    #[test]
+    fn lookup_decode_preserves_exact_bytes_and_error_semantics() {
+        let valid = fixture_output(0, "fixture-ž\n".as_bytes(), b"");
+        assert_eq!(decode_lookup(valid).unwrap().as_deref(), Some("fixture-ž\n"));
+        assert!(decode_lookup(fixture_output(0, &[0xff], b"")).is_err());
+        assert!(decode_lookup(fixture_output(0, &vec![0; MAX_SECRET_BYTES + 1], b"")).is_err());
+        assert!(decode_lookup(fixture_output(1, b"", b"")).unwrap().is_none());
+        assert!(decode_lookup(fixture_output(1, b"", b"locked")).is_err());
+        assert!(decode_lookup(fixture_output(2, b"", b"")).is_err());
+    }
+
+    #[test]
+    fn helper_output_debug_never_contains_captured_bytes() {
+        let output = fixture_output(1, b"PRIVATE_STDOUT_SENTINEL", b"PRIVATE_STDERR_SENTINEL");
+        let debug = format!("{output:?}");
+        assert!(!debug.contains("PRIVATE_STDOUT_SENTINEL"));
+        assert!(!debug.contains("PRIVATE_STDERR_SENTINEL"));
+    }
 
     #[test]
     fn helper_profile_counts_only_fixed_categories_and_operations() {
@@ -627,6 +687,6 @@ mod tests {
         let child = helper.spawn().expect("launch local output fixture");
         let output = wait_bounded(child, Duration::from_secs(2)).unwrap();
         assert!(output.status.success());
-        assert_eq!(output.stdout, b"secret-with-newline\n");
+        assert_eq!(output.stdout.as_slice(), b"secret-with-newline\n");
     }
 }
