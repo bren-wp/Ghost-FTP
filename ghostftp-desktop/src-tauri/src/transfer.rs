@@ -1321,9 +1321,8 @@ impl TransferManager {
             };
             let priorities = self.priority_overrides();
             let priority = priorities.get(id).copied().unwrap_or_default();
-            let same_tier = |index: usize| {
-                priorities.get(&w[index]).copied().unwrap_or_default() == priority
-            };
+            let same_tier =
+                |index: usize| priorities.get(&w[index]).copied().unwrap_or_default() == priority;
             let swap_with = if up {
                 (0..pos).rev().find(|&index| same_tier(index))
             } else {
