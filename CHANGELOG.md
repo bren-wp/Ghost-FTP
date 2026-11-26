@@ -1,6 +1,12 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.88 Preview — 26 November 2026 (development candidate; publication pending)
+## 0.99.89 Preview — 27 November 2026 (development candidate; publication pending)
+
+- Require native vault failure injection and Rust native candidate acceptance for every exact main SHA before automatic release promotion.
+- Add static release gate regression checks; retain the production credential backend and all historical releases unchanged.
+- Align published download links and release lineage with v0.99.88.
+
+## 0.99.88 Preview — 26 November 2026 (published)
 
 - Recover the four unmerged native-vault security commits: KWallet identity, candidate and production helper buffer zeroization and native CI coverage.
 - Preserve absolute POSIX root destinations in synchronization plans; add path regression coverage.

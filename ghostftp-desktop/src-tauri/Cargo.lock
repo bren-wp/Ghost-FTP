@@ -2318,7 +2318,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp"
-version = "0.99.88"
+version = "0.99.89"
 dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
@@ -2374,7 +2374,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp-agent-proto"
-version = "0.99.88"
+version = "0.99.89"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2391,7 +2391,7 @@ dependencies = [
 
 [[package]]
 name = "ghostftp-agentd"
-version = "0.99.88"
+version = "0.99.89"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

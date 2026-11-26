@@ -1,6 +1,6 @@
 # Ghost FTP — capability and acceptance roadmap
 
-Baseline: published v0.99.87, main 2fee225756b9f85b1715f5dfed660b875dda744d (26 November 2026). Next source: 0.99.88 Preview. Windows 10/11 x64 and Linux x86_64 only. Original Ghost FTP code, brand and UI. Feature presence in source is not proof of installed native acceptance.
+Baseline: published v0.99.88, main fa492fb6f6f94947b65223bfec59f60d9363866f (26 November 2026). Next source: 0.99.89 Preview. Windows 10/11 x64 and Linux x86_64 only. Original Ghost FTP code, brand and UI. Feature presence in source is not proof of installed native acceptance.
 
 ## Evidence and gaps
 
@@ -21,7 +21,7 @@ Baseline: published v0.99.87, main 2fee225756b9f85b1715f5dfed660b875dda744d (26 
 
 ## Delivery order
 
-- P0: recover the four prepared security commits, test exact SHA including native candidate, preserve all saved profiles, credentials and recovery data. Fix absolute sync destination root handling; audit failure paths. Reconcile documentation to real published version. No production backend migration.
+- P0: the four security commits and absolute sync-root fix were merged in PR #367 and v0.99.88 was published with 15 assets; both native candidate workflows succeeded on its main SHA. Integrate mandatory exact-SHA native credential release gates in v0.99.89, verify CI, preserve all saved profiles, credentials and recovery data, and retain installed-device and manual audit acceptance as separate requirements. No production backend migration.
 - P1: transfer and navigation capability foundation: per-profile limits, safe conflict decisions, linked navigation, saved paired paths and transfer-rule presets. Define shared capability checks and wire all controls to real IPC. Test Windows/Linux and real FTP/FTPS/SFTP; no hidden automatic replay.
 - P2: two-sided reconciliation and editor conflict handling. Start with read-only three-way planning, explicit conflicts and no delete execution before plan review; durable baseline update only after verified completion. Same-size changes and unavailable metadata must not be mistaken for equality.
 - P3: native durable multi-job scheduling, resumable manifests and large-file adaptive segmentation. Use immutable identity and verified byte ranges; keep the existing safe fallback. Multi-connection benchmarks on the same runner, report raw samples and no claimed speedup without measurements.
