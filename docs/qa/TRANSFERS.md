@@ -31,7 +31,7 @@ The current transfer implementation also enforces:
 ## 0.99.89 Preview bandwidth accounting
 
 - The shared token bucket uses a one-second credit ceiling even at 1 KiB/s, settles elapsed time at the old rate on live changes, and never grants finite-rate credit for time spent unlimited. Four virtual-time regressions cover these transitions and idle bursts.
-- This bounds credit in checkpoint-integrated adapters; FTP/FTPS blocking streams, provider-specific buffered transfers, wire-level accounting and per-profile bandwidth enforcement still require explicit integration and real-server validation.
+- This bounds credit in checkpoint-integrated adapters; FTP/FTPS blocking transfer callbacks and the full-upload recovery reader now share the same bucket. Main FTP/FTPS loops account committed application bytes at chunk boundaries; recovery upload accounts bytes before writing. Provider-specific buffered transfers, strict wire-level shaping and per-profile enforcement remain outstanding. Real-server timing and interruption acceptance are still required.
 
 ## CI truth
 

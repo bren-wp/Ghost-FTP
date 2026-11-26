@@ -702,6 +702,59 @@ async fn token_bucket_rate_decrease_discards_excess_credit() {
     assert_eq!(bucket.rate_kbps(), 1);
 }
 
+#[tokio::test(start_paused = true)]
+async fn ftp_and_async_adapters_debit_the_same_bucket() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(
+        bucket.acquire_ftp(1024, || FtpTransferControl::Continue),
+        FtpTransferControl::Continue
+    );
+    let start = tokio::time::Instant::now();
+    bucket.acquire(1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+}
+
+#[test]
+fn ftp_budget_honors_pause_and_cancel_before_waiting() {
+    let bucket = Arc::new(TokenBucket::new());
+    bucket.set_rate_kbps(1);
+    let canceled = Arc::new(AtomicBool::new(false));
+    let pause = PauseGate::new();
+    pause.set(true);
+    let mut budget = FtpBudget {
+        bucket,
+        pause_all: PauseGate::new(),
+        pause: Some(pause),
+        canceled: Arc::clone(&canceled),
+        accounted: 0,
+    };
+    assert_eq!(budget.control(65536), FtpTransferControl::Pause);
+    canceled.store(true, Ordering::Release);
+    assert_eq!(budget.control(65536), FtpTransferControl::Cancel);
+}
+
+#[test]
+fn budgeted_ftp_reader_does_not_report_eof_on_cancellation() {
+    let canceled = Arc::new(AtomicBool::new(true));
+    let mut reader = BudgetedFtpReader {
+        inner: std::io::Cursor::new(b"payload"),
+        budget: FtpBudget {
+            bucket: Arc::new(TokenBucket::new()),
+            pause_all: PauseGate::new(),
+            pause: None,
+            canceled,
+            accounted: 0,
+        },
+        stop: FtpTransferControl::Continue,
+    };
+    let mut buf = [0; 8];
+    assert!(std::io::Read::read(&mut reader, &mut buf).is_err());
+    assert_eq!(reader.stop, FtpTransferControl::Cancel);
+    assert_eq!(reader.inner.position(), 0);
+}
+
 // ---------- PauseGate + checkpoint ----------
 
 #[tokio::test]

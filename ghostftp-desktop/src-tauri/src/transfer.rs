@@ -291,29 +291,104 @@ impl TokenBucket {
         state.tokens = state.tokens.min(state.rate_bps as f64);
     }
 
-    /// Charge the complete chunk in tranches of at most one second's rate.
-    /// No synchronous mutex guard is held across an async wait.
+    /// Shared accounting step for async and blocking protocol adapters.
+    /// The lock is released before either caller sleeps.
+    fn debit_step(&self, remaining: &mut f64) -> Duration {
+        let mut state = self.lock();
+        let rate = state.rate_bps as f64;
+        if rate == 0.0 {
+            *remaining = 0.0;
+            return Duration::ZERO;
+        }
+        state.refill(tokio::time::Instant::now());
+        let tranche = remaining.min(rate);
+        if state.tokens >= tranche {
+            state.tokens -= tranche;
+            *remaining -= tranche;
+            return Duration::ZERO;
+        }
+        Duration::from_secs_f64((tranche - state.tokens) / rate).min(Duration::from_millis(250))
+    }
+
     async fn acquire(&self, bytes: u64) {
         let mut remaining = bytes as f64;
         while remaining > 0.0 {
-            let wait = {
-                let mut state = self.lock();
-                let rate = state.rate_bps as f64;
-                if rate == 0.0 {
-                    return;
-                }
-                state.refill(tokio::time::Instant::now());
-                let tranche = remaining.min(rate);
-                if state.tokens >= tranche {
-                    state.tokens -= tranche;
-                    remaining -= tranche;
-                    continue;
-                }
-                Duration::from_secs_f64((tranche - state.tokens) / rate)
-            };
-            // Cap the sleep so a live rate change takes effect promptly.
-            tokio::time::sleep(wait.min(Duration::from_millis(250))).await;
+            let wait = self.debit_step(&mut remaining);
+            if !wait.is_zero() {
+                tokio::time::sleep(wait).await;
+            }
         }
+    }
+
+    /// Called only on FTP's blocking worker. Poll pause/cancel and live rate
+    /// changes between bounded sleeps; never block a Tokio executor thread.
+    fn acquire_ftp<F>(&self, bytes: u64, mut control: F) -> FtpTransferControl
+    where
+        F: FnMut() -> FtpTransferControl,
+    {
+        let mut remaining = bytes as f64;
+        loop {
+            let decision = control();
+            if decision != FtpTransferControl::Continue || remaining <= 0.0 {
+                return decision;
+            }
+            let wait = self.debit_step(&mut remaining);
+            if !wait.is_zero() {
+                std::thread::sleep(wait);
+            }
+        }
+    }
+}
+
+/// One FTP attempt, using the same budget as asynchronous transfers.
+struct FtpBudget {
+    bucket: Arc<TokenBucket>,
+    pause_all: PauseGate,
+    pause: Option<PauseGate>,
+    canceled: Arc<AtomicBool>,
+    accounted: u64,
+}
+
+impl FtpBudget {
+    fn control(&mut self, transferred: u64) -> FtpTransferControl {
+        let bytes = transferred.saturating_sub(self.accounted);
+        self.accounted = transferred;
+        self.bucket.acquire_ftp(bytes, || {
+            if self.canceled.load(Ordering::Acquire) {
+                FtpTransferControl::Cancel
+            } else if self.pause_all.is_paused()
+                || self.pause.as_ref().is_some_and(|gate| gate.is_paused())
+            {
+                FtpTransferControl::Pause
+            } else {
+                FtpTransferControl::Continue
+            }
+        })
+    }
+}
+
+/// Preserve the established full-upload recovery path while charging bytes
+/// before handing them to SuppaFTP's writer. An interrupted read is an error,
+/// never EOF, so a partially written remote staging file cannot look complete.
+struct BudgetedFtpReader<R> {
+    inner: R,
+    budget: FtpBudget,
+    stop: FtpTransferControl,
+}
+
+impl<R: std::io::Read> std::io::Read for BudgetedFtpReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.stop = self.budget.control(self.budget.accounted);
+        if self.stop == FtpTransferControl::Continue {
+            let count = self.inner.read(buf)?;
+            self.stop = self
+                .budget
+                .control(self.budget.accounted.saturating_add(count as u64));
+            if self.stop == FtpTransferControl::Continue {
+                return Ok(count);
+            }
+        }
+        Err(std::io::Error::other("FTP recovery upload interrupted"))
     }
 }
 
@@ -561,7 +636,7 @@ pub struct TransferManager {
     /// Bumped on every queue change so admission waiters re-check their turn.
     queue_gen: watch::Sender<u64>,
     /// Global bandwidth cap every copy loop draws from per chunk.
-    bucket: TokenBucket,
+    bucket: Arc<TokenBucket>,
     /// Maximum automatic retries for transient network/timeout failures.
     max_auto_retries: AtomicUsize,
     /// Delta-sync master switch: the `deltaSync` setting,
@@ -931,7 +1006,7 @@ impl TransferManager {
             retry_serial: Mutex::new(()),
             persisted_at: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
-            bucket: TokenBucket::new(),
+            bucket: Arc::new(TokenBucket::new()),
             max_auto_retries: AtomicUsize::new(DEFAULT_MAX_AUTO_RETRIES),
             delta_enabled: AtomicBool::new(true),
         }
@@ -3192,6 +3267,7 @@ impl TransferManager {
         let path = remote_path.to_string();
 
         let owner = owner.clone();
+        let bucket = Arc::clone(&self.bucket);
         let (outcome, file) = match session
             .with_stream(move |stream| {
                 let remote_len = stream.size(&path).ok().map(|size| size as u64);
@@ -3207,16 +3283,15 @@ impl TransferManager {
                 anyhow::ensure!(offset == 0, "FTP resume requires a verified prefix");
                 let file = owner.create_std(&final_path)?;
                 let mut writer = std::io::BufWriter::new(file);
-                let outcome = stream.retr_resumable(&path, offset, &mut writer, |_| {
-                    if canceled.load(Ordering::Acquire) {
-                        FtpTransferControl::Cancel
-                    } else if pause_all.is_paused()
-                        || pause.as_ref().is_some_and(|gate| gate.is_paused())
-                    {
-                        FtpTransferControl::Pause
-                    } else {
-                        FtpTransferControl::Continue
-                    }
+                let mut budget = FtpBudget {
+                    bucket,
+                    pause_all,
+                    pause,
+                    canceled,
+                    accounted: offset,
+                };
+                let outcome = stream.retr_resumable(&path, offset, &mut writer, |bytes| {
+                    budget.control(bytes)
                 })?;
                 writer.flush().context("flush FTP download destination")?;
                 writer
@@ -3333,6 +3408,8 @@ impl TransferManager {
         let local = local_path.to_path_buf();
         let remote = remote_path.to_string();
 
+        let bucket = Arc::clone(&self.bucket);
+        let retry_bucket = Arc::clone(&self.bucket);
         let retry_pause = pause.clone();
         let retry_pause_all = pause_all.clone();
         let retry_canceled = canceled.clone();
@@ -3363,16 +3440,15 @@ impl TransferManager {
                     file.seek(SeekFrom::Start(offset))?;
                 }
                 let mut reader = std::io::BufReader::new(file);
-                let outcome = stream.stor_resumable(&remote, offset, &mut reader, |_| {
-                    if canceled.load(Ordering::Acquire) {
-                        FtpTransferControl::Cancel
-                    } else if pause_all.is_paused()
-                        || pause.as_ref().is_some_and(|gate| gate.is_paused())
-                    {
-                        FtpTransferControl::Pause
-                    } else {
-                        FtpTransferControl::Continue
-                    }
+                let mut budget = FtpBudget {
+                    bucket,
+                    pause_all,
+                    pause,
+                    canceled,
+                    accounted: offset,
+                };
+                let outcome = stream.stor_resumable(&remote, offset, &mut reader, |bytes| {
+                    budget.control(bytes)
                 })?;
                 first_source_snapshot.verify(&reader.get_ref().metadata()?)?;
 
@@ -3412,7 +3488,7 @@ impl TransferManager {
                 .await
                 .context("reconnect FTP session before safe upload restart")?;
 
-            outcome = session
+            let restart = session
                 .with_stream(move |stream| {
                     if retry_canceled.load(Ordering::Acquire) {
                         return Ok(crate::session::ftp::FtpTransferOutcome {
@@ -3438,9 +3514,28 @@ impl TransferManager {
                     let restart_file = std::fs::File::open(&retry_local)
                         .with_context(|| format!("reopen {}", retry_local.display()))?;
                     retry_source_snapshot.verify(&restart_file.metadata()?)?;
-                    let mut restart_reader = std::io::BufReader::new(restart_file);
-                    let written = stream.put_from_reader(&retry_remote, &mut restart_reader)?;
-                    retry_source_snapshot.verify(&restart_reader.get_ref().metadata()?)?;
+                    let mut restart_reader = BudgetedFtpReader {
+                        inner: std::io::BufReader::new(restart_file),
+                        budget: FtpBudget {
+                            bucket: retry_bucket,
+                            pause_all: retry_pause_all,
+                            pause: retry_pause,
+                            canceled: retry_canceled,
+                            accounted: 0,
+                        },
+                        stop: FtpTransferControl::Continue,
+                    };
+                    let written = match stream.put_from_reader(&retry_remote, &mut restart_reader) {
+                        Ok(written) => written,
+                        Err(_) if restart_reader.stop != FtpTransferControl::Continue => {
+                            return Ok(crate::session::ftp::FtpTransferOutcome {
+                                transferred: 0,
+                                control: restart_reader.stop,
+                            });
+                        }
+                        Err(error) => return Err(error),
+                    };
+                    retry_source_snapshot.verify(&restart_reader.inner.get_ref().metadata()?)?;
                     if written != local_len {
                         anyhow::bail!(
                             "FTP recovery upload wrote {} bytes, expected {}",
@@ -3463,7 +3558,18 @@ impl TransferManager {
                         control: FtpTransferControl::Continue,
                     })
                 })
-                .await?;
+                .await;
+            outcome = match restart {
+                Ok(outcome) => outcome,
+                Err(error) => {
+                    return Err(match session.reconnect().await {
+                        Ok(()) => error,
+                        Err(reconnect_error) => error.context(format!(
+                            "additionally failed to reconnect FTP session after recovery upload failure: {reconnect_error:#}"
+                        )),
+                    });
+                }
+            };
         }
 
         self.update(id, |t| t.transferred = outcome.transferred)
