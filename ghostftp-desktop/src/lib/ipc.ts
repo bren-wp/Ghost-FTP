@@ -300,6 +300,9 @@ export const ipc = {
   transferSetThrottle: (kbps: number) =>
     invoke<void>("transfer_set_throttle", { kbps }),
 
+  transferProfileThrottle: (profileId: string, kbps?: number) =>
+    invoke<number>("transfer_profile_throttle", { profileId, kbps: kbps ?? null }),
+
   transferSetDeltaSync: (enabled: boolean) =>
     invoke<void>("transfer_set_delta_sync", { enabled }),
 

@@ -340,9 +340,114 @@ impl TokenBucket {
     }
 }
 
+const PROFILE_BANDWIDTH_KEY: &str = "transferProfileBandwidthLimits";
+pub const MAX_PROFILE_BANDWIDTH_KIB: u64 = 1_048_576;
+
+/// A persistent cap is shared by every transfer of the same saved profile.
+/// Zero means no additional cap. Global accounting remains mandatory.
+struct ProfileBandwidth {
+    buckets: StdMutex<HashMap<String, Arc<TokenBucket>>>,
+    load_failed: bool,
+}
+
+impl ProfileBandwidth {
+    fn from_db(db: Option<&crate::db::Db>) -> Self {
+        let result = (|| -> Result<HashMap<String, u64>> {
+            let Some(db) = db else {
+                return Ok(HashMap::new());
+            };
+            let Some(raw) = db.settings_get(PROFILE_BANDWIDTH_KEY)? else {
+                return Ok(HashMap::new());
+            };
+            let rates: HashMap<String, u64> = serde_json::from_str(&raw)?;
+            anyhow::ensure!(
+                rates.values().all(|rate| *rate <= MAX_PROFILE_BANDWIDTH_KIB),
+                "invalid saved profile bandwidth limit"
+            );
+            Ok(rates)
+        })();
+        let load_failed = result.is_err();
+        if load_failed {
+            tracing::warn!("saved profile bandwidth limits could not be loaded");
+        }
+        let buckets = result
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|(_, rate)| *rate != 0)
+            .map(|(id, rate)| {
+                let bucket = Arc::new(TokenBucket::new());
+                bucket.set_rate_kbps(rate);
+                (id, bucket)
+            })
+            .collect();
+        Self {
+            buckets: StdMutex::new(buckets),
+            load_failed,
+        }
+    }
+
+    fn ensure_loaded(&self) -> Result<()> {
+        anyhow::ensure!(
+            !self.load_failed,
+            "saved profile bandwidth limits are unavailable; existing settings were preserved"
+        );
+        Ok(())
+    }
+
+    fn lookup(&self, id: &str) -> Option<Arc<TokenBucket>> {
+        self.buckets
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .get(id)
+            .cloned()
+    }
+
+    fn rate(&self, id: &str) -> Result<u64> {
+        self.ensure_loaded()?;
+        Ok(self.lookup(id).map_or(0, |bucket| bucket.rate_kbps()))
+    }
+
+    fn set(&self, db: Option<&crate::db::Db>, id: &str, rate: u64) -> Result<()> {
+        self.ensure_loaded()?;
+        anyhow::ensure!(
+            rate <= MAX_PROFILE_BANDWIDTH_KIB,
+            "profile bandwidth limit exceeds supported range"
+        );
+        let mut buckets = self
+            .buckets
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        let mut rates: HashMap<_, _> = buckets
+            .iter()
+            .map(|(id, bucket)| (id.clone(), bucket.rate_kbps()))
+            .collect();
+        if rate == 0 {
+            rates.remove(id);
+        } else {
+            rates.insert(id.to_string(), rate);
+        }
+        if let Some(db) = db {
+            db.settings_set(PROFILE_BANDWIDTH_KEY, &serde_json::to_string(&rates)?)?;
+        }
+        if rate == 0 {
+            if let Some(bucket) = buckets.remove(id) {
+                // Release callers holding this old bucket during a live change.
+                bucket.set_rate_kbps(0);
+            }
+        } else {
+            buckets
+                .entry(id.to_string())
+                .or_insert_with(|| Arc::new(TokenBucket::new()))
+                .set_rate_kbps(rate);
+        }
+        Ok(())
+    }
+}
+
 /// One FTP attempt, using the same budget as asynchronous transfers.
 struct FtpBudget {
     bucket: Arc<TokenBucket>,
+    profile: Option<(Arc<ProfileBandwidth>, String)>,
     pause_all: PauseGate,
     pause: Option<PauseGate>,
     canceled: Arc<AtomicBool>,
@@ -353,7 +458,7 @@ impl FtpBudget {
     fn control(&mut self, transferred: u64) -> FtpTransferControl {
         let bytes = transferred.saturating_sub(self.accounted);
         self.accounted = transferred;
-        self.bucket.acquire_ftp(bytes, || {
+        let decision = || {
             if self.canceled.load(Ordering::Acquire) {
                 FtpTransferControl::Cancel
             } else if self.pause_all.is_paused()
@@ -363,7 +468,19 @@ impl FtpBudget {
             } else {
                 FtpTransferControl::Continue
             }
-        })
+        };
+        let global = self.bucket.acquire_ftp(bytes, decision);
+        if global != FtpTransferControl::Continue {
+            return global;
+        }
+        if let Some(bucket) = self
+            .profile
+            .as_ref()
+            .and_then(|(limits, id)| limits.lookup(id))
+        {
+            return bucket.acquire_ftp(bytes, decision);
+        }
+        decision()
     }
 }
 
@@ -637,6 +754,7 @@ pub struct TransferManager {
     queue_gen: watch::Sender<u64>,
     /// Global bandwidth cap every copy loop draws from per chunk.
     bucket: Arc<TokenBucket>,
+    profile_bandwidth: Arc<ProfileBandwidth>,
     /// Maximum automatic retries for transient network/timeout failures.
     max_auto_retries: AtomicUsize,
     /// Delta-sync master switch: the `deltaSync` setting,
@@ -899,6 +1017,7 @@ impl TransferManager {
         let mut persisted_retry = HashMap::new();
         let mut queue_priorities = HashMap::new();
         let mut recovered_retry = HashSet::new();
+        let profile_bandwidth = Arc::new(ProfileBandwidth::from_db(db.as_deref()));
 
         if let Some(store) = db.as_ref() {
             // A recovery intent is evidence, never authorization to delete or
@@ -1007,6 +1126,7 @@ impl TransferManager {
             persisted_at: Mutex::new(HashMap::new()),
             queue_gen: watch::channel(0).0,
             bucket: Arc::new(TokenBucket::new()),
+            profile_bandwidth,
             max_auto_retries: AtomicUsize::new(DEFAULT_MAX_AUTO_RETRIES),
             delta_enabled: AtomicBool::new(true),
         }
@@ -1583,6 +1703,18 @@ impl TransferManager {
     /// returns `RestartFromPause` so the runner re-runs the file from byte 0.
     async fn checkpoint(&self, id: &str, bytes: u64) -> Result<()> {
         self.bucket.acquire(bytes).await;
+        let profile_id = self
+            .persisted_retry
+            .lock()
+            .await
+            .get(id)
+            .map(|retry| retry.profile_id().to_string());
+        if let Some(id) = profile_id {
+            self.profile_bandwidth.ensure_loaded()?;
+            if let Some(bucket) = self.profile_bandwidth.lookup(&id) {
+                bucket.acquire(bytes).await;
+            }
+        }
         let gate = self.pauses.lock().await.get(id).cloned();
         let parked = self.pause_all.is_paused() || gate.as_ref().is_some_and(|g| g.is_paused());
         if !parked {
@@ -1755,6 +1887,14 @@ impl TransferManager {
     /// effect on the next chunk of every active transfer.
     pub fn set_throttle_kbps(&self, kbps: u64) {
         self.bucket.set_rate_kbps(kbps);
+    }
+
+    pub fn profile_throttle_kbps(&self, id: &str) -> Result<u64> {
+        self.profile_bandwidth.rate(id)
+    }
+
+    pub fn set_profile_throttle_kbps(&self, id: &str, kbps: u64) -> Result<()> {
+        self.profile_bandwidth.set(self.db.as_deref(), id, kbps)
     }
 
     /// Resize the global pool without leaving stale asynchronous shrink tasks.
@@ -3268,6 +3408,11 @@ impl TransferManager {
 
         let owner = owner.clone();
         let bucket = Arc::clone(&self.bucket);
+        self.profile_bandwidth.ensure_loaded()?;
+        let profile = (
+            Arc::clone(&self.profile_bandwidth),
+            session.profile.id.clone(),
+        );
         let (outcome, file) = match session
             .with_stream(move |stream| {
                 let remote_len = stream.size(&path).ok().map(|size| size as u64);
@@ -3285,14 +3430,14 @@ impl TransferManager {
                 let mut writer = std::io::BufWriter::new(file);
                 let mut budget = FtpBudget {
                     bucket,
+                    profile: Some(profile),
                     pause_all,
                     pause,
                     canceled,
                     accounted: offset,
                 };
-                let outcome = stream.retr_resumable(&path, offset, &mut writer, |bytes| {
-                    budget.control(bytes)
-                })?;
+                let outcome = stream
+                    .retr_resumable(&path, offset, &mut writer, |bytes| budget.control(bytes))?;
                 writer.flush().context("flush FTP download destination")?;
                 writer
                     .get_ref()
@@ -3410,6 +3555,12 @@ impl TransferManager {
 
         let bucket = Arc::clone(&self.bucket);
         let retry_bucket = Arc::clone(&self.bucket);
+        self.profile_bandwidth.ensure_loaded()?;
+        let profile = (
+            Arc::clone(&self.profile_bandwidth),
+            session.profile.id.clone(),
+        );
+        let retry_profile = profile.clone();
         let retry_pause = pause.clone();
         let retry_pause_all = pause_all.clone();
         let retry_canceled = canceled.clone();
@@ -3442,14 +3593,14 @@ impl TransferManager {
                 let mut reader = std::io::BufReader::new(file);
                 let mut budget = FtpBudget {
                     bucket,
+                    profile: Some(profile),
                     pause_all,
                     pause,
                     canceled,
                     accounted: offset,
                 };
-                let outcome = stream.stor_resumable(&remote, offset, &mut reader, |bytes| {
-                    budget.control(bytes)
-                })?;
+                let outcome = stream
+                    .stor_resumable(&remote, offset, &mut reader, |bytes| budget.control(bytes))?;
                 first_source_snapshot.verify(&reader.get_ref().metadata()?)?;
 
                 // Some FTP/FTPS servers can acknowledge a resumed transfer but
@@ -3518,6 +3669,7 @@ impl TransferManager {
                         inner: std::io::BufReader::new(restart_file),
                         budget: FtpBudget {
                             bucket: retry_bucket,
+                            profile: Some(retry_profile),
                             pause_all: retry_pause_all,
                             pause: retry_pause,
                             canceled: retry_canceled,

@@ -545,6 +545,7 @@ original user data and staged restore were preserved for repair"
             commands::transfer_set_concurrency,
             commands::transfer_set_max_retries,
             commands::transfer_set_throttle,
+            commands::transfer_profile_throttle,
             commands::transfer_set_delta_sync,
             commands::transfer_queue_state,
             commands::rename_path,

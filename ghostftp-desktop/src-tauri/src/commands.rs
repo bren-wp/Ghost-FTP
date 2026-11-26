@@ -1389,6 +1389,32 @@ pub async fn transfer_set_throttle(kbps: u64, state: State<'_, AppState>) -> Res
     Ok(())
 }
 
+/// Read or change the independent saved-site cap (KiB/s, 0 = no site cap).
+/// Restrict this first UI integration to the streaming desktop file protocols.
+#[tauri::command]
+pub async fn transfer_profile_throttle(
+    profile_id: String,
+    kbps: Option<u64>,
+    state: State<'_, AppState>,
+) -> Result<u64, String> {
+    let profile = state
+        .profiles
+        .get(&profile_id)
+        .await
+        .map_err(err)?
+        .ok_or_else(|| "Saved profile not found".to_string())?;
+    if !matches!(profile.protocol.as_str(), "ftp" | "ftps" | "sftp") {
+        return Err("Site bandwidth limits require FTP, FTPS or SFTP".into());
+    }
+    if let Some(rate) = kbps {
+        state
+            .transfers
+            .set_profile_throttle_kbps(&profile_id, rate)
+            .map_err(err)?;
+    }
+    state.transfers.profile_throttle_kbps(&profile_id).map_err(err)
+}
+
 /// Live-adjust the delta-sync switch (Plan 23). Applies to the next transfer
 /// decision; `GHOSTFTP_DELTA=0` still force-disables regardless of the setting.
 #[tauri::command]

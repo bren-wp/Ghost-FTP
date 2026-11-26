@@ -725,6 +725,7 @@ fn ftp_budget_honors_pause_and_cancel_before_waiting() {
     pause.set(true);
     let mut budget = FtpBudget {
         bucket,
+        profile: None,
         pause_all: PauseGate::new(),
         pause: Some(pause),
         canceled: Arc::clone(&canceled),
@@ -742,6 +743,7 @@ fn budgeted_ftp_reader_does_not_report_eof_on_cancellation() {
         inner: std::io::Cursor::new(b"payload"),
         budget: FtpBudget {
             bucket: Arc::new(TokenBucket::new()),
+            profile: None,
             pause_all: PauseGate::new(),
             pause: None,
             canceled,
@@ -753,6 +755,46 @@ fn budgeted_ftp_reader_does_not_report_eof_on_cancellation() {
     assert!(std::io::Read::read(&mut reader, &mut buf).is_err());
     assert_eq!(reader.stop, FtpTransferControl::Cancel);
     assert_eq!(reader.inner.position(), 0);
+}
+
+#[tokio::test(start_paused = true)]
+async fn profile_bandwidth_is_shared_and_persisted() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    let mgr = TransferManager::with_db(db.clone());
+    mgr.set_profile_throttle_kbps("site-a", 1).unwrap();
+    mgr.set_profile_throttle_kbps("site-b", 4).unwrap();
+    let a = mgr.profile_bandwidth.lookup("site-a").unwrap();
+    let a2 = mgr.profile_bandwidth.lookup("site-a").unwrap();
+    assert!(Arc::ptr_eq(&a, &a2));
+    assert!(!Arc::ptr_eq(
+        &a,
+        &mgr.profile_bandwidth.lookup("site-b").unwrap()
+    ));
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    a.acquire(1024).await;
+    let start = tokio::time::Instant::now();
+    a2.acquire(1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    let restored = TransferManager::with_db(db);
+    assert_eq!(restored.profile_throttle_kbps("site-a").unwrap(), 1);
+    assert_eq!(restored.profile_throttle_kbps("site-b").unwrap(), 4);
+    let held = restored.profile_bandwidth.lookup("site-a").unwrap();
+    restored.set_profile_throttle_kbps("site-a", 0).unwrap();
+    assert_eq!(held.rate_kbps(), 0);
+    assert!(restored.profile_bandwidth.lookup("site-a").is_none());
+}
+
+#[test]
+fn corrupt_profile_bandwidth_settings_are_not_replaced() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    db.settings_set(PROFILE_BANDWIDTH_KEY, "invalid").unwrap();
+    let mgr = TransferManager::with_db(db.clone());
+    assert!(mgr.profile_throttle_kbps("site").is_err());
+    assert!(mgr.set_profile_throttle_kbps("site", 10).is_err());
+    assert_eq!(
+        db.settings_get(PROFILE_BANDWIDTH_KEY).unwrap().as_deref(),
+        Some("invalid")
+    );
 }
 
 // ---------- PauseGate + checkpoint ----------
