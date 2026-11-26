@@ -86,6 +86,22 @@ if (!nativePushSection.includes("branches: [main]") ||
   failures.push("Automatic release requires the native build to run after every main change, not only selected source paths");
 }
 
+// Native credential regressions must block automatic release promotion on
+// the exact main SHA, even for a release with no credential-source diff.
+for (const name of [
+  "ghostftp-native-vault-failure.yml",
+  "ghostftp-rust-native-vault-candidate.yml",
+]) {
+  const source = fs.readFileSync(path.join(workflowDir, name), "utf8");
+  const pushSection = source.split("  push:")[1]?.split("  pull_request:")[0] ?? "";
+  if (!/branches: \[main(?:,|\])/.test(pushSection) || /\bpaths(?:-ignore)?:/.test(pushSection)) {
+    failures.push(`${name}: native credential release gate requires every main push`);
+  }
+  if (!releaseWorkflow.includes(`wait_for_gate "${name}"`)) {
+    failures.push(`${name}: missing mandatory exact-SHA release gate`);
+  }
+}
+
 const viteConfig = fs.readFileSync(
   path.join(root, "ghostftp-desktop", "vite.config.ts"),
   "utf8"

@@ -156,6 +156,8 @@ jobs:
           wait_for_gate "ghostftp-quality.yml" "source audit"
           wait_for_gate "ghostftp-protocol-e2e.yml" "FTP/FTPS/SFTP E2E"
           wait_for_gate "validate-win-hardening.yml" "Windows hardening"
+          wait_for_gate "ghostftp-native-vault-failure.yml" "native vault failure injection"
+          wait_for_gate "ghostftp-rust-native-vault-candidate.yml" "Rust native vault candidate acceptance"
 
           # The known empty v0.95.51 public release must be repaired from
           # its exact-source CI artifacts before a successor can publish.

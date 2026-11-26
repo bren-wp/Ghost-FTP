@@ -1,16 +1,9 @@
 name: Rust native vault integration (candidate)
 
 on:
+  # Every main push may promote a release; always produce exact-SHA evidence.
   push:
     branches: [main, perf/recovery-gc-marker-v0.99.86]
-    paths:
-      - 'ghostftp-desktop/src-tauri/src/credentials/**'
-      - 'ghostftp-desktop/src-tauri/src/credentials.rs'
-      - 'ghostftp-desktop/src-tauri/build.rs'
-      - 'ghostftp-desktop/src-tauri/Cargo.toml'
-      - 'ghostftp-desktop/src-tauri/Cargo.lock'
-      - 'tools/native-vault/**'
-      - '.github/workflows/ghostftp-rust-native-vault-candidate.yml'
   pull_request:
     branches: [main]
     paths:
