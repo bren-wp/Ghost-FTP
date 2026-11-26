@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::future::Future;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
@@ -239,66 +239,77 @@ async fn read_cloud_upload_bounded(path: &Path, expected: u64) -> Result<Vec<u8>
     Ok(data)
 }
 
-/// Global bandwidth cap shared by every active copy loop:
-/// a token bucket refilling at `rate` bytes/sec (0 = unlimited). Because all
-/// transfers draw from this one bucket, the cap is split across active
-/// transfers rather than applied per transfer.
+/// Shared byte budget for copy loops that call the transfer checkpoint.
+/// A one-second burst ceiling also applies at low configured rates.
 struct TokenBucket {
-    inner: Mutex<BucketInner>,
-    rate_bps: AtomicU64,
+    inner: StdMutex<BucketInner>,
 }
 
 struct BucketInner {
     tokens: f64,
+    rate_bps: u64,
     // tokio's Instant (not std's) so `start_paused` tests drive refills.
     last: tokio::time::Instant,
+}
+
+impl BucketInner {
+    fn refill(&mut self, now: tokio::time::Instant) {
+        let elapsed = now.duration_since(self.last).as_secs_f64();
+        let rate = self.rate_bps as f64;
+        self.tokens = (self.tokens + elapsed * rate).min(rate);
+        self.last = now;
+    }
 }
 
 impl TokenBucket {
     fn new() -> Self {
         Self {
-            inner: Mutex::new(BucketInner {
+            inner: StdMutex::new(BucketInner {
                 tokens: 0.0,
+                rate_bps: 0,
                 last: tokio::time::Instant::now(),
             }),
-            rate_bps: AtomicU64::new(0),
         }
     }
 
+    fn lock(&self) -> std::sync::MutexGuard<'_, BucketInner> {
+        self.inner
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+    }
+
     fn rate_kbps(&self) -> u64 {
-        self.rate_bps.load(Ordering::Relaxed) / 1024
+        self.lock().rate_bps / 1024
     }
 
     fn set_rate_kbps(&self, kbps: u64) {
-        self.rate_bps
-            .store(kbps.saturating_mul(1024), Ordering::Relaxed);
+        let mut state = self.lock();
+        // Settle time at the previous rate before applying a new limit.
+        // Unlimited time must not accumulate credit at the next finite rate.
+        state.refill(tokio::time::Instant::now());
+        state.rate_bps = kbps.saturating_mul(1024);
+        state.tokens = state.tokens.min(state.rate_bps as f64);
     }
 
-    /// Wait until `bytes` may flow under the cap. Drawn in tranches capped at
-    /// one second's worth of rate (min 64 KiB) so a large chunk is charged in
-    /// full while a 1 KiB file never waits a whole token window.
+    /// Charge the complete chunk in tranches of at most one second's rate.
+    /// No synchronous mutex guard is held across an async wait.
     async fn acquire(&self, bytes: u64) {
         let mut remaining = bytes as f64;
         while remaining > 0.0 {
-            let rate = self.rate_bps.load(Ordering::Relaxed);
-            if rate == 0 {
-                return;
-            }
             let wait = {
-                let mut g = self.inner.lock().await;
-                let now = tokio::time::Instant::now();
-                let elapsed = now.duration_since(g.last).as_secs_f64();
-                let rate_f = rate as f64;
-                let cap = rate_f.max(64.0 * 1024.0);
-                g.tokens = (g.tokens + elapsed * rate_f).min(cap);
-                g.last = now;
-                let tranche = remaining.min(cap);
-                if g.tokens >= tranche {
-                    g.tokens -= tranche;
+                let mut state = self.lock();
+                let rate = state.rate_bps as f64;
+                if rate == 0.0 {
+                    return;
+                }
+                state.refill(tokio::time::Instant::now());
+                let tranche = remaining.min(rate);
+                if state.tokens >= tranche {
+                    state.tokens -= tranche;
                     remaining -= tranche;
                     continue;
                 }
-                Duration::from_secs_f64((tranche - g.tokens) / rate_f)
+                Duration::from_secs_f64((tranche - state.tokens) / rate)
             };
             // Cap the sleep so a live rate change takes effect promptly.
             tokio::time::sleep(wait.min(Duration::from_millis(250))).await;
@@ -1416,7 +1427,11 @@ impl TransferManager {
             .iter()
             .position(|queued| queued == id)
             .ok_or_else(|| anyhow::anyhow!("transfer {id} is not waiting in the queue"))?;
-        let previous = self.priority_overrides().get(id).copied().unwrap_or_default();
+        let previous = self
+            .priority_overrides()
+            .get(id)
+            .copied()
+            .unwrap_or_default();
         if previous == priority {
             return Ok(());
         }

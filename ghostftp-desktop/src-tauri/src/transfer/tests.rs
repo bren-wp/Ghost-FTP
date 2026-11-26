@@ -658,6 +658,50 @@ async fn token_bucket_tiny_file_skips_full_window() {
     assert!(start.elapsed() < Duration::from_millis(100));
 }
 
+#[tokio::test(start_paused = true)]
+async fn token_bucket_enable_does_not_credit_unlimited_idle_time() {
+    let bucket = TokenBucket::new();
+    tokio::time::sleep(Duration::from_secs(120)).await;
+    bucket.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    bucket.acquire(1024).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+}
+
+#[tokio::test(start_paused = true)]
+async fn token_bucket_low_rate_caps_idle_burst_at_one_second() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(120)).await;
+    let start = tokio::time::Instant::now();
+    bucket.acquire(2048).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert!(start.elapsed() <= Duration::from_millis(1250));
+}
+
+#[tokio::test(start_paused = true)]
+async fn token_bucket_rate_increase_does_not_refill_retroactively() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(1);
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    bucket.set_rate_kbps(4);
+    let start = tokio::time::Instant::now();
+    bucket.acquire(4096).await;
+    assert!(start.elapsed() >= Duration::from_millis(750));
+}
+
+#[tokio::test(start_paused = true)]
+async fn token_bucket_rate_decrease_discards_excess_credit() {
+    let bucket = TokenBucket::new();
+    bucket.set_rate_kbps(64);
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    bucket.set_rate_kbps(1);
+    let start = tokio::time::Instant::now();
+    bucket.acquire(2048).await;
+    assert!(start.elapsed() >= Duration::from_secs(1));
+    assert_eq!(bucket.rate_kbps(), 1);
+}
+
 // ---------- PauseGate + checkpoint ----------
 
 #[tokio::test]

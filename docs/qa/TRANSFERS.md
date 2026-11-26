@@ -28,6 +28,11 @@ The current transfer implementation also enforces:
 - Backend queue snapshots expose actual order and priority. The Transfer Center does not show editable priority for an active or terminal transfer. Priorities are retained in the existing credential-free SQLite envelope; legacy rows default to Normal. Explicit retry and automatic retry retain the selected priority. A recovered row still requires user-authorized retry and a matching profile. A failed priority ledger write leaves the previous queue order unchanged. Weighted round-robin reserves four High, two Normal and one Low admission per cycle when all tiers are runnable; empty tiers are skipped. Paused rows appear last in the snapshot. This is fairness by admission count, not byte or per-profile fairness.
 - Unit coverage exercises tiers, paused high-priority rows, removal on admission, reset to Normal and rejection of missing rows. Additional tests cover two full weighted cycles, empty tiers and parity between projected queue order and actual admission.
 
+## 0.99.89 Preview bandwidth accounting
+
+- The shared token bucket uses a one-second credit ceiling even at 1 KiB/s, settles elapsed time at the old rate on live changes, and never grants finite-rate credit for time spent unlimited. Four virtual-time regressions cover these transitions and idle bursts.
+- This bounds credit in checkpoint-integrated adapters; FTP/FTPS blocking streams, provider-specific buffered transfers, wire-level accounting and per-profile bandwidth enforcement still require explicit integration and real-server validation.
+
 ## CI truth
 
 Rust workspace tests and frontend production builds are release quality gates. Compatibility tooling does not simulate successful file transfers and is not used as proof of protocol correctness.

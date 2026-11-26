@@ -10,6 +10,7 @@
 - Implement queue-local High/Normal/Low priorities and authoritative Transfer Center controls.
 - Add work-conserving weighted admission and a matching queue projection to prevent lower-priority starvation.
 - Persist selected priorities in the existing transfer ledger and preserve them across retry and restart.
+- Bound bandwidth credit at low rates and account correctly for live rate changes and unlimited periods.
 
 ## 0.99.88 Preview — 26 November 2026 (published)
 
