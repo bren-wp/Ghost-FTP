@@ -1248,6 +1248,23 @@ async fn concurrency_grows_and_shrinks() {
 // ---------- Retry classification ----------
 
 #[test]
+fn retry_backoff_is_exponential_jittered_and_bounded() {
+    for (attempt, floor, ceiling) in [(1, 5, 8), (2, 10, 16), (3, 21, 32), (4, 40, 60)] {
+        assert_eq!(retry_delay_seconds(attempt, 0), floor);
+        assert_eq!(retry_delay_seconds(attempt, ceiling - floor), ceiling);
+        for entropy in 0..128 {
+            assert!((floor..=ceiling).contains(&retry_delay_seconds(attempt, entropy)));
+        }
+    }
+    for attempt in [5, 8, u32::MAX] {
+        assert_eq!(retry_delay_seconds(attempt, 0), 40);
+        assert_eq!(retry_delay_seconds(attempt, 20), 60);
+        assert!((40..=60).contains(&retry_delay_seconds(attempt, u64::MAX)));
+    }
+    assert_eq!(retry_delay_seconds(0, 0), retry_delay_seconds(1, 0));
+}
+
+#[test]
 fn transient_errors_retry_permanent_ones_dont() {
     assert!(is_transient(&anyhow::anyhow!("connection reset by peer")));
     assert!(is_transient(&anyhow::anyhow!("operation timed out")));

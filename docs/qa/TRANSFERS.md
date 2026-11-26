@@ -16,6 +16,12 @@ The current transfer implementation also enforces:
 - Active queue filtering no longer duplicates terminal history.
 - Progress is represented semantically.
 
+## 0.99.89 Preview retry scheduling
+
+- Automatic retry uses a shared bounded exponential delay with jitter: 5–8, 10–16, 21–32, then 40–60 seconds for subsequent retries. The selected delay is passed to the existing transfer status message and timer.
+- Sleeping retries continue to release their global concurrency slot and re-enter the FIFO queue. The maximum retry count and protocol-specific restrictions are unchanged; ambiguous remote upload completion must never trigger automatic replay.
+- Regression tests cover the full delay range and saturation. Exact-source native CI and real-server failure tests remain required.
+
 ## CI truth
 
 Rust workspace tests and frontend production builds are release quality gates. Compatibility tooling does not simulate successful file transfers and is not used as proof of protocol correctness.

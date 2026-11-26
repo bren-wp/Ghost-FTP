@@ -323,7 +323,7 @@ pub struct Transfer {
     pub status: TransferStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    /// Auto-retry round in progress (1- or 2-of-2), for the panel's
+    /// Auto-retry round in progress, for the panel's
     /// "retrying in Ns (attempt N/total)" state.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retry_attempt: Option<u32>,
@@ -4870,6 +4870,20 @@ fn is_transient_download(error: &anyhow::Error) -> bool {
     .any(|status| message.contains(status))
 }
 
+/// Bounded exponential backoff with jitter prevents transfers on a failed
+/// endpoint from retrying in lockstep. The entropy is supplied separately so
+/// the complete delay range can be tested without a timer or random source.
+fn retry_delay_seconds(attempt: u32, entropy: u64) -> u64 {
+    let exponent = attempt.saturating_sub(1).min(3);
+    let ceiling = (8_u64 << exponent).min(60);
+    let floor = ceiling * 2 / 3;
+    floor + entropy % (ceiling - floor + 1)
+}
+
+fn next_retry_delay_seconds(attempt: u32) -> u64 {
+    retry_delay_seconds(attempt, Uuid::new_v4().as_u128() as u64)
+}
+
 /// Re-enter the global FIFO after retry backoff without monopolizing a
 /// concurrency slot. Keeping retries in the same queue as fresh work prevents
 /// an offline endpoint from repeatedly jumping ahead of already-waiting sites.
@@ -4931,7 +4945,7 @@ async fn readmit_after_retry_backoff(
 
 /// Shared download runner: admission → run loop → finalize → wake
 /// the queue. The loop re-runs the file from byte 0 after a resume-from-pause
-/// (Phase 2) and auto-retries transient errors with 5s/20s backoff.
+/// (Phase 2) and auto-retries transient errors with bounded jittered backoff.
 /// Retry backoff releases the concurrency permit so an unreachable server
 /// cannot reduce throughput for unrelated queued transfers. The transfer must
 /// reacquire a permit before its next network attempt.
@@ -5029,11 +5043,7 @@ async fn run_download_task(
             }
             Err(e) if auto_retries < max_auto_retries && is_transient_download(&e) => {
                 auto_retries += 1;
-                let delay = match auto_retries {
-                    1 => 5,
-                    2 => 20,
-                    _ => 60,
-                };
+                let delay = next_retry_delay_seconds(auto_retries);
                 mgr.update(&id, |t| {
                     t.transferred = 0;
                     t.retry_attempt = Some(auto_retries);
@@ -5156,11 +5166,7 @@ async fn run_upload_task(
                     && is_safe_staged_upload_retry(&e) =>
             {
                 auto_retries += 1;
-                let delay = match auto_retries {
-                    1 => 5,
-                    2 => 20,
-                    _ => 60,
-                };
+                let delay = next_retry_delay_seconds(auto_retries);
                 mgr.update(&id, |t| {
                     t.transferred = 0;
                     t.retry_attempt = Some(auto_retries);
