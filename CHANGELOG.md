@@ -14,6 +14,7 @@
 - Apply the shared global byte budget to FTP/FTPS data-loop callbacks and full-upload recovery reads.
 - Add persisted per-site bandwidth limits for FTP, FTPS and SFTP with Site Manager controls.
 - Avoid additive wait time between global and per-site bandwidth budgets.
+- Add opt-in adaptive concurrency driven by safe retry feedback and successful completion.
 
 ## 0.99.88 Preview — 26 November 2026 (published)
 

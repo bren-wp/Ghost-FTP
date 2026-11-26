@@ -33,6 +33,11 @@ The current transfer implementation also enforces:
 - The shared token bucket uses a one-second credit ceiling even at 1 KiB/s, settles elapsed time at the old rate on live changes, and never grants finite-rate credit for time spent unlimited. Four virtual-time regressions cover these transitions and idle bursts.
 - This bounds credit in checkpoint-integrated adapters; FTP/FTPS blocking transfer callbacks and the full-upload recovery reader now share the same bucket. Main FTP/FTPS loops account committed application bytes at chunk boundaries; recovery upload accounts bytes before writing. Saved FTP/FTPS/SFTP sites now support a persisted additional shared site cap in Site Manager, applied alongside the global byte budget. Zero disables only the site cap. Global and site debit waits now overlap in both async and blocking adapters rather than adding sequential delays. Three virtual-time regressions cover equal limits, the slower limit and shared blocking credits. Provider-specific buffered transfers, strict wire-level shaping and adaptive concurrency remain outstanding. Real-server timing and interruption acceptance are still required.
 
+## 0.99.89 Preview adaptive concurrency
+
+- Opt-in Performance setting; manual mode remains the default. The existing concurrency setting is the ceiling. Safe automatic retry feedback halves the active slot target, down to one; four successful completions permit additive recovery by one slot, bounded by a ten-second adjustment cooldown. Active work is never preempted. The heuristic is global, not a measured network congestion detector or per-site controller.
+- Deterministic tests exercise cooldown, recovery, manual mode, the ceiling, the floor and retiring occupied permits. Real-server throughput and installed UI acceptance remain required.
+
 ## CI truth
 
 Rust workspace tests and frontend production builds are release quality gates. Compatibility tooling does not simulate successful file transfers and is not used as proof of protocol correctness.

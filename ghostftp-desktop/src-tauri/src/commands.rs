@@ -1360,11 +1360,25 @@ pub async fn transfer_resume_all(app: AppHandle, state: State<'_, AppState>) -> 
 pub async fn transfer_set_concurrency(
     count: u32,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     if !(1..=32).contains(&count) {
         return Err("transfer concurrency must be between 1 and 32".into());
     }
     state.transfers.set_concurrency(count as usize);
+    state.transfers.bump_queue(&app).await;
+    Ok(())
+}
+
+/// Opt-in retry-feedback control, bounded by the manual concurrency ceiling.
+#[tauri::command]
+pub async fn transfer_set_adaptive_concurrency(
+    enabled: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    state.transfers.set_adaptive_concurrency(enabled);
+    state.transfers.bump_queue(&app).await;
     Ok(())
 }
 

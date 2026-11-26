@@ -294,6 +294,9 @@ export const ipc = {
   transferSetConcurrency: (count: number) =>
     invoke<void>("transfer_set_concurrency", { count }),
 
+  transferSetAdaptiveConcurrency: (enabled: boolean) =>
+    invoke<void>("transfer_set_adaptive_concurrency", { enabled }),
+
   transferSetMaxRetries: (attempts: number) =>
     invoke<void>("transfer_set_max_retries", { attempts }),
 

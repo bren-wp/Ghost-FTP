@@ -343,11 +343,7 @@ impl TokenBucket {
         F: FnMut() -> FtpTransferControl,
     {
         let mut global_remaining = bytes as f64;
-        let mut profile_remaining = if profile.is_some() {
-            bytes as f64
-        } else {
-            0.0
-        };
+        let mut profile_remaining = if profile.is_some() { bytes as f64 } else { 0.0 };
         loop {
             let decision = control();
             if decision != FtpTransferControl::Continue
@@ -361,7 +357,9 @@ impl TokenBucket {
                 Duration::ZERO
             };
             let profile_wait = match profile {
-                Some(bucket) if profile_remaining > 0.0 => bucket.debit_step(&mut profile_remaining),
+                Some(bucket) if profile_remaining > 0.0 => {
+                    bucket.debit_step(&mut profile_remaining)
+                }
                 _ => Duration::ZERO,
             };
             let wait = global_wait.max(profile_wait);
@@ -712,9 +710,34 @@ struct TransferSlot {
     state: Arc<StdMutex<ConcurrencyState>>,
 }
 
-#[derive(Default)]
+const ADAPTIVE_COOLDOWN: Duration = Duration::from_secs(10);
+const ADAPTIVE_SUCCESS_WINDOW: usize = 4;
+
 struct ConcurrencyState {
     pending_shrink: usize,
+    ceiling: usize,
+    adaptive: bool,
+    successes: usize,
+    last_adjustment: Option<tokio::time::Instant>,
+}
+
+impl Default for ConcurrencyState {
+    fn default() -> Self {
+        Self {
+            pending_shrink: 0,
+            ceiling: DEFAULT_CONCURRENCY,
+            adaptive: false,
+            successes: 0,
+            last_adjustment: None,
+        }
+    }
+}
+
+impl ConcurrencyState {
+    fn can_adjust(&self, now: tokio::time::Instant) -> bool {
+        self.last_adjustment
+            .is_none_or(|last| now.duration_since(last) >= ADAPTIVE_COOLDOWN)
+    }
 }
 
 impl Drop for TransferSlot {
@@ -723,10 +746,13 @@ impl Drop for TransferSlot {
             .state
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
-        if state.pending_shrink > 0 {
-            state.pending_shrink -= 1;
-            if let Some(permit) = self.permit.take() {
+        if let Some(permit) = self.permit.take() {
+            if state.pending_shrink > 0 {
+                state.pending_shrink -= 1;
                 permit.forget();
+            } else {
+                // Return the permit while serialized with pool resizing.
+                drop(permit);
             }
         }
     }
@@ -1513,7 +1539,7 @@ impl TransferManager {
 
     /// Emit `transfer://queue` and bump the generation so admission waiters
     /// re-check whether it is their turn.
-    async fn bump_queue(&self, app: &AppHandle) {
+    pub(crate) async fn bump_queue(&self, app: &AppHandle) {
         let state = {
             let w = self.waiting.lock().await;
             self.build_queue_state(&w).await
@@ -1935,6 +1961,16 @@ impl TransferManager {
             .concurrency_state
             .lock()
             .unwrap_or_else(|poison| poison.into_inner());
+        state.ceiling = n;
+        let target = if state.adaptive {
+            self.concurrency.load(Ordering::Relaxed).min(n)
+        } else {
+            n
+        };
+        self.resize_concurrency(&mut state, target);
+    }
+
+    fn resize_concurrency(&self, state: &mut ConcurrencyState, n: usize) {
         let old = self.concurrency.swap(n, Ordering::Relaxed);
         if n < old {
             let retired = self.semaphore.forget_permits(old - n);
@@ -1946,6 +1982,61 @@ impl TransferManager {
             if increase > cancelled {
                 self.semaphore.add_permits(increase - cancelled);
             }
+        }
+    }
+
+    /// Manual concurrency remains the default. Adaptive mode never exceeds
+    /// the configured ceiling and never interrupts an active transfer.
+    pub fn set_adaptive_concurrency(&self, enabled: bool) {
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if state.adaptive == enabled {
+            return;
+        }
+        state.adaptive = enabled;
+        state.successes = 0;
+        state.last_adjustment = None;
+        let ceiling = state.ceiling;
+        self.resize_concurrency(&mut state, ceiling);
+    }
+
+    fn record_adaptive_retry(&self) {
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if !state.adaptive {
+            return;
+        }
+        state.successes = 0;
+        let now = tokio::time::Instant::now();
+        let current = self.concurrency.load(Ordering::Relaxed);
+        if current > 1 && state.can_adjust(now) {
+            state.last_adjustment = Some(now);
+            self.resize_concurrency(&mut state, (current / 2).max(1));
+        }
+    }
+
+    fn record_adaptive_success(&self) {
+        let mut state = self
+            .concurrency_state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if !state.adaptive {
+            return;
+        }
+        let current = self.concurrency.load(Ordering::Relaxed);
+        if current >= state.ceiling {
+            return;
+        }
+        state.successes = (state.successes + 1).min(ADAPTIVE_SUCCESS_WINDOW);
+        let now = tokio::time::Instant::now();
+        if state.successes >= ADAPTIVE_SUCCESS_WINDOW && state.can_adjust(now) {
+            state.successes = 0;
+            state.last_adjustment = Some(now);
+            self.resize_concurrency(&mut state, current + 1);
         }
     }
 
@@ -5529,7 +5620,9 @@ async fn run_download_task(
                 // A retry that is only waiting must not occupy one of the
                 // global transfer slots. This keeps healthy sites moving when
                 // another endpoint is offline or timing out.
+                mgr.record_adaptive_retry();
                 drop(permit.take());
+                mgr.bump_queue(&app).await;
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 // Re-enter through the same FIFO as every other transfer.
                 // This also keeps a transfer alive if the user pauses it during
@@ -5652,7 +5745,9 @@ async fn run_upload_task(
                 // A retry that is only waiting must not occupy one of the
                 // global transfer slots. This keeps healthy sites moving when
                 // another endpoint is offline or timing out.
+                mgr.record_adaptive_retry();
                 drop(permit.take());
+                mgr.bump_queue(&app).await;
                 tokio::time::sleep(Duration::from_secs(delay)).await;
                 // Re-enter through the same FIFO as every other transfer.
                 // This also keeps a transfer alive if the user pauses it during
@@ -5923,6 +6018,7 @@ async fn finalize(mgr: &Arc<TransferManager>, id: &str, app: &AppHandle, result:
     if let Some(transfer) = mgr.finish_transfer(id, result).await {
         match transfer.status {
             TransferStatus::Done => {
+                mgr.record_adaptive_success();
                 let _ = app.emit("transfer://done", &transfer);
             }
             TransferStatus::Error => {

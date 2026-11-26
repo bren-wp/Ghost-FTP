@@ -93,6 +93,7 @@ interface SettingsState {
   promptOnOverwrite: boolean;
   /** Max simultaneous transfers (1–32). Live-applied to the backend queue. */
   transferConcurrency: number;
+  adaptiveConcurrency: boolean;
   /** Automatic retries for transient network/timeout failures (0–8). */
   maxRetryAttempts: number;
   /** Global bandwidth cap in KiB/s (0 = unlimited). Live-applied. */
@@ -139,6 +140,7 @@ interface SettingsState {
   setOverwritePolicy: (p: OverwritePolicy) => void;
   setPromptOnOverwrite: (v: boolean) => void;
   setTransferConcurrency: (n: number) => void;
+  setAdaptiveConcurrency: (enabled: boolean) => void;
   setMaxRetryAttempts: (n: number) => void;
   setTransferThrottleKbps: (n: number) => void;
   setDeltaSync: (v: boolean) => void;
@@ -168,6 +170,7 @@ export type PersistedSettings = Omit<
   | "setOverwritePolicy"
   | "setPromptOnOverwrite"
   | "setTransferConcurrency"
+  | "setAdaptiveConcurrency"
   | "setMaxRetryAttempts"
   | "setTransferThrottleKbps"
   | "setDeltaSync"
@@ -196,6 +199,7 @@ const DEFAULTS: PersistedSettings = {
   overwritePolicy: "overwrite",
   promptOnOverwrite: true,
   transferConcurrency: 3,
+  adaptiveConcurrency: false,
   maxRetryAttempts: 3,
   transferThrottleKbps: 0,
   deltaSync: true,
@@ -260,6 +264,9 @@ function normalizePersistedSettings(
       1,
       Math.min(32, Math.round(finiteNumber(known.transferConcurrency, DEFAULTS.transferConcurrency)))
     );
+  }
+  if (known.adaptiveConcurrency !== undefined) {
+    known.adaptiveConcurrency = known.adaptiveConcurrency === true;
   }
   if (known.maxRetryAttempts !== undefined) {
     known.maxRetryAttempts = Math.max(
@@ -429,6 +436,16 @@ export const useSettings = create<SettingsState>((set, get) => ({
       "Couldn't apply transfer concurrency"
     );
   },
+  setAdaptiveConcurrency: (enabled) => {
+    mutateLiveTransferSetting(
+      set,
+      get,
+      "adaptiveConcurrency",
+      enabled,
+      (value) => ipc.transferSetAdaptiveConcurrency(value),
+      "Couldn't apply adaptive concurrency"
+    );
+  },
   setMaxRetryAttempts: (n) => {
     const clamped = Math.max(0, Math.min(8, Math.round(finiteNumber(n, DEFAULTS.maxRetryAttempts))));
     mutateLiveTransferSetting(
@@ -496,6 +513,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
 async function applyTransferEngineSnapshot(snapshot: PersistedSettings): Promise<void> {
   await enqueueTransferEngineSettings(async () => {
     await ipc.transferSetConcurrency(snapshot.transferConcurrency);
+    await ipc.transferSetAdaptiveConcurrency(snapshot.adaptiveConcurrency);
     await ipc.transferSetMaxRetries(snapshot.maxRetryAttempts);
     await ipc.transferSetThrottle(snapshot.transferThrottleKbps);
     await ipc.transferSetDeltaSync(snapshot.deltaSync);

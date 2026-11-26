@@ -1534,6 +1534,55 @@ async fn admission_rejects_missing_id_when_every_waiting_row_is_paused() {
     assert!(!mgr.is_my_turn(&waiting, "missing").await);
 }
 
+#[tokio::test(start_paused = true)]
+async fn adaptive_concurrency_reduces_and_recovers_with_cooldown() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(8);
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 8);
+    mgr.set_adaptive_concurrency(true);
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 4);
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 4);
+    for _ in 0..ADAPTIVE_SUCCESS_WINDOW {
+        mgr.record_adaptive_success();
+    }
+    assert_eq!(mgr.queue_state().await.concurrency, 4);
+    tokio::time::sleep(ADAPTIVE_COOLDOWN).await;
+    mgr.record_adaptive_success();
+    assert_eq!(mgr.queue_state().await.concurrency, 5);
+    mgr.set_concurrency(2);
+    assert_eq!(mgr.queue_state().await.concurrency, 2);
+    mgr.set_concurrency(6);
+    assert_eq!(mgr.queue_state().await.concurrency, 2);
+    mgr.set_adaptive_concurrency(false);
+    assert_eq!(mgr.queue_state().await.concurrency, 6);
+}
+
+#[tokio::test(start_paused = true)]
+async fn adaptive_shrink_preserves_active_slots_and_floor() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(4);
+    mgr.set_adaptive_concurrency(true);
+    let mut slots = Vec::new();
+    for _ in 0..4 {
+        slots.push(mgr.reserve_slot().await.unwrap());
+    }
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 2);
+    assert_eq!(mgr.semaphore.available_permits(), 0);
+    drop(slots);
+    assert_eq!(mgr.semaphore.available_permits(), 2);
+    tokio::time::sleep(ADAPTIVE_COOLDOWN).await;
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 1);
+    tokio::time::sleep(ADAPTIVE_COOLDOWN).await;
+    mgr.record_adaptive_retry();
+    assert_eq!(mgr.queue_state().await.concurrency, 1);
+    assert_eq!(mgr.semaphore.available_permits(), 1);
+}
+
 #[tokio::test]
 async fn concurrency_resize_cancels_stale_shrink_debt() {
     let mgr = TransferManager::new();
