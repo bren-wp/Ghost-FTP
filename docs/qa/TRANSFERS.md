@@ -25,8 +25,8 @@ The current transfer implementation also enforces:
 ## 0.99.89 Preview queue priority
 
 - High/Normal/Low apply only to waiting transfers; FIFO is retained within each tier and paused entries are skipped. Existing active transfers are not interrupted. Priority changes move the entry to the end of its new tier; a repeated assignment is a no-op.
-- Backend queue snapshots expose actual order and priority. The Transfer Center does not show editable priority for an active or terminal transfer. Overrides are queue-local, not persisted across retry or application restart. Sustained higher-priority traffic can delay lower-priority work; aging/fair-share scheduling remains future work.
-- Unit coverage exercises tiers, paused high-priority rows, removal on admission, reset to Normal and rejection of missing rows.
+- Backend queue snapshots expose actual order and priority. The Transfer Center does not show editable priority for an active or terminal transfer. Overrides are queue-local, not persisted across retry or application restart. Weighted round-robin reserves four High, two Normal and one Low admission per cycle when all tiers are runnable; empty tiers are skipped. Paused rows appear last in the snapshot. This is fairness by admission count, not byte or per-profile fairness.
+- Unit coverage exercises tiers, paused high-priority rows, removal on admission, reset to Normal and rejection of missing rows. Additional tests cover two full weighted cycles, empty tiers and parity between projected queue order and actual admission.
 
 ## CI truth
 

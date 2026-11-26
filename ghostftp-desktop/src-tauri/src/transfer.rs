@@ -90,6 +90,21 @@ pub enum TransferPriority {
     High,
 }
 
+// Weighted round-robin by admission, not by bytes or elapsed time. The
+// scheduler skips empty tiers, so available slots are never left idle.
+const QUEUE_TIER_CYCLE: [usize; 7] = [2, 2, 2, 2, 1, 1, 0];
+
+fn next_queue_tier(cursor: usize, available: [bool; 3]) -> Option<(usize, usize)> {
+    for offset in 0..QUEUE_TIER_CYCLE.len() {
+        let index = (cursor + offset) % QUEUE_TIER_CYCLE.len();
+        let tier = QUEUE_TIER_CYCLE[index];
+        if available[tier] {
+            return Some((tier, (index + 1) % QUEUE_TIER_CYCLE.len()));
+        }
+    }
+    None
+}
+
 /// Payload of the `transfer://queue` event: the ordered waiting transfer ids
 /// plus the manager-level state the panel header renders.
 #[derive(Debug, Clone, Serialize)]
@@ -494,6 +509,8 @@ pub struct TransferManager {
     waiting: Mutex<VecDeque<String>>,
     // Queue-local overrides; access only while holding waiting. Never held across await.
     queue_priorities: StdMutex<HashMap<String, TransferPriority>>,
+    // Read and advance only under the waiting lock, on successful admission.
+    queue_cursor: AtomicUsize,
     semaphore: Arc<Semaphore>,
     concurrency: AtomicUsize,
     concurrency_state: Arc<StdMutex<ConcurrencyState>>,
@@ -881,6 +898,7 @@ impl TransferManager {
             tasks: Mutex::new(HashMap::new()),
             waiting: Mutex::new(VecDeque::new()),
             queue_priorities: StdMutex::new(HashMap::new()),
+            queue_cursor: AtomicUsize::new(0),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
             concurrency: AtomicUsize::new(DEFAULT_CONCURRENCY),
             concurrency_state: Arc::new(StdMutex::new(ConcurrencyState::default())),
@@ -1204,14 +1222,33 @@ impl TransferManager {
             .unwrap_or_else(|poison| poison.into_inner())
     }
 
-    fn build_queue_state(&self, waiting: &VecDeque<String>) -> QueueState {
+    async fn build_queue_state(&self, waiting: &VecDeque<String>) -> QueueState {
+        let pauses = self.pauses.lock().await;
         let overrides = self.priority_overrides();
         let priorities: HashMap<_, _> = waiting
             .iter()
             .map(|id| (id.clone(), overrides.get(id).copied().unwrap_or_default()))
             .collect();
-        let mut ordered: Vec<_> = waiting.iter().cloned().collect();
-        ordered.sort_by_key(|id| std::cmp::Reverse(priorities[id]));
+        let mut tiers: [VecDeque<String>; 3] = std::array::from_fn(|_| VecDeque::new());
+        let mut parked = Vec::new();
+        for id in waiting {
+            if pauses.get(id).is_some_and(|gate| gate.is_paused()) {
+                parked.push(id.clone());
+            } else {
+                tiers[priorities[id] as usize].push_back(id.clone());
+            }
+        }
+        let mut ordered = Vec::with_capacity(waiting.len());
+        let mut cursor = self.queue_cursor.load(Ordering::Relaxed);
+        while let Some((tier, next)) =
+            next_queue_tier(cursor, std::array::from_fn(|i| !tiers[i].is_empty()))
+        {
+            if let Some(id) = tiers[tier].pop_front() {
+                ordered.push(id);
+            }
+            cursor = next;
+        }
+        ordered.extend(parked);
         QueueState {
             waiting: ordered,
             priorities,
@@ -1224,7 +1261,7 @@ impl TransferManager {
     /// Current queue snapshot for the panel's initial load.
     pub async fn queue_state(&self) -> QueueState {
         let w = self.waiting.lock().await;
-        self.build_queue_state(&w)
+        self.build_queue_state(&w).await
     }
 
     /// Emit `transfer://queue` and bump the generation so admission waiters
@@ -1232,13 +1269,13 @@ impl TransferManager {
     async fn bump_queue(&self, app: &AppHandle) {
         let state = {
             let w = self.waiting.lock().await;
-            self.build_queue_state(&w)
+            self.build_queue_state(&w).await
         };
         self.queue_gen.send_modify(|g| *g += 1);
         let _ = app.emit("transfer://queue", &state);
     }
 
-    /// Wait until this transfer is the highest-priority runnable row with the pause-all
+    /// Wait until this transfer is selected by the weighted scheduler with the pause-all
     /// gate open, take a concurrency permit, and pop it from the queue.
     /// Returns `None` if the id left the queue (canceled while waiting).
     /// The permit is returned so the caller holds it for the transfer's life.
@@ -1277,7 +1314,12 @@ impl TransferManager {
                 }
             };
             let mut w = self.waiting.lock().await;
-            if self.is_my_turn(&w, id).await {
+            if let Some((_, next_cursor)) = self
+                .next_runnable(&w)
+                .await
+                .filter(|(next, _)| next.as_str() == id)
+            {
+                self.queue_cursor.store(next_cursor, Ordering::Relaxed);
                 if let Some(pos) = w.iter().position(|x| x == id) {
                     w.remove(pos);
                     self.priority_overrides().remove(id);
@@ -1296,20 +1338,34 @@ impl TransferManager {
         }
     }
 
-    /// Select the highest-priority runnable row, preserving FIFO within a tier.
+    /// Select one runnable FIFO head per tier, then apply the weighted cycle.
     /// Paused rows never head-of-line block the queue; pause-all blocks everyone.
     /// Caller holds waiting; lock order is waiting → pauses → priority overrides.
-    async fn is_my_turn(&self, w: &VecDeque<String>, id: &str) -> bool {
+    async fn next_runnable<'a>(&self, w: &'a VecDeque<String>) -> Option<(&'a String, usize)> {
         if self.pause_all.is_paused() {
-            return false;
+            return None;
         }
         let pauses = self.pauses.lock().await;
         let priorities = self.priority_overrides();
-        let first_open = w
-            .iter()
-            .filter(|x| pauses.get(*x).is_none_or(|g| !g.is_paused()))
-            .min_by_key(|x| std::cmp::Reverse(priorities.get(*x).copied().unwrap_or_default()));
-        first_open.is_some_and(|x| x == id)
+        let mut heads = [None; 3];
+        for id in w {
+            if pauses.get(id).is_some_and(|gate| gate.is_paused()) {
+                continue;
+            }
+            let tier = priorities.get(id).copied().unwrap_or_default() as usize;
+            if heads[tier].is_none() {
+                heads[tier] = Some(id);
+            }
+        }
+        let cursor = self.queue_cursor.load(Ordering::Relaxed);
+        let (tier, next) = next_queue_tier(cursor, std::array::from_fn(|i| heads[i].is_some()))?;
+        heads[tier].map(|id| (id, next))
+    }
+
+    async fn is_my_turn(&self, w: &VecDeque<String>, id: &str) -> bool {
+        self.next_runnable(w)
+            .await
+            .is_some_and(|(next, _)| next == id)
     }
 
     /// Reorder a waiting transfer (active transfers are untouched).

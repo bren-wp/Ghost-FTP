@@ -57,7 +57,7 @@ interface TransfersState {
   activeCount: number;
   /** Rolling rates derived from real backend progress byte deltas. */
   rateById: Record<string, TransferRateSample>;
-  /** Waiting transfer ids in priority order, FIFO within each tier. */
+  /** Waiting transfer ids in weighted admission order, FIFO within each tier. */
   queue: string[];
   queuePriorities: Record<string, TransferPriority>;
   pausedAll: boolean;

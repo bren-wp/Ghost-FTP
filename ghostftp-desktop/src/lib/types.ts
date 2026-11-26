@@ -1117,7 +1117,7 @@ export interface Transfer {
 
 export type TransferPriority = "low" | "normal" | "high";
 
-/** Live transfer-queue snapshot — ordered by priority, FIFO within each tier. */
+/** Live transfer-queue snapshot — weighted admission order, FIFO within each tier; paused rows last. */
 export interface TransferQueueState {
   waiting: string[];
   priorities?: Record<string, TransferPriority>;

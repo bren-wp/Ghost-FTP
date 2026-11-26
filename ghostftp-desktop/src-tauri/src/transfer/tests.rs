@@ -1153,11 +1153,59 @@ async fn queue_priority_is_ordered_fifo_within_tiers_and_skips_paused_rows() {
     mgr.change_waiting_priority("a", TransferPriority::Normal)
         .await
         .unwrap();
-    assert_eq!(mgr.queue_state().await.waiting, ["b", "c", "e", "a"]);
+    assert_eq!(mgr.queue_state().await.waiting, ["c", "e", "a", "b"]);
     assert!(mgr
         .change_waiting_priority("missing", TransferPriority::High)
         .await
         .is_err());
+}
+
+#[tokio::test]
+async fn weighted_admission_serves_low_priority_under_continuous_high_load() {
+    let mgr = TransferManager::new();
+    mgr.set_concurrency(1);
+    mgr.waiting.lock().await.extend(
+        ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "n1", "n2", "n3", "n4", "l1", "l2"]
+            .into_iter()
+            .map(str::to_string),
+    );
+    for id in ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"] {
+        mgr.change_waiting_priority(id, TransferPriority::High)
+            .await
+            .unwrap();
+    }
+    for id in ["l1", "l2"] {
+        mgr.change_waiting_priority(id, TransferPriority::Low)
+            .await
+            .unwrap();
+    }
+    let expected = [
+        "h1", "h2", "h3", "h4", "n1", "n2", "l1", "h5", "h6", "h7", "h8", "n3", "n4", "l2",
+    ];
+    assert_eq!(mgr.queue_state().await.waiting, expected);
+    for id in expected {
+        assert_eq!(mgr.queue_state().await.waiting[0], id);
+        let slot = tokio::time::timeout(Duration::from_secs(2), mgr.admit(id))
+            .await
+            .expect("projected queue head must be admitted")
+            .unwrap();
+        drop(slot);
+    }
+    assert!(mgr.queue_state().await.waiting.is_empty());
+}
+
+#[test]
+fn weighted_cycle_skips_empty_tiers_and_never_reserves_a_missing_slot() {
+    for cursor in 0..QUEUE_TIER_CYCLE.len() {
+        assert_eq!(next_queue_tier(cursor, [false; 3]), None);
+        for tier in 0..3 {
+            let mut available = [false; 3];
+            available[tier] = true;
+            let (selected, next) = next_queue_tier(cursor, available).unwrap();
+            assert_eq!(selected, tier);
+            assert!(next < QUEUE_TIER_CYCLE.len());
+        }
+    }
 }
 
 #[tokio::test]
