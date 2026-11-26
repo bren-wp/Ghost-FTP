@@ -80,7 +80,7 @@ impl std::error::Error for UploadPromotionUnconfirmed {
     }
 }
 
-/// Queue-local priority. Equal priorities preserve FIFO order.
+/// Transfer priority retained across explicit retry and process recovery.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TransferPriority {
@@ -458,6 +458,8 @@ struct PersistedTransferEnvelope {
     schema: u32,
     transfer: Transfer,
     retry: PersistedRetryInfo,
+    #[serde(default)]
+    priority: TransferPriority,
 }
 
 const TRANSFER_LEDGER_SCHEMA: u32 = 1;
@@ -507,7 +509,8 @@ pub struct TransferManager {
     /// once it is at the front, the pause-all gate is open, and a concurrency
     /// permit is available — until then it waits as `Queued`.
     waiting: Mutex<VecDeque<String>>,
-    // Queue-local overrides; access only while holding waiting. Never held across await.
+    // Non-default priorities for retained transfer rows, including retry history.
+    // Queue mutations hold waiting; ledger writes hold ledger_serial. No guard across await.
     queue_priorities: StdMutex<HashMap<String, TransferPriority>>,
     // Read and advance only under the waiting lock, on successful admission.
     queue_cursor: AtomicUsize,
@@ -808,6 +811,7 @@ impl TransferManager {
     fn from_db(db: Option<Arc<crate::db::Db>>) -> Self {
         let mut transfers = HashMap::new();
         let mut persisted_retry = HashMap::new();
+        let mut queue_priorities = HashMap::new();
         let mut recovered_retry = HashSet::new();
 
         if let Some(store) = db.as_ref() {
@@ -887,6 +891,9 @@ impl TransferManager {
                     if needs_session_reattach {
                         recovered_retry.insert(row_id.clone());
                     }
+                    if envelope.priority != TransferPriority::Normal {
+                        queue_priorities.insert(row_id.clone(), envelope.priority);
+                    }
                     persisted_retry.insert(row_id.clone(), envelope.retry);
                     transfers.insert(row_id, envelope.transfer);
                 }
@@ -897,7 +904,7 @@ impl TransferManager {
             transfers: Mutex::new(transfers),
             tasks: Mutex::new(HashMap::new()),
             waiting: Mutex::new(VecDeque::new()),
-            queue_priorities: StdMutex::new(HashMap::new()),
+            queue_priorities: StdMutex::new(queue_priorities),
             queue_cursor: AtomicUsize::new(0),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
             concurrency: AtomicUsize::new(DEFAULT_CONCURRENCY),
@@ -1090,10 +1097,16 @@ impl TransferManager {
                 .insert(transfer.id.clone(), Instant::now());
         }
 
+        let priority = self
+            .priority_overrides()
+            .get(&transfer.id)
+            .copied()
+            .unwrap_or_default();
         let envelope = PersistedTransferEnvelope {
             schema: TRANSFER_LEDGER_SCHEMA,
             transfer,
             retry,
+            priority,
         };
         if let Ok(payload) = serde_json::to_string(&envelope) {
             if db
@@ -1167,6 +1180,7 @@ impl TransferManager {
                 pauses.remove(id);
                 cancels.remove(id);
                 persisted_at.remove(id);
+                self.priority_overrides().remove(id);
             }
         }
 
@@ -1322,7 +1336,6 @@ impl TransferManager {
                 self.queue_cursor.store(next_cursor, Ordering::Relaxed);
                 if let Some(pos) = w.iter().position(|x| x == id) {
                     w.remove(pos);
-                    self.priority_overrides().remove(id);
                 }
                 // The next waiter can use another free slot immediately,
                 // rather than waiting for this transfer to finish.
@@ -1395,21 +1408,54 @@ impl TransferManager {
     /// Assign a queued row to a priority tier. Moving between tiers puts it
     /// behind existing work of the new tier; assigning the same tier is a no-op.
     async fn change_waiting_priority(&self, id: &str, priority: TransferPriority) -> Result<()> {
+        // Serialize with progress/terminal writes so a stale ledger snapshot
+        // cannot overwrite a newly selected priority.
+        let _ledger = self.ledger_serial.lock().await;
         let mut waiting = self.waiting.lock().await;
         let pos = waiting
             .iter()
             .position(|queued| queued == id)
             .ok_or_else(|| anyhow::anyhow!("transfer {id} is not waiting in the queue"))?;
+        let previous = self.priority_overrides().get(id).copied().unwrap_or_default();
+        if previous == priority {
+            return Ok(());
+        }
+        // Commit first. A failed SQLite write must not produce an apparently
+        // successful priority change in the live queue.
+        if let Some(db) = &self.db {
+            let transfer = self
+                .get(id)
+                .await
+                .ok_or_else(|| anyhow::anyhow!("transfer {id} not found"))?;
+            anyhow::ensure!(
+                !is_terminal_transfer_status(transfer.status),
+                "terminal transfer cannot change queue priority"
+            );
+            let retry = self
+                .persisted_retry
+                .lock()
+                .await
+                .get(id)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("transfer {id} has no recovery descriptor"))?;
+            let envelope = PersistedTransferEnvelope {
+                schema: TRANSFER_LEDGER_SCHEMA,
+                transfer,
+                retry,
+                priority,
+            };
+            let payload = serde_json::to_string(&envelope)?;
+            db.transfer_ledger_upsert(id, &payload)
+                .context("persist transfer priority")?;
+        }
         let mut overrides = self.priority_overrides();
-        if overrides.get(id).copied().unwrap_or_default() != priority {
-            if priority == TransferPriority::Normal {
-                overrides.remove(id);
-            } else {
-                overrides.insert(id.to_string(), priority);
-            }
-            if let Some(queued) = waiting.remove(pos) {
-                waiting.push_back(queued);
-            }
+        if priority == TransferPriority::Normal {
+            overrides.remove(id);
+        } else {
+            overrides.insert(id.to_string(), priority);
+        }
+        if let Some(queued) = waiting.remove(pos) {
+            waiting.push_back(queued);
         }
         Ok(())
     }
@@ -1677,7 +1723,6 @@ impl TransferManager {
             if let Some(pos) = waiting.iter().position(|queued| queued == id) {
                 waiting.remove(pos);
             }
-            self.priority_overrides().remove(id);
         }
         // FTP spawn_blocking may continue ABOR cleanup after async abort; it
         // already sees the cancellation flag published by mark_canceled.

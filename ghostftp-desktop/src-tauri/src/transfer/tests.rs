@@ -893,6 +893,7 @@ async fn persisted_failed_transfer_can_reattach_after_restart() {
     let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
     let envelope = PersistedTransferEnvelope {
         schema: TRANSFER_LEDGER_SCHEMA,
+        priority: TransferPriority::Normal,
         transfer: Transfer {
             id: "failed-before-restart".to_string(),
             kind: TransferKind::Upload,
@@ -1147,7 +1148,10 @@ async fn queue_priority_is_ordered_fifo_within_tiers_and_skips_paused_rows() {
     mgr.pauses.lock().await.insert("b".into(), gate);
     let slot = mgr.admit("d").await.unwrap();
     assert!(!mgr.queue_state().await.priorities.contains_key("d"));
-    assert!(!mgr.priority_overrides().contains_key("d"));
+    assert_eq!(
+        mgr.priority_overrides().get("d"),
+        Some(&TransferPriority::High)
+    );
     drop(slot);
 
     mgr.change_waiting_priority("a", TransferPriority::Normal)
@@ -1161,13 +1165,80 @@ async fn queue_priority_is_ordered_fifo_within_tiers_and_skips_paused_rows() {
 }
 
 #[tokio::test]
+async fn queue_priority_survives_sqlite_restart_and_explicit_retry() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    let mgr = TransferManager::with_db(db.clone());
+    let id = "priority-recovery";
+    mgr.persisted_retry.lock().await.insert(
+        id.into(),
+        PersistedRetryInfo::Upload {
+            profile_id: "saved-profile".into(),
+            local: PathBuf::from("/tmp/source.bin"),
+            final_remote: "/remote/source.bin".into(),
+            allow_replace: false,
+        },
+    );
+    mgr.insert(terminal_race_test_row(id, TransferStatus::Queued))
+        .await;
+    mgr.waiting.lock().await.push_back(id.into());
+    mgr.change_waiting_priority(id, TransferPriority::High)
+        .await
+        .unwrap();
+    let slot = mgr.admit(id).await.unwrap();
+    drop(slot);
+    mgr.finish_transfer(id, Err(anyhow::anyhow!("network timeout")))
+        .await
+        .unwrap();
+    drop(mgr);
+
+    let restored = TransferManager::with_db(db);
+    assert_eq!(
+        restored.recovery_profile_id(id).await.as_deref(),
+        Some("saved-profile")
+    );
+    assert!(restored.queue_state().await.waiting.is_empty());
+    restored.reset_for_retry(id).await.unwrap();
+    restored.waiting.lock().await.push_back(id.into());
+    assert_eq!(
+        restored.queue_state().await.priorities[id],
+        TransferPriority::High
+    );
+    restored
+        .change_waiting_priority(id, TransferPriority::Normal)
+        .await
+        .unwrap();
+    assert_eq!(
+        restored.queue_state().await.priorities[id],
+        TransferPriority::Normal
+    );
+}
+
+#[tokio::test]
+async fn priority_write_without_recovery_descriptor_fails_without_reordering() {
+    let db = Arc::new(crate::db::Db::open_in_memory().unwrap());
+    let mgr = TransferManager::with_db(db);
+    mgr.insert(terminal_race_test_row("a", TransferStatus::Queued))
+        .await;
+    mgr.waiting.lock().await.extend(["a".into(), "b".into()]);
+    assert!(mgr
+        .change_waiting_priority("a", TransferPriority::High)
+        .await
+        .is_err());
+    let state = mgr.queue_state().await;
+    assert_eq!(state.waiting, ["a", "b"]);
+    assert_eq!(state.priorities["a"], TransferPriority::Normal);
+}
+
+#[tokio::test]
 async fn weighted_admission_serves_low_priority_under_continuous_high_load() {
     let mgr = TransferManager::new();
     mgr.set_concurrency(1);
     mgr.waiting.lock().await.extend(
-        ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "n1", "n2", "n3", "n4", "l1", "l2"]
-            .into_iter()
-            .map(str::to_string),
+        [
+            "h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "n1", "n2", "n3", "n4", "l1", "l2",
+        ]
+        .into_iter()
+        .map(str::to_string),
     );
     for id in ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"] {
         mgr.change_waiting_priority(id, TransferPriority::High)

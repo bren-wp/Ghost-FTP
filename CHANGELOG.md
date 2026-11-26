@@ -9,6 +9,7 @@
 - Share a bounded exponential retry delay with jitter across safe upload and download retry paths.
 - Implement queue-local High/Normal/Low priorities and authoritative Transfer Center controls.
 - Add work-conserving weighted admission and a matching queue projection to prevent lower-priority starvation.
+- Persist selected priorities in the existing transfer ledger and preserve them across retry and restart.
 
 ## 0.99.88 Preview — 26 November 2026 (published)
 
