@@ -53,6 +53,8 @@ export function TransferCenterDialog({ onClose }: Props) {
   const resume = useTransfers((state) => state.resume);
   const retry = useTransfers((state) => state.retry);
   const move = useTransfers((state) => state.move);
+  const waitingQueue = useTransfers((state) => state.queue);
+  const queuePriorities = useTransfers((state) => state.queuePriorities);
   const enqueueUploads = useTransfers((state) => state.enqueueUploads);
   const activeSessionId = useConnections((state) => state.activeSessionId);
   const activeProfileId = useConnections((state) => state.activeProfileId);
@@ -204,6 +206,7 @@ export function TransferCenterDialog({ onClose }: Props) {
   // details must continue to refer to the real queue item, while the effect
   // below clears selection once that item is no longer visible.
   const selected = selectedId ? byId[selectedId] ?? null : null;
+  const selectedWaiting = selected !== null && waitingQueue.includes(selected.id);
 
   useEffect(() => {
     if (selectedId && !filtered.some((transfer) => transfer.id === selectedId)) {
@@ -733,26 +736,23 @@ export function TransferCenterDialog({ onClose }: Props) {
               <span>Priority</span>
               <select
                 className="ghost-ref-input h-8"
-                defaultValue="normal"
-                disabled={!selected || (selected ? backendActionBusy.has(`transfer:${selected.id}`) : false)}
+                value={selectedWaiting && selected ? queuePriorities[selected.id] ?? "normal" : ""}
+                disabled={!selectedWaiting || (selected ? backendActionBusy.has(`transfer:${selected.id}`) : false)}
                 onChange={(event) => {
-                  if (!selected) return;
-                  if (event.target.value === "high") void runBackendAction(
+                  if (!selected || !selectedWaiting) return;
+                  const priority = event.target.value;
+                  if (priority !== "high" && priority !== "normal" && priority !== "low") return;
+                  void runBackendAction(
                     `transfer:${selected.id}`,
-                    "Couldn't raise transfer priority",
-                    () => move(selected.id, "up")
+                    "Couldn't change transfer priority",
+                    () => move(selected.id, priority)
                   );
-                  if (event.target.value === "low") void runBackendAction(
-                    `transfer:${selected.id}`,
-                    "Couldn't lower transfer priority",
-                    () => move(selected.id, "down")
-                  );
-                  event.currentTarget.value = "normal";
                 }}
               >
-                <option value="high">High — move up</option>
+                <option value="" disabled>Not queued</option>
+                <option value="high">High</option>
                 <option value="normal">Normal</option>
-                <option value="low">Low — move down</option>
+                <option value="low">Low</option>
               </select>
             </label>
           </div>

@@ -284,7 +284,7 @@ export const ipc = {
   transferRetry: (transferId: string) =>
     invoke<void>("transfer_retry", { transferId }),
 
-  transferMove: (transferId: string, direction: "up" | "down") =>
+  transferMove: (transferId: string, direction: "up" | "down" | "high" | "normal" | "low") =>
     invoke<void>("transfer_move", { transferId, direction }),
 
   transferPauseAll: () => invoke<void>("transfer_pause_all"),

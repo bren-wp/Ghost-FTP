@@ -1115,11 +1115,12 @@ export interface Transfer {
   startedAt: number;
 }
 
-/** Live transfer-queue snapshot — payload of `transfer://queue` and
- *  the return of `transfer_queue_state`. `waiting` holds the FIFO order of
- *  queued transfer ids. */
+export type TransferPriority = "low" | "normal" | "high";
+
+/** Live transfer-queue snapshot — ordered by priority, FIFO within each tier. */
 export interface TransferQueueState {
   waiting: string[];
+  priorities?: Record<string, TransferPriority>;
   pausedAll: boolean;
   concurrency: number;
   throttleKbps: number;

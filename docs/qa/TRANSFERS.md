@@ -22,6 +22,12 @@ The current transfer implementation also enforces:
 - Sleeping retries continue to release their global concurrency slot and re-enter the FIFO queue. The maximum retry count and protocol-specific restrictions are unchanged; ambiguous remote upload completion must never trigger automatic replay.
 - Regression tests cover the full delay range and saturation. Exact-source native CI and real-server failure tests remain required.
 
+## 0.99.89 Preview queue priority
+
+- High/Normal/Low apply only to waiting transfers; FIFO is retained within each tier and paused entries are skipped. Existing active transfers are not interrupted. Priority changes move the entry to the end of its new tier; a repeated assignment is a no-op.
+- Backend queue snapshots expose actual order and priority. The Transfer Center does not show editable priority for an active or terminal transfer. Overrides are queue-local, not persisted across retry or application restart. Sustained higher-priority traffic can delay lower-priority work; aging/fair-share scheduling remains future work.
+- Unit coverage exercises tiers, paused high-priority rows, removal on admission, reset to Normal and rejection of missing rows.
+
 ## CI truth
 
 Rust workspace tests and frontend production builds are release quality gates. Compatibility tooling does not simulate successful file transfers and is not used as proof of protocol correctness.

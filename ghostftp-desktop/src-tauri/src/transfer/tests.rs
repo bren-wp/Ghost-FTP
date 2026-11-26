@@ -1119,6 +1119,48 @@ async fn fifo_skips_paused_and_pause_all_blocks_everyone() {
 }
 
 #[tokio::test]
+async fn queue_priority_is_ordered_fifo_within_tiers_and_skips_paused_rows() {
+    let mgr = TransferManager::new();
+    mgr.waiting
+        .lock()
+        .await
+        .extend(["a", "b", "c", "d", "e"].into_iter().map(str::to_string));
+    mgr.change_waiting_priority("b", TransferPriority::High)
+        .await
+        .unwrap();
+    mgr.change_waiting_priority("d", TransferPriority::High)
+        .await
+        .unwrap();
+    mgr.change_waiting_priority("a", TransferPriority::Low)
+        .await
+        .unwrap();
+    mgr.change_waiting_priority("b", TransferPriority::High)
+        .await
+        .unwrap();
+
+    let state = mgr.queue_state().await;
+    assert_eq!(state.waiting, ["b", "d", "c", "e", "a"]);
+    assert_eq!(state.priorities["b"], TransferPriority::High);
+    assert_eq!(state.priorities["c"], TransferPriority::Normal);
+    let gate = PauseGate::new();
+    gate.set(true);
+    mgr.pauses.lock().await.insert("b".into(), gate);
+    let slot = mgr.admit("d").await.unwrap();
+    assert!(!mgr.queue_state().await.priorities.contains_key("d"));
+    assert!(!mgr.priority_overrides().contains_key("d"));
+    drop(slot);
+
+    mgr.change_waiting_priority("a", TransferPriority::Normal)
+        .await
+        .unwrap();
+    assert_eq!(mgr.queue_state().await.waiting, ["b", "c", "e", "a"]);
+    assert!(mgr
+        .change_waiting_priority("missing", TransferPriority::High)
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn admission_wakes_next_waiter_before_first_slot_is_released() {
     let mgr = TransferManager::new();
     mgr.set_concurrency(2);

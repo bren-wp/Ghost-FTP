@@ -7,6 +7,7 @@
 - Align published download links and release lineage with v0.99.88.
 - Fix FIFO admission wakeups, reordering while the slot pool is full, and live queue snapshots; add regression tests.
 - Share a bounded exponential retry delay with jitter across safe upload and download retry paths.
+- Implement queue-local High/Normal/Low priorities and authoritative Transfer Center controls.
 
 ## 0.99.88 Preview — 26 November 2026 (published)
 

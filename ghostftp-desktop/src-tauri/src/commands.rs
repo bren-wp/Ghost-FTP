@@ -1310,8 +1310,8 @@ pub async fn transfer_retry(
     state.transfers.retry(&transfer_id, &app).await.map_err(err)
 }
 
-/// Reorder a waiting transfer in the queue FIFO (Plan 17). `direction` is
-/// "up" (sooner) or "down" (later); active transfers are untouched.
+/// Reorder a waiting transfer within its priority tier or assign a new tier.
+/// Active transfers are untouched. Unknown operations fail closed.
 #[tauri::command]
 pub async fn transfer_move(
     transfer_id: String,
@@ -1319,11 +1319,27 @@ pub async fn transfer_move(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    state
-        .transfers
-        .move_in_queue(&transfer_id, direction == "up", &app)
-        .await
-        .map_err(err)
+    use crate::transfer::TransferPriority;
+    match direction.as_str() {
+        "up" | "down" => state
+            .transfers
+            .move_in_queue(&transfer_id, direction == "up", &app)
+            .await
+            .map_err(err),
+        "high" | "normal" | "low" => {
+            let priority = match direction.as_str() {
+                "high" => TransferPriority::High,
+                "low" => TransferPriority::Low,
+                _ => TransferPriority::Normal,
+            };
+            state
+                .transfers
+                .set_queue_priority(&transfer_id, priority, &app)
+                .await
+                .map_err(err)
+        }
+        _ => Err("Invalid transfer queue operation".into()),
+    }
 }
 
 /// Pause admission of new transfers; running ones keep going.

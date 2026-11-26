@@ -80,12 +80,23 @@ impl std::error::Error for UploadPromotionUnconfirmed {
     }
 }
 
-/// Payload of the `transfer://queue` event: the FIFO of waiting transfer ids
+/// Queue-local priority. Equal priorities preserve FIFO order.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TransferPriority {
+    Low,
+    #[default]
+    Normal,
+    High,
+}
+
+/// Payload of the `transfer://queue` event: the ordered waiting transfer ids
 /// plus the manager-level state the panel header renders.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QueueState {
     pub waiting: Vec<String>,
+    pub priorities: HashMap<String, TransferPriority>,
     pub paused_all: bool,
     pub concurrency: usize,
     pub throttle_kbps: u64,
@@ -477,10 +488,12 @@ impl Drop for TransferSlot {
 pub struct TransferManager {
     transfers: Mutex<HashMap<String, Transfer>>,
     tasks: Mutex<HashMap<String, JoinHandle<()>>>,
-    /// FIFO of transfer ids waiting for a slot. An id is popped only
+    /// FIFO within each priority tier for transfer ids waiting for a slot. An id is popped only
     /// once it is at the front, the pause-all gate is open, and a concurrency
     /// permit is available — until then it waits as `Queued`.
     waiting: Mutex<VecDeque<String>>,
+    // Queue-local overrides; access only while holding waiting. Never held across await.
+    queue_priorities: StdMutex<HashMap<String, TransferPriority>>,
     semaphore: Arc<Semaphore>,
     concurrency: AtomicUsize,
     concurrency_state: Arc<StdMutex<ConcurrencyState>>,
@@ -867,6 +880,7 @@ impl TransferManager {
             transfers: Mutex::new(transfers),
             tasks: Mutex::new(HashMap::new()),
             waiting: Mutex::new(VecDeque::new()),
+            queue_priorities: StdMutex::new(HashMap::new()),
             semaphore: Arc::new(Semaphore::new(DEFAULT_CONCURRENCY)),
             concurrency: AtomicUsize::new(DEFAULT_CONCURRENCY),
             concurrency_state: Arc::new(StdMutex::new(ConcurrencyState::default())),
@@ -1184,9 +1198,23 @@ impl TransferManager {
 
     // ---------- Queue scheduling ----------
 
+    fn priority_overrides(&self) -> std::sync::MutexGuard<'_, HashMap<String, TransferPriority>> {
+        self.queue_priorities
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+    }
+
     fn build_queue_state(&self, waiting: &VecDeque<String>) -> QueueState {
+        let overrides = self.priority_overrides();
+        let priorities: HashMap<_, _> = waiting
+            .iter()
+            .map(|id| (id.clone(), overrides.get(id).copied().unwrap_or_default()))
+            .collect();
+        let mut ordered: Vec<_> = waiting.iter().cloned().collect();
+        ordered.sort_by_key(|id| std::cmp::Reverse(priorities[id]));
         QueueState {
-            waiting: waiting.iter().cloned().collect(),
+            waiting: ordered,
+            priorities,
             paused_all: self.pause_all.is_paused(),
             concurrency: self.concurrency.load(Ordering::Relaxed),
             throttle_kbps: self.bucket.rate_kbps(),
@@ -1210,7 +1238,7 @@ impl TransferManager {
         let _ = app.emit("transfer://queue", &state);
     }
 
-    /// Wait until this transfer is at the front of the FIFO with the pause-all
+    /// Wait until this transfer is the highest-priority runnable row with the pause-all
     /// gate open, take a concurrency permit, and pop it from the queue.
     /// Returns `None` if the id left the queue (canceled while waiting).
     /// The permit is returned so the caller holds it for the transfer's life.
@@ -1252,6 +1280,7 @@ impl TransferManager {
             if self.is_my_turn(&w, id).await {
                 if let Some(pos) = w.iter().position(|x| x == id) {
                     w.remove(pos);
+                    self.priority_overrides().remove(id);
                 }
                 // The next waiter can use another free slot immediately,
                 // rather than waiting for this transfer to finish.
@@ -1267,19 +1296,20 @@ impl TransferManager {
         }
     }
 
-    /// Is `id` the first waiting transfer allowed to run? Strict FIFO except
-    /// that per-transfer-paused rows are skipped (a paused row must not
-    /// head-of-line block the queue); pause-all blocks everyone. Caller must
-    /// hold the `waiting` lock; lock order is waiting → pauses.
+    /// Select the highest-priority runnable row, preserving FIFO within a tier.
+    /// Paused rows never head-of-line block the queue; pause-all blocks everyone.
+    /// Caller holds waiting; lock order is waiting → pauses → priority overrides.
     async fn is_my_turn(&self, w: &VecDeque<String>, id: &str) -> bool {
         if self.pause_all.is_paused() {
             return false;
         }
         let pauses = self.pauses.lock().await;
+        let priorities = self.priority_overrides();
         let first_open = w
             .iter()
-            .position(|x| pauses.get(x).is_none_or(|g| !g.is_paused()));
-        first_open.is_some_and(|pos| w.get(pos).is_some_and(|x| x == id))
+            .filter(|x| pauses.get(*x).is_none_or(|g| !g.is_paused()))
+            .min_by_key(|x| std::cmp::Reverse(priorities.get(*x).copied().unwrap_or_default()));
+        first_open.is_some_and(|x| x == id)
     }
 
     /// Reorder a waiting transfer (active transfers are untouched).
@@ -1289,17 +1319,53 @@ impl TransferManager {
             let Some(pos) = w.iter().position(|x| x == id) else {
                 anyhow::bail!("transfer {id} is not waiting in the queue");
             };
+            let priorities = self.priority_overrides();
+            let priority = priorities.get(id).copied().unwrap_or_default();
+            let same_tier = |index: usize| {
+                priorities.get(&w[index]).copied().unwrap_or_default() == priority
+            };
             let swap_with = if up {
-                pos.checked_sub(1)
-            } else if pos + 1 < w.len() {
-                Some(pos + 1)
+                (0..pos).rev().find(|&index| same_tier(index))
             } else {
-                None
+                (pos + 1..w.len()).find(|&index| same_tier(index))
             };
             if let Some(other) = swap_with {
                 w.swap(pos, other);
             }
         }
+        self.bump_queue(app).await;
+        Ok(())
+    }
+
+    /// Assign a queued row to a priority tier. Moving between tiers puts it
+    /// behind existing work of the new tier; assigning the same tier is a no-op.
+    async fn change_waiting_priority(&self, id: &str, priority: TransferPriority) -> Result<()> {
+        let mut waiting = self.waiting.lock().await;
+        let pos = waiting
+            .iter()
+            .position(|queued| queued == id)
+            .ok_or_else(|| anyhow::anyhow!("transfer {id} is not waiting in the queue"))?;
+        let mut overrides = self.priority_overrides();
+        if overrides.get(id).copied().unwrap_or_default() != priority {
+            if priority == TransferPriority::Normal {
+                overrides.remove(id);
+            } else {
+                overrides.insert(id.to_string(), priority);
+            }
+            if let Some(queued) = waiting.remove(pos) {
+                waiting.push_back(queued);
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn set_queue_priority(
+        &self,
+        id: &str,
+        priority: TransferPriority,
+        app: &AppHandle,
+    ) -> Result<()> {
+        self.change_waiting_priority(id, priority).await?;
         self.bump_queue(app).await;
         Ok(())
     }
@@ -1556,6 +1622,7 @@ impl TransferManager {
             if let Some(pos) = waiting.iter().position(|queued| queued == id) {
                 waiting.remove(pos);
             }
+            self.priority_overrides().remove(id);
         }
         // FTP spawn_blocking may continue ABOR cleanup after async abort; it
         // already sees the cancellation flag published by mark_canceled.
