@@ -1,6 +1,7 @@
 Options -Indexes
 DirectoryIndex index.php
 RewriteEngine On
+RewriteRule ^manual-version\.json$ manual-version.php [END]
 RewriteRule ^(?:updates/)?latest\.json$ updates/index.php [END]
 <IfModule mod_headers.c>
 Header always set X-Content-Type-Options "nosniff"

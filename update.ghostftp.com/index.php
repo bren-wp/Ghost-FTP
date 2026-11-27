@@ -5,17 +5,9 @@ header('Content-Type: text/html; charset=UTF-8');
 $hr = ($_GET['lang'] ?? '') === 'hr';
 function e(string $s): string { return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function t(string $en, string $hr): string { return e($GLOBALS['hr'] ? $hr : $en); }
-$catalog = json_decode((string)@file_get_contents(__DIR__ . '/downloads/catalog.json'), true);
-$version = is_array($catalog) && is_string($catalog['version'] ?? null) && preg_match('/^\d+\.\d+\.\d+$/D', $catalog['version']) ? $catalog['version'] : '';
-$packages = ['Windows' => ['Setup (EXE)' => "GhostFTP-Windows-x64-Setup-v$version.exe", 'Setup (MSI)' => "GhostFTP-Windows-x64-Setup-v$version.msi"], 'Linux' => ['DEB' => "GhostFTP-Linux-amd64-v$version.deb", 'RPM' => "GhostFTP-Linux-x86_64-v$version.rpm"]];
+require_once __DIR__ . '/catalog.php';
+[$version, $packages, $ready] = local_release();
 $base = 'downloads/';
-$ready = $version !== '';
-foreach ($packages as $items) {
-    foreach ($items as $name) {
-        $ready = $ready && is_file(__DIR__ . '/' . $base . $name) && !is_link(__DIR__ . '/' . $base . $name) && filesize(__DIR__ . '/' . $base . $name) > 0;
-    }
-}
-$ready = $ready && is_file(__DIR__ . '/downloads/SHA256SUMS.txt');
 ?>
 <!doctype html>
 <html lang="<?= $hr ? 'hr' : 'en' ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ghost FTP — <?= t('Updates','Ažuriranja') ?></title><link rel="icon" href="assets/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/site.css"></head><body>

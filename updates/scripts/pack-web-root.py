@@ -11,7 +11,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[2] / "update.ghostftp.com"
-PUBLIC = (".htaccess", "index.php", "updates/index.php", "assets/site.css",
+PUBLIC = (".htaccess", "index.php", "catalog.php", "manual-version.php", "updates/index.php", "assets/site.css",
           "assets/icon.svg", "robots.txt")
 
 def digest(path):

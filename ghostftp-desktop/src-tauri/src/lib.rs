@@ -19,6 +19,7 @@ pub mod grant;
 pub mod importers;
 pub mod keys;
 mod known_hosts;
+mod manual_update;
 mod network_diagnostics;
 pub mod oauth;
 mod preview;
@@ -449,6 +450,7 @@ original user data and staged restore were preserved for repair"
         })
         .invoke_handler(tauri::generate_handler![
             open_external_url,
+            manual_update::check_manual_update,
             commands::list_profiles,
             commands::export_profiles,
             commands::save_profile,

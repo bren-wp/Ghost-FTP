@@ -155,6 +155,7 @@ function AboutContent({ onNavigate }: { onNavigate: (tab: AboutTab) => void }) {
 function UpdatesContent() {
   const status = useUpdater((s) => s.status);
   const offered = useUpdater((s) => s.version);
+  const manualVersion = useUpdater((s) => s.manualVersion);
   const error = useUpdater((s) => s.error);
   const check = useUpdater((s) => s.check);
   const download = useUpdater((s) => s.downloadAndInstall);
@@ -174,9 +175,10 @@ function UpdatesContent() {
     <p className="max-w-2xl text-[13px] leading-6 text-text-muted">
       Automatic installation is offered only for cryptographically signed updater packages.
       Windows and Linux installers can also be installed manually without a publisher signing certificate.
-      A signed update check does not verify whether a newer manual download exists.
+      Manual update availability is checked separately and never enables automatic installation.
     </p>
     <p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p>
+    {manualVersion && <p className="mt-2 text-[13px] text-accent" role="status">Ghost FTP {manualVersion} is available for manual installation. Open official downloads below.</p>}
     <div className="mt-5 flex flex-wrap gap-2">
       <button className="ghost-primary-button" disabled={status === "checking" || status === "downloading" || status === "ready"} onClick={() => void check(false)}><RefreshCw size={14}/> {tr("Check for Updates")}</button>
       {status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>{tr("Download & install")}</button>}

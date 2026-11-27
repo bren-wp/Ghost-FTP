@@ -64,6 +64,8 @@ interface UpdaterState {
   /** The offered version (when an update is available). */
   version: string | null;
   currentVersion: string | null;
+  /** Newer manually installable version; never an automatic-install offer. */
+  manualVersion: string | null;
   notes: string | null;
   /** Download progress, bytes. `total` is null until the Started event. */
   downloaded: number;
@@ -83,6 +85,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   status: "idle",
   version: null,
   currentVersion: null,
+  manualVersion: null,
   notes: null,
   downloaded: 0,
   total: null,
@@ -90,12 +93,22 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
 
   check: async (quiet) => {
     if (get().status === "checking" || get().status === "downloading" || get().status === "ready") return;
-    set({ status: "checking", error: null });
+    set({ status: "checking", error: null, manualVersion: null });
     // Record the check time regardless of outcome so we don't hammer the endpoint.
     void ipc.settingsSet("lastUpdateCheck", JSON.stringify(Date.now())).catch((error) => {
       if (quiet) console.warn("Couldn't persist update-check time", redactSensitiveText(error, 240));
       else toast.warning("Update check will not be remembered", redactSensitiveText(error, 240));
     });
+    // Only explicit user checks query manual availability; signed launch checks
+    // retain their existing throttling and trust boundary.
+    if (!quiet) {
+      try {
+        const manualVersion = await ipc.checkManualUpdate();
+        set({ manualVersion });
+      } catch (error) {
+        console.warn("Manual update availability unknown", redactSensitiveText(error, 240));
+      }
+    }
     try {
       const update = await check();
       if (update && update.available) {

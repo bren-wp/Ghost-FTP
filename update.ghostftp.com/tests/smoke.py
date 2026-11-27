@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Smoke test a locally deployed Apache/PHP root; pass its base URL."""
 import sys
+import json
+from pathlib import Path
 import urllib.request
 import urllib.error
 
@@ -16,6 +18,7 @@ for path, status, marker in [
     ("/", 200, "Keep Ghost FTP up to date"),
     ("/?lang=hr", 200, "Redovito ažurirajte"),
     ("/?lang[]=hr", 200, "Keep Ghost FTP up to date"),
+    ("/manual-version.json", 200, version),
     ("/latest.json", 204, ""),
     ("/updates/latest.json", 204, ""),
     ("/.htaccess", 403, ""),
@@ -35,6 +38,9 @@ for path, status, marker in [
         assert marker in body, path
         if status == 204:
             assert not body and response.headers["Cache-Control"] == "no-store"
+        if path == "/manual-version.json":
+            assert json.loads(body) == {"version": version}
+            assert response.headers["Cache-Control"] == "no-store"
         if path == "/":
             assert "default-src" in response.headers["Content-Security-Policy"]
             assert "github.com" not in body.lower() and "portable" not in body.lower() and "appimage" not in body.lower()
@@ -64,3 +70,17 @@ for line in lines:
         assert h.hexdigest() == match[1], name
     print(name, "SHA-256 PASS")
 assert seen == expected
+
+# Verify partial deployments hide the manual offer rather than expose dead links.
+if len(sys.argv) > 3:
+    installer = Path(sys.argv[3]) / "downloads" / sorted(expected)[0]
+    moved = installer.with_suffix(installer.suffix + ".test-hidden")
+    installer.rename(moved)
+    try:
+        with urllib.request.urlopen(base + "/manual-version.json", timeout=5) as response:
+            assert response.status == 204 and not response.read()
+        with urllib.request.urlopen(base + "/", timeout=5) as response:
+            assert "Installation packages are temporarily unavailable" in response.read().decode()
+    finally:
+        moved.rename(installer)
+    print("Partial deployment: PASS")

@@ -24,6 +24,8 @@ const compiled = ts.transpileModule(updater, { compilerOptions: {
 }});
 let state;
 let offered = null;
+let manualOffered = null;
+let manualChecks = 0;
 let checks = 0;
 const notifications = [];
 const store = { getState: () => state, setState: (patch) => { state = { ...state, ...patch }; } };
@@ -38,7 +40,7 @@ const deps = {
   zustand: { create },
   "@tauri-apps/plugin-updater": { check: async () => { checks++; return offered; } },
   "@tauri-apps/plugin-process": { relaunch: async () => {} },
-  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}) } },
+  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; } } },
   "./toastStore": { toast: {
     info: (...args) => notifications.push(["info", ...args]),
     warning: (...args) => notifications.push(["warning", ...args]),
@@ -61,12 +63,24 @@ assert.equal(store.getState().status, "checked", "Unsigned/no-offer response is 
 assert.ok(!notifications.some(row => row[0] === "success" || row.join(" ").toLowerCase().includes("up to date")),
   "Signed-offer absence must never produce a false up-to-date toast");
 assert.equal(checks, 1);
+assert.equal(manualChecks, 1);
+manualOffered = "0.99.91";
 offered = { available: true, version: "9.9.9", currentVersion: "0.99.33", body: "signed update", downloadAndInstall: async () => {} };
 await store.getState().check(false);
 assert.equal(store.getState().status, "available");
 assert.equal(store.getState().version, "9.9.9");
+assert.equal(store.getState().manualVersion, "0.99.91");
 store.setState({ status: "ready" });
 await store.getState().check(false);
 assert.equal(store.getState().status, "ready", "An installed update awaiting restart must not be lost");
 assert.equal(checks, 2, "Do not start a new updater check while ready to restart");
+store.setState({ status: "idle" });
+offered = null;
+await store.getState().check(false);
+assert.equal(store.getState().status, "checked");
+assert.equal(store.getState().manualVersion, "0.99.91");
+assert.equal(manualChecks, 3);
+await store.getState().check(true);
+assert.equal(manualChecks, 3, "Quiet checks do not query manual availability");
+assert.equal(store.getState().manualVersion, null);
 console.log("Windows/Linux unsigned manual-update fallback and signed-update safety: passed.");

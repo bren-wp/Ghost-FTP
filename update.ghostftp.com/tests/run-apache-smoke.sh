@@ -13,6 +13,8 @@ cp "${1:?deployment ZIP required}" "$work/root.zip"
 version="${2:?version required}"
 unzip -q "$work/root.zip" -d "$work/public"
 php -l "$work/public/index.php"
+php -l "$work/public/catalog.php"
+php -l "$work/public/manual-version.php"
 php -l "$work/public/updates/index.php"
 php_module="$(find /usr/lib/apache2/modules -name 'libphp*.so' -print -quit)"
 test -n "$php_module"
@@ -49,7 +51,7 @@ for attempt in $(seq 1 20); do
   if curl --silent --fail http://127.0.0.1:18087/ >/dev/null; then break; fi
   sleep 0.2
 done
-if ! python3 "$root/update.ghostftp.com/tests/smoke.py" http://127.0.0.1:18087 "$version"; then
+if ! python3 "$root/update.ghostftp.com/tests/smoke.py" http://127.0.0.1:18087 "$version" "$work/public"; then
   cat "$work/error.log" >&2
   exit 1
 fi
