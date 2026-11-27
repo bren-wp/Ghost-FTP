@@ -122,8 +122,8 @@ test("public release follows draft-ID upload, inventory and remote SHA256 verifi
   const verify = script.indexOf('test "$REMOTE_COUNT" = "$LOCAL_COUNT"');
   const publish = script.indexOf('gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID"');
   assert.ok(create >= 0 && create < upload && upload < verify && verify < publish);
-  assert.ok(script.includes("draft:true,prerelease:true"));
-  assert.ok(script.includes("draft:false,prerelease:true"));
+  assert.ok(script.includes("draft:true,prerelease:$pre"));
+  assert.ok(script.includes("draft:false,prerelease:$pre"));
   assert.ok(script.includes("Published $TAG already exists; refusing to overwrite"));
   assert.ok(script.includes("Remote SHA256 mismatch"));
   assert.ok(!script.includes('gh release upload "$TAG"'));
@@ -258,8 +258,9 @@ test("all Preview releases remain immutable and cannot be classified stable", ()
   const publishing=read(".github/scripts/publish-release.sh");
   const repair=read(".github/scripts/enforce-preview-release-metadata.sh");
   const workflow=read(".github/workflows/ghostftp-preview-metadata.yml");
-  assert.ok(publishing.includes('make_latest:"false"'));
-  assert.ok(publishing.includes("draft:false,prerelease:true"));
+  assert.ok(publishing.includes('make_latest:$latest'));
+  assert.ok(publishing.includes('MAKE_LATEST=true'));
+  assert.ok(publishing.includes("draft:false,prerelease:$pre"));
   assert.ok(repair.includes('make_latest:"false"'));
   assert.ok(repair.includes('node .github/scripts/validate-release-assets.mjs "$version" --list-required'), "must select version-specific immutable asset manifest");
   assert.ok(repair.includes('test "$(jq -r \'.assets | length\' <<< "$release")" -ge "${#required_assets[@]}"'), "legacy and modern releases must preserve their exact required asset count");

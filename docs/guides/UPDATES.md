@@ -1,6 +1,6 @@
 # Ghost FTP desktop updates
 
-Ghost FTP is maintained for Windows and Linux desktop. Installers and checked release notes are available from [GitHub Releases](https://github.com/bren-wp/Ghost-FTP/releases).
+Ghost FTP is maintained for Windows and Linux desktop. Manual Windows EXE/MSI and Linux DEB/RPM installers are distributed through the [Ghost FTP Update Center](https://update.ghostftp.com/) once the verified web root is deployed. The source repository retains the full release inventory and release notes.
 
 ## Signed in-app updates
 
@@ -8,7 +8,7 @@ Where a signed updater package is published, verify its update signature, HTTPS 
 
 ## Manual updates
 
-Download both the exact OS package and its `GhostFTP-v<version>-SHA256SUMS.txt` from the same release, verify their SHA-256, finish running transfers, back up profiles securely, then upgrade without deleting application data or credential-vault records. Check saved profiles, host keys, protected credentials and uploads/downloads after launch.
+Download the matching OS package and `SHA256SUMS.txt` from the same deployed update-center version, verify their SHA-256, finish running transfers, back up profiles securely, then upgrade without deleting application data or credential-vault records. Check saved profiles, host keys, protected credentials and uploads/downloads after launch.
 
 Windows portable/NSIS/MSI and Linux AppImage/DEB/RPM upgrades have different OS integration and uninstall rules; verify the matching package.
 

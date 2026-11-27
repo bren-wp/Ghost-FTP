@@ -280,3 +280,11 @@ test("native C credential bridge and acceptance harnesses are included in the se
   assert.ok(audit(root).inventory.byExtension.c >= 3);
   assert.equal(scanDangerous("ghostftp-desktop/src-tauri/src/credentials/native_vault_candidate.c", "curl --insecure https://example.invalid")[0]?.id, "unsafe-curl-tls");
 });
+
+
+test("manual update discovery has no install authority and rejects unbounded or redirected metadata", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const source = fs.readFileSync(path.join(root, "ghostftp-desktop/src-tauri/src/manual_update.rs"), "utf8");
+  for (const guard of [".https_only(true)", "Policy::none()", "MAX_RESPONSE - body.len()", "offered > installed", "deny_unknown_fields"]) assert.ok(source.includes(guard), guard);
+  for (const forbidden of ["Command::new(", "download_and_install(", "danger_accept_invalid_certs(true)"]) assert.ok(!source.includes(forbidden), forbidden);
+});

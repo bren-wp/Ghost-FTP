@@ -38,7 +38,7 @@ jobs:
       - name: Verify version train transition regression matrix
         run: node .github/scripts/check-version-policy.mjs
 
-      - name: Fail closed on unsupported stable signing / Preview release semantics
+      - name: Verify release classification and independent updater trust
         shell: bash
         run: |
           set -euo pipefail
@@ -113,6 +113,38 @@ jobs:
       - name: Desktop update service contract
         shell: bash
         run: node .github/scripts/check-update-contract.mjs
+
+      - name: Web root packaging regression tests
+        run: python3 updates/scripts/test-pack-web-root.py
+
+      - name: Package actual published predecessor installers for the update web
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p 'require("./version.json").previousPublishedVersion')"
+          mkdir -p "$RUNNER_TEMP/web-assets" "$RUNNER_TEMP/web-output"
+          gh release view "v$VERSION" --json tagName >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION" > "$RUNNER_TEMP/web-assets/release.json"
+          gh release download "v$VERSION" --dir "$RUNNER_TEMP/web-assets" \
+            --pattern "GhostFTP-v$VERSION-SHA256SUMS.txt" \
+            --pattern "GhostFTP-Windows-x64-Setup-v$VERSION.exe" \
+            --pattern "GhostFTP-Windows-x64-Setup-v$VERSION.msi" \
+            --pattern "GhostFTP-Linux-amd64-v$VERSION.deb" \
+            --pattern "GhostFTP-Linux-x86_64-v$VERSION.rpm"
+          node .github/scripts/validate-release-assets.mjs "$VERSION" --metadata-repair-json "$RUNNER_TEMP/web-assets/release.json" --checksums "$RUNNER_TEMP/web-assets/GhostFTP-v$VERSION-SHA256SUMS.txt"
+          python3 updates/scripts/pack-web-root.py "$RUNNER_TEMP/web-output/GhostFTP-Update-Web-Root-v$VERSION.zip" --version "$VERSION" --assets "$RUNNER_TEMP/web-assets" --checksums "$RUNNER_TEMP/web-assets/GhostFTP-v$VERSION-SHA256SUMS.txt"
+          sudo apt-get update
+          sudo apt-get install -y apache2 libapache2-mod-php php-cli
+          bash update.ghostftp.com/tests/run-apache-smoke.sh "$RUNNER_TEMP/web-output/GhostFTP-Update-Web-Root-v$VERSION.zip" "$VERSION"
+
+      - name: Upload tested update web root ZIP with installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Update-Web-Root
+          path: ${{ runner.temp }}/web-output/*.zip
+          if-no-files-found: error
 
       # Detect immutable-tag reuse before expensive platform builds or merging.
       # Re-running checks on an already published exact source SHA is valid.

@@ -1,9 +1,9 @@
 // Ghost FTP by Brendigo
 export const PRODUCT_NAME = "Ghost FTP";
-export const PRODUCT_VERSION = "0.99.89";
-export const PRODUCT_VERSION_DISPLAY = "0.99.89";
-export const PRODUCT_VERSION_BADGE = "0.99.89";
-export const PRODUCT_BUILD = "2026.11.27.01";
+export const PRODUCT_VERSION = "0.99.90";
+export const PRODUCT_VERSION_DISPLAY = "0.99.90";
+export const PRODUCT_VERSION_BADGE = "0.99.90";
+export const PRODUCT_BUILD = "2026.11.27.02";
 export const PRODUCT_RELEASE_DATE = "27 November 2026";
 export const PRODUCT_SITE = "https://ghostftp.com";
 // Verified published Ghost FTP website routes; the in-app updater remains separate.
@@ -15,4 +15,5 @@ export const PRODUCT_EULA_URL = `${PRODUCT_SITE}/hr/terms`;
 export const UPDATE_ENDPOINT = `${PRODUCT_SITE}/updates/latest.json`;
 // Exact repository path is allowlisted by the Rust external-URL command.
 // Do not use /releases/latest: it can skip verified prerelease editions.
+export const UPDATE_CENTER_URL = "https://update.ghostftp.com/";
 export const OFFICIAL_RELEASES_URL = "https://github.com/bren-wp/Ghost-FTP/releases";

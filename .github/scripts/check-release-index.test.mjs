@@ -39,9 +39,9 @@ test("README links to all public Previews, never stable-only /releases/latest",(
   assert.ok(readme.includes("[**Releases**](https://github.com/bren-wp/Ghost-FTP/releases)"));
   assert.ok(!readme.includes("releases/latest"));
   const version=JSON.parse(read("version.json"));
-  assert.ok(readme.includes("Ghost FTP "+version.version+" Preview"));
+  assert.ok(readme.includes("Ghost FTP "+version.version+" Stable"));
   assert.equal(version.previousPublishedVersion,version.previousVersion);
-  assert.ok(readme.includes("previously published v"+version.previousPublishedVersion));
+  assert.ok(readme.includes("published v"+version.previousPublishedVersion));
 });
 
 test("published Preview metadata can be healed after late release.edited without bypassing strict gates",()=>{
@@ -63,7 +63,7 @@ test("published Preview metadata can be healed after late release.edited without
   assert.ok(script.includes('test "$(git rev-parse HEAD)" = "$SOURCE_SHA"'));
   assert.ok(script.includes('repair_recent "$recent" "$SOURCE_SHA"'));
   assert.ok(validator.includes('mode === "--metadata-repair-json"'));
-  assert.ok(validator.includes('ensure(release.prerelease === true, "Preview must be classified as prerelease")'));
+  assert.ok(validator.includes('ensure(release.prerelease === !requiresStable(version), "Release channel mismatch")'));
   assert.ok(!script.includes("gh release delete"));
   assert.ok(!script.includes("git push --force"));
 });

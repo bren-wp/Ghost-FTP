@@ -326,7 +326,7 @@ jobs:
           done
 
           if [ "$present" -eq 0 ]; then
-            echo "No signed updater bundle present; automatically verified Preview package release remains valid."
+            echo "No signed updater bundle present; automatically verified Stable package release remains valid."
             exit 0
           fi
 
@@ -339,11 +339,26 @@ jobs:
           unzip -p "dist/GhostFTP-v$VERSION-Update-Service.zip" updates/latest.json             > "$RUNNER_TEMP/ghostftp-latest-from-package.json"
           cmp "$RUNNER_TEMP/ghostftp-latest-from-package.json"             "dist/GhostFTP-v$VERSION-latest.json"
 
+      - name: Build self-contained update web root from exact-source installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm") > "$RUNNER_TEMP/web-installer-sums.txt"
+          python3 updates/scripts/pack-web-root.py "dist/GhostFTP-v$VERSION-Update-Web-Root.zip" --version "$VERSION" --assets dist --checksums "$RUNNER_TEMP/web-installer-sums.txt"
+
       - name: Verify native packages match their advertised Windows/Linux formats
         shell: bash
         run: |
           set -euo pipefail
           node .github/scripts/check-release-package-formats.mjs "$VERSION" dist
+
+      - name: Exercise exact-release web archive with real Windows and Linux downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y apache2 libapache2-mod-php php-cli
+          bash update.ghostftp.com/tests/run-apache-smoke.sh "dist/GhostFTP-v$VERSION-Update-Web-Root.zip" "$VERSION"
 
       - name: Generate SHA-256 checksums
         shell: bash

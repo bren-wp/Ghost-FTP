@@ -12,15 +12,20 @@ const release = fs.readFileSync(new URL("../src/lib/release.ts", import.meta.url
 const rust = fs.readFileSync(new URL("../src-tauri/src/lib.rs", import.meta.url), "utf8");
 const channel = fs.readFileSync(new URL("../../.github/scripts/check-release-channel.mjs", import.meta.url), "utf8");
 assert.ok(!about.includes("Stable channel ·"), "Unsigned desktop UI must not falsely label itself stable");
-assert.ok(about.includes("url={OFFICIAL_RELEASES_URL}"), "Manual installer link missing");
-assert.ok(release.includes('OFFICIAL_RELEASES_URL = "https://github.com/bren-wp/Ghost-FTP/releases"'), "Only the verified Releases index is allowed");
-assert.ok(rust.includes('"/bren-wp/Ghost-FTP/releases"'), "Rust IPC allowlist blocks manual downloads");
-assert.ok(channel.includes('if (channel === "stable")'), "Global desktop signing gates must not be weakened");
+assert.ok(about.includes("url={UPDATE_CENTER_URL}"), "Manual installer link missing");
+assert.ok(release.includes('UPDATE_CENTER_URL = "https://update.ghostftp.com/"'), "Manual updates must open the official update center");
+assert.ok(rust.includes('host == "update.ghostftp.com" && path == "/"'), "Rust IPC allowlist must allow only the update center root");
+assert.ok(channel.includes('New releases must use the stable channel'), "Stable distribution is mandatory");
+const config = JSON.parse(fs.readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
+assert.equal(config.plugins.updater.allowDowngrades, false);
+assert.equal(config.plugins.updater.requireSignedVersion, true);
 const compiled = ts.transpileModule(updater, { compilerOptions: {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
 }});
 let state;
 let offered = null;
+let manualOffered = null;
+let manualChecks = 0;
 let checks = 0;
 const notifications = [];
 const store = { getState: () => state, setState: (patch) => { state = { ...state, ...patch }; } };
@@ -35,7 +40,7 @@ const deps = {
   zustand: { create },
   "@tauri-apps/plugin-updater": { check: async () => { checks++; return offered; } },
   "@tauri-apps/plugin-process": { relaunch: async () => {} },
-  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}) } },
+  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; } } },
   "./toastStore": { toast: {
     info: (...args) => notifications.push(["info", ...args]),
     warning: (...args) => notifications.push(["warning", ...args]),
@@ -58,12 +63,24 @@ assert.equal(store.getState().status, "checked", "Unsigned/no-offer response is 
 assert.ok(!notifications.some(row => row[0] === "success" || row.join(" ").toLowerCase().includes("up to date")),
   "Signed-offer absence must never produce a false up-to-date toast");
 assert.equal(checks, 1);
+assert.equal(manualChecks, 1);
+manualOffered = "0.99.91";
 offered = { available: true, version: "9.9.9", currentVersion: "0.99.33", body: "signed update", downloadAndInstall: async () => {} };
 await store.getState().check(false);
 assert.equal(store.getState().status, "available");
 assert.equal(store.getState().version, "9.9.9");
+assert.equal(store.getState().manualVersion, "0.99.91");
 store.setState({ status: "ready" });
 await store.getState().check(false);
 assert.equal(store.getState().status, "ready", "An installed update awaiting restart must not be lost");
 assert.equal(checks, 2, "Do not start a new updater check while ready to restart");
+store.setState({ status: "idle" });
+offered = null;
+await store.getState().check(false);
+assert.equal(store.getState().status, "checked");
+assert.equal(store.getState().manualVersion, "0.99.91");
+assert.equal(manualChecks, 3);
+await store.getState().check(true);
+assert.equal(manualChecks, 3, "Quiet checks do not query manual availability");
+assert.equal(store.getState().manualVersion, null);
 console.log("Windows/Linux unsigned manual-update fallback and signed-update safety: passed.");

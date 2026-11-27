@@ -4,13 +4,14 @@
 set -euo pipefail
 test "$GITHUB_REPOSITORY" = "bren-wp/Ghost-FTP"
 test -n "$GH_TOKEN"
-test "$(node -p 'require("./version.json").channel')" = "preview"
+node .github/scripts/check-release-channel.mjs
 CURRENT="$(node -p 'require("./version.json").version')"
 MODE="$GHOSTFTP_METADATA_EVENT"
 case "$MODE" in push|schedule|successful-release|release-edited|manual) ;; *) exit 1 ;; esac
 
 enforce_preview() {
-  local version="$1" sha="$2" tag="v$1" release id name after
+  local version="$1" sha="$2" tag="v$1" release id name after expected_pre
+  expected_pre="$(node --input-type=module -e 'import {requiresStable} from "./.github/scripts/check-release-channel.mjs"; console.log(!requiresStable(process.argv[1]))' "$version")"
   [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
   [[ "$sha" =~ ^[a-f0-9]{40}$ ]]
   test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')" = "$sha"
@@ -33,7 +34,7 @@ enforce_preview() {
         test "$(jq -r --arg name "$name" '[.assets[].name | select(. == $name)] | length' <<< "$release")" -eq 1
       done
       ;;
-    15)
+    15|16)
       test "$(jq -r '.assets | length' <<< "$release")" -ge "${#required_assets[@]}"
       for name in "${required_assets[@]}"; do
         test "$(jq -r --arg name "$name" '[.assets[].name | select(. == $name)] | length' <<< "$release")" -eq 1
@@ -46,19 +47,19 @@ enforce_preview() {
   test "$id" -gt 0
   # Keep the public title plain while preserving the honest GitHub prerelease
   # classification. Historical release titles are immutable for audit.
-  if [ "$version" = "$CURRENT" ]; then
+  if [ "$expected_pre" = false ] || [ "$version" = "$CURRENT" ]; then
     name="Ghost FTP $version"
   else
     name="Ghost FTP $version Preview"
   fi
-  if [ "$(jq -r '.prerelease' <<< "$release")" != true ] || [ "$(jq -r '.name' <<< "$release")" != "$name" ]; then
+  if [ "$(jq -r '.prerelease' <<< "$release")" != "$expected_pre" ] || [ "$(jq -r '.name' <<< "$release")" != "$name" ]; then
     echo "::notice::Correcting verified $tag Preview metadata; preserving all assets and immutable tags."
-    jq -n --arg name "$name" '{prerelease:true,make_latest:"false",name:$name}' |
+    jq -n --arg name "$name" --argjson pre "$expected_pre" '{prerelease:$pre,make_latest:"false",name:$name}' |
       gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$id" --input - >/dev/null
   fi
   for attempt in $(seq 1 12); do
     after="$(gh api "repos/$GITHUB_REPOSITORY/releases/$id")"
-    if [ "$(jq -r '.prerelease' <<< "$after")" = true ] &&
+    if [ "$(jq -r '.prerelease' <<< "$after")" = "$expected_pre" ] &&
        [ "$(jq -r '.name' <<< "$after")" = "$name" ] &&
        [ "$(jq -r '.draft' <<< "$after")" = false ]; then
       test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')" = "$sha"

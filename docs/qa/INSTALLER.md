@@ -1,9 +1,9 @@
-> **Active development source:** Ghost FTP 0.99.89 Preview (Windows/Linux). Publication is determined by GitHub Releases.
-> **Previous canonical release:** v0.99.88 (published 26 November 2026).
+> **Active development source:** Ghost FTP 0.99.90 Stable (Windows/Linux). Publication is determined by GitHub Releases.
+> **Previous canonical release:** v0.99.89 (published 27 November 2026).
 
 # Ghost FTP Installer QA — Windows/Linux
 
-> **Active source:** Ghost FTP 0.99.89 Preview. **Previous canonical release:** v0.99.88. Supported platforms: Windows and Linux.
+> **Active source:** Ghost FTP 0.99.90 Stable. **Previous canonical release:** v0.99.89. Supported platforms: Windows and Linux.
 
 The current distribution is the Windows/Linux **Ghost FTP desktop client** only. Historical standalone Server, CLI and Demo packages are retired; see the [current package matrix](../distribution/PLATFORM_PACKAGES.md). A build artifact is not considered a signed or independently verified production installer.
 ## Production packaging
@@ -13,7 +13,7 @@ Windows production packaging is generated from the authoritative Ghost FTP deskt
 - `GhostFTP-Windows-x64-Portable-v<version>.exe`
 - `GhostFTP-Windows-x64-Setup-v<version>.exe`
 
-The current verified Windows Client build produces **NSIS Setup and MSI** packages, plus a portable EXE. These are development Preview artifacts unless appropriate code signing and production gates are independently satisfied.
+The current verified Windows Client build produces **NSIS Setup and MSI** packages, plus a portable EXE. These may be distributed in a verified Stable release without OS signatures. Automated installation still requires an independently verified updater signature.
 
 The Setup contract requires:
 

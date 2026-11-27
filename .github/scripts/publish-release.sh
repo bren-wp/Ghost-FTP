@@ -6,6 +6,9 @@ node .github/scripts/check-release-channel.mjs
 VERSION="$(node -p 'require("./version.json").version')"
 TAG="v${VERSION}"
 RELEASE_NAME="Ghost FTP ${VERSION}"
+PRERELEASE=false
+MAKE_LATEST=true
+if [ "$(node -p 'require("./version.json").channel')" = preview ]; then PRERELEASE=true; MAKE_LATEST=false; fi
 NOTES_FILE="docs/releases/${VERSION}.md"
 LINUX_PACKAGE_MATRIX="docs/distribution/LINUX_PACKAGE_MATRIX.md"
 CHECKSUM_FILE="GhostFTP-v${VERSION}-SHA256SUMS.txt"
@@ -85,8 +88,8 @@ else
     cat "$LINUX_PACKAGE_MATRIX"
   } > "$RELEASE_NOTES_WITH_LINUX"
   RELEASE_JSON="$(jq -n --arg tag "$TAG" --arg sha "$SOURCE_SHA" \
-    --arg name "$RELEASE_NAME" --rawfile notes "$RELEASE_NOTES_WITH_LINUX" \
-    '{tag_name:$tag,target_commitish:$sha,name:$name,body:$notes,draft:true,prerelease:true}')"
+    --arg name "$RELEASE_NAME" --rawfile notes "$RELEASE_NOTES_WITH_LINUX" --argjson pre "$PRERELEASE" \
+    '{tag_name:$tag,target_commitish:$sha,name:$name,body:$notes,draft:true,prerelease:$pre}')"
   rm -f "$RELEASE_NOTES_WITH_LINUX"
   RELEASE_ID="$(printf '%s' "$RELEASE_JSON" |
     gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input - --jq '.id')"
@@ -95,7 +98,7 @@ fi
 test "$RELEASE_ID" -gt 0
 RELEASE_INFO="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID")"
 test "$(jq -r '.draft' <<< "$RELEASE_INFO")" = "true"
-test "$(jq -r '.prerelease' <<< "$RELEASE_INFO")" = "true"
+test "$(jq -r '.prerelease' <<< "$RELEASE_INFO")" = "$PRERELEASE"
 test "$(jq -r '.tag_name' <<< "$RELEASE_INFO")" = "$TAG"
 
 # Draft uploads are resumable. Existing correct bytes are immutable: never
@@ -186,10 +189,9 @@ done
 
 test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '.object.sha')" = "$SOURCE_SHA"
 test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.draft')" = "true"
-# make_latest=false prevents GitHub's latest-release promotion from
-# misclassifying unsigned/ad-hoc signed developer packages as stable.
-jq -n --arg name "$RELEASE_NAME" '{draft:false,prerelease:true,make_latest:"false",name:$name}' |
+# Stable release classification is independent of updater signing; publication still requires all gates.
+jq -n --arg name "$RELEASE_NAME" --argjson pre "$PRERELEASE" --arg latest "$MAKE_LATEST" '{draft:false,prerelease:$pre,make_latest:$latest,name:$name}' |
   gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --input - >/dev/null
 test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.draft')" = "false"
-test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.prerelease')" = "true"
-echo "Verified $TAG Preview publication: $REMOTE_COUNT SHA-256-checked assets from $SOURCE_SHA."
+test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq '.prerelease')" = "$PRERELEASE"
+echo "Verified $TAG publication: $REMOTE_COUNT SHA-256-checked assets from $SOURCE_SHA."

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {fileURLToPath} from "node:url";
+import { checkReleaseChannel, requiresStable } from "./check-release-channel.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const has = (p) => fs.existsSync(path.join(root, p));
@@ -55,18 +56,19 @@ test("GUI has no inoperative CLI settings or external sync script buttons", () =
   assert.ok(!read("ghostftp-desktop/src/lib/commands.tsx").includes('id: "agent-bridge"'));
 });
 
-test("current client-only development candidate remains Preview until mandatory production checks exist", () => {
+test("current client-only release advances monotonically under the versioned Stable policy", () => {
   const config = JSON.parse(read("version.json"));
   // Compare against the canonical release progression instead of a frozen
   // source version: the previously published tag must remain immutable while
-  // the next Preview edition advances by exactly one patch.
+  // the next edition advances by exactly one patch.
   assert.match(config.version, /^0\.99\.\d+$/);
   assert.equal(config.previousPublishedVersion, config.previousVersion);
   const prev = config.previousVersion.split(".").map(Number);
   const current = config.version.split(".").map(Number);
   assert.deepEqual(current.slice(0, 2), prev.slice(0, 2));
   assert.equal(current[2], prev[2] + 1);
-  assert.equal(config.channel, "preview");
+  assert.equal(config.channel, requiresStable(config.version) ? "stable" : "preview");
+  assert.equal(checkReleaseChannel().prerelease, !requiresStable(config.version));
   assert.ok(read(".github/scripts/check-release-channel.mjs").includes('channel === "stable"'));
 });
 
