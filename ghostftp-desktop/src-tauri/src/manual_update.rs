@@ -116,8 +116,8 @@ fn update_attempt(source: &str, target: &str) -> Result<UpdateAttempt, String> {
 pub(crate) fn record_attempt(db: &crate::db::Db, source: &str, target: &str) -> Result<(), String> {
     let attempt = update_attempt(source, target)?;
     let value = serde_json::to_string(&attempt).map_err(|_| "Cannot record update attempt")?;
-    db.settings_set(UPDATE_ATTEMPT_KEY, &value)
-        .map_err(|_| "Cannot persist update attempt".into())
+    db.prepare_for_update(UPDATE_ATTEMPT_KEY, &value)
+        .map_err(|_| "Cannot persist or checkpoint update recovery state".into())
 }
 
 fn recovery_notice(db: &crate::db::Db, current: &str) -> Result<Option<String>, String> {

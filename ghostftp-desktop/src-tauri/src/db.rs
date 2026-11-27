@@ -1138,6 +1138,37 @@ impl Db {
         Ok(row)
     }
 
+    /// Persist the native update intent and check that SQLite is safe to close.
+    /// No destructive migration, database replacement or plaintext copy occurs.
+    /// A busy external reader or failed integrity check prevents installation.
+    pub(crate) fn prepare_for_update(&self, key: &str, value: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let integrity: String = conn
+            .query_row("PRAGMA quick_check(1)", [], |row| row.get(0))
+            .context("check SQLite before update")?;
+        anyhow::ensure!(integrity == "ok", "SQLite integrity check failed");
+        let synchronous: i64 = conn
+            .pragma_query_value(None, "synchronous", |row| row.get(0))
+            .context("verify update journal durability")?;
+        anyhow::ensure!(synchronous >= 2, "SQLite FULL durability is unavailable");
+        conn.execute(
+            "INSERT INTO settings (key, value, updated_ms) VALUES (?1, ?2, ?3)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_ms = excluded.updated_ms",
+            rusqlite::params![key, value, now_ms()],
+        )
+        .context("record durable update intent")?;
+        let (busy, log, checkpointed): (i64, i64, i64) = conn
+            .query_row("PRAGMA wal_checkpoint(FULL)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .context("checkpoint SQLite before installation")?;
+        anyhow::ensure!(
+            busy == 0 && log >= 0 && log == checkpointed,
+            "SQLite checkpoint is incomplete; close other Ghost FTP instances"
+        );
+        Ok(())
+    }
+
     /// Write a consistent, fully-checkpointed snapshot of the database to
     /// `dest` (Plan 12 Phase 4 backup). `VACUUM INTO` folds any WAL into the
     /// copy, so the snapshot reflects all committed data even while the live DB
@@ -1307,6 +1338,45 @@ fn migrate(conn: &Connection) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn update_checkpoint_preserves_user_settings_and_durable_intent() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-update-db-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("ghostftp.db");
+        {
+            let db = Db::open(&path).unwrap();
+            db.settings_set("theme", "\"dark\"").unwrap();
+            db.prepare_for_update(
+                "nativeUpdateAttemptV1",
+                r#"{"source":"0.99.91","target":"0.99.92"}"#,
+            )
+            .unwrap();
+        }
+        {
+            let db = Db::open(&path).unwrap();
+            assert_eq!(
+                db.settings_get("theme").unwrap().as_deref(),
+                Some("\"dark\"")
+            );
+            assert!(db.settings_get("nativeUpdateAttemptV1").unwrap().is_some());
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn update_checkpoint_rejects_weakened_durability() {
+        let db = Db::open_in_memory().unwrap();
+        db.conn
+            .lock()
+            .unwrap()
+            .pragma_update(None, "synchronous", "OFF")
+            .unwrap();
+        assert!(db
+            .prepare_for_update("nativeUpdateAttemptV1", "{}")
+            .is_err());
+        assert!(db.settings_get("nativeUpdateAttemptV1").unwrap().is_none());
+    }
 
     #[test]
     fn sqlite_folder_sync_config_round_trips_and_preserves_previous_value_on_error() {

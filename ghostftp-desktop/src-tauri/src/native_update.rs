@@ -127,8 +127,15 @@ pub async fn install_signed_update(
         .map_err(|_| UpdateFailure::new("prepare", "Cannot access recovery state"))?;
     crate::backup::ensure_no_pending_restore(&dir)
         .map_err(|_| UpdateFailure::new("prepare", "Complete the pending backup restore"))?;
-    manual_update::record_attempt(&state.db, current, &target)
-        .map_err(|_| UpdateFailure::new("prepare", "Cannot save recovery state"))?;
+    // SQLite checks can take time on a large database. Keep blocking I/O off
+    // the async runtime while retaining the exclusive maintenance guard.
+    let recovery_db = state.db.clone();
+    tokio::task::spawn_blocking(move || {
+        manual_update::record_attempt(&recovery_db, current, &target)
+    })
+    .await
+    .map_err(|_| UpdateFailure::new("prepare", "Cannot verify recovery state"))?
+    .map_err(|_| UpdateFailure::new("prepare", "Cannot checkpoint recovery state"))?;
     // Once installation can start, retain admission until process exit.
     // The plugin verifies the signed bytes again at install; do not bypass it.
     state.transfers.retain_update_maintenance(guard).await;

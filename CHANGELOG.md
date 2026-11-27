@@ -12,6 +12,7 @@
 - Gate Mirror deletions on verified copy completion, propagate deletion failures and retain private server archives if a download is not confirmed complete.
 - Move signed updater discovery and installation into native Rust; remove direct WebView updater capability.
 - Add an advisory structural clone inventory and regression tests to quality CI.
+- Refuse native installation when SQLite integrity, durable update intent or full WAL checkpoint cannot be established.
 
 ## 0.99.90 Stable — 27 November 2026 (published)
 
