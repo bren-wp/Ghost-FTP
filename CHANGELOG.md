@@ -13,6 +13,7 @@
 - Move signed updater discovery and installation into native Rust; remove direct WebView updater capability.
 - Add an advisory structural clone inventory and regression tests to quality CI.
 - Refuse native installation when SQLite integrity, durable update intent or full WAL checkpoint cannot be established.
+- Apply all pending database migrations atomically; preserve the original schema and data on later-step failures.
 
 ## 0.99.90 Stable — 27 November 2026 (published)
 

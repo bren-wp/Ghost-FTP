@@ -8,7 +8,8 @@
 //! never a rewrite.
 //!
 //! Migrations are forward-only and versioned via SQLite's `user_version` pragma:
-//! append a statement to [`MIGRATIONS`] and bump nothing else. `rusqlite`'s
+//! append a statement to [`MIGRATIONS`] and bump nothing else. All pending
+//! steps commit together, or the prior schema is preserved. `rusqlite`'s
 //! `bundled` feature compiles SQLite from source, so there's no system dependency.
 //!
 //! The connection is guarded by a `std::sync::Mutex`. Every query runs to
@@ -1287,52 +1288,46 @@ impl Db {
     }
 }
 
-/// Apply one schema migration and its `user_version` bump atomically.
-///
-/// Some migrations contain multiple SQL statements. A process crash or statement
-/// failure must never leave half of a migration committed while `user_version`
-/// still points at the previous schema, because the next startup would retry the
-/// already-applied DDL and could incorrectly quarantine a healthy database.
-fn apply_migration(conn: &Connection, target_version: i64, sql: &str) -> Result<()> {
-    conn.execute_batch("BEGIN IMMEDIATE TRANSACTION")
-        .with_context(|| format!("begin migration v{target_version}"))?;
-
-    let result = (|| -> Result<()> {
-        conn.execute_batch(sql)
-            .with_context(|| format!("apply migration v{target_version}"))?;
-        // `user_version` cannot be a bound parameter. `target_version` is
-        // derived only from our static migration index.
-        conn.pragma_update(None, "user_version", target_version)
-            .with_context(|| format!("mark migration v{target_version}"))?;
-        Ok(())
-    })();
-
-    if let Err(error) = result {
-        let _ = conn.execute_batch("ROLLBACK");
-        return Err(error);
-    }
-
-    if let Err(error) = conn.execute_batch("COMMIT") {
-        let _ = conn.execute_batch("ROLLBACK");
-        return Err(error).with_context(|| format!("commit migration v{target_version}"));
-    }
+/// Apply one migration inside the caller's transaction.
+fn apply_migration_step(conn: &Connection, target_version: i64, sql: &str) -> Result<()> {
+    conn.execute_batch(sql)
+        .with_context(|| format!("apply migration v{target_version}"))?;
+    conn.pragma_update(None, "user_version", target_version)
+        .with_context(|| format!("mark migration v{target_version}"))?;
     Ok(())
 }
 
-/// Apply every migration whose index is `>= user_version`. Each schema change
-/// and version bump is one SQLite transaction, so a failed/interrupted run can
-/// always be retried safely on the next open.
-fn migrate(conn: &Connection) -> Result<()> {
-    let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+/// Test helper for constructing historical schema fixtures.
+#[cfg(test)]
+fn apply_migration(conn: &Connection, target_version: i64, sql: &str) -> Result<()> {
+    let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    apply_migration_step(&tx, target_version, sql)?;
+    tx.commit()
+        .with_context(|| format!("commit migration v{target_version}"))
+}
+
+/// Apply all pending migrations atomically. Acquire the write reservation
+/// before reading user_version so another process cannot advance the schema
+/// between the version check and migration execution.
+fn migrate_steps(conn: &Connection, migrations: &[&str]) -> Result<()> {
+    let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+    .context("begin atomic schema upgrade")?;
+    let version: i64 = tx.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     anyhow::ensure!(version >= 0, "SQLite user_version is invalid");
     anyhow::ensure!(
-        version <= MIGRATIONS.len() as i64,
+        version <= migrations.len() as i64,
         "SQLite schema is newer than this Ghost FTP build; refusing a downgrade"
     );
-    for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
-        apply_migration(conn, (i + 1) as i64, sql)?;
+    for (i, sql) in migrations.iter().enumerate().skip(version as usize) {
+        apply_migration_step(&tx, (i + 1) as i64, sql)?;
     }
-    Ok(())
+    tx.commit().context("commit atomic schema upgrade")
+}
+
+/// A failed or interrupted later step must not leave the database at an
+/// intermediate schema version that the previous installation cannot open.
+fn migrate(conn: &Connection) -> Result<()> {
+    migrate_steps(conn, MIGRATIONS)
 }
 
 #[cfg(test)]
@@ -2114,6 +2109,55 @@ mod tests {
         let (val, vtype) = db.env_backup_get("other_key").unwrap().unwrap();
         assert_eq!(val, None);
         assert_eq!(vtype, 1);
+    }
+
+    #[test]
+    fn entire_upgrade_rolls_back_when_later_migration_fails() {
+        let conn = Connection::open_in_memory().unwrap();
+        apply_migration(
+            &conn,
+            1,
+            "CREATE TABLE preserved (value TEXT NOT NULL);
+             INSERT INTO preserved VALUES ('original');",
+        )
+        .unwrap();
+        let broken = [
+            "unused historical migration",
+            "ALTER TABLE preserved ADD COLUMN added TEXT;
+             UPDATE preserved SET value = 'changed';",
+            "CREATE TABLE partial (id INTEGER);
+             THIS IS INVALID SQL;",
+        ];
+        assert!(migrate_steps(&conn, &broken).is_err());
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 1);
+        let value: String = conn
+            .query_row("SELECT value FROM preserved", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(value, "original");
+        assert!(conn.prepare("SELECT added FROM preserved").is_err());
+        assert!(conn.prepare("SELECT id FROM partial").is_err());
+
+        let repaired = [
+            "unused historical migration",
+            "ALTER TABLE preserved ADD COLUMN added TEXT;",
+            "CREATE TABLE completed (id INTEGER);",
+        ];
+        migrate_steps(&conn, &repaired).unwrap();
+        assert_eq!(
+            conn.query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            3
+        );
+        assert_eq!(
+            conn.query_row("SELECT value FROM preserved", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap(),
+            "original"
+        );
     }
 
     #[test]
