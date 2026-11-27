@@ -1,5 +1,5 @@
 //! Manual release discovery only; this module never downloads or executes installers.
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 const CATALOG_URL: &str = "https://update.ghostftp.com/manual-version.json";
@@ -83,22 +83,116 @@ pub async fn check_manual_update() -> Result<Option<String>, String> {
     newer_version(&body, env!("CARGO_PKG_VERSION"))
 }
 
+// Diagnostic intent only: the signed Tauri updater remains the trust boundary.
+// Never persist installer URLs, credentials or executable paths in this record.
+const UPDATE_ATTEMPT_KEY: &str = "nativeUpdateAttemptV1";
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct UpdateAttempt {
+    source: String,
+    target: String,
+}
+
+fn update_attempt(source: &str, target: &str) -> Result<UpdateAttempt, String> {
+    let source_parts = version_parts(source).ok_or("Invalid installed version")?;
+    let target_parts = version_parts(target).ok_or("Invalid update version")?;
+    if target_parts <= source_parts {
+        return Err("Update version must be newer than the installed version".into());
+    }
+    Ok(UpdateAttempt {
+        source: source.into(),
+        target: target.into(),
+    })
+}
+
+fn record_attempt(db: &crate::db::Db, source: &str, target: &str) -> Result<(), String> {
+    let attempt = update_attempt(source, target)?;
+    let value = serde_json::to_string(&attempt).map_err(|_| "Cannot record update attempt")?;
+    db.settings_set(UPDATE_ATTEMPT_KEY, &value)
+        .map_err(|_| "Cannot persist update attempt".into())
+}
+
+fn recovery_notice(db: &crate::db::Db, current: &str) -> Result<Option<String>, String> {
+    // Unlike the historical single-setting helper, this propagates DB read errors.
+    let settings = db
+        .settings_get_all()
+        .map_err(|_| "Cannot read update recovery status")?;
+    let Some(value) = settings.get(UPDATE_ATTEMPT_KEY) else {
+        return Ok(None);
+    };
+    if value.len() > MAX_RESPONSE {
+        return Err("Invalid update recovery record".into());
+    }
+    let attempt: UpdateAttempt =
+        serde_json::from_str(value).map_err(|_| "Invalid update recovery record")?;
+    let attempt = update_attempt(&attempt.source, &attempt.target)?;
+    let installed = version_parts(current).ok_or("Invalid installed version")?;
+    let target = version_parts(&attempt.target).ok_or("Invalid recorded update version")?;
+    if installed >= target {
+        // Observing a version is not proof of installation or data integrity.
+        return Ok(None);
+    }
+    Ok(Some(format!(
+        "A previous update targeted Ghost FTP {} but this installation is {}. Check your installation and backups before retrying.",
+        attempt.target, current
+    )))
+}
+
+#[tauri::command]
+pub fn update_recovery_notice(
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<Option<String>, String> {
+    recovery_notice(&state.db, env!("CARGO_PKG_VERSION"))
+}
+
 /// Called only before the existing signed updater is invoked. Maintenance is
 /// intentionally retained after success or uncertain installation failure.
 #[tauri::command]
 pub async fn begin_update_maintenance(
     state: tauri::State<'_, crate::AppState>,
+    target: String,
 ) -> Result<(), String> {
+    let current = env!("CARGO_PKG_VERSION");
+    update_attempt(current, &target)?;
     state
         .transfers
         .begin_update_maintenance()
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    // Fail closed on persistence failure: no installer invocation is allowed.
+    record_attempt(&state.db, current, &target)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recovery_intent_survives_database_reopen_without_mutating_user_data() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-update-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("ghostftp.db");
+        {
+            let db = crate::db::Db::open(&path).unwrap();
+            db.settings_set("testUserPreference", "\"dark\"").unwrap();
+            assert!(recovery_notice(&db, "0.99.91").unwrap().is_none());
+            assert!(record_attempt(&db, "0.99.91", "0.99.90").is_err());
+            record_attempt(&db, "0.99.91", "0.99.92").unwrap();
+        }
+        {
+            let db = crate::db::Db::open(&path).unwrap();
+            assert!(recovery_notice(&db, "0.99.91").unwrap().is_some());
+            assert!(recovery_notice(&db, "0.99.92").unwrap().is_none());
+            assert_eq!(
+                db.settings_get("testUserPreference").unwrap().as_deref(),
+                Some("\"dark\"")
+            );
+            db.settings_set(UPDATE_ATTEMPT_KEY, "invalid").unwrap();
+            assert!(recovery_notice(&db, "0.99.91").is_err());
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn compares_numeric_versions_without_downgrade() {

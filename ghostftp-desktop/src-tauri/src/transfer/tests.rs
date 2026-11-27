@@ -2482,5 +2482,8 @@ async fn update_maintenance_refuses_waiting_and_canceled_worker_state() {
     mgr.waiting.lock().await.clear();
     mgr.canceled_worker.store(true, Ordering::Release);
     assert!(mgr.begin_update_maintenance().await.is_err());
-    assert!(mgr.transfer_admission().is_ok(), "failed maintenance must not lock admission");
+    assert!(
+        mgr.transfer_admission().is_ok(),
+        "failed maintenance must not lock admission"
+    );
 }

@@ -85,6 +85,7 @@ interface UpdaterState {
   currentVersion: string | null;
   /** Newer manually installable version; never an automatic-install offer. */
   manualVersion: string | null;
+  recoveryNotice: string | null;
   notes: string | null;
   /** Download progress, bytes. `total` is null until the Started event. */
   downloaded: number;
@@ -105,6 +106,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   version: null,
   currentVersion: null,
   manualVersion: null,
+  recoveryNotice: null,
   notes: null,
   downloaded: 0,
   total: null,
@@ -174,7 +176,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       return;
     }
     try {
-      await ipc.beginUpdateMaintenance();
+      await ipc.beginUpdateMaintenance(update.version);
     } catch (error) {
       console.warn("Native update maintenance unavailable", redactSensitiveText(error, 240));
       set({ status: "available" });
@@ -226,6 +228,12 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   },
 
   init: async () => {
+    try {
+      set({ recoveryNotice: await ipc.updateRecoveryNotice() });
+    } catch (error) {
+      console.warn("Update recovery status unavailable", redactSensitiveText(error, 240));
+      set({ recoveryNotice: "Ghost FTP couldn't read the previous update status. Check your installation and backups before updating." });
+    }
     try {
       const all = await ipc.settingsGetAll();
       const raw = all["lastUpdateCheck"];

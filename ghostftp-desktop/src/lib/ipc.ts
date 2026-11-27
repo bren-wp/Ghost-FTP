@@ -67,7 +67,8 @@ import type {
 export const ipc = {
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   checkManualUpdate: () => invoke<string | null>("check_manual_update"),
-  beginUpdateMaintenance: () => invoke<void>("begin_update_maintenance"),
+  beginUpdateMaintenance: (target: string) => invoke<void>("begin_update_maintenance", { target }),
+  updateRecoveryNotice: () => invoke<string | null>("update_recovery_notice"),
 
   listProfiles: () => invoke<ConnectionProfile[]>("list_profiles"),
   exportProfiles: (path: string) => invoke<number>("export_profiles", { path }),

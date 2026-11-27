@@ -1194,9 +1194,9 @@ impl TransferManager {
     }
 
     fn transfer_admission(&self) -> Result<tokio::sync::RwLockReadGuard<'_, ()>> {
-        self.update_gate
-            .try_read()
-            .map_err(|_| anyhow::anyhow!("Finish restarting Ghost FTP before starting another transfer"))
+        self.update_gate.try_read().map_err(|_| {
+            anyhow::anyhow!("Finish restarting Ghost FTP before starting another transfer")
+        })
     }
 
     /// Refuse rather than wait for active preparation or worker cleanup.
