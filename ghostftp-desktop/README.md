@@ -16,7 +16,7 @@
 
 Connect using FTP, explicit FTPS or SFTP. Browse local and remote folders, organize Sites, manage transfer queues, synchronize and compare supported directories, and configure the workspace to suit your workflow. Cloud providers require compatible configuration and appropriate authorization.
 
-**Source version: Ghost FTP 0.99.91 Stable (in development). Last public release: v0.99.90.** Confirm the latest published packages on the [Releases page](https://github.com/bren-wp/Ghost-FTP/releases). Stable publication requires verified CI and package integrity; signing and native upgrade acceptance are tracked separately.
+**Source version: Ghost FTP 0.99.92 Stable (in development). Last public release: v0.99.91.** Confirm the latest published packages on the [Releases page](https://github.com/bren-wp/Ghost-FTP/releases). Stable publication requires verified CI and package integrity; signing and native upgrade acceptance are tracked separately.
 
 ## Build from source
 

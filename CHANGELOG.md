@@ -8,6 +8,7 @@
 - Refresh published download links and distinguish current QA packages from historical screenshots.
 - Reject inconsistent source sizes even when a provider repeats an ETag; regression-test incremental planning with unchanged, modified and missing files.
 - Synchronize active cloud, installer and production-readiness documentation with the actual published predecessor.
+- Explicitly release the test-only credential ledger OS lock after closing SQLite; regression-test an inherited descriptor without weakening exclusive admission.
 
 ## 0.99.91 Stable — 27 November 2026 (published)
 
