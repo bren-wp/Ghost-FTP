@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { classifyReleaseChannel, checkReleaseChannel, requiresStable } from "./check-release-channel.mjs";
 
-test("development source must publish as an explicit GitHub prerelease", () => {
+test("historical Preview classification is explicit; current source is Stable", () => {
   assert.deepEqual(classifyReleaseChannel("preview"), {
     prerelease: true,
     titleSuffix: " Preview",

@@ -28,7 +28,7 @@ Pull requests:
 - with signing enabled, produces a signature file for the Windows Setup and Linux AppImage;
 - uploads the normal packages in either mode and the signature files only when they actually exist.
 
-Pull requests remain secret-free and build normal packages. On `main`, missing updater-signing secrets do not block a verified manual Preview GitHub release; the release contains the verified application packages, checksums and QA evidence but deliberately omits the in-app update-service bundle.
+Pull requests remain secret-free and build normal packages. On `main`, missing updater-signing secrets do not block a verified manual Stable GitHub release; the release contains the verified application packages, checksums and QA evidence but deliberately omits the in-app update-service bundle.
 
 If either updater signature is present, both signatures, the exact-version manifest and the matching Update-Service package become an all-or-nothing set. Partial updater proof fails closed before tag/release publication.
 
