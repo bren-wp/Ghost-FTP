@@ -23,6 +23,7 @@ for path, status, marker in [
     ("/updates/latest.json", 204, ""),
     ("/.htaccess", 403, ""),
     ("/downloads/", 403, ""),
+    ("/downloads/catalog.json", 404, ""),
     (f"/downloads/GhostFTP-Windows-x64-Portable-v{version}.exe", 404, ""),
     (f"/downloads/GhostFTP-Linux-x86_64-v{version}.AppImage", 404, ""),
     ("/assets/site.css", 200, "color-scheme"),
@@ -94,6 +95,29 @@ if len(sys.argv) > 3:
             assert not any(f'href="downloads/{name}" download' in page for name in expected)
 
     root = Path(sys.argv[3]) / "downloads"
+    # Simulate files accidentally left on the host. A 404 must be returned
+    # even when the file exists, not just because the clean ZIP omits it.
+    stale_version = "0.0.0" if version != "0.0.0" else "0.0.1"
+    for filename in [
+        f"GhostFTP-Windows-x64-Portable-v{version}.exe",
+        f"GhostFTP-Linux-x86_64-v{version}.AppImage",
+        f"GhostFTP-Windows-x64-Setup-v{stale_version}.exe",
+        "SHA256SUMS.txt.bak",
+        "backup.zip",
+    ]:
+        path = root / filename
+        with path.open("xb") as fixture:
+            fixture.write(b"synthetic stale file, never distributed")
+        try:
+            try:
+                response = urllib.request.urlopen(base + "/downloads/" + filename, timeout=5)
+            except urllib.error.HTTPError as error:
+                response = error
+            with response:
+                assert response.status == 404, (filename, response.status)
+        finally:
+            path.unlink()
+    print("Unexpected and stale download routes: PASS")
     for filename, replacement in [
         ("SHA256SUMS.txt", b"invalid checksum catalog\n"),
         ("SHA256SUMS.txt", (sums + sums.splitlines()[0] + "\n").encode()),

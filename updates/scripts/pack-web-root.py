@@ -63,7 +63,16 @@ def pack(output, version, assets, checksums):
             encoding="utf-8")
         (local / "SHA256SUMS.txt").write_text("".join(f"{records[n]}  {n}\n" for n in expected), encoding="utf-8")
         archive_path = staged / "root.zip"
-        entries = [(name, ROOT / name) for name in PUBLIC]
+        # Render the exact release allowlist; unlisted files left behind by a
+        # non-atomic deployment must not become public downloads.
+        htaccess = (ROOT / ".htaccess").read_text(encoding="utf-8")
+        marker = "__GHOSTFTP_RELEASE_INSTALLERS__"
+        if htaccess.count(marker) != 1:
+            raise ValueError("Invalid installer allowlist template")
+        rendered = staged / ".htaccess"
+        rendered.write_text(htaccess.replace(marker, "|".join(re.escape(name) for name in expected)),
+                            encoding="utf-8")
+        entries = [(name, rendered if name == ".htaccess" else ROOT / name) for name in PUBLIC]
         entries += [("downloads/" + p.name, p) for p in local.iterdir()]
         with ZipFile(archive_path, "w", compression=ZIP_DEFLATED) as archive:
             for name, source in sorted(entries):

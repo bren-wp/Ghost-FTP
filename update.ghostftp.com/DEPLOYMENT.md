@@ -9,3 +9,5 @@ The existing signed updater endpoint is not changed. The two web aliases deliber
 The read-only `/manual-version.json` endpoint returns the version of a complete local installer set or HTTP 204. This is informational only; the desktop must never execute packages based on this endpoint. The signed updater service remains separate.
 
 The generated catalog records the exact installer sizes and release SHA-256 values. Discovery rejects mismatched checksum metadata, missing or truncated packages, and invalid catalogs. Full file hashing is a packaging/deployment acceptance step, not a per-request PHP operation; use a read-only public document root and replace the entire web root atomically. Do not mix the catalog from older releases with the new PHP files.
+
+The packer renders an exact-release Apache download allowlist. Only the four current installer filenames and SHA256SUMS.txt are accessible under /downloads/; stale installers, portable editions, AppImages, backup files and the internal catalog are denied even if present on disk. Deploy the generated .htaccess with the archive; this does not replace an atomic, clean, read-only deployment or full installer hashing.

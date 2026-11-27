@@ -2,6 +2,7 @@
 """Synthetic unit fixtures only. Never publish or distribute these test bytes."""
 import hashlib
 import json
+import re
 import importlib.util
 import tempfile
 import unittest
@@ -42,6 +43,11 @@ class RootPackTests(unittest.TestCase):
                 *("downloads/" + n for n in self.names),
                 "downloads/catalog.json", "downloads/SHA256SUMS.txt"
             })
+            rules = z.read(".htaccess").decode()
+            self.assertNotIn("__GHOSTFTP_RELEASE_INSTALLERS__", rules)
+            for name in self.names:
+                self.assertIn(re.escape(name), rules)
+            self.assertIn("RewriteRule ^downloads/ - [R=404,END]", rules)
             catalog = json.loads(z.read("downloads/catalog.json"))
             self.assertEqual(catalog["version"], self.version)
             self.assertEqual(set(catalog["packages"]), set(self.names))
