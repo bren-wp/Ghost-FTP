@@ -28,7 +28,7 @@ Pull requests:
 - with signing enabled, produces a signature file for the Windows Setup and Linux AppImage;
 - uploads the normal packages in either mode and the signature files only when they actually exist.
 
-Pull requests remain secret-free and build normal packages. On `main`, missing updater-signing secrets do not block a stable GitHub release; the release contains the verified application packages, checksums and QA evidence but deliberately omits the in-app update-service bundle.
+Pull requests remain secret-free and build normal packages. On `main`, missing updater-signing secrets do not block a verified manual Preview GitHub release; the release contains the verified application packages, checksums and QA evidence but deliberately omits the in-app update-service bundle.
 
 If either updater signature is present, both signatures, the exact-version manifest and the matching Update-Service package become an all-or-nothing set. Partial updater proof fails closed before tag/release publication.
 
@@ -36,7 +36,7 @@ If either updater signature is present, both signatures, the exact-version manif
 
 The release workflow:
 
-1. waits for exact-SHA quality, protocol, native Windows/Linux, Windows hardening and macOS gates;
+1. waits for exact-SHA quality, protocol, native Windows/Linux, Windows hardening, Preview metadata and both native credential gates;
 2. downloads native artifacts from the successful exact-SHA main build;
 3. normalizes versioned public asset names;
 4. detects whether both updater signatures are available;
@@ -80,3 +80,5 @@ Linux:
 
 Failure conditions must show product-language errors only. The application UI must not expose internal service paths, file formats or raw transport errors.
 
+
+For the bootstrap web deployment, see `update.ghostftp.com/DEPLOYMENT.md`. The root web archive is separate from signed updater payloads.

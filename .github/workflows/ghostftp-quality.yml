@@ -114,6 +114,22 @@ jobs:
         shell: bash
         run: node .github/scripts/check-update-contract.mjs
 
+      - name: Validate update web root on Apache and PHP
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y apache2 libapache2-mod-php php-cli
+          bash update.ghostftp.com/tests/run-apache-smoke.sh
+          python3 updates/scripts/pack-web-root.py dist/GhostFTP-Update-Web-Root-bootstrap-v0.99.89.zip
+
+      - name: Upload tested update web root ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Update-Web-Root-bootstrap-v0.99.89
+          path: dist/GhostFTP-Update-Web-Root-bootstrap-v0.99.89.zip
+          if-no-files-found: error
+
       # Detect immutable-tag reuse before expensive platform builds or merging.
       # Re-running checks on an already published exact source SHA is valid.
       - name: Immutable release tag and public lineage preflight

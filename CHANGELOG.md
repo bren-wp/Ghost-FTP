@@ -1,6 +1,12 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.89 Preview — 27 November 2026 (development candidate; publication pending)
+## 0.99.90 Preview — 27 November 2026 (development candidate; publication pending)
+
+- Add the branded EN/HR update center bootstrap and root ZIP packaging.
+- Return HTTP 204 on both update endpoint aliases while no signed updater package is available.
+- Add web deployment smoke checks; preserve the installed updater key and legacy endpoint.
+
+## 0.99.89 Preview — 27 November 2026 (published)
 
 - Require native vault failure injection and Rust native candidate acceptance for every exact main SHA before automatic release promotion.
 - Add static release gate regression checks; retain the production credential backend and all historical releases unchanged.
