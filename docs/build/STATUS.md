@@ -1,8 +1,8 @@
-> **Current source: Ghost FTP v0.99.90 Preview candidate; previously published v0.99.89 (27 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Current source: Ghost FTP v0.99.90 Stable candidate; previously published v0.99.89 (27 November 2026). Stable publication requires exact-source CI and package verification; signing and installed-device acceptance are reported separately.**
 
 # Ghost FTP build and QA status
 
-- **Active source/release cycle:** Ghost FTP **0.99.90** Preview.
+- **Active source/release cycle:** Ghost FTP **0.99.90** Stable.
 - **Previous canonical release:** Ghost FTP **0.99.89**.
 - **Active platforms:** Windows and Linux desktop.
 - **Windows/Linux:** React, TypeScript, Rust/Tauri; portable EXE, NSIS, MSI, standalone Linux binary, AppImage, DEB and RPM

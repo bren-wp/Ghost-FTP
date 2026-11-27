@@ -1,10 +1,10 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.90 Preview — 27 November 2026 (development candidate; publication pending)
+## 0.99.90 Stable — 27 November 2026 (development candidate; publication pending)
 
-- Add the branded EN/HR update center bootstrap and root ZIP packaging.
+- Add the branded EN/HR self-contained update center with real installers and SHA-256 checksums.
 - Return HTTP 204 on both update endpoint aliases while no signed updater package is available.
-- Add web deployment smoke checks; preserve the installed updater key and legacy endpoint.
+- Require Stable classification for new verified releases regardless of OS signing. Add web deployment smoke checks; preserve the installed updater key and legacy endpoint.
 
 ## 0.99.89 Preview — 27 November 2026 (published)
 

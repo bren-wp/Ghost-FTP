@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.90 Preview development. Previous public release: v0.99.89. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
+> **Ghost FTP v0.99.90 Stable development. Previous public release: v0.99.89. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 See [v0.99.71 Windows code/performance audit](WINDOWS_SECURITY_PERFORMANCE_0.99.71.md); static dead-code candidates are advisory until proven unused by the native builds.
 

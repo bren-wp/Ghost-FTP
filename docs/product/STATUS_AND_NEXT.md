@@ -1,4 +1,4 @@
-> **Current source: Ghost FTP v0.99.90 Preview candidate; previously published v0.99.89 (27 November 2026). Stable releases still require signed packages and independently verified Windows/Linux acceptance.**
+> **Current source: Ghost FTP v0.99.90 Stable candidate; previously published v0.99.89 (27 November 2026). Stable publication requires exact-source CI and package verification; signing and installed-device acceptance are reported separately.**
 
 # Ghost FTP — Project Status & Recommended Next Work
 

@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.90 Preview development. Previous public release: v0.99.89. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
+> **Ghost FTP v0.99.90 Stable development. Previous public release: v0.99.89. Active audits retain security and functional requirements; retired design-reference comparisons are not release gates.**
 
 # Ghost FTP Audit Index — 0.93.0
 
