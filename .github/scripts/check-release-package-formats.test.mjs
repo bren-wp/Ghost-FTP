@@ -149,3 +149,10 @@ test("on-disk preflight verifies the full required package inventory and refuses
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test("manual upgrade aliases use the native installer formats", () => {
+  const v = "0.99.92";
+  assert.equal(formatForReleaseAsset("GhostFTP-Windows-x64-Update-v" + v + ".exe", v), "windows-pe");
+  assert.equal(formatForReleaseAsset("GhostFTP-Linux-amd64-Update-v" + v + ".deb", v), "deb");
+  assert.equal(formatForReleaseAsset("GhostFTP-Linux-x86_64-Update-v" + v + ".rpm", v), "rpm");
+});

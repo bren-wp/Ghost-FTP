@@ -191,8 +191,8 @@ function UpdatesContent() {
     <div className="mt-5 rounded-lg border border-border bg-[#051929] p-4">
       <OfficialLinkRow
         icon={<Globe2 size={18}/>}
-        title="Open official Windows / Linux downloads"
-        subtitle="Select the current version, verify its SHA-256 checksum, then install manually. Back up your profiles securely and finish all transfers before installing."
+        title="Download manual update (Windows / Linux)"
+        subtitle="Open the Update Center, choose the same package format as your installation and verify its checksum. Back up your profiles, finish transfers and close Ghost FTP before installing."
         url={UPDATE_CENTER_URL}
       />
       <p className="mt-2 text-[11px] leading-5 text-text-muted">

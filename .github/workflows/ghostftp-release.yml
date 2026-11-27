@@ -286,6 +286,17 @@ jobs:
           (cd dist && zip -q "GhostFTP-Windows-x64-v$VERSION.zip" "GhostFTP-Windows-x64-Portable-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi")
           (cd dist && tar -czf "GhostFTP-Linux-x86_64-v$VERSION.tar.gz" "GhostFTP-Linux-x86_64-v$VERSION" "GhostFTP-Linux-x86_64-v$VERSION.AppImage" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm")
 
+      - name: Create mandatory manual upgrade packages from native installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe" "dist/GhostFTP-Windows-x64-Update-v$VERSION.exe"
+          cp "dist/GhostFTP-Linux-amd64-v$VERSION.deb" "dist/GhostFTP-Linux-amd64-Update-v$VERSION.deb"
+          cp "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm" "dist/GhostFTP-Linux-x86_64-Update-v$VERSION.rpm"
+          cmp "dist/GhostFTP-Windows-x64-Setup-v$VERSION.exe" "dist/GhostFTP-Windows-x64-Update-v$VERSION.exe"
+          cmp "dist/GhostFTP-Linux-amd64-v$VERSION.deb" "dist/GhostFTP-Linux-amd64-Update-v$VERSION.deb"
+          cmp "dist/GhostFTP-Linux-x86_64-v$VERSION.rpm" "dist/GhostFTP-Linux-x86_64-Update-v$VERSION.rpm"
+
       - name: Build update-service deployment package
         if: ${{ hashFiles('dist/GhostFTP-Windows-x64-Setup-v*.exe.sig') != '' && hashFiles('dist/GhostFTP-Linux-x86_64-v*.AppImage.sig') != '' }}
         shell: bash
@@ -343,7 +354,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd dist && sha256sum "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm") > "$RUNNER_TEMP/web-installer-sums.txt"
+          (cd dist && sha256sum "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm" "GhostFTP-Windows-x64-Update-v$VERSION.exe" "GhostFTP-Linux-amd64-Update-v$VERSION.deb" "GhostFTP-Linux-x86_64-Update-v$VERSION.rpm") > "$RUNNER_TEMP/web-installer-sums.txt"
           python3 updates/scripts/pack-web-root.py "dist/GhostFTP-v$VERSION-Update-Web-Root.zip" --version "$VERSION" --assets dist --checksums "$RUNNER_TEMP/web-installer-sums.txt"
 
       - name: Verify native packages match their advertised Windows/Linux formats

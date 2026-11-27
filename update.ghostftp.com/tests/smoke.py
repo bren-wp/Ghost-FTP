@@ -14,6 +14,12 @@ expected = {
     f"GhostFTP-Linux-amd64-v{version}.deb",
     f"GhostFTP-Linux-x86_64-v{version}.rpm",
 }
+if tuple(map(int, version.split("."))) >= (0, 99, 92):
+    expected.update({
+        f"GhostFTP-Windows-x64-Update-v{version}.exe",
+        f"GhostFTP-Linux-amd64-Update-v{version}.deb",
+        f"GhostFTP-Linux-x86_64-Update-v{version}.rpm",
+    })
 for path, status, marker in [
     ("/", 200, "Keep Ghost FTP up to date"),
     ("/?lang=hr", 200, "Redovito ažurirajte"),

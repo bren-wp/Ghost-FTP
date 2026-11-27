@@ -27,10 +27,19 @@ def _digest(stream):
 def names(version):
     if not re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version):
         raise ValueError("Invalid version")
-    return (f"GhostFTP-Windows-x64-Setup-v{version}.exe",
+    packages = (f"GhostFTP-Windows-x64-Setup-v{version}.exe",
             f"GhostFTP-Windows-x64-Setup-v{version}.msi",
             f"GhostFTP-Linux-amd64-v{version}.deb",
             f"GhostFTP-Linux-x86_64-v{version}.rpm")
+    if tuple(map(int, version.split("."))) >= (0, 99, 92):
+        packages += (f"GhostFTP-Windows-x64-Update-v{version}.exe",
+                     f"GhostFTP-Linux-amd64-Update-v{version}.deb",
+                     f"GhostFTP-Linux-x86_64-Update-v{version}.rpm")
+    return packages
+
+def package_magic(name):
+    return {".exe": b"MZ", ".msi": bytes.fromhex("d0cf11e0a1b11ae1"),
+            ".deb": b"!<arch>\n", ".rpm": bytes.fromhex("edabeedb")}[Path(name).suffix]
 
 def pack(output, version, assets, checksums):
     expected = names(version)
@@ -45,7 +54,8 @@ def pack(output, version, assets, checksums):
         staged = Path(tmp)
         local = staged / "downloads"
         local.mkdir()
-        for name, magic in zip(expected, (b"MZ", bytes.fromhex("d0cf11e0a1b11ae1"), b"!<arch>\n", bytes.fromhex("edabeedb"))):
+        for name in expected:
+            magic = package_magic(name)
             source = assets / name
             if source.is_symlink() or not source.is_file() or source.stat().st_size <= len(magic):
                 raise ValueError("Missing or unsafe installer: " + name)
@@ -56,6 +66,10 @@ def pack(output, version, assets, checksums):
             shutil.copyfile(source, dest)
             if digest(dest) != records.get(name):
                 raise ValueError("Installer SHA-256 mismatch: " + name)
+        if len(expected) == 7:
+            for alias, original in zip(expected[4:], (expected[0], expected[2], expected[3])):
+                if records[alias] != records[original]:
+                    raise ValueError("Update installer differs from original: " + alias)
         metadata = {name: {"size": (local / name).stat().st_size, "sha256": records[name]}
                     for name in expected}
         (local / "catalog.json").write_text(

@@ -116,3 +116,26 @@ test("new stable releases require a separate web root while retaining the signed
   assert.equal(optional.length,4);
   assert.equal(expectedReleaseAssets("0.99.89").required.length,15);
 });
+
+test("v0.99.92 onward requires three manual update aliases without rewriting historical assets", () => {
+  const v = "0.99.92";
+  const {required, optional, checksum} = expectedReleaseAssets(v);
+  assert.equal(required.length, 19);
+  assert.equal(optional.length, 4);
+  assert.equal(expectedReleaseAssets("0.99.91").required.length, 16);
+  const original = name => name.replace("-Update-", name.endsWith(".exe") ? "-Setup-" : "-");
+  const records = required.filter(name => name !== checksum).map(name => {
+    const bytes = Buffer.from(original(name));
+    return {name, size: bytes.length, digest: "sha256:" + hash(bytes)};
+  });
+  const pack = entries => {
+    const sums = Buffer.from(entries.map(a => a.digest.slice(7) + "  " + a.name).join("\n") + "\n");
+    return [[...entries, {name:checksum, size:sums.length, digest:"sha256:" + hash(sums)}], sums];
+  };
+  assert.equal(validateReleaseAssets(v, ...pack(records)).assetCount, 19);
+  const alias = records.find(a => a.name.endsWith("Update-v" + v + ".exe"));
+  assert.ok(alias);
+  assert.throws(() => validateReleaseAssets(v, ...pack(records.filter(a => a !== alias))), /missing/);
+  const changed = records.map(a => a === alias ? {...a, digest:"sha256:" + "f".repeat(64)} : a);
+  assert.throws(() => validateReleaseAssets(v, ...pack(changed)), /update installer differs/);
+});

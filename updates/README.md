@@ -18,6 +18,14 @@ The public service follows the Tauri v2 updater contract: `version`, optional hu
 
 The native client accepts only the canonical versioned GitHub release URL for its own platform. This initial URL validation does not replace cryptographic verification or constrain every subsequent HTTP redirect.
 
+## Mandatory manual upgrade packages (from v0.99.92)
+
+- `GhostFTP-Windows-x64-Update-v<version>.exe` — exact copy of the validated NSIS installer; use for an existing NSIS installation.
+- `GhostFTP-Linux-amd64-Update-v<version>.deb` — exact copy of the native DEB.
+- `GhostFTP-Linux-x86_64-Update-v<version>.rpm` — exact copy of the native RPM.
+
+All three are mandatory release assets, checked against their original package digests and embedded in the self-contained Update Web Root ZIP alongside the four original installers. They are full manual upgrade packages, not delta updates. Existing MSI installations use the matching MSI; existing AppImage installations use the signed native update path or a manually downloaded replacement. The public Update Center does not host portable or AppImage files. Manual availability does not authorize unattended installation.
+
 ## Directory layout
 
 - `latest.template.json` — canonical public-service template synchronized from `version.json`

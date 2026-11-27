@@ -1,6 +1,6 @@
 # Self-contained update web root
 
-The root archive contains only public PHP/CSS/icon files, a local catalogue, SHA-256 checksums and the actual Windows EXE/MSI and Linux DEB/RPM installers. No Portable or AppImage downloads and no external download links. Never publish an archive without all four validated installers.
+The root archive contains only public PHP/CSS/icon files, a local catalogue, SHA-256 checksums and the actual Windows EXE/MSI and Linux DEB/RPM installers. No Portable or AppImage downloads and no external download links. From v0.99.92 the root also includes the three versioned manual update aliases (Windows EXE, Linux DEB and RPM). Each must be byte-identical to its original installer. Never publish an archive without the complete version-specific installer inventory (four for v0.99.90–v0.99.91, seven from v0.99.92).
 
 The release pipeline generates a new root archive from the same exact-source installers before publication. The PR quality job also creates a tested archive from the most recent published predecessor. Deploy the ZIP into the document root over HTTPS, using a fresh staging directory and an atomic host-level directory switch. Do not mix versions. PHP 8, Apache 2.4, rewrite and headers modules are required.
 
@@ -10,4 +10,4 @@ The read-only `/manual-version.json` endpoint returns the version of a complete 
 
 The generated catalog records the exact installer sizes and release SHA-256 values. Discovery rejects mismatched checksum metadata, missing or truncated packages, and invalid catalogs. Full file hashing is a packaging/deployment acceptance step, not a per-request PHP operation; use a read-only public document root and replace the entire web root atomically. Do not mix the catalog from older releases with the new PHP files.
 
-The packer renders an exact-release Apache download allowlist. Only the four current installer filenames and SHA256SUMS.txt are accessible under /downloads/; stale installers, portable editions, AppImages, backup files and the internal catalog are denied even if present on disk. Deploy the generated .htaccess with the archive; this does not replace an atomic, clean, read-only deployment or full installer hashing.
+The packer renders an exact-release Apache download allowlist. Only the current version-specific installer and update filenames and SHA256SUMS.txt are accessible under /downloads/; stale installers, portable editions, AppImages, backup files and the internal catalog are denied even if present on disk. Deploy the generated .htaccess with the archive; this does not replace an atomic, clean, read-only deployment or full installer hashing.

@@ -18,12 +18,12 @@ export function formatForReleaseAsset(name, version) {
   const exact = (template) => template.replaceAll("{version}", version) === name;
   if (exact("GhostFTP-Windows-x64-Portable-v{version}.exe")) return "windows-pe64";
   // NSIS Setup can legitimately be an x86 bootstrapper for an x64 app.
-  if (exact("GhostFTP-Windows-x64-Setup-v{version}.exe")) return "windows-pe";
+  if (exact("GhostFTP-Windows-x64-Setup-v{version}.exe") || exact("GhostFTP-Windows-x64-Update-v{version}.exe")) return "windows-pe";
   if (exact("GhostFTP-Windows-x64-Setup-v{version}.msi")) return "msi";
   if (exact("GhostFTP-Linux-x86_64-v{version}") ||
       exact("GhostFTP-Linux-x86_64-v{version}.AppImage")) return "linux-elf64";
-  if (exact("GhostFTP-Linux-amd64-v{version}.deb")) return "deb";
-  if (exact("GhostFTP-Linux-x86_64-v{version}.rpm")) return "rpm";
+  if (exact("GhostFTP-Linux-amd64-v{version}.deb") || exact("GhostFTP-Linux-amd64-Update-v{version}.deb")) return "deb";
+  if (exact("GhostFTP-Linux-x86_64-v{version}.rpm") || exact("GhostFTP-Linux-x86_64-Update-v{version}.rpm")) return "rpm";
   if (name.endsWith(".zip")) return "zip";
   if (exact("GhostFTP-Linux-x86_64-v{version}.tar.gz")) return "gzip";
   if (exact("GhostFTP-v{version}-SHA256SUMS.txt")) return "checksums";
