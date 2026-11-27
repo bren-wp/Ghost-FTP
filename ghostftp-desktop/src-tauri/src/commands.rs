@@ -2111,10 +2111,14 @@ pub async fn start_archive_download(
                     }
                     return;
                 }
-                Some(t) if matches!(
-                    t.status,
-                    TransferStatus::Error | TransferStatus::Canceled | TransferStatus::Skipped
-                ) => break,
+                Some(t)
+                    if matches!(
+                        t.status,
+                        TransferStatus::Error | TransferStatus::Canceled | TransferStatus::Skipped
+                    ) =>
+                {
+                    break
+                }
                 Some(_) => {}
                 None => break,
             }
