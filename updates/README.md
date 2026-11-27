@@ -16,6 +16,16 @@ The Windows and Linux applications expose only simple product language such as �
 
 The public service follows the Tauri v2 updater contract: `version`, optional human-readable `notes` / `pub_date`, and per-platform `url` + signature content.
 
+The native client accepts only the canonical versioned GitHub release URL for its own platform. This initial URL validation does not replace cryptographic verification or constrain every subsequent HTTP redirect.
+
+## Mandatory manual upgrade packages (from v0.99.92)
+
+- `GhostFTP-Windows-x64-Update-v<version>.exe` — exact copy of the validated NSIS installer; use for an existing NSIS installation.
+- `GhostFTP-Linux-amd64-Update-v<version>.deb` — exact copy of the native DEB.
+- `GhostFTP-Linux-x86_64-Update-v<version>.rpm` — exact copy of the native RPM.
+
+All three are mandatory release assets, checked against their original package digests and embedded in the self-contained Update Web Root ZIP alongside the four original installers. They are full manual upgrade packages, not delta updates. Existing MSI installations use the matching MSI; existing AppImage installations use the signed native update path or a manually downloaded replacement. The public Update Center does not host portable or AppImage files. Manual availability does not authorize unattended installation.
+
 ## Directory layout
 
 - `latest.template.json` — canonical public-service template synchronized from `version.json`
@@ -38,7 +48,7 @@ The former separate preview/stable template files were removed because the deskt
 4. The release workflow verifies all exact-SHA gates.
 5. The release workflow normalizes the verified packages and detects whether a complete signed updater pair exists.
 6. If both signatures exist, it generates and verifies `GhostFTP-v<version>-latest.json` plus `GhostFTP-v<version>-Update-Service.zip`; if signatures are absent, those updater assets are deliberately omitted.
-7. Partial updater proof is forbidden: signatures, manifest and Update-Service package must be all present and consistent or all absent. This does not block the normal manual Preview package release.
+7. Partial updater proof is forbidden: signatures, manifest and Update-Service package must be all present and consistent or all absent. This does not block the normal manual Stable package release.
 8. Only after a signed updater bundle exists and its release asset digests are verified may the update-service operator atomically replace `/updates/latest.json`.
 
 See `DEPLOYMENT.md` for the update-service hosting procedure.
@@ -48,7 +58,7 @@ See `DEPLOYMENT.md` for the update-service hosting procedure.
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when the key is password protected
 
-These secrets are not required for the normal manual Preview GitHub release. They are required only to produce the cryptographically signed Windows/Linux in-app updater bundle. The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
+These secrets are not required for the normal manual Stable GitHub release. They are required only to produce the cryptographically signed Windows/Linux in-app updater bundle. The private key must never be stored in source, release assets, update-service files, workflow logs or documentation examples.
 
 ## Failure behavior
 

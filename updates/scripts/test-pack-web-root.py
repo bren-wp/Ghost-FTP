@@ -20,13 +20,13 @@ class RootPackTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.assets = self.root / "assets"
         self.assets.mkdir()
-        self.version = "0.99.90"
+        self.version = "0.99.92"
         self.output = self.root / "root.zip"
         self.sums = self.root / "sums.txt"
         self.names = packer.names(self.version)
         lines = []
-        for name, magic in zip(self.names, (b"MZ", bytes.fromhex("d0cf11e0a1b11ae1"), b"!<arch>\n", bytes.fromhex("edabeedb"))):
-            data = magic + b"unit fixture only"
+        for name in self.names:
+            data = packer.package_magic(name) + b"unit fixture only"
             (self.assets / name).write_bytes(data)
             lines.append(f"{hashlib.sha256(data).hexdigest()}  {name}\n")
         self.sums.write_text("".join(lines), encoding="utf-8")
@@ -74,6 +74,20 @@ class RootPackTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
             self.pack()
         self.assertEqual(original, self.output.read_bytes())
+
+    def test_legacy_inventory_and_new_aliases(self):
+        self.assertEqual(len(packer.names("0.99.91")), 4)
+        self.assertEqual(len(self.names), 7)
+        alias = self.names[4]
+        data = b"MZdifferent update fixture"
+        (self.assets / alias).write_bytes(data)
+        lines = self.sums.read_text().splitlines()
+        self.sums.write_text("\n".join(
+            f"{hashlib.sha256(data).hexdigest()}  {alias}" if line.endswith("  " + alias)
+            else line for line in lines) + "\n")
+        with self.assertRaisesRegex(ValueError, "differs from original"):
+            self.pack()
+        self.assertFalse(self.output.exists())
 
     def test_rejects_traversal_version(self):
         with self.assertRaises(ValueError):

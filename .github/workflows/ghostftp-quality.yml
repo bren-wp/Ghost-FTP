@@ -133,6 +133,12 @@ jobs:
             --pattern "GhostFTP-Windows-x64-Setup-v$VERSION.msi" \
             --pattern "GhostFTP-Linux-amd64-v$VERSION.deb" \
             --pattern "GhostFTP-Linux-x86_64-v$VERSION.rpm"
+          if [ "$(printf '%s\n' 0.99.92 "$VERSION" | sort -V | head -n1)" = "0.99.92" ]; then
+            gh release download "v$VERSION" --dir "$RUNNER_TEMP/web-assets" \
+              --pattern "GhostFTP-Windows-x64-Update-v$VERSION.exe" \
+              --pattern "GhostFTP-Linux-amd64-Update-v$VERSION.deb" \
+              --pattern "GhostFTP-Linux-x86_64-Update-v$VERSION.rpm"
+          fi
           node .github/scripts/validate-release-assets.mjs "$VERSION" --metadata-repair-json "$RUNNER_TEMP/web-assets/release.json" --checksums "$RUNNER_TEMP/web-assets/GhostFTP-v$VERSION-SHA256SUMS.txt"
           python3 updates/scripts/pack-web-root.py "$RUNNER_TEMP/web-output/GhostFTP-Update-Web-Root-v$VERSION.zip" --version "$VERSION" --assets "$RUNNER_TEMP/web-assets" --checksums "$RUNNER_TEMP/web-assets/GhostFTP-v$VERSION-SHA256SUMS.txt"
           sudo apt-get update

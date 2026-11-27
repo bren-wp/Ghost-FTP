@@ -76,7 +76,10 @@ function anchors(tokens, width, span) {
   return result;
 }
 
-export function scanEntries(entries, { width = 80, span = 12, maxGroups = 500 } = {}) {
+export function scanEntries(entries, { width = 80, span = 12, maxGroups = null } = {}) {
+  if (maxGroups !== null && (!Number.isSafeInteger(maxGroups) || maxGroups < 0)) {
+    throw new RangeError("maxGroups must be null or a nonnegative safe integer");
+  }
   const groups = new Map();
   let tokenCount = 0, anchorCount = 0;
   for (const entry of entries) {
@@ -92,12 +95,12 @@ export function scanEntries(entries, { width = 80, span = 12, maxGroups = 500 } 
       const location = { file: entry.file, startLine: window[0].line, endLine };
       let group = groups.get(key);
       if (!group) { group = { count: 0, locations: [] }; groups.set(key, group); }
-      // Collapse overlapping matches in the same file, and bound location
-      // storage for very common patterns. Reports do not expose source text.
+      // Retain every nonoverlapping occurrence, not just the first 24.
+      // Reports do not expose source text.
       if (group.locations.some(old => old.file === location.file &&
         old.startLine <= location.endLine && location.startLine <= old.endLine)) continue;
       group.count++;
-      if (group.locations.length < 24) group.locations.push(location);
+      group.locations.push(location);
     }
   }
   const candidates = [...groups.entries()].filter(([, group]) => group.count > 1)
@@ -107,7 +110,9 @@ export function scanEntries(entries, { width = 80, span = 12, maxGroups = 500 } 
     method: "Advisory normalized token-window clone inventory (Type 1/2 candidates)",
     files: entries.length, tokenCount, anchorCount, width, span,
     candidateGroups: candidates.length, reportLimit: maxGroups,
-    candidates: candidates.slice(0, maxGroups),
+    reportedGroups: maxGroups === null ? candidates.length : Math.min(maxGroups, candidates.length),
+    omittedGroups: maxGroups === null ? 0 : Math.max(0, candidates.length - maxGroups),
+    candidates: maxGroups === null ? candidates : candidates.slice(0, maxGroups),
     limitations: [
       "Lexical heuristic; not semantic equivalence, AST, reachability or proof that code is safe to remove.",
       "Short clones, modified control flow, templates, nested comments, language-specific syntax and cross-language clones may be missed.",

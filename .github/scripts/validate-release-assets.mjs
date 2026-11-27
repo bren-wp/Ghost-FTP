@@ -37,6 +37,13 @@ export function expectedReleaseAssets(version) {
   if (major > 0 || minor > 99 || (minor === 99 && patch >= 90)) {
     required.push(`GhostFTP-v${version}-Update-Web-Root.zip`);
   }
+  if (major > 0 || minor > 99 || (minor === 99 && patch >= 92)) {
+    required.push(
+      `GhostFTP-Windows-x64-Update-v${version}.exe`,
+      `GhostFTP-Linux-amd64-Update-v${version}.deb`,
+      `GhostFTP-Linux-x86_64-Update-v${version}.rpm`,
+    );
+  }
   const optional = selected.optional_updater.map(expand);
   ensure(required.length > 0, "empty required asset inventory");
   ensure(new Set([...required, ...optional]).size === required.length + optional.length,
@@ -102,6 +109,17 @@ export function validateReleaseAssets(version, records, checksumBytes) {
   for (const [name, digest] of entries) {
     ensure(byName.get(name).digest === "sha256:" + digest,
       `SHA-256 mismatch between GitHub and SHA256SUMS for ${name}`);
+  }
+  for (const [alias, original] of [
+    [`GhostFTP-Windows-x64-Update-v${version}.exe`, `GhostFTP-Windows-x64-Setup-v${version}.exe`],
+    [`GhostFTP-Linux-amd64-Update-v${version}.deb`, `GhostFTP-Linux-amd64-v${version}.deb`],
+    [`GhostFTP-Linux-x86_64-Update-v${version}.rpm`, `GhostFTP-Linux-x86_64-v${version}.rpm`],
+  ]) {
+    if (byName.has(alias)) {
+      ensure(byName.get(alias).digest === byName.get(original).digest &&
+        byName.get(alias).size === byName.get(original).size,
+        "update installer differs from verified original: " + alias);
+    }
   }
   return { assetCount: expected.length, optionalUpdater: expected.length > expectedReleaseAssets(version).required.length };
 }

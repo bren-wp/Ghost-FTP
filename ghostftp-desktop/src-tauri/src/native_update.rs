@@ -42,6 +42,22 @@ fn newer_target(current: &str, target: &str) -> bool {
     }
 }
 
+// Match the immutable release contract before handing an artifact URL to the
+// plugin. HTTPS alone permits arbitrary destinations; signatures remain mandatory.
+fn canonical_artifact(url: &url::Url, version: &str, windows: bool) -> bool {
+    if manual_update::version_parts(version).is_none() {
+        return false;
+    }
+    let filename = if windows {
+        format!("GhostFTP-Windows-x64-Setup-v{version}.exe")
+    } else {
+        format!("GhostFTP-Linux-x86_64-v{version}.AppImage")
+    };
+    let expected =
+        format!("https://github.com/bren-wp/Ghost-FTP/releases/download/v{version}/{filename}");
+    url.as_str() == expected
+}
+
 async fn signed_offer(app: &AppHandle, timeout: Duration) -> Result<Option<Update>, UpdateFailure> {
     let updater = app
         .updater_builder()
@@ -56,7 +72,11 @@ async fn signed_offer(app: &AppHandle, timeout: Duration) -> Result<Option<Updat
     match offered {
         Some(update)
             if newer_target(env!("CARGO_PKG_VERSION"), &update.version)
-                && update.download_url.scheme() == "https" =>
+                && canonical_artifact(
+                    &update.download_url,
+                    &update.version,
+                    cfg!(target_os = "windows"),
+                ) =>
         {
             Ok(Some(update))
         }
@@ -148,6 +168,30 @@ pub async fn install_signed_update(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_offer_requires_exact_platform_and_release_asset() {
+        let root = "https://github.com/bren-wp/Ghost-FTP/releases/download/v0.99.92/";
+        let windows = format!("{root}GhostFTP-Windows-x64-Setup-v0.99.92.exe");
+        let linux = format!("{root}GhostFTP-Linux-x86_64-v0.99.92.AppImage");
+        let parse = |value: &str| url::Url::parse(value).unwrap();
+        assert!(canonical_artifact(&parse(&windows), "0.99.92", true));
+        assert!(canonical_artifact(&parse(&linux), "0.99.92", false));
+        assert!(!canonical_artifact(&parse(&windows), "0.99.92", false));
+        assert!(!canonical_artifact(&parse(&linux), "0.99.93", false));
+        for invalid in [
+            windows.replace("https:", "http:"),
+            windows.replace("github.com", "example.com"),
+            windows.replace("bren-wp/Ghost-FTP", "other/project"),
+            windows.replace("github.com", "github.com:444"),
+            windows.replace("github.com", "user@github.com"),
+            format!("{windows}?unexpected=1"),
+            format!("{windows}#fragment"),
+        ] {
+            assert!(!canonical_artifact(&parse(&invalid), "0.99.92", true));
+        }
+        assert!(!canonical_artifact(&parse(&windows), "0.99.092", true));
+    }
 
     #[test]
     fn native_target_rejects_downgrade_and_noncanonical_versions() {

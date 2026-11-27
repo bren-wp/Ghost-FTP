@@ -37,3 +37,34 @@ test("same file nonoverlapping clones and prefixed copies are found", () => {
   assert.ok(report.candidates.some(group => group.locations.length === 2));
   assert.equal(scanEntries([], {}).candidateGroups, 0);
 });
+
+test("default report retains more than 500 candidate groups and explicit limits disclose omissions", () => {
+  const sample = fixture("x");
+  const width = tokenize(sample, "ts").length;
+  const entries = [];
+  for (let i = 0; i < 501; i++) {
+    const source = sample.replace("7", String(1000 + i));
+    entries.push(entry(`a${i}.ts`, source), entry(`b${i}.ts`, source));
+  }
+  const full = scanEntries(entries, { width, span: 1 });
+  assert.equal(full.candidateGroups, 501);
+  assert.equal(full.candidates.length, 501);
+  assert.equal(full.reportedGroups, 501);
+  assert.equal(full.omittedGroups, 0);
+  const limited = scanEntries(entries, { width, span: 1, maxGroups: 10 });
+  assert.equal(limited.candidateGroups, 501);
+  assert.equal(limited.candidates.length, 10);
+  assert.equal(limited.omittedGroups, 491);
+  assert.throws(() => scanEntries([], { maxGroups: -1 }), RangeError);
+});
+
+test("all nonoverlapping locations are retained beyond the former 24-location cap", () => {
+  const sample = fixture("x");
+  const width = tokenize(sample, "ts").length;
+  const entries = Array.from({ length: 30 }, (_, i) => entry(`file${i}.ts`, sample));
+  const report = scanEntries(entries, { width, span: 1 });
+  assert.equal(report.candidates.length, 1);
+  assert.equal(report.candidates[0].occurrences, 30);
+  assert.equal(report.candidates[0].locations.length, 30);
+  assert.equal(report.candidates[0].locations[29].file, "file29.ts");
+});

@@ -201,11 +201,23 @@ impl History {
     }
 }
 
+// Release the flock explicitly rather than relying on the last descriptor
+// being closed. A concurrent fork/exec can briefly inherit the open file
+// description even with O_CLOEXEC. The lock guard is dropped after SQLite.
+struct LedgerLock(File);
+
+impl Drop for LedgerLock {
+    fn drop(&mut self) {
+        // Closing the descriptor remains the fallback if unlock fails.
+        let _ = self.0.unlock();
+    }
+}
+
 struct Ledger {
     conn: Connection,
     scope: String,
     root: PathBuf,
-    _lock: File,
+    _lock: LedgerLock,
 }
 
 impl Ledger {
@@ -227,6 +239,7 @@ impl Ledger {
         );
         lock.try_lock()
             .map_err(|_| anyhow!("credential ledger already locked"))?;
+        let lock = LedgerLock(lock);
         let current = std::fs::symlink_metadata(&path)?;
         ensure!(
             current.is_file()
@@ -1319,6 +1332,21 @@ mod tests {
         assert_eq!(ledger.verify(&KEY, &mut anchor).unwrap(), history);
         drop(ledger);
         std::fs::remove_dir_all(backup).unwrap();
+        std::fs::remove_dir_all(source).unwrap();
+    }
+
+    #[test]
+    fn ledger_lock_explicitly_released_with_inherited_descriptor() {
+        let source = root();
+        let ledger = Ledger::open(&source, SCOPE).unwrap();
+        let inherited = ledger._lock.0.try_clone().unwrap();
+        assert!(Ledger::open(&source, SCOPE).is_err());
+        drop(ledger);
+        let reopened = Ledger::open(&source, SCOPE).unwrap();
+        // Closing the old descriptor must not unlock the new owner.
+        drop(inherited);
+        assert!(Ledger::open(&source, SCOPE).is_err());
+        drop(reopened);
         std::fs::remove_dir_all(source).unwrap();
     }
 

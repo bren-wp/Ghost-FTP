@@ -29,6 +29,11 @@ function local_release(): array {
             'RPM' => "GhostFTP-Linux-x86_64-v$version.rpm",
         ],
     ];
+    if ($version !== '' && version_compare($version, '0.99.92', '>=')) {
+        $packages['Windows']['Update (EXE)'] = "GhostFTP-Windows-x64-Update-v$version.exe";
+        $packages['Linux']['Update (DEB)'] = "GhostFTP-Linux-amd64-Update-v$version.deb";
+        $packages['Linux']['Update (RPM)'] = "GhostFTP-Linux-x86_64-Update-v$version.rpm";
+    }
     $expected = array_merge(array_values($packages['Windows']), array_values($packages['Linux']));
     $metadata = $catalog['packages'] ?? null;
     $ready = $version !== '' && is_array($catalog) && count($catalog) === 2
@@ -59,6 +64,16 @@ function local_release(): array {
             && ($checksums[$name] ?? null) === $record['sha256']
             && !is_link($file) && is_file($file) && is_readable($file)
             && filesize($file) === $record['size'];
+    }
+    if (count($expected) === 7) {
+        foreach ([
+            "GhostFTP-Windows-x64-Update-v$version.exe" => "GhostFTP-Windows-x64-Setup-v$version.exe",
+            "GhostFTP-Linux-amd64-Update-v$version.deb" => "GhostFTP-Linux-amd64-v$version.deb",
+            "GhostFTP-Linux-x86_64-Update-v$version.rpm" => "GhostFTP-Linux-x86_64-v$version.rpm",
+        ] as $alias => $original) {
+            $ready = $ready && $checksums[$alias] === $checksums[$original]
+                && $metadata[$alias]['size'] === $metadata[$original]['size'];
+        }
     }
     return [$version, $packages, $ready];
 }
