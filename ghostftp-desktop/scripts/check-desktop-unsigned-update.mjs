@@ -27,6 +27,12 @@ let offered = null;
 let manualOffered = null;
 let manualChecks = 0;
 let checks = 0;
+let transfers = [];
+let waiting = [];
+let snapshotFailure = false;
+let snapshotGate = null;
+let installs = 0;
+let restarts = 0;
 const notifications = [];
 const store = { getState: () => state, setState: (patch) => { state = { ...state, ...patch }; } };
 const create = (definition) => {
@@ -39,8 +45,8 @@ const create = (definition) => {
 const deps = {
   zustand: { create },
   "@tauri-apps/plugin-updater": { check: async () => { checks++; return offered; } },
-  "@tauri-apps/plugin-process": { relaunch: async () => {} },
-  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; } } },
+  "@tauri-apps/plugin-process": { relaunch: async () => { restarts++; } },
+  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; }, listTransfers: async () => { if (snapshotGate) await snapshotGate; if (snapshotFailure) throw Error("snapshot unavailable"); return transfers; }, transferQueueState: async () => ({ waiting }) } },
   "./toastStore": { toast: {
     info: (...args) => notifications.push(["info", ...args]),
     warning: (...args) => notifications.push(["warning", ...args]),
@@ -65,7 +71,7 @@ assert.ok(!notifications.some(row => row[0] === "success" || row.join(" ").toLow
 assert.equal(checks, 1);
 assert.equal(manualChecks, 1);
 manualOffered = "0.99.91";
-offered = { available: true, version: "9.9.9", currentVersion: "0.99.33", body: "signed update", downloadAndInstall: async () => {} };
+offered = { available: true, version: "9.9.9", currentVersion: "0.99.33", body: "signed update", downloadAndInstall: async () => { installs++; } };
 await store.getState().check(false);
 assert.equal(store.getState().status, "available");
 assert.equal(store.getState().version, "9.9.9");
@@ -83,4 +89,49 @@ assert.equal(manualChecks, 3);
 await store.getState().check(true);
 assert.equal(manualChecks, 3, "Quiet checks do not query manual availability");
 assert.equal(store.getState().manualVersion, null);
-console.log("Windows/Linux unsigned manual-update fallback and signed-update safety: passed.");
+// Exercise the real store's preflight with native IPC and OS operations mocked.
+await store.getState().restart();
+assert.equal(restarts, 0, "Restart requires an installed update");
+offered = { available: true, version: "9.9.9", currentVersion: "0.99.91", downloadAndInstall: async () => { installs++; } };
+await store.getState().check(false);
+for (const status of ["queued", "transferring", "paused", "unknown"]) {
+  transfers = [{ status }];
+  await store.getState().downloadAndInstall();
+  assert.equal(installs, 0, status);
+  assert.equal(store.getState().status, "available");
+}
+transfers = [];
+waiting = ["pending"];
+await store.getState().downloadAndInstall();
+assert.equal(installs, 0, "Native queue may contain work absent from transfer snapshot");
+waiting = [];
+snapshotFailure = true;
+await store.getState().downloadAndInstall();
+assert.equal(installs, 0, "Unknown queue state must fail closed");
+snapshotFailure = false;
+transfers = ["done", "skipped", "error", "canceled"].map(status => ({ status }));
+let unblock;
+snapshotGate = new Promise(resolve => { unblock = resolve; });
+const first = store.getState().downloadAndInstall();
+await store.getState().downloadAndInstall();
+unblock();
+await first;
+snapshotGate = null;
+assert.equal(installs, 1, "Parallel requests must not install twice");
+assert.equal(store.getState().status, "ready");
+transfers = [{ status: "transferring" }];
+await store.getState().restart();
+assert.equal(restarts, 0, "New transfer must prevent restart");
+snapshotFailure = true;
+transfers = [];
+await store.getState().restart();
+assert.equal(restarts, 0);
+snapshotFailure = false;
+snapshotGate = new Promise(resolve => { unblock = resolve; });
+const restart = store.getState().restart();
+await store.getState().restart();
+unblock();
+await restart;
+snapshotGate = null;
+assert.equal(restarts, 1, "Parallel requests must not restart twice");
+console.log("Windows/Linux unsigned manual-update fallback, signed-update preflight and restart safety: passed.");

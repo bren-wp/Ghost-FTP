@@ -16,6 +16,25 @@ import { redactSensitiveText } from "@/lib/redact";
 // check and download; only plain, renderable fields live in the store.
 
 let heldUpdate: Update | null = null;
+let restarting = false;
+
+// A fresh native snapshot is required; a missing snapshot is not an empty queue.
+// This is an application-level preflight, not a native admission lock.
+async function transfersPermitUpdate(): Promise<boolean> {
+  try {
+    const [transfers, queue] = await Promise.all([ipc.listTransfers(), ipc.transferQueueState()]);
+    const terminal = new Set(["done", "skipped", "error", "canceled"]);
+    if (queue.waiting.length !== 0 || transfers.some((transfer) => !terminal.has(transfer.status))) {
+      toast.warning("Finish transfers before updating", "Complete or cancel queued, running and paused transfers before continuing.");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("Couldn't verify transfer activity", redactSensitiveText(error, 240));
+    toast.warning("Update postponed", "Ghost FTP couldn't verify that the transfer queue is idle. Try again after checking Transfers.");
+    return false;
+  }
+}
 
 /** How long to wait between quiet launch checks (persisted via `lastUpdateCheck`
  *  in ghostftp.db so it survives restarts, per the plan). */
@@ -46,7 +65,7 @@ function friendlyUpdateError(error: unknown, phase: "check" | "download"): strin
     return "Ghost FTP couldn't reach the update service. Check your internet connection and try again.";
   }
   return phase === "download"
-    ? "Ghost FTP couldn't install the update. Your current installation was left unchanged."
+    ? "Ghost FTP couldn't finish the update. Check your installation before retrying."
     : "Ghost FTP couldn't complete the update check. Please try again later.";
 }
 
@@ -146,10 +165,16 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   },
 
   downloadAndInstall: async () => {
-    if (!heldUpdate || get().status === "downloading") return;
+    if (!heldUpdate || get().status !== "available") return;
+    const update = heldUpdate;
+    // Reserve the operation synchronously, including while awaiting preflight.
     set({ status: "downloading", downloaded: 0, total: null, error: null });
+    if (!(await transfersPermitUpdate())) {
+      set({ status: "available" });
+      return;
+    }
     try {
-      await heldUpdate.downloadAndInstall((event) => {
+      await update.downloadAndInstall((event) => {
         switch (event.event) {
           case "Started":
             set({ total: event.data.contentLength ?? null, downloaded: 0 });
@@ -178,10 +203,16 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   },
 
   restart: async () => {
+    if (get().status !== "ready" || restarting) return;
+    restarting = true;
     try {
+      if (!(await transfersPermitUpdate())) return;
       await relaunch();
     } catch (e) {
-      toast.error("Couldn't restart", messageOf(e));
+      console.warn("Updater restart failed", redactSensitiveText(e, 240));
+      toast.error("Couldn't restart", "Close and reopen Ghost FTP when all transfers are finished.");
+    } finally {
+      restarting = false;
     }
   },
 

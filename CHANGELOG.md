@@ -5,6 +5,7 @@
 - Fail closed on inconsistent checksum catalogs or truncated manual installation packages.
 - Record installer sizes and hashes in deterministic deployment metadata and extend regression tests.
 - Block direct downloads of stale, portable and unrelated files using an exact-release Apache allowlist.
+- Preflight the native transfer queue before signed installation and restart; defer scheduled retries and reject duplicate update operations.
 
 ## 0.99.90 Stable — 27 November 2026 (published)
 

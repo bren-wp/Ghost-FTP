@@ -176,6 +176,7 @@ function UpdatesContent() {
       Automatic installation is offered only for cryptographically signed updater packages.
       Windows and Linux installers can also be installed manually without a publisher signing certificate.
       Manual update availability is checked separately and never enables automatic installation.
+      Finish all running, queued and paused transfers before installing or restarting.
     </p>
     <p className="mt-3 text-[12px] text-text-muted" aria-live="polite">{label}</p>
     {manualVersion && <p className="mt-2 text-[13px] text-accent" role="status">Ghost FTP {manualVersion} is available for manual installation. Open official downloads below.</p>}
@@ -188,7 +189,7 @@ function UpdatesContent() {
       <OfficialLinkRow
         icon={<Globe2 size={18}/>}
         title="Open official Windows / Linux downloads"
-        subtitle="Select the current version, verify its SHA-256 checksum, then install manually. Existing profiles are not intentionally deleted."
+        subtitle="Select the current version, verify its SHA-256 checksum, then install manually. Back up your profiles securely and finish all transfers before installing."
         url={UPDATE_CENTER_URL}
       />
       <p className="mt-2 text-[11px] leading-5 text-text-muted">

@@ -13,3 +13,5 @@ Download the matching OS package and `SHA256SUMS.txt` from the same deployed upd
 Windows portable/NSIS/MSI and Linux AppImage/DEB/RPM upgrades have different OS integration and uninstall rules; verify the matching package.
 
 See [Installation](INSTALLATION.md) and the [release process](../release/PROCESS.md).
+
+The desktop now checks the live native transfer list and waiting queue before invoking the signed installer and again before relaunch. Queued, running, paused or unknown transfer states and failed snapshots postpone the action. Local scheduled retries are deferred while installation is in progress or awaiting restart. This is a desktop preflight, not a native global admission barrier: bridge, sync or user operations can race with the snapshot. Do not start new work during an update. Native exclusive admission, installed-device rollback and crash-recovery acceptance remain outstanding; do not infer preservation of all data from a successful preflight.
