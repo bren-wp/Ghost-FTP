@@ -19,7 +19,7 @@ let heldUpdate: Update | null = null;
 let restarting = false;
 
 // A fresh native snapshot is required; a missing snapshot is not an empty queue.
-// This is an application-level preflight, not a native admission lock.
+// Native exclusive admission is acquired separately before installation.
 async function transfersPermitUpdate(): Promise<boolean> {
   try {
     const [transfers, queue] = await Promise.all([ipc.listTransfers(), ipc.transferQueueState()]);
@@ -174,6 +174,14 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       return;
     }
     try {
+      await ipc.beginUpdateMaintenance();
+    } catch (error) {
+      console.warn("Native update maintenance unavailable", redactSensitiveText(error, 240));
+      set({ status: "available" });
+      toast.warning("Update postponed", "Finish transfers or restart Ghost FTP before updating.");
+      return;
+    }
+    try {
       await update.downloadAndInstall((event) => {
         switch (event.event) {
           case "Started":
@@ -190,11 +198,12 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       set({ status: "ready" });
     } catch (e) {
       const message = friendlyUpdateError(e, "download");
-      // Keep the verified Update handle so a transient network/install error
-      // can be retried without discarding the already offered release.
+      // Installation might have partially changed the application. Keep native
+      // admission locked until process exit; do not retry an uncertain install.
+      heldUpdate = null;
       set({
-        status: heldUpdate ? "available" : "error",
-        error: message,
+        status: "error",
+        error: message + " Close and reopen Ghost FTP before starting transfers or retrying.",
         downloaded: 0,
         total: null,
       });

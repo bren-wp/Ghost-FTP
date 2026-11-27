@@ -83,6 +83,19 @@ pub async fn check_manual_update() -> Result<Option<String>, String> {
     newer_version(&body, env!("CARGO_PKG_VERSION"))
 }
 
+/// Called only before the existing signed updater is invoked. Maintenance is
+/// intentionally retained after success or uncertain installation failure.
+#[tauri::command]
+pub async fn begin_update_maintenance(
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<(), String> {
+    state
+        .transfers
+        .begin_update_maintenance()
+        .await
+        .map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -451,6 +451,7 @@ original user data and staged restore were preserved for repair"
         .invoke_handler(tauri::generate_handler![
             open_external_url,
             manual_update::check_manual_update,
+            manual_update::begin_update_maintenance,
             commands::list_profiles,
             commands::export_profiles,
             commands::save_profile,

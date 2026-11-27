@@ -33,6 +33,8 @@ let snapshotFailure = false;
 let snapshotGate = null;
 let installs = 0;
 let restarts = 0;
+let maintenanceFailure = false;
+let maintenanceCalls = 0;
 const notifications = [];
 const store = { getState: () => state, setState: (patch) => { state = { ...state, ...patch }; } };
 const create = (definition) => {
@@ -46,7 +48,7 @@ const deps = {
   zustand: { create },
   "@tauri-apps/plugin-updater": { check: async () => { checks++; return offered; } },
   "@tauri-apps/plugin-process": { relaunch: async () => { restarts++; } },
-  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; }, listTransfers: async () => { if (snapshotGate) await snapshotGate; if (snapshotFailure) throw Error("snapshot unavailable"); return transfers; }, transferQueueState: async () => ({ waiting }) } },
+  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; }, listTransfers: async () => { if (snapshotGate) await snapshotGate; if (snapshotFailure) throw Error("snapshot unavailable"); return transfers; }, transferQueueState: async () => ({ waiting }), beginUpdateMaintenance: async () => { maintenanceCalls++; if (maintenanceFailure) throw Error("busy"); } } },
   "./toastStore": { toast: {
     info: (...args) => notifications.push(["info", ...args]),
     warning: (...args) => notifications.push(["warning", ...args]),
@@ -110,6 +112,11 @@ await store.getState().downloadAndInstall();
 assert.equal(installs, 0, "Unknown queue state must fail closed");
 snapshotFailure = false;
 transfers = ["done", "skipped", "error", "canceled"].map(status => ({ status }));
+maintenanceFailure = true;
+await store.getState().downloadAndInstall();
+assert.equal(installs, 0, "Exclusive native admission refusal must block installation");
+assert.equal(store.getState().status, "available");
+maintenanceFailure = false;
 let unblock;
 snapshotGate = new Promise(resolve => { unblock = resolve; });
 const first = store.getState().downloadAndInstall();
@@ -118,6 +125,7 @@ unblock();
 await first;
 snapshotGate = null;
 assert.equal(installs, 1, "Parallel requests must not install twice");
+assert.equal(maintenanceCalls, 2, "Only admitted installer attempts acquire maintenance");
 assert.equal(store.getState().status, "ready");
 transfers = [{ status: "transferring" }];
 await store.getState().restart();

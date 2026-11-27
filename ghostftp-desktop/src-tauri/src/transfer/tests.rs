@@ -2462,3 +2462,25 @@ async fn delta_falls_back_when_mostly_changed() {
     assert!(mgr.get("d").await.unwrap().delta.is_none());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[tokio::test]
+async fn update_maintenance_excludes_transfer_preparation_and_new_admission() {
+    let mgr = TransferManager::new();
+    let preparation = mgr.transfer_admission().unwrap();
+    assert!(mgr.begin_update_maintenance().await.is_err());
+    drop(preparation);
+    assert!(mgr.begin_update_maintenance().await.is_ok());
+    assert!(mgr.transfer_admission().is_err());
+    assert!(mgr.begin_update_maintenance().await.is_err());
+}
+
+#[tokio::test]
+async fn update_maintenance_refuses_waiting_and_canceled_worker_state() {
+    let mgr = TransferManager::new();
+    mgr.waiting.lock().await.push_back("pending".into());
+    assert!(mgr.begin_update_maintenance().await.is_err());
+    mgr.waiting.lock().await.clear();
+    mgr.canceled_worker.store(true, Ordering::Release);
+    assert!(mgr.begin_update_maintenance().await.is_err());
+    assert!(mgr.transfer_admission().is_ok(), "failed maintenance must not lock admission");
+}
