@@ -114,6 +114,9 @@ jobs:
         shell: bash
         run: node .github/scripts/check-update-contract.mjs
 
+      - name: Web root packaging regression tests
+        run: python3 updates/scripts/test-pack-web-root.py
+
       - name: Package actual published predecessor installers for the update web
         env:
           GH_TOKEN: ${{ github.token }}

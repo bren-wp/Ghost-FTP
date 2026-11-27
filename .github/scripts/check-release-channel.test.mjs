@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { classifyReleaseChannel, checkReleaseChannel, requiresStable } from "./check-release-channel.mjs";
 
 test("historical Preview classification is explicit; current source is Stable", () => {
@@ -23,4 +26,15 @@ test("missing, unknown and deceptive release channels cannot silently become sta
   for (const channel of [undefined, null, "", "production", "Stable", "preview ", "rc"]) {
     assert.throws(() => classifyReleaseChannel(channel), /Unsupported release channel/);
   }
+});
+
+test("new release cannot silently revert to Preview", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ghostftp-channel-"));
+  try {
+    const file = path.join(root, "version.json");
+    fs.writeFileSync(file, JSON.stringify({version:"0.99.90", channel:"preview"}));
+    assert.throws(() => checkReleaseChannel(file), /must use the stable channel/);
+    fs.writeFileSync(file, JSON.stringify({version:"0.99.90", channel:"stable"}));
+    assert.equal(checkReleaseChannel(file).prerelease, false);
+  } finally { fs.rmSync(root, {recursive:true, force:true}); }
 });
