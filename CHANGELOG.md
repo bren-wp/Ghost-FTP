@@ -9,6 +9,7 @@
 - Serialize native transfer preparation and updater maintenance; refuse updates after potentially lingering canceled workers until restart.
 - Record source/target update intent before installation and surface incomplete-update recovery notices without modifying user files.
 - Protect remote editors, backup/restore and folder-sync configuration during update preparation; reject staged restores and reserve the recovery setting.
+- Gate Mirror deletions on verified copy completion, propagate deletion failures and retain private server archives if a download is not confirmed complete.
 
 ## 0.99.90 Stable — 27 November 2026 (published)
 

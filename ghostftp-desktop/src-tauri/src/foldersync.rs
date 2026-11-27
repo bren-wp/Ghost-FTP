@@ -803,7 +803,7 @@ async fn reconcile_inner(
 
     // Do not claim a pair was synchronized, or advance the persistent source
     // index, when any queued transfer failed, was canceled or timed out.
-    wait_for_transfers(state, ids).await?;
+    wait_for_transfers(&state.transfers, &ids).await?;
 
     // Record what the source looks like now, so the next reconcile compares
     // against reality rather than re-uploading (resume) and catches in-place
@@ -957,15 +957,18 @@ fn transfer_batch_complete(statuses: &[Option<TransferStatus>]) -> Result<bool> 
 /// Wait for all queued work to succeed. Timeout and missing rows are errors,
 /// not successful reconciliations; preserve old index so the next watcher or
 /// poll retries instead of silently losing changed files.
-async fn wait_for_transfers(state: &AppState, ids: Vec<String>) -> Result<()> {
+pub(crate) async fn wait_for_transfers(
+    transfers: &crate::transfer::TransferManager,
+    ids: &[String],
+) -> Result<()> {
     if ids.is_empty() {
         return Ok(());
     }
     let start = std::time::Instant::now();
     loop {
         let mut statuses = Vec::with_capacity(ids.len());
-        for id in &ids {
-            statuses.push(state.transfers.snapshot(id).await.map(|t| t.status));
+        for id in ids {
+            statuses.push(transfers.snapshot(id).await.map(|t| t.status));
         }
         if transfer_batch_complete(&statuses)? {
             return Ok(());
