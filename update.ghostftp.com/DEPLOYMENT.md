@@ -7,3 +7,5 @@ The release pipeline generates a new root archive from the same exact-source ins
 The existing signed updater endpoint is not changed. The two web aliases deliberately return 204 until a signed, compatible local updater implementation is accepted. Manual packages do not enable unattended installation. Keep old client compatibility until native acceptance is verified.
 
 The read-only `/manual-version.json` endpoint returns the version of a complete local installer set or HTTP 204. This is informational only; the desktop must never execute packages based on this endpoint. The signed updater service remains separate.
+
+The generated catalog records the exact installer sizes and release SHA-256 values. Discovery rejects mismatched checksum metadata, missing or truncated packages, and invalid catalogs. Full file hashing is a packaging/deployment acceptance step, not a per-request PHP operation; use a read-only public document root and replace the entire web root atomically. Do not mix the catalog from older releases with the new PHP files.

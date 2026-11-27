@@ -56,7 +56,11 @@ def pack(output, version, assets, checksums):
             shutil.copyfile(source, dest)
             if digest(dest) != records.get(name):
                 raise ValueError("Installer SHA-256 mismatch: " + name)
-        (local / "catalog.json").write_text(json.dumps({"version": version}) + "\n", encoding="utf-8")
+        metadata = {name: {"size": (local / name).stat().st_size, "sha256": records[name]}
+                    for name in expected}
+        (local / "catalog.json").write_text(
+            json.dumps({"version": version, "packages": metadata}, sort_keys=True) + "\n",
+            encoding="utf-8")
         (local / "SHA256SUMS.txt").write_text("".join(f"{records[n]}  {n}\n" for n in expected), encoding="utf-8")
         archive_path = staged / "root.zip"
         entries = [(name, ROOT / name) for name in PUBLIC]

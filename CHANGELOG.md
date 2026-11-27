@@ -1,6 +1,11 @@
 <!-- Ghost FTP by Brendigo -->
 
-## 0.99.90 Stable — 27 November 2026 (development candidate; publication pending)
+## 0.99.91 Stable — 27 November 2026 (development candidate; publication pending)
+
+- Fail closed on inconsistent checksum catalogs or truncated manual installation packages.
+- Record installer sizes and hashes in deterministic deployment metadata and extend regression tests.
+
+## 0.99.90 Stable — 27 November 2026 (published)
 
 - Add the branded EN/HR self-contained update center with real installers and SHA-256 checksums.
 - Return HTTP 204 on both update endpoint aliases while no signed updater package is available.

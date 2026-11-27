@@ -84,3 +84,37 @@ if len(sys.argv) > 3:
     finally:
         moved.rename(installer)
     print("Partial deployment: PASS")
+
+    def assert_unavailable():
+        with urllib.request.urlopen(base + "/manual-version.json", timeout=5) as response:
+            assert response.status == 204 and not response.read()
+        with urllib.request.urlopen(base + "/", timeout=5) as response:
+            page = response.read().decode()
+            assert "Installation packages are temporarily unavailable" in page
+            assert not any(f'href="downloads/{name}" download' in page for name in expected)
+
+    root = Path(sys.argv[3]) / "downloads"
+    for filename, replacement in [
+        ("SHA256SUMS.txt", b"invalid checksum catalog\n"),
+        ("SHA256SUMS.txt", sums.replace(sums[0], "1" if sums[0] != "1" else "0", 1).encode()),
+        ("catalog.json", json.dumps({"version": version}).encode()),
+    ]:
+        path = root / filename
+        original = path.read_bytes()
+        try:
+            path.write_bytes(replacement)
+            assert_unavailable()
+        finally:
+            path.write_bytes(original)
+
+    installer.rename(moved)
+    try:
+        # Non-empty but truncated files must not be advertised.
+        installer.write_bytes(b"MZ")
+        assert_unavailable()
+    finally:
+        installer.unlink()
+        moved.rename(installer)
+    with urllib.request.urlopen(base + "/manual-version.json", timeout=5) as response:
+        assert response.status == 200 and json.loads(response.read()) == {"version": version}
+    print("Corrupt catalog, altered checksum and truncated package: PASS")
