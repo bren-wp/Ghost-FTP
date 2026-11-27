@@ -108,3 +108,11 @@ test("metadata repair accepts false Preview ONLY with verified complete immutabl
     fs.rmSync(tmp, {recursive:true, force:true});
   }
 });
+
+test("new stable releases require a separate web root while retaining the signed updater group", () => {
+  const {required, optional} = expectedReleaseAssets("0.99.90");
+  assert.equal(required.length,16);
+  assert.ok(required.includes("GhostFTP-v0.99.90-Update-Web-Root.zip"));
+  assert.equal(optional.length,4);
+  assert.equal(expectedReleaseAssets("0.99.89").required.length,15);
+});

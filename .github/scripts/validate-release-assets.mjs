@@ -5,6 +5,7 @@
  * A valid GH API digest is matched to the downloaded SHA256SUMS content.
  */
 import { createHash } from "node:crypto";
+import { requiresStable } from "./check-release-channel.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -135,8 +136,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const release = JSON.parse(fs.readFileSync(value, "utf8"));
       ensure(release.draft === false, "release remains Draft");
       if (mode === "--release-json") {
-        // The actual publication gate is STRICT: false is never acceptable.
-        ensure(release.prerelease === true, "Preview must be classified as prerelease");
+        // Classification is versioned; historical Preview releases remain unchanged.
+        ensure(release.prerelease === !requiresStable(version), "Release channel mismatch");
       } else {
         // This path is restricted to metadata repair, BEFORE a PATCH. It is
         // deliberately separate from the strict post-publication checker.
@@ -145,7 +146,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       ensure(release.tag_name === "v" + version, "release tag mismatch");
       const result = validateReleaseAssets(version, release.assets,
         fs.readFileSync(arg5));
-      console.log(`Verified ${mode === "--release-json" ? "public Preview" : "immutable Preview repair inventory"}: ${result.assetCount} exact assets; all GitHub SHA-256 digests match the downloaded SHA256SUMS.`);
+      console.log(`Verified ${mode === "--release-json" ? "public release" : "immutable release repair inventory"}: ${result.assetCount} exact assets; all GitHub SHA-256 digests match the downloaded SHA256SUMS.`);
     } else {
       fail("usage: VERSION (--list-required|--list-optional|--dist DIRECTORY|--release-json FILE --checksums FILE|--metadata-repair-json FILE --checksums FILE)");
     }

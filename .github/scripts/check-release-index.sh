@@ -31,7 +31,8 @@ FIRST_PAGE="$(gh api "repos/$REPO/releases?per_page=30")"
 
 RELEASE="$(gh api "repos/$REPO/releases/tags/$TAG")"
 [[ "$(jq -r '.draft' <<< "$RELEASE")" = false ]] || die "$TAG remains Draft"
-[[ "$(jq -r '.prerelease' <<< "$RELEASE")" = true ]] || die "$TAG is not marked Preview/prerelease"
+EXPECTED_PRE="$(node --input-type=module -e 'import {requiresStable} from "./.github/scripts/check-release-channel.mjs"; console.log(!requiresStable(process.argv[1]))' "$VERSION")"
+[[ "$(jq -r '.prerelease' <<< "$RELEASE")" = "$EXPECTED_PRE" ]] || die "$TAG release channel mismatch"
 [[ "$(jq -r '.target_commitish' <<< "$RELEASE")" = "$SOURCE_SHA" ]] || die "$TAG release target SHA mismatch"
 [[ "$(jq -r '.html_url' <<< "$RELEASE")" = "https://github.com/$REPO/releases/tag/$TAG" ]] ||
   die "$TAG URL mismatch"
@@ -45,4 +46,4 @@ gh release download "$TAG" --pattern "$CHECKSUM_FILE" --dir "$TMP" >/dev/null ||
 node .github/scripts/validate-release-assets.mjs "$VERSION" \
   --release-json "$TMP/release.json" --checksums "$TMP/$CHECKSUM_FILE" ||
   die "Published release asset contract failed for $TAG"
-echo "::notice::Verified public $TAG Preview: exact release manifest, sizes and SHA-256 cross-checks from $SOURCE_SHA."
+echo "::notice::Verified public $TAG: exact release manifest, sizes and SHA-256 cross-checks from $SOURCE_SHA."

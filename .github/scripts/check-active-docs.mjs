@@ -20,10 +20,12 @@ export function auditActiveDocs(root = ROOT) {
   const issues = [];
   let version = "";
   let previous = "";
+  let label = "Preview";
   try {
     const meta = JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8"));
     version = meta.version;
     previous = meta.previousPublishedVersion;
+    if (meta.channel === "stable") label = "Stable";
     if (!/^\d+\.\d+\.\d+$/.test(version) || !/^\d+\.\d+\.\d+$/.test(previous)) {
       throw new Error("missing current or preceding SemVer");
     }
@@ -34,8 +36,8 @@ export function auditActiveDocs(root = ROOT) {
     let source;
     try { source = fs.readFileSync(path.join(root, rel), "utf8"); }
     catch { issues.push(rel + ": missing active documentation"); continue; }
-    if (!source.includes("Ghost FTP " + version + " Preview")) {
-      issues.push(rel + ": active Preview version does not match version.json");
+    if (!source.includes("Ghost FTP " + version + " " + label)) {
+      issues.push(rel + ": active release version does not match version.json");
     }
     if (!source.includes("**Previous canonical release:** v" + previous)) {
       issues.push(rel + ": predecessor release does not match version.json");

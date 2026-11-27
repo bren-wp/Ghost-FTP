@@ -141,7 +141,7 @@ for (const rel of [
 requireFile("docs/releases/README.md");
 requireFile("docs/releases/version-map.json");
 requireFile("docs/release/STABLE_RELEASE_POLICY.md");
-requireIncludes("docs/release/STABLE_RELEASE_POLICY.md", "Signed and verifiable", "independent Stable signature acceptance");
+requireIncludes("docs/release/STABLE_RELEASE_POLICY.md", "Never install unsigned automatic updates", "independent updater signature acceptance");
 requireFile(".github/workflows/ghostftp-release.yml");
 requireFile("updates/README.md");
 requireFile("updates/DEPLOYMENT.md");

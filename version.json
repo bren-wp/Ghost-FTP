@@ -3,6 +3,6 @@
   "previousVersion": "0.99.89",
   "build": "2026.11.27.02",
   "releaseDate": "27 November 2026",
-  "channel": "preview",
+  "channel": "stable",
   "previousPublishedVersion": "0.99.89"
 }

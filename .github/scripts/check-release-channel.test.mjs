@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyReleaseChannel, checkReleaseChannel } from "./check-release-channel.mjs";
+import { classifyReleaseChannel, checkReleaseChannel, requiresStable } from "./check-release-channel.mjs";
 
 test("development source must publish as an explicit GitHub prerelease", () => {
   assert.deepEqual(classifyReleaseChannel("preview"), {
@@ -8,12 +8,15 @@ test("development source must publish as an explicit GitHub prerelease", () => {
     titleSuffix: " Preview",
   });
   const state = checkReleaseChannel();
-  assert.equal(state.prerelease, true);
+  assert.equal(state.prerelease, false);
   assert.match(state.version, /^\d+\.\d+\.\d+$/);
 });
 
-test("stable release is blocked while production signatures and lifecycle proofs are missing", () => {
-  assert.throws(() => classifyReleaseChannel("stable"), /Stable release refused/);
+test("stable distribution does not require signatures; transition is versioned", () => {
+  assert.deepEqual(classifyReleaseChannel("stable"), { prerelease: false, titleSuffix: "" });
+  assert.equal(requiresStable("0.99.89"), false);
+  assert.equal(requiresStable("0.99.90"), true);
+  assert.equal(requiresStable("1.0.0"), true);
 });
 
 test("missing, unknown and deceptive release channels cannot silently become stable", () => {

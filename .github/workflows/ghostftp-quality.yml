@@ -38,7 +38,7 @@ jobs:
       - name: Verify version train transition regression matrix
         run: node .github/scripts/check-version-policy.mjs
 
-      - name: Fail closed on unsupported stable signing / Preview release semantics
+      - name: Verify release classification and independent updater trust
         shell: bash
         run: |
           set -euo pipefail
