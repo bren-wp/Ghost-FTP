@@ -256,6 +256,9 @@ impl FolderSync {
 
     /// Bring up every pair the user left enabled.
     pub async fn auto_start_if_enabled(&self, app: AppHandle) {
+        let Ok(_maintenance) = app.state::<AppState>().transfers.background_admission() else {
+            return;
+        };
         let pairs = self.settings.lock().await.pairs.clone();
         for p in pairs.into_iter().filter(|p| p.enabled) {
             if let Err(e) = self.start_pair(&app, &p).await {
@@ -265,6 +268,24 @@ impl FolderSync {
         // Hand the on-demand pairs to the VirtualFs provider and reconcile
         // orphaned sync roots (registered but no longer configured).
         self.reconcile_virtualfs(&app).await;
+    }
+
+    /// Maintenance requires all configured background pairs to be disabled.
+    /// This covers enabled on-demand pairs even without an eager worker.
+    pub(crate) async fn ensure_update_idle(&self) -> Result<()> {
+        let enabled = self
+            .settings
+            .lock()
+            .await
+            .pairs
+            .iter()
+            .any(|pair| pair.enabled);
+        let running = !self.running.lock().await.is_empty();
+        anyhow::ensure!(
+            !enabled && !running,
+            "Disable background folder synchronization before updating"
+        );
+        Ok(())
     }
 
     /// The enabled on-demand pairs, as the provider's lighter [`OnDemandPair`].
@@ -409,6 +430,7 @@ impl FolderSync {
 
     /// Add or replace a pair. If it's enabled, (re)start it.
     pub async fn upsert(&self, app: &AppHandle, mut pair: SyncPair) -> Result<()> {
+        let _maintenance = app.state::<AppState>().transfers.background_admission()?;
         if pair.id.is_empty() {
             pair.id = uuid::Uuid::new_v4().to_string();
         }
@@ -443,6 +465,7 @@ impl FolderSync {
     }
 
     pub async fn remove(&self, app: &AppHandle, id: &str) -> Result<()> {
+        let _maintenance = app.state::<AppState>().transfers.background_admission()?;
         {
             let mut s = self.settings.lock().await;
             let previous = s.clone();
@@ -459,6 +482,7 @@ impl FolderSync {
     }
 
     pub async fn set_enabled(&self, app: &AppHandle, id: &str, enabled: bool) -> Result<()> {
+        let _maintenance = app.state::<AppState>().transfers.background_admission()?;
         let pair = {
             let mut s = self.settings.lock().await;
             let previous = s.clone();
@@ -512,6 +536,9 @@ impl FolderSync {
 
     async fn stop_pair(&self, app: &AppHandle, id: &str) {
         if let Some(r) = self.running.lock().await.remove(id) {
+            app.state::<AppState>()
+                .transfers
+                .note_aborted_background_work();
             r.task.abort();
             if let Some(session_id) = r.session_id.lock().await.take() {
                 let state = app.state::<AppState>();
@@ -776,7 +803,7 @@ async fn reconcile_inner(
 
     // Do not claim a pair was synchronized, or advance the persistent source
     // index, when any queued transfer failed, was canceled or timed out.
-    wait_for_transfers(state, ids).await?;
+    wait_for_transfers(&state.transfers, &ids).await?;
 
     // Record what the source looks like now, so the next reconcile compares
     // against reality rather than re-uploading (resume) and catches in-place
@@ -930,15 +957,18 @@ fn transfer_batch_complete(statuses: &[Option<TransferStatus>]) -> Result<bool> 
 /// Wait for all queued work to succeed. Timeout and missing rows are errors,
 /// not successful reconciliations; preserve old index so the next watcher or
 /// poll retries instead of silently losing changed files.
-async fn wait_for_transfers(state: &AppState, ids: Vec<String>) -> Result<()> {
+pub(crate) async fn wait_for_transfers(
+    transfers: &crate::transfer::TransferManager,
+    ids: &[String],
+) -> Result<()> {
     if ids.is_empty() {
         return Ok(());
     }
     let start = std::time::Instant::now();
     loop {
         let mut statuses = Vec::with_capacity(ids.len());
-        for id in &ids {
-            statuses.push(state.transfers.snapshot(id).await.map(|t| t.status));
+        for id in ids {
+            statuses.push(transfers.snapshot(id).await.map(|t| t.status));
         }
         if transfer_batch_complete(&statuses)? {
             return Ok(());

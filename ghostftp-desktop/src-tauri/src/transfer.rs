@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
-use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
+use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
@@ -760,6 +760,11 @@ impl Drop for TransferSlot {
 
 pub struct TransferManager {
     transfers: Mutex<HashMap<String, Transfer>>,
+    // Shared admission guards cover preparation through worker registration.
+    // The exclusive update guard is retained until process exit.
+    update_guard: Mutex<Option<tokio::sync::OwnedRwLockWriteGuard<()>>>,
+    update_gate: Arc<RwLock<()>>,
+    canceled_worker: AtomicBool,
     tasks: Mutex<HashMap<String, JoinHandle<()>>>,
     /// FIFO within each priority tier for transfer ids waiting for a slot. An id is popped only
     /// once it is at the front, the pause-all gate is open, and a concurrency
@@ -1160,6 +1165,9 @@ impl TransferManager {
 
         Self {
             transfers: Mutex::new(transfers),
+            update_guard: Mutex::new(None),
+            update_gate: Arc::new(RwLock::new(())),
+            canceled_worker: AtomicBool::new(false),
             tasks: Mutex::new(HashMap::new()),
             waiting: Mutex::new(VecDeque::new()),
             queue_priorities: StdMutex::new(queue_priorities),
@@ -1183,6 +1191,57 @@ impl TransferManager {
             max_auto_retries: AtomicUsize::new(DEFAULT_MAX_AUTO_RETRIES),
             delta_enabled: AtomicBool::new(true),
         }
+    }
+
+    fn transfer_admission(&self) -> Result<tokio::sync::RwLockReadGuard<'_, ()>> {
+        self.update_gate.try_read().map_err(|_| {
+            anyhow::anyhow!("Finish restarting Ghost FTP before starting another transfer")
+        })
+    }
+
+    pub(crate) fn note_aborted_background_work(&self) {
+        self.canceled_worker.store(true, Ordering::Release);
+    }
+
+    /// Shared native maintenance permit for independently managed operations.
+    pub(crate) fn background_admission(&self) -> Result<tokio::sync::OwnedRwLockReadGuard<()>> {
+        Arc::clone(&self.update_gate)
+            .try_read_owned()
+            .map_err(|_| anyhow::anyhow!("Restart Ghost FTP before starting another operation"))
+    }
+
+    /// Refuse rather than wait for active preparation or worker cleanup.
+    /// No new transfer admission can race the idle check once exclusive.
+    pub(crate) async fn begin_update_maintenance(
+        &self,
+    ) -> Result<tokio::sync::OwnedRwLockWriteGuard<()>> {
+        let guard = Arc::clone(&self.update_gate)
+            .try_write_owned()
+            .map_err(|_| anyhow::anyhow!("Transfer preparation or update already in progress"))?;
+        anyhow::ensure!(
+            !self.canceled_worker.load(Ordering::Acquire),
+            "Restart Ghost FTP before updating after a canceled worker"
+        );
+        let rows_idle = self
+            .transfers
+            .lock()
+            .await
+            .values()
+            .all(|t| is_terminal_transfer_status(t.status));
+        let queue_idle = self.waiting.lock().await.is_empty();
+        let workers_idle = self.tasks.lock().await.is_empty();
+        anyhow::ensure!(
+            rows_idle && queue_idle && workers_idle,
+            "Finish all queued, paused and running transfers before updating"
+        );
+        Ok(guard)
+    }
+
+    pub(crate) async fn retain_update_maintenance(
+        &self,
+        guard: tokio::sync::OwnedRwLockWriteGuard<()>,
+    ) {
+        *self.update_guard.lock().await = Some(guard);
     }
 
     pub async fn list(&self) -> Vec<Transfer> {
@@ -1815,6 +1874,7 @@ impl TransferManager {
     /// committed offset; unsupported backends are reset by the runner before
     /// the next attempt. A queued transfer simply re-enters FIFO admission.
     pub async fn resume(&self, id: &str, app: &AppHandle) -> Result<()> {
+        let _admission = self.transfer_admission()?;
         if self.get(id).await.map(|t| t.status) != Some(TransferStatus::Paused) {
             anyhow::bail!("transfer {id} is not paused");
         }
@@ -1847,6 +1907,7 @@ impl TransferManager {
     /// policy-resolved) source/destination. Same id — the panel row resets
     /// in place.
     pub async fn retry(self: &Arc<Self>, id: &str, app: &AppHandle) -> Result<()> {
+        let _admission = self.transfer_admission()?;
         let _retry = self.retry_serial.lock().await;
         match self.get(id).await.map(|t| t.status) {
             Some(TransferStatus::Error) | Some(TransferStatus::Canceled) => {}
@@ -1860,6 +1921,7 @@ impl TransferManager {
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("transfer {id} cannot be retried"))?;
         if let Some(h) = self.tasks.lock().await.remove(id) {
+            self.canceled_worker.store(true, Ordering::Release);
             h.abort();
         }
         // A cancel-while-paused leaves the gate closed — reopen it. A row
@@ -2060,6 +2122,7 @@ impl TransferManager {
     }
 
     pub async fn cancel(&self, id: &str, app: &AppHandle) -> Result<()> {
+        let _admission = self.transfer_admission()?;
         // Cancel and manual Retry must not race to abort/re-register the same
         // worker. finish_transfer uses the ledger lock to resolve Cancel vs
         // Done deterministically before either becomes terminal.
@@ -2077,6 +2140,8 @@ impl TransferManager {
         // FTP spawn_blocking may continue ABOR cleanup after async abort; it
         // already sees the cancellation flag published by mark_canceled.
         if let Some(handle) = self.tasks.lock().await.remove(id) {
+            // A blocking FTP worker may still be cleaning up after abort.
+            self.canceled_worker.store(true, Ordering::Release);
             handle.abort();
         }
         let _ = app.emit("transfer://updated", &canceled);
@@ -2092,6 +2157,7 @@ impl TransferManager {
         policy: OverwritePolicy,
         app: AppHandle,
     ) -> Result<String> {
+        let _admission = self.transfer_admission()?;
         let file_name = basename(&remote_path);
         anyhow::ensure!(
             safe_local_download_leaf(&file_name),
@@ -2406,6 +2472,7 @@ impl TransferManager {
         policy: OverwritePolicy,
         app: AppHandle,
     ) -> Result<String> {
+        let _admission = self.transfer_admission()?;
         let local = PathBuf::from(&local_path);
         // Native file pickers can return a symlink even when the UI has no
         // symlink-transfer action. Never dereference an arbitrary link as an
@@ -3308,6 +3375,7 @@ impl TransferManager {
         policy: OverwritePolicy,
         app: AppHandle,
     ) -> Result<Vec<String>> {
+        let _admission = self.transfer_admission()?;
         let root_name = basename(&remote_root);
         if root_name.is_empty() || matches!(root_name.as_str(), "." | "..") {
             anyhow::bail!("directory download requires a named remote directory");
@@ -3395,6 +3463,7 @@ impl TransferManager {
         policy: OverwritePolicy,
         app: AppHandle,
     ) -> Result<Vec<String>> {
+        let _admission = self.transfer_admission()?;
         let local_root_path = PathBuf::from(&local_root);
         let metadata = tokio::fs::symlink_metadata(&local_root_path)
             .await

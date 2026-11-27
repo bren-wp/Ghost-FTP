@@ -23,6 +23,7 @@ for path, status, marker in [
     ("/updates/latest.json", 204, ""),
     ("/.htaccess", 403, ""),
     ("/downloads/", 403, ""),
+    ("/downloads/catalog.json", 404, ""),
     (f"/downloads/GhostFTP-Windows-x64-Portable-v{version}.exe", 404, ""),
     (f"/downloads/GhostFTP-Linux-x86_64-v{version}.AppImage", 404, ""),
     ("/assets/site.css", 200, "color-scheme"),
@@ -84,3 +85,64 @@ if len(sys.argv) > 3:
     finally:
         moved.rename(installer)
     print("Partial deployment: PASS")
+
+    def assert_unavailable():
+        with urllib.request.urlopen(base + "/manual-version.json", timeout=5) as response:
+            assert response.status == 204 and not response.read()
+        with urllib.request.urlopen(base + "/", timeout=5) as response:
+            page = response.read().decode()
+            assert "Installation packages are temporarily unavailable" in page
+            assert not any(f'href="downloads/{name}" download' in page for name in expected)
+
+    root = Path(sys.argv[3]) / "downloads"
+    # Simulate files accidentally left on the host. A 404 must be returned
+    # even when the file exists, not just because the clean ZIP omits it.
+    stale_version = "0.0.0" if version != "0.0.0" else "0.0.1"
+    for filename in [
+        f"GhostFTP-Windows-x64-Portable-v{version}.exe",
+        f"GhostFTP-Linux-x86_64-v{version}.AppImage",
+        f"GhostFTP-Windows-x64-Setup-v{stale_version}.exe",
+        "SHA256SUMS.txt.bak",
+        "backup.zip",
+    ]:
+        path = root / filename
+        with path.open("xb") as fixture:
+            fixture.write(b"synthetic stale file, never distributed")
+        try:
+            try:
+                response = urllib.request.urlopen(base + "/downloads/" + filename, timeout=5)
+            except urllib.error.HTTPError as error:
+                response = error
+            with response:
+                assert response.status == 404, (filename, response.status)
+        finally:
+            path.unlink()
+    print("Unexpected and stale download routes: PASS")
+    for filename, replacement in [
+        ("SHA256SUMS.txt", b"invalid checksum catalog\n"),
+        ("SHA256SUMS.txt", (sums + sums.splitlines()[0] + "\n").encode()),
+        ("SHA256SUMS.txt", sums.replace(sorted(expected)[0], "unexpected.exe").encode()),
+        ("catalog.json", b"not JSON"),
+        ("catalog.json", json.dumps({"version": "4294967296.0.0", "packages": {}}).encode()),
+        ("SHA256SUMS.txt", sums.replace(sums[0], "1" if sums[0] != "1" else "0", 1).encode()),
+        ("catalog.json", json.dumps({"version": version}).encode()),
+    ]:
+        path = root / filename
+        original = path.read_bytes()
+        try:
+            path.write_bytes(replacement)
+            assert_unavailable()
+        finally:
+            path.write_bytes(original)
+
+    installer.rename(moved)
+    try:
+        # Non-empty but truncated files must not be advertised.
+        installer.write_bytes(b"MZ")
+        assert_unavailable()
+    finally:
+        installer.unlink()
+        moved.rename(installer)
+    with urllib.request.urlopen(base + "/manual-version.json", timeout=5) as response:
+        assert response.status == 200 and json.loads(response.read()) == {"version": version}
+    print("Corrupt catalog, altered checksum and truncated package: PASS")

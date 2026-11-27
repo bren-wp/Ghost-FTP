@@ -19,7 +19,6 @@
     "dialog:default",
     "deep-link:default",
     "notification:default",
-    "updater:default",
     "process:allow-restart",
     "core:window:allow-show"
   ]

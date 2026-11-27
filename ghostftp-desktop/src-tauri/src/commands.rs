@@ -1993,8 +1993,8 @@ pub async fn duplicate_path(
 /// Archive a remote directory on the server (a single `tar`/`zip` command) and
 /// download the resulting file — far cheaper than walking the tree and pulling
 /// each file. The temp archive lives in a unique `/tmp` dir so the downloaded
-/// file keeps a friendly name (`<folder>.tar.gz`); it's removed once the
-/// transfer settles. SSH/SFTP only.
+/// file keeps a friendly name (`<folder>.tar.gz`); it's removed after a
+/// confirmed successful download. SSH/SFTP only.
 #[tauri::command]
 pub async fn start_archive_download(
     session_id: String,
@@ -2003,6 +2003,7 @@ pub async fn start_archive_download(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    let maintenance = state.transfers.background_admission().map_err(err)?;
     let ssh = state
         .sessions
         .get_ssh(&session_id)
@@ -2033,7 +2034,7 @@ pub async fn start_archive_download(
     // relative to the folder, not absolute.
     let build = if is_zip {
         format!(
-            "mkdir -p {dir} && cd {p} && zip -r -q {out} {b}",
+            "umask 077 && mkdir -m 700 {dir} && cd {p} && zip -r -q {out} {b}",
             dir = sh_quote(&tmp_dir),
             p = sh_quote(parent),
             out = sh_quote(&tmp),
@@ -2041,7 +2042,7 @@ pub async fn start_archive_download(
         )
     } else {
         format!(
-            "mkdir -p {dir} && tar -czf {out} -C {p} -- {b}",
+            "umask 077 && mkdir -m 700 {dir} && tar -czf {out} -C {p} -- {b}",
             dir = sh_quote(&tmp_dir),
             out = sh_quote(&tmp),
             p = sh_quote(parent),
@@ -2090,35 +2091,70 @@ pub async fn start_archive_download(
         .await
         .map_err(err)?;
 
-    // Poll the transfer; once it settles, delete the server-side temp dir.
+    // Poll the transfer; delete the private server-side temp dir on success only.
     let transfers = Arc::clone(&state.transfers);
     let ssh_cleanup = Arc::clone(&ssh);
     let tmp_dir_cleanup = tmp_dir.clone();
     let id_cleanup = id.clone();
     tokio::spawn(async move {
+        let _maintenance = maintenance;
         for _ in 0..14_400u32 {
             tokio::time::sleep(Duration::from_millis(500)).await;
             match transfers.snapshot(&id_cleanup).await {
-                Some(t) => {
+                Some(t) if archive_cleanup_allowed(t.status) => {
+                    match ssh_cleanup
+                        .exec(&format!("rm -rf {}", sh_quote(&tmp_dir_cleanup)))
+                        .await
+                    {
+                        Ok(output) if output.exit_code == Some(0) => {}
+                        _ => tracing::warn!("Remote archive cleanup failed"),
+                    }
+                    return;
+                }
+                Some(t)
                     if matches!(
                         t.status,
-                        TransferStatus::Done
-                            | TransferStatus::Error
-                            | TransferStatus::Skipped
-                            | TransferStatus::Canceled
-                    ) {
-                        break;
-                    }
+                        TransferStatus::Error | TransferStatus::Canceled | TransferStatus::Skipped
+                    ) =>
+                {
+                    break
                 }
+                Some(_) => {}
                 None => break,
             }
         }
-        let _ = ssh_cleanup
-            .exec(&format!("rm -rf {}", sh_quote(&tmp_dir_cleanup)))
-            .await;
+        // Keep a private archive on failure, cancellation, missing state or
+        // timeout. Deleting it would invalidate a retry or interrupt a slow copy.
+        tracing::warn!("Remote archive retained because download completion was not confirmed");
     });
 
     Ok(id)
+}
+
+// A successful transfer is the only evidence that the remote archive can
+// safely be removed. Failed or paused transfers may still need the source.
+fn archive_cleanup_allowed(status: TransferStatus) -> bool {
+    status == TransferStatus::Done
+}
+
+#[cfg(test)]
+mod archive_cleanup_tests {
+    use super::*;
+
+    #[test]
+    fn only_successful_download_permits_remote_archive_cleanup() {
+        assert!(archive_cleanup_allowed(TransferStatus::Done));
+        for status in [
+            TransferStatus::Queued,
+            TransferStatus::Transferring,
+            TransferStatus::Paused,
+            TransferStatus::Canceled,
+            TransferStatus::Error,
+            TransferStatus::Skipped,
+        ] {
+            assert!(!archive_cleanup_allowed(status));
+        }
+    }
 }
 
 // ---------- Importers (OpenSSH config, FileZilla, PuTTY) ----------
@@ -2224,7 +2260,8 @@ pub async fn sync_execute(
 }
 
 /// Queue a sync plan's copies through the transfer engine (overwriting the
-/// destination — the user confirmed the plan), then apply its Mirror deletes.
+/// destination — the user confirmed the plan). Mirror deletes require every
+/// queued copy to finish successfully before any destructive operation.
 /// Shared by the `sync_execute` Tauri command and the Agent Bridge's
 /// `ghostftp_sync`, so both paths behave identically.
 pub(crate) async fn execute_sync_plan(
@@ -2233,6 +2270,11 @@ pub(crate) async fn execute_sync_plan(
     transfers: &Arc<crate::transfer::TransferManager>,
     app: &AppHandle,
 ) -> anyhow::Result<Vec<String>> {
+    let _maintenance = transfers.background_admission()?;
+    anyhow::ensure!(
+        plan.deletes.is_empty() || matches!(plan.strategy, SyncStrategy::Mirror),
+        "Only a Mirror plan can delete destination files"
+    );
     let local_fs: Box<dyn RemoteFs> = Box::new(crate::remotefs::local::LocalFs);
     let remote_fs = fs_for_session(&session);
 
@@ -2268,16 +2310,18 @@ pub(crate) async fn execute_sync_plan(
         ids.push(id);
     }
 
-    // Apply Mirror deletes after queueing transfers. We don't gate on
-    // transfer completion — the user already confirmed the plan — but we
-    // do execute deletes serially in this call so the function only
-    // returns once the destination is in its final shape.
+    // Never delete destination files after a failed, canceled, skipped,
+    // missing or still-running copy. The same completion predicate is used
+    // by the background reconciler before advancing its source index.
+    if !plan.deletes.is_empty() {
+        crate::foldersync::wait_for_transfers(transfers, &ids).await?;
+    }
     for d in plan.deletes {
         let fs: &dyn RemoteFs = match plan.direction {
             SyncDirection::LocalToRemote => remote_fs.as_ref(),
             SyncDirection::RemoteToLocal => local_fs.as_ref(),
         };
-        let _ = fs.delete(&d.path, false).await; // best-effort
+        fs.delete(&d.path, false).await?;
     }
 
     Ok(ids)
@@ -2640,7 +2684,9 @@ pub async fn repair_keychain_manifest(
 pub async fn settings_get_all(
     state: State<'_, AppState>,
 ) -> Result<std::collections::HashMap<String, String>, String> {
-    state.db.settings_get_all().map_err(err)
+    let mut settings = state.db.settings_get_all().map_err(err)?;
+    settings.remove(crate::manual_update::UPDATE_ATTEMPT_KEY);
+    Ok(settings)
 }
 
 /// Upsert one setting. `value` is a raw JSON string (the frontend stringifies).
@@ -2650,12 +2696,14 @@ pub async fn settings_set(
     value: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    crate::manual_update::ensure_public_setting(&key)?;
     state.db.settings_set(&key, &value).map_err(err)
 }
 
 /// Delete one setting row (reset-to-default for shortcut overrides & friends).
 #[tauri::command]
 pub async fn settings_delete(key: String, state: State<'_, AppState>) -> Result<(), String> {
+    crate::manual_update::ensure_public_setting(&key)?;
     state.db.settings_delete(&key).map_err(err)
 }
 
@@ -2665,6 +2713,9 @@ pub async fn settings_set_all(
     values: std::collections::HashMap<String, String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    for key in values.keys() {
+        crate::manual_update::ensure_public_setting(key)?;
+    }
     let entries: Vec<(String, String)> = values.into_iter().collect();
     state.db.settings_set_many(&entries).map_err(err)
 }
@@ -2706,6 +2757,10 @@ pub async fn backup_export(
     state: State<'_, AppState>,
 ) -> Result<crate::backup::BackupSummary, GhostFTPError> {
     let password = WipeOnDrop::new(password);
+    let _maintenance = state
+        .transfers
+        .background_admission()
+        .map_err(GhostFTPError::from)?;
     let dir = app_data_dir(&app)?;
     crate::backup::export(&dir, &state.db, password.as_str(), Path::new(&path))
         .map_err(GhostFTPError::from)
@@ -2731,6 +2786,11 @@ pub async fn backup_import(
     app: AppHandle,
 ) -> Result<crate::backup::BackupSummary, GhostFTPError> {
     let password = WipeOnDrop::new(password);
+    let _maintenance = app
+        .state::<AppState>()
+        .transfers
+        .background_admission()
+        .map_err(GhostFTPError::from)?;
     let dir = app_data_dir(&app)?;
     // defer = true: the GUI has files open, so stage + swap on next startup.
     crate::backup::import(&dir, password.as_str(), Path::new(&path), true)

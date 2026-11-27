@@ -24,7 +24,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -137,6 +137,8 @@ fn write_editor_copy_atomically(path: &std::path::Path, content: &[u8]) -> Resul
 }
 
 struct EditState {
+    // Shared with the upload task and atomic writes until their actual completion.
+    _maintenance: Arc<tokio::sync::OwnedRwLockReadGuard<()>>,
     /// Held only to keep the watcher alive. Dropping it stops the watcher.
     _watcher: RecommendedWatcher,
     tempdir: PathBuf,
@@ -164,6 +166,11 @@ impl EditManager {
         builtin: bool,
         app: AppHandle,
     ) -> Result<EditStartedEvent> {
+        let maintenance = Arc::new(
+            app.state::<crate::AppState>()
+                .transfers
+                .background_admission()?,
+        );
         let edit_id = Uuid::new_v4().to_string();
         let parent = std::env::temp_dir().join("ghostftp-edits");
         std::fs::create_dir_all(&parent).context("create private editor directory")?;
@@ -244,7 +251,9 @@ impl EditManager {
         let upload_local = local_path.clone();
         let edit_id_for_task = edit_id.clone();
         let app_for_task = app.clone();
+        let task_maintenance = Arc::clone(&maintenance);
         tokio::spawn(async move {
+            let _maintenance = task_maintenance;
             let mut last_uploaded = initial_fingerprint;
             let debounce = Duration::from_millis(500);
 
@@ -341,6 +350,7 @@ impl EditManager {
         self.sessions.lock().await.insert(
             edit_id,
             EditState {
+                _maintenance: maintenance,
                 _watcher: watcher,
                 tempdir: base,
                 local_path,
@@ -386,17 +396,24 @@ impl EditManager {
             content.len() <= MAX_BUILTIN_EDITOR_BYTES,
             "edited content exceeds the 2 MiB built-in editor limit"
         );
-        let (path, gate) = {
+        let (path, gate, maintenance) = {
             let sessions = self.sessions.lock().await;
             let session = sessions
                 .get(edit_id)
                 .context("editing session is no longer active")?;
-            (session.local_path.clone(), session.write_gate.clone())
+            (
+                session.local_path.clone(),
+                session.write_gate.clone(),
+                Arc::clone(&session._maintenance),
+            )
         };
         let _guard = gate.lock().await;
-        tokio::task::spawn_blocking(move || write_editor_copy_atomically(&path, content.as_bytes()))
-            .await
-            .context("join atomic editor write")?
+        tokio::task::spawn_blocking(move || {
+            let _maintenance = maintenance;
+            write_editor_copy_atomically(&path, content.as_bytes())
+        })
+        .await
+        .context("join atomic editor write")?
     }
 
     pub async fn stop(&self, edit_id: &str) -> Result<()> {

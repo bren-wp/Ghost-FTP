@@ -119,5 +119,6 @@ test("native-window wake triggers check transfers and remove every event listene
   assert.ok(store.includes("const timer = window.setInterval(runSafely, 10_000)"));
   assert.ok(store.includes("window.clearInterval(timer)"));
   assert.ok(store.includes("if (tickBusy) return"), "duplicate concurrent retries must be blocked");
+  assert.ok(store.includes('if (updateStatus === "downloading" || updateStatus === "ready" || updateStatus === "recoveryRequired") return'), "due schedules must defer during update installation and restart");
   assert.ok(store.includes("due.getTime() <= schedule.lastRunAt"), "each occurrence is handled once");
 });

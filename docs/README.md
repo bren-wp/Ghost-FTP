@@ -1,4 +1,4 @@
-> **Ghost FTP v0.99.90 Stable candidate. Previous public release: v0.99.89. Stable publication requires exact-source CI and package verification; signing and installed-device acceptance are reported separately.**
+> **Ghost FTP v0.99.91 Stable candidate. Previous public release: v0.99.90. Stable publication requires exact-source CI and package verification; signing and installed-device acceptance are reported separately.**
 
 # Ghost FTP documentation
 
