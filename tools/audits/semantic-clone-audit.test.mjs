@@ -57,3 +57,14 @@ test("default report retains more than 500 candidate groups and explicit limits 
   assert.equal(limited.omittedGroups, 491);
   assert.throws(() => scanEntries([], { maxGroups: -1 }), RangeError);
 });
+
+test("all nonoverlapping locations are retained beyond the former 24-location cap", () => {
+  const sample = fixture("x");
+  const width = tokenize(sample, "ts").length;
+  const entries = Array.from({ length: 30 }, (_, i) => entry(`file${i}.ts`, sample));
+  const report = scanEntries(entries, { width, span: 1 });
+  assert.equal(report.candidates.length, 1);
+  assert.equal(report.candidates[0].occurrences, 30);
+  assert.equal(report.candidates[0].locations.length, 30);
+  assert.equal(report.candidates[0].locations[29].file, "file29.ts");
+});

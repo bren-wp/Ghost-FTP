@@ -95,12 +95,12 @@ export function scanEntries(entries, { width = 80, span = 12, maxGroups = null }
       const location = { file: entry.file, startLine: window[0].line, endLine };
       let group = groups.get(key);
       if (!group) { group = { count: 0, locations: [] }; groups.set(key, group); }
-      // Collapse overlapping matches in the same file, and bound location
-      // storage for very common patterns. Reports do not expose source text.
+      // Retain every nonoverlapping occurrence, not just the first 24.
+      // Reports do not expose source text.
       if (group.locations.some(old => old.file === location.file &&
         old.startLine <= location.endLine && location.startLine <= old.endLine)) continue;
       group.count++;
-      if (group.locations.length < 24) group.locations.push(location);
+      group.locations.push(location);
     }
   }
   const candidates = [...groups.entries()].filter(([, group]) => group.count > 1)

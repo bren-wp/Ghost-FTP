@@ -53,9 +53,8 @@ fn canonical_artifact(url: &url::Url, version: &str, windows: bool) -> bool {
     } else {
         format!("GhostFTP-Linux-x86_64-v{version}.AppImage")
     };
-    let expected = format!(
-        "https://github.com/bren-wp/Ghost-FTP/releases/download/v{version}/{filename}"
-    );
+    let expected =
+        format!("https://github.com/bren-wp/Ghost-FTP/releases/download/v{version}/{filename}");
     url.as_str() == expected
 }
 

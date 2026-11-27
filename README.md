@@ -29,6 +29,8 @@ FTP, FTPS, SFTP and supported cloud destinations — with smarter file managemen
 
 **[Explore the latest release notes](https://github.com/bren-wp/Ghost-FTP/releases/tag/v0.99.91)** for verified downloads and platform-specific packages. See [release notes](docs/releases/0.99.91.md).
 
+**Ghost FTP 0.99.92 Stable** is in development; download the published v0.99.91 above.
+
 ## Built for the way you work
 
 | | |

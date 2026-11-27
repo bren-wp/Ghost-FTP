@@ -1139,6 +1139,17 @@ impl Db {
         Ok(row)
     }
 
+    /// Read-only database health check after observing a new installed version.
+    /// This does not certify the executable, vault, or installer transaction.
+    pub(crate) fn check_update_database_health(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let integrity: String = conn
+            .query_row("PRAGMA quick_check(1)", [], |row| row.get(0))
+            .context("check SQLite after update")?;
+        anyhow::ensure!(integrity == "ok", "SQLite integrity check failed");
+        Ok(())
+    }
+
     /// Persist the native update intent and check that SQLite is safe to close.
     /// No destructive migration, database replacement or plaintext copy occurs.
     /// A busy external reader or failed integrity check prevents installation.

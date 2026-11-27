@@ -137,7 +137,10 @@ fn recovery_notice(db: &crate::db::Db, current: &str) -> Result<Option<String>, 
     let installed = version_parts(current).ok_or("Invalid installed version")?;
     let target = version_parts(&attempt.target).ok_or("Invalid recorded update version")?;
     if installed >= target {
-        // Observing a version is not proof of installation or data integrity.
+        // A version match alone is not evidence that the database survived.
+        // Leave the journal intact; this is only a read-only SQLite health check.
+        db.check_update_database_health()
+            .map_err(|_| "Cannot verify database health after update")?;
         return Ok(None);
     }
     Ok(Some(format!(
@@ -191,6 +194,8 @@ mod tests {
             let db = crate::db::Db::open(&path).unwrap();
             assert!(recovery_notice(&db, "0.99.91").unwrap().is_some());
             assert!(recovery_notice(&db, "0.99.92").unwrap().is_none());
+            assert!(db.check_update_database_health().is_ok());
+            assert!(db.settings_get(UPDATE_ATTEMPT_KEY).unwrap().is_some());
             assert_eq!(
                 db.settings_get("testUserPreference").unwrap().as_deref(),
                 Some("\"dark\"")

@@ -3,7 +3,8 @@
 ## 0.99.92 Stable — 27 November 2026 (development candidate; publication pending)
 
 - Restrict initial signed updater artifact URLs to the exact canonical platform/version release asset; retain mandatory signature verification.
-- Emit every structural clone candidate group by default and disclose omissions for explicitly limited reports.
+- Emit every structural clone candidate group and nonoverlapping location by default; disclose omissions for explicitly limited reports.
+- Verify SQLite health after observing the update target on restart, without modifying the recovery record.
 - Refresh published download links and distinguish current QA packages from historical screenshots.
 
 ## 0.99.91 Stable — 27 November 2026 (published)
