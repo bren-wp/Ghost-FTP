@@ -135,6 +135,8 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
             path,
             "/hr/support" | "/hr/contact" | "/hr/how-to-download" | "/hr/privacy" | "/hr/terms"
         );
+    // Only the update center root is allowed; never arbitrary download or redirect URLs.
+    let official_update_center = host == "update.ghostftp.com" && path == "/";
     // The source-code repository is explicitly distinguished from support.
     let approved_project_page = host == "github.com"
         && matches!(path, "/bren-wp/Ghost-FTP" | "/bren-wp/Ghost-FTP/releases");
@@ -148,7 +150,10 @@ fn is_approved_external_url(parsed: &url::Url) -> bool {
         && parsed.port().is_none()
         && parsed.query().is_none()
         && parsed.fragment().is_none()
-        && (official_help_page || approved_project_page || official_provider_docs)
+        && (official_help_page
+            || official_update_center
+            || approved_project_page
+            || official_provider_docs)
 }
 
 #[tauri::command]
@@ -607,6 +612,7 @@ mod init_script_tests {
     #[test]
     fn approved_external_urls_are_exact_and_fail_closed() {
         for allowed in [
+            "https://update.ghostftp.com/",
             "https://ghostftp.com/hr/support",
             "https://ghostftp.com/hr/contact",
             "https://ghostftp.com/hr/how-to-download",
@@ -625,6 +631,13 @@ mod init_script_tests {
         }
 
         for blocked in [
+            "http://update.ghostftp.com/",
+            "https://update.ghostftp.com.evil.example/",
+            "https://update.ghostftp.com/?redirect=https://evil.example/",
+            "https://update.ghostftp.com/#redirect",
+            "https://update.ghostftp.com:444/",
+            "https://update.ghostftp.com/downloads/installer.exe",
+            "https://user@update.ghostftp.com/",
             "http://github.com/bren-wp/Ghost-FTP",
             "https://mega.nz/cmd?token=secret",
             "https://mega.nz/cmd/../cmd",

@@ -21,7 +21,7 @@ import {
   PRODUCT_EULA_URL,
   PRODUCT_RELEASE_DATE,
   PRODUCT_VERSION_DISPLAY,
-  OFFICIAL_RELEASES_URL,
+  UPDATE_CENTER_URL,
 } from "@/lib/release";
 import { APP_LOCALES, tr } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
@@ -187,7 +187,7 @@ function UpdatesContent() {
         icon={<Globe2 size={18}/>}
         title="Open official Windows / Linux downloads"
         subtitle="Select the current version, verify its SHA-256 checksum, then install manually. Existing profiles are not intentionally deleted."
-        url={OFFICIAL_RELEASES_URL}
+        url={UPDATE_CENTER_URL}
       />
       <p className="mt-2 text-[11px] leading-5 text-text-muted">
         Windows SmartScreen or Linux package-manager warnings may appear for unsigned builds.

@@ -20,6 +20,8 @@ cat > "$work/httpd.conf" <<EOF
 ServerRoot /etc/apache2
 Listen 127.0.0.1:18087
 ServerName localhost
+DefaultRuntimeDir $work
+Mutex file:$work default
 PidFile $work/httpd.pid
 ErrorLog $work/error.log
 LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so
@@ -41,9 +43,13 @@ SetHandler application/x-httpd-php
 </FilesMatch>
 </Directory>
 EOF
+apache2 -f "$work/httpd.conf" -t
 apache2 -f "$work/httpd.conf" -k start
 for attempt in $(seq 1 20); do
   if curl --silent --fail http://127.0.0.1:18087/ >/dev/null; then break; fi
   sleep 0.2
 done
-python3 "$root/update.ghostftp.com/tests/smoke.py" http://127.0.0.1:18087 "$version"
+if ! python3 "$root/update.ghostftp.com/tests/smoke.py" http://127.0.0.1:18087 "$version"; then
+  cat "$work/error.log" >&2
+  exit 1
+fi

@@ -15,4 +15,5 @@ export const PRODUCT_EULA_URL = `${PRODUCT_SITE}/hr/terms`;
 export const UPDATE_ENDPOINT = `${PRODUCT_SITE}/updates/latest.json`;
 // Exact repository path is allowlisted by the Rust external-URL command.
 // Do not use /releases/latest: it can skip verified prerelease editions.
+export const UPDATE_CENTER_URL = "https://update.ghostftp.com/";
 export const OFFICIAL_RELEASES_URL = "https://github.com/bren-wp/Ghost-FTP/releases";

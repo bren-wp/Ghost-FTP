@@ -6,6 +6,12 @@ import urllib.error
 
 base = sys.argv[1].rstrip("/")
 version = sys.argv[2]
+expected = {
+    f"GhostFTP-Windows-x64-Setup-v{version}.exe",
+    f"GhostFTP-Windows-x64-Setup-v{version}.msi",
+    f"GhostFTP-Linux-amd64-v{version}.deb",
+    f"GhostFTP-Linux-x86_64-v{version}.rpm",
+}
 for path, status, marker in [
     ("/", 200, "Keep Ghost FTP up to date"),
     ("/?lang=hr", 200, "Redovito ažurirajte"),
@@ -13,6 +19,9 @@ for path, status, marker in [
     ("/latest.json", 204, ""),
     ("/updates/latest.json", 204, ""),
     ("/.htaccess", 403, ""),
+    ("/downloads/", 403, ""),
+    (f"/downloads/GhostFTP-Windows-x64-Portable-v{version}.exe", 404, ""),
+    (f"/downloads/GhostFTP-Linux-x86_64-v{version}.AppImage", 404, ""),
     ("/assets/site.css", 200, "color-scheme"),
     ("/assets/icon.svg", 200, "<svg"),
 ]:
@@ -30,22 +39,28 @@ for path, status, marker in [
             assert "default-src" in response.headers["Content-Security-Policy"]
             assert "github.com" not in body.lower() and "portable" not in body.lower() and "appimage" not in body.lower()
             assert f"v{version}" in body
-            assert "downloads/" in body
+            for name in expected:
+                assert f'href="downloads/{name}" download' in body, name
     print(path, status, "PASS")
 
 import hashlib
 import re
 sums = urllib.request.urlopen(base + "/downloads/SHA256SUMS.txt", timeout=10).read().decode()
 lines = sums.splitlines()
-assert len(lines) == 4
+assert len(lines) == len(expected)
+seen = set()
 for line in lines:
     match = re.fullmatch(r"([a-f0-9]{64})  ([A-Za-z0-9._-]+)", line)
     assert match
     name = match[2]
-    assert version in name and "portable" not in name.lower()
+    assert name in expected and name not in seen, name
+    seen.add(name)
     with urllib.request.urlopen(base + "/downloads/" + name, timeout=60) as response:
+        assert response.geturl() == base + "/downloads/" + name, "Installer must be served locally without redirect"
+        assert response.status == 200
         h = hashlib.sha256()
         for chunk in iter(lambda: response.read(1024 * 1024), b""):
             h.update(chunk)
         assert h.hexdigest() == match[1], name
     print(name, "SHA-256 PASS")
+assert seen == expected
