@@ -100,3 +100,7 @@ TypeScript `noUnusedLocals`, production reachability, Rust Clippy, Go vet and An
 
 
 Current development line: 0.99.91. Previous canonical release: 0.99.90. The previous canonical Stable release is v0.99.90; consult GitHub Releases and `docs/releases/0.99.90.md` for its actual acceptance limits.
+
+### Structural clone review (v0.99.91)
+
+The CI Semantic Clone Audit produces a source-location inventory using normalized token windows and verified fingerprints across maintained Rust, TypeScript, JavaScript, Go, PHP and Python code. This is an advisory Type 1/2 clone detector, not a proof of semantic equivalence. Review candidates manually and preserve platform-specific/security behavior; no source is automatically removed. Shell, markup and other languages are outside this detector's coverage. Results must be reviewed before claiming a completed semantic clone audit.

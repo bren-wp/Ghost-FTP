@@ -402,6 +402,22 @@ jobs:
           path: build/audit/full-security-code.json
           if-no-files-found: warn
 
+      - name: Semantic clone inventory and regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tools/audits/semantic-clone-audit.test.mjs
+          mkdir -p build/audit
+          node tools/audits/semantic-clone-audit.mjs > build/audit/semantic-clones.json
+
+      - name: Publish semantic clone review evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostFTP-Semantic-Clone-Audit
+          path: build/audit/semantic-clones.json
+          if-no-files-found: warn
+
       - name: Native frontend typecheck and production build
         working-directory: ghostftp-desktop
         shell: bash
