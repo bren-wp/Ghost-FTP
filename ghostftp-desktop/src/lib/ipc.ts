@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   ConnectionProfile,
@@ -67,7 +67,12 @@ import type {
 export const ipc = {
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   checkManualUpdate: () => invoke<string | null>("check_manual_update"),
-  beginUpdateMaintenance: (target: string) => invoke<void>("begin_update_maintenance", { target }),
+  checkSignedUpdate: () => invoke<{ version: string; currentVersion: string; body: string | null } | null>("check_signed_update"),
+  installSignedUpdate: (target: string, onProgress: (progress: { downloaded: number; total: number | null }) => void) => {
+    const progress = new Channel<{ downloaded: number; total: number | null }>();
+    progress.onmessage = onProgress;
+    return invoke<void>("install_signed_update", { target, progress });
+  },
   updateRecoveryNotice: () => invoke<string | null>("update_recovery_notice"),
 
   listProfiles: () => invoke<ConnectionProfile[]>("list_profiles"),

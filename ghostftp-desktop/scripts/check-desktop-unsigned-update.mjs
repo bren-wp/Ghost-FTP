@@ -19,6 +19,10 @@ assert.ok(channel.includes('New releases must use the stable channel'), "Stable 
 const config = JSON.parse(fs.readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
 assert.equal(config.plugins.updater.allowDowngrades, false);
 assert.equal(config.plugins.updater.requireSignedVersion, true);
+const caps = JSON.parse(fs.readFileSync(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"));
+assert.ok(!caps.permissions.some(permission => permission.startsWith("updater:")), "Direct WebView updater commands must be disabled");
+assert.ok(rust.includes("native_update::install_signed_update"));
+assert.ok(!updater.includes("@tauri-apps/plugin-updater"));
 const compiled = ts.transpileModule(updater, { compilerOptions: {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
 }});
@@ -48,9 +52,8 @@ const create = (definition) => {
 };
 const deps = {
   zustand: { create },
-  "@tauri-apps/plugin-updater": { check: async () => { checks++; return offered; } },
   "@tauri-apps/plugin-process": { relaunch: async () => { restarts++; } },
-  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; }, listTransfers: async () => { if (snapshotGate) await snapshotGate; if (snapshotFailure) throw Error("snapshot unavailable"); return transfers; }, transferQueueState: async () => ({ waiting }), beginUpdateMaintenance: async (target) => { targetVersion = target; maintenanceCalls++; if (maintenanceFailure) throw Error("busy"); }, updateRecoveryNotice: async () => recoveryNotice } },
+  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; }, listTransfers: async () => { if (snapshotGate) await snapshotGate; if (snapshotFailure) throw Error("snapshot unavailable"); return transfers; }, transferQueueState: async () => ({ waiting }), checkSignedUpdate: async () => { checks++; return offered; }, installSignedUpdate: async (target, onProgress) => { targetVersion = target; maintenanceCalls++; if (maintenanceFailure) throw { phase: "prepare" }; onProgress({ downloaded: 42, total: 42 }); installs++; }, updateRecoveryNotice: async () => recoveryNotice } },
   "./toastStore": { toast: {
     info: (...args) => notifications.push(["info", ...args]),
     warning: (...args) => notifications.push(["warning", ...args]),
@@ -130,6 +133,7 @@ assert.equal(installs, 1, "Parallel requests must not install twice");
 assert.equal(maintenanceCalls, 2, "Only admitted installer attempts acquire maintenance");
 assert.equal(targetVersion, "9.9.9", "Native journal records the offered target");
 assert.equal(store.getState().status, "ready");
+assert.equal(store.getState().downloaded, 42);
 transfers = [{ status: "transferring" }];
 await store.getState().restart();
 assert.equal(restarts, 0, "New transfer must prevent restart");

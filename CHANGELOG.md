@@ -10,6 +10,7 @@
 - Record source/target update intent before installation and surface incomplete-update recovery notices without modifying user files.
 - Protect remote editors, backup/restore and folder-sync configuration during update preparation; reject staged restores and reserve the recovery setting.
 - Gate Mirror deletions on verified copy completion, propagate deletion failures and retain private server archives if a download is not confirmed complete.
+- Move signed updater discovery and installation into native Rust; remove direct WebView updater capability.
 
 ## 0.99.90 Stable — 27 November 2026 (published)
 
@@ -1728,3 +1729,4 @@ See [docs/releases/0.17.0.md](docs/releases/0.17.0.md).
 Canonical release notes for `0.1.0` through `0.16.0` are retained under `docs/releases/`.
 
 The older `2.1.1-rc.*` identifiers are historical aliases only. Their verified mapping/provenance is recorded in `docs/releases/version-map.json`; they are not the active version scheme.
+

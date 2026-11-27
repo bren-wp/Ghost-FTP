@@ -1,4 +1,4 @@
-//! Manual release discovery only; this module never downloads or executes installers.
+//! Manual release discovery and credential-free update recovery journal.
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -11,7 +11,7 @@ struct Catalog {
     version: String,
 }
 
-fn version_parts(value: &str) -> Option<[u32; 3]> {
+pub(crate) fn version_parts(value: &str) -> Option<[u32; 3]> {
     let mut parts = value.split('.');
     let mut result = [0; 3];
     for part in &mut result {
@@ -113,7 +113,7 @@ fn update_attempt(source: &str, target: &str) -> Result<UpdateAttempt, String> {
     })
 }
 
-fn record_attempt(db: &crate::db::Db, source: &str, target: &str) -> Result<(), String> {
+pub(crate) fn record_attempt(db: &crate::db::Db, source: &str, target: &str) -> Result<(), String> {
     let attempt = update_attempt(source, target)?;
     let value = serde_json::to_string(&attempt).map_err(|_| "Cannot record update attempt")?;
     db.settings_set(UPDATE_ATTEMPT_KEY, &value)
@@ -151,39 +151,6 @@ pub fn update_recovery_notice(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<Option<String>, String> {
     recovery_notice(&state.db, env!("CARGO_PKG_VERSION"))
-}
-
-/// Called only before the existing signed updater is invoked. Maintenance is
-/// intentionally retained after success or uncertain installation failure.
-#[tauri::command]
-pub async fn begin_update_maintenance(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, crate::AppState>,
-    target: String,
-) -> Result<(), String> {
-    let current = env!("CARGO_PKG_VERSION");
-    update_attempt(current, &target)?;
-    use tauri::Manager;
-    let guard = state
-        .transfers
-        .begin_update_maintenance()
-        .await
-        .map_err(|error| error.to_string())?;
-    // Check independent subsystems while no new work can acquire admission.
-    // Failed preparation drops the guard and never invokes the installer.
-    state
-        .foldersync
-        .ensure_update_idle()
-        .await
-        .map_err(|error| error.to_string())?;
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-    crate::backup::ensure_no_pending_restore(&dir).map_err(|error| error.to_string())?;
-    record_attempt(&state.db, current, &target)?;
-    state.transfers.retain_update_maintenance(guard).await;
-    Ok(())
 }
 
 #[cfg(test)]

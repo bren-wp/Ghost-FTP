@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { ipc } from "@/lib/ipc";
 import { toast } from "./toastStore";
@@ -12,10 +11,9 @@ import { redactSensitiveText } from "@/lib/redact";
 // the process plugin performs the explicit restart. Transport details are never
 // surfaced in user-facing messages.
 //
-// `heldUpdate` keeps the non-serializable plugin Update object between the
-// check and download; only plain, renderable fields live in the store.
-
-let heldUpdate: Update | null = null;
+// Only the selected version is held in the UI. Native Rust rechecks the offer.
+let heldVersion: string | null = null;
+let installationUncertain = false;
 let restarting = false;
 
 // A fresh native snapshot is required; a missing snapshot is not an empty queue.
@@ -113,7 +111,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   error: null,
 
   check: async (quiet) => {
-    if (get().status === "checking" || get().status === "downloading" || get().status === "ready") return;
+    if (installationUncertain || get().status === "checking" || get().status === "downloading" || get().status === "ready") return;
     set({ status: "checking", error: null, manualVersion: null });
     // Record the check time regardless of outcome so we don't hammer the endpoint.
     void ipc.settingsSet("lastUpdateCheck", JSON.stringify(Date.now())).catch((error) => {
@@ -131,9 +129,9 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       }
     }
     try {
-      const update = await check();
-      if (update && update.available) {
-        heldUpdate = update;
+      const update = await ipc.checkSignedUpdate();
+      if (update) {
+        heldVersion = update.version;
         set({
           status: "available",
           version: update.version,
@@ -141,7 +139,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
           notes: update.body ?? null,
         });
       } else {
-        heldUpdate = null;
+        heldVersion = null;
         // A missing signed updater offer says nothing about newer unsigned
         // Windows/Linux packages published on GitHub. Never tell the user
         // they are up to date based solely on the signed-updater endpoint.
@@ -152,7 +150,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
         );
       }
     } catch (e) {
-      heldUpdate = null;
+      heldVersion = null;
       // Quiet launch checks never nag. Manual checks show only a safe,
       // user-facing summary; technical transport details stay in the console.
       if (quiet) {
@@ -167,8 +165,8 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   },
 
   downloadAndInstall: async () => {
-    if (!heldUpdate || get().status !== "available") return;
-    const update = heldUpdate;
+    if (!heldVersion || installationUncertain || get().status !== "available") return;
+    const target = heldVersion;
     // Reserve the operation synchronously, including while awaiting preflight.
     set({ status: "downloading", downloaded: 0, total: null, error: null });
     if (!(await transfersPermitUpdate())) {
@@ -176,40 +174,28 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       return;
     }
     try {
-      await ipc.beginUpdateMaintenance(update.version);
-    } catch (error) {
-      console.warn("Native update maintenance unavailable", redactSensitiveText(error, 240));
-      set({ status: "available" });
-      toast.warning("Update postponed", "Finish transfers, close remote editors, disable folder sync and complete pending backup restores before updating. Restart Ghost FTP if required.");
-      return;
-    }
-    try {
-      await update.downloadAndInstall((event) => {
-        switch (event.event) {
-          case "Started":
-            set({ total: event.data.contentLength ?? null, downloaded: 0 });
-            break;
-          case "Progress":
-            set((s) => ({ downloaded: s.downloaded + event.data.chunkLength }));
-            break;
-          case "Finished":
-            break;
-        }
+      await ipc.installSignedUpdate(target, (progress) => {
+        set({ downloaded: progress.downloaded, total: progress.total });
       });
-      heldUpdate = null;
+      heldVersion = null;
       set({ status: "ready" });
-    } catch (e) {
-      const message = friendlyUpdateError(e, "download");
-      // Installation might have partially changed the application. Keep native
-      // admission locked until process exit; do not retry an uncertain install.
-      heldUpdate = null;
-      set({
-        status: "error",
-        error: message + " Close and reopen Ghost FTP before starting transfers or retrying.",
-        downloaded: 0,
-        total: null,
-      });
-      toast.error("Update download failed", message);
+    } catch (error) {
+      console.warn("Native update failed", redactSensitiveText(error, 240));
+      const phase = typeof error === "object" && error !== null && "phase" in error ? error.phase : null;
+      if (phase === "prepare" || phase === "download") {
+        set({ status: "available", downloaded: 0, total: null });
+        toast.warning("Update postponed", phase === "prepare"
+          ? "Finish transfers, close remote editors, disable folder sync and complete pending backup restores before updating."
+          : "Ghost FTP couldn't download or verify the update. Try again.");
+        return;
+      }
+      heldVersion = null;
+      installationUncertain = phase !== "check";
+      const message = installationUncertain
+        ? "Installation status is uncertain. Close and reopen Ghost FTP before starting transfers or retrying."
+        : "The update offer changed or is unavailable. Check again.";
+      set({ status: "error", error: message, downloaded: 0, total: null });
+      toast.error("Update failed", message);
     }
   },
 
