@@ -819,9 +819,12 @@ for (const forbidden of ["dismissed:", "dismiss: () =>"]) {
 }
 for (const required of [
   'import { messageOf } from "@/lib/errors";',
-  "heldUpdate = null;",
+  "heldVersion = null;",
   'toast.error("Update check failed", message)',
-  'toast.error("Update download failed", message)',
+  'toast.error("Update failed", message)',
+  'status: installationUncertain ? "recoveryRequired" : "error"',
+  'ipc.installSignedUpdate(target,',
+  'redactSensitiveText(error, 240)',
 ]) {
   if (!updaterStore.includes(required)) {
     failures.push(`Updater diagnostics/lifecycle hardening missing: ${required}`);

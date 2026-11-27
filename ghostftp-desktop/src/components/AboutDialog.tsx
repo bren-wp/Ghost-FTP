@@ -165,6 +165,7 @@ function UpdatesContent() {
     : status === "available" ? `Ghost FTP ${offered ?? "update"} is available.`
     : status === "downloading" ? "Downloading and verifying update…"
     : status === "ready" ? "Update is ready. Restart Ghost FTP to finish."
+    : status === "recoveryRequired" ? (error ?? "Restart Ghost FTP before trying another update.")
     : status === "error" ? (error ?? "Signed updater check failed. Use official Downloads for manual updates.")
     : status === "checked" ? "No signed automatic update is offered. The newest manually installable edition may still be available in official Downloads."
     : "No signed automatic update check has been run in this view yet.";
@@ -183,9 +184,9 @@ function UpdatesContent() {
     {recoveryNotice && <p className="mt-2 text-[13px] text-text-muted" role="status">{recoveryNotice}</p>}
     {manualVersion && <p className="mt-2 text-[13px] text-accent" role="status">Ghost FTP {manualVersion} is available for manual installation. Open official downloads below.</p>}
     <div className="mt-5 flex flex-wrap gap-2">
-      <button className="ghost-primary-button" disabled={status === "checking" || status === "downloading" || status === "ready"} onClick={() => void check(false)}><RefreshCw size={14}/> {tr("Check for Updates")}</button>
+      <button className="ghost-primary-button" disabled={status === "checking" || status === "downloading" || status === "ready" || status === "recoveryRequired"} onClick={() => void check(false)}><RefreshCw size={14}/> {tr("Check for Updates")}</button>
       {status === "available" && <button className="ghost-primary-button" onClick={() => void download()}>{tr("Download & install")}</button>}
-      {status === "ready" && <button className="ghost-primary-button" onClick={() => void restart()}>{tr("Restart now")}</button>}
+      {(status === "ready" || status === "recoveryRequired") && <button className="ghost-primary-button" onClick={() => void restart()}>{tr("Restart now")}</button>}
     </div>
     <div className="mt-5 rounded-lg border border-border bg-[#051929] p-4">
       <OfficialLinkRow

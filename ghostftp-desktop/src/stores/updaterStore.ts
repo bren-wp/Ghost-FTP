@@ -13,7 +13,6 @@ import { redactSensitiveText } from "@/lib/redact";
 //
 // Only the selected version is held in the UI. Native Rust rechecks the offer.
 let heldVersion: string | null = null;
-let installationUncertain = false;
 let restarting = false;
 
 // A fresh native snapshot is required; a missing snapshot is not an empty queue.
@@ -74,6 +73,7 @@ export type UpdaterStatus =
   | "available"
   | "downloading"
   | "ready" // downloaded + installed; awaiting restart
+  | "recoveryRequired" // installer may have changed files; restart before further work
   | "error";
 
 interface UpdaterState {
@@ -111,7 +111,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   error: null,
 
   check: async (quiet) => {
-    if (installationUncertain || get().status === "checking" || get().status === "downloading" || get().status === "ready") return;
+    if (get().status === "recoveryRequired" || get().status === "checking" || get().status === "downloading" || get().status === "ready") return;
     set({ status: "checking", error: null, manualVersion: null });
     // Record the check time regardless of outcome so we don't hammer the endpoint.
     void ipc.settingsSet("lastUpdateCheck", JSON.stringify(Date.now())).catch((error) => {
@@ -165,7 +165,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
   },
 
   downloadAndInstall: async () => {
-    if (!heldVersion || installationUncertain || get().status !== "available") return;
+    if (!heldVersion || get().status !== "available") return;
     const target = heldVersion;
     // Reserve the operation synchronously, including while awaiting preflight.
     set({ status: "downloading", downloaded: 0, total: null, error: null });
@@ -190,17 +190,17 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
         return;
       }
       heldVersion = null;
-      installationUncertain = phase !== "check";
+      const installationUncertain = phase !== "check";
       const message = installationUncertain
         ? "Installation status is uncertain. Close and reopen Ghost FTP before starting transfers or retrying."
         : "The update offer changed or is unavailable. Check again.";
-      set({ status: "error", error: message, downloaded: 0, total: null });
+      set({ status: installationUncertain ? "recoveryRequired" : "error", error: message, downloaded: 0, total: null });
       toast.error("Update failed", message);
     }
   },
 
   restart: async () => {
-    if (get().status !== "ready" || restarting) return;
+    if ((get().status !== "ready" && get().status !== "recoveryRequired") || restarting) return;
     restarting = true;
     try {
       if (!(await transfersPermitUpdate())) return;

@@ -38,6 +38,7 @@ let snapshotGate = null;
 let installs = 0;
 let restarts = 0;
 let maintenanceFailure = false;
+let installFailurePhase = null;
 let maintenanceCalls = 0;
 let recoveryNotice = null;
 let targetVersion = null;
@@ -53,7 +54,7 @@ const create = (definition) => {
 const deps = {
   zustand: { create },
   "@tauri-apps/plugin-process": { relaunch: async () => { restarts++; } },
-  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; }, listTransfers: async () => { if (snapshotGate) await snapshotGate; if (snapshotFailure) throw Error("snapshot unavailable"); return transfers; }, transferQueueState: async () => ({ waiting }), checkSignedUpdate: async () => { checks++; return offered; }, installSignedUpdate: async (target, onProgress) => { targetVersion = target; maintenanceCalls++; if (maintenanceFailure) throw { phase: "prepare" }; onProgress({ downloaded: 42, total: 42 }); installs++; }, updateRecoveryNotice: async () => recoveryNotice } },
+  "@/lib/ipc": { ipc: { settingsSet: async () => {}, settingsGetAll: async () => ({}), checkManualUpdate: async () => { manualChecks++; return manualOffered; }, listTransfers: async () => { if (snapshotGate) await snapshotGate; if (snapshotFailure) throw Error("snapshot unavailable"); return transfers; }, transferQueueState: async () => ({ waiting }), checkSignedUpdate: async () => { checks++; return offered; }, installSignedUpdate: async (target, onProgress) => { targetVersion = target; maintenanceCalls++; if (maintenanceFailure) throw { phase: "prepare" }; if (installFailurePhase) throw { phase: installFailurePhase }; onProgress({ downloaded: 42, total: 42 }); installs++; }, updateRecoveryNotice: async () => recoveryNotice } },
   "./toastStore": { toast: {
     info: (...args) => notifications.push(["info", ...args]),
     warning: (...args) => notifications.push(["warning", ...args]),
@@ -152,4 +153,21 @@ assert.equal(restarts, 1, "Parallel requests must not restart twice");
 recoveryNotice = "Previous update did not reach target";
 await store.getState().init();
 assert.equal(store.getState().recoveryNotice, recoveryNotice, "Startup surfaces a persisted recovery notice");
-console.log("Windows/Linux unsigned manual-update fallback, signed-update preflight and restart safety: passed.");
+// Exercise an interrupted installer rather than merely checking for a string.
+store.setState({ status: "idle" });
+await store.getState().check(false);
+installFailurePhase = "download";
+await store.getState().downloadAndInstall();
+assert.equal(store.getState().status, "available", "A verified pre-install failure permits retry");
+installFailurePhase = "install";
+await store.getState().downloadAndInstall();
+assert.equal(store.getState().status, "recoveryRequired", "Uncertain install requires recovery");
+const checksBeforeRecovery = checks;
+const installsBeforeRecovery = installs;
+await store.getState().check(false);
+await store.getState().downloadAndInstall();
+assert.equal(checks, checksBeforeRecovery, "Recovery must not start another update check");
+assert.equal(installs, installsBeforeRecovery, "Recovery must not run another installer");
+await store.getState().restart();
+assert.equal(restarts, 2, "Recovery offers a safe restart after native transfer preflight");
+console.log("Windows/Linux unsigned manual-update fallback, signed-update preflight, uncertain-install recovery and restart safety: passed.");

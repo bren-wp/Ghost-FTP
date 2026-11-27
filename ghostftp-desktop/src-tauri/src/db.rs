@@ -1311,7 +1311,7 @@ fn apply_migration(conn: &Connection, target_version: i64, sql: &str) -> Result<
 /// between the version check and migration execution.
 fn migrate_steps(conn: &Connection, migrations: &[&str]) -> Result<()> {
     let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
-    .context("begin atomic schema upgrade")?;
+        .context("begin atomic schema upgrade")?;
     let version: i64 = tx.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     anyhow::ensure!(version >= 0, "SQLite user_version is invalid");
     anyhow::ensure!(

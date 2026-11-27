@@ -154,7 +154,7 @@ async function runScheduleTick() {
   // Do not consume a due occurrence while an update is being installed or
   // awaits restart. Retry on the next normal tick instead.
   const updateStatus = useUpdater.getState().status;
-  if (updateStatus === "downloading" || updateStatus === "ready") return;
+  if (updateStatus === "downloading" || updateStatus === "ready" || updateStatus === "recoveryRequired") return;
   const schedule = dataFromState(useTransferSchedule.getState());
   if (
     !schedule.armed ||

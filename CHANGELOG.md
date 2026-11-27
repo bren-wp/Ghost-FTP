@@ -14,6 +14,7 @@
 - Add an advisory structural clone inventory and regression tests to quality CI.
 - Refuse native installation when SQLite integrity, durable update intent or full WAL checkpoint cannot be established.
 - Apply all pending database migrations atomically; preserve the original schema and data on later-step failures.
+- Keep uncertain installation failures in recovery-required state and defer transfer schedules until restart; test retry and restart behavior.
 
 ## 0.99.90 Stable — 27 November 2026 (published)
 
