@@ -214,7 +214,7 @@ fn source_changed(
     use crate::remotefs::ChangeSignal;
     match signal {
         ChangeSignal::Etag => match (&cur.etag, &row.remote_signal) {
-            (Some(a), Some(b)) => a != b,
+            (Some(a), Some(b)) => a != b || cur.size != row.size,
             // Missing a token on either side → fall back to size+mtime.
             _ => cur.size != row.size || cur.modified != row.mtime,
         },
@@ -360,6 +360,43 @@ mod index_tests {
         });
     }
 
+    #[tokio::test]
+    async fn repeated_sync_plans_only_missing_and_changed_files() {
+        let src = scratch("incremental-src");
+        let dst = scratch("incremental-dst");
+        let db = Db::open_in_memory().unwrap();
+        let base = 1_000_000u64;
+        for (name, data) in [
+            ("unchanged.txt", "same"),
+            ("changed.txt", "old"),
+            ("missing.txt", "new"),
+        ] {
+            std::fs::write(src.join(name), data).unwrap();
+            set_mtime(&src.join(name), base);
+            db.upsert_sync_state("pair1", name, data.len() as u64, base as i64, None, 0)
+                .unwrap();
+        }
+        for (name, data) in [("unchanged.txt", "same"), ("changed.txt", "old")] {
+            std::fs::write(dst.join(name), data).unwrap();
+            set_mtime(&dst.join(name), base + 100);
+        }
+        std::fs::write(src.join("changed.txt"), "new").unwrap();
+        set_mtime(&src.join("changed.txt"), base + 1);
+        let index = db.load_sync_state("pair1").unwrap();
+        let (plan, _) = plan_with(&src, &dst, &index).await;
+        assert_eq!(plan.copies.len(), 2);
+        assert_eq!(plan.total_bytes, 6);
+        assert!(plan.deletes.is_empty());
+        assert!(plan.copies.iter().any(|file| {
+            file.relative == "missing.txt" && matches!(file.reason, SyncReason::Missing)
+        }));
+        assert!(plan.copies.iter().any(|file| {
+            file.relative == "changed.txt" && matches!(file.reason, SyncReason::Edited)
+        }));
+        std::fs::remove_dir_all(&src).unwrap();
+        std::fs::remove_dir_all(&dst).unwrap();
+    }
+
     // ETag backends compare the opaque token, not mtime: same size, same mtime,
     // different ETag ⇒ changed.
     #[test]
@@ -385,5 +422,10 @@ mod index_tests {
             ..row
         };
         assert!(!source_changed(ChangeSignal::Etag, &cur, &row_same));
+        let row_wrong_size = crate::db::SyncStateRow {
+            size: 11,
+            ..row_same
+        };
+        assert!(source_changed(ChangeSignal::Etag, &cur, &row_wrong_size));
     }
 }

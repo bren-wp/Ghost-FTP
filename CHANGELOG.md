@@ -6,6 +6,8 @@
 - Emit every structural clone candidate group and nonoverlapping location by default; disclose omissions for explicitly limited reports.
 - Verify SQLite health after observing the update target on restart, without modifying the recovery record.
 - Refresh published download links and distinguish current QA packages from historical screenshots.
+- Reject inconsistent source sizes even when a provider repeats an ETag; regression-test incremental planning with unchanged, modified and missing files.
+- Synchronize active cloud, installer and production-readiness documentation with the actual published predecessor.
 
 ## 0.99.91 Stable — 27 November 2026 (published)
 
