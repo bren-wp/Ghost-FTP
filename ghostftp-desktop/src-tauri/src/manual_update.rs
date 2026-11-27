@@ -35,8 +35,8 @@ fn newer_version(bytes: &[u8], current: &str) -> Result<Option<String>, String> 
     if bytes.len() > MAX_RESPONSE {
         return Err("Manual update response is too large".into());
     }
-    let catalog: Catalog = serde_json::from_slice(bytes)
-        .map_err(|_| "Invalid manual update response".to_string())?;
+    let catalog: Catalog =
+        serde_json::from_slice(bytes).map_err(|_| "Invalid manual update response".to_string())?;
     let offered = version_parts(&catalog.version)
         .ok_or_else(|| "Invalid manual update version".to_string())?;
     let installed =
