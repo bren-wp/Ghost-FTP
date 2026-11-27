@@ -1199,9 +1199,22 @@ impl TransferManager {
         })
     }
 
+    pub(crate) fn note_aborted_background_work(&self) {
+        self.canceled_worker.store(true, Ordering::Release);
+    }
+
+    /// Shared native maintenance permit for independently managed operations.
+    pub(crate) fn background_admission(&self) -> Result<tokio::sync::OwnedRwLockReadGuard<()>> {
+        Arc::clone(&self.update_gate)
+            .try_read_owned()
+            .map_err(|_| anyhow::anyhow!("Restart Ghost FTP before starting another operation"))
+    }
+
     /// Refuse rather than wait for active preparation or worker cleanup.
     /// No new transfer admission can race the idle check once exclusive.
-    pub(crate) async fn begin_update_maintenance(&self) -> Result<()> {
+    pub(crate) async fn begin_update_maintenance(
+        &self,
+    ) -> Result<tokio::sync::OwnedRwLockWriteGuard<()>> {
         let guard = Arc::clone(&self.update_gate)
             .try_write_owned()
             .map_err(|_| anyhow::anyhow!("Transfer preparation or update already in progress"))?;
@@ -1221,8 +1234,14 @@ impl TransferManager {
             rows_idle && queue_idle && workers_idle,
             "Finish all queued, paused and running transfers before updating"
         );
+        Ok(guard)
+    }
+
+    pub(crate) async fn retain_update_maintenance(
+        &self,
+        guard: tokio::sync::OwnedRwLockWriteGuard<()>,
+    ) {
         *self.update_guard.lock().await = Some(guard);
-        Ok(())
     }
 
     pub async fn list(&self) -> Vec<Transfer> {

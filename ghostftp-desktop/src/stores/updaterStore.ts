@@ -180,7 +180,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
     } catch (error) {
       console.warn("Native update maintenance unavailable", redactSensitiveText(error, 240));
       set({ status: "available" });
-      toast.warning("Update postponed", "Finish transfers or restart Ghost FTP before updating.");
+      toast.warning("Update postponed", "Finish transfers, close remote editors, disable folder sync and complete pending backup restores before updating. Restart Ghost FTP if required.");
       return;
     }
     try {

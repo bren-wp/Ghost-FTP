@@ -2469,7 +2469,9 @@ async fn update_maintenance_excludes_transfer_preparation_and_new_admission() {
     let preparation = mgr.transfer_admission().unwrap();
     assert!(mgr.begin_update_maintenance().await.is_err());
     drop(preparation);
-    assert!(mgr.begin_update_maintenance().await.is_ok());
+    let guard = mgr.begin_update_maintenance().await.unwrap();
+    assert!(mgr.background_admission().is_err());
+    mgr.retain_update_maintenance(guard).await;
     assert!(mgr.transfer_admission().is_err());
     assert!(mgr.begin_update_maintenance().await.is_err());
 }
@@ -2486,4 +2488,16 @@ async fn update_maintenance_refuses_waiting_and_canceled_worker_state() {
         mgr.transfer_admission().is_ok(),
         "failed maintenance must not lock admission"
     );
+}
+
+#[tokio::test]
+async fn update_preparation_and_background_work_exclude_each_other() {
+    let mgr = TransferManager::new();
+    let operation = mgr.background_admission().unwrap();
+    assert!(mgr.begin_update_maintenance().await.is_err());
+    drop(operation);
+    let preparation = mgr.begin_update_maintenance().await.unwrap();
+    assert!(mgr.background_admission().is_err());
+    drop(preparation);
+    assert!(mgr.background_admission().is_ok());
 }

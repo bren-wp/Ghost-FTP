@@ -726,6 +726,22 @@ fn validate_staged_database(dir: &Path) -> Result<bool> {
 /// Complete the non-mutating checks before any restore file is promoted.
 /// A stale corrupt restore must not prevent a healthy installed app from
 /// opening, nor be mistaken for authorization to erase existing data.
+/// Refuse an application update while a previously staged backup awaits restart.
+pub(crate) fn ensure_no_pending_restore(dir: &Path) -> Result<()> {
+    for name in CONFIG_FILES
+        .iter()
+        .copied()
+        .chain(std::iter::once("ghostftp.db"))
+    {
+        match std::fs::symlink_metadata(dir.join(format!("{name}.restore"))) {
+            Ok(_) => bail!("Complete the pending backup restore before updating"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("inspect pending restore"),
+        }
+    }
+    Ok(())
+}
+
 pub fn preflight_pending_restore(dir: &Path) -> Result<()> {
     validate_staged_database(dir)?;
     for name in CONFIG_FILES {

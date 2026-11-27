@@ -256,6 +256,9 @@ impl FolderSync {
 
     /// Bring up every pair the user left enabled.
     pub async fn auto_start_if_enabled(&self, app: AppHandle) {
+        let Ok(_maintenance) = app.state::<AppState>().transfers.background_admission() else {
+            return;
+        };
         let pairs = self.settings.lock().await.pairs.clone();
         for p in pairs.into_iter().filter(|p| p.enabled) {
             if let Err(e) = self.start_pair(&app, &p).await {
@@ -265,6 +268,24 @@ impl FolderSync {
         // Hand the on-demand pairs to the VirtualFs provider and reconcile
         // orphaned sync roots (registered but no longer configured).
         self.reconcile_virtualfs(&app).await;
+    }
+
+    /// Maintenance requires all configured background pairs to be disabled.
+    /// This covers enabled on-demand pairs even without an eager worker.
+    pub(crate) async fn ensure_update_idle(&self) -> Result<()> {
+        let enabled = self
+            .settings
+            .lock()
+            .await
+            .pairs
+            .iter()
+            .any(|pair| pair.enabled);
+        let running = !self.running.lock().await.is_empty();
+        anyhow::ensure!(
+            !enabled && !running,
+            "Disable background folder synchronization before updating"
+        );
+        Ok(())
     }
 
     /// The enabled on-demand pairs, as the provider's lighter [`OnDemandPair`].
@@ -409,6 +430,7 @@ impl FolderSync {
 
     /// Add or replace a pair. If it's enabled, (re)start it.
     pub async fn upsert(&self, app: &AppHandle, mut pair: SyncPair) -> Result<()> {
+        let _maintenance = app.state::<AppState>().transfers.background_admission()?;
         if pair.id.is_empty() {
             pair.id = uuid::Uuid::new_v4().to_string();
         }
@@ -443,6 +465,7 @@ impl FolderSync {
     }
 
     pub async fn remove(&self, app: &AppHandle, id: &str) -> Result<()> {
+        let _maintenance = app.state::<AppState>().transfers.background_admission()?;
         {
             let mut s = self.settings.lock().await;
             let previous = s.clone();
@@ -459,6 +482,7 @@ impl FolderSync {
     }
 
     pub async fn set_enabled(&self, app: &AppHandle, id: &str, enabled: bool) -> Result<()> {
+        let _maintenance = app.state::<AppState>().transfers.background_admission()?;
         let pair = {
             let mut s = self.settings.lock().await;
             let previous = s.clone();
@@ -512,6 +536,9 @@ impl FolderSync {
 
     async fn stop_pair(&self, app: &AppHandle, id: &str) {
         if let Some(r) = self.running.lock().await.remove(id) {
+            app.state::<AppState>()
+                .transfers
+                .note_aborted_background_work();
             r.task.abort();
             if let Some(session_id) = r.session_id.lock().await.take() {
                 let state = app.state::<AppState>();

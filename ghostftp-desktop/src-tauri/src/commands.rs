@@ -2640,7 +2640,9 @@ pub async fn repair_keychain_manifest(
 pub async fn settings_get_all(
     state: State<'_, AppState>,
 ) -> Result<std::collections::HashMap<String, String>, String> {
-    state.db.settings_get_all().map_err(err)
+    let mut settings = state.db.settings_get_all().map_err(err)?;
+    settings.remove(crate::manual_update::UPDATE_ATTEMPT_KEY);
+    Ok(settings)
 }
 
 /// Upsert one setting. `value` is a raw JSON string (the frontend stringifies).
@@ -2650,12 +2652,14 @@ pub async fn settings_set(
     value: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    crate::manual_update::ensure_public_setting(&key)?;
     state.db.settings_set(&key, &value).map_err(err)
 }
 
 /// Delete one setting row (reset-to-default for shortcut overrides & friends).
 #[tauri::command]
 pub async fn settings_delete(key: String, state: State<'_, AppState>) -> Result<(), String> {
+    crate::manual_update::ensure_public_setting(&key)?;
     state.db.settings_delete(&key).map_err(err)
 }
 
@@ -2665,6 +2669,9 @@ pub async fn settings_set_all(
     values: std::collections::HashMap<String, String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    for key in values.keys() {
+        crate::manual_update::ensure_public_setting(key)?;
+    }
     let entries: Vec<(String, String)> = values.into_iter().collect();
     state.db.settings_set_many(&entries).map_err(err)
 }
@@ -2706,6 +2713,10 @@ pub async fn backup_export(
     state: State<'_, AppState>,
 ) -> Result<crate::backup::BackupSummary, GhostFTPError> {
     let password = WipeOnDrop::new(password);
+    let _maintenance = state
+        .transfers
+        .background_admission()
+        .map_err(GhostFTPError::from)?;
     let dir = app_data_dir(&app)?;
     crate::backup::export(&dir, &state.db, password.as_str(), Path::new(&path))
         .map_err(GhostFTPError::from)
@@ -2731,6 +2742,11 @@ pub async fn backup_import(
     app: AppHandle,
 ) -> Result<crate::backup::BackupSummary, GhostFTPError> {
     let password = WipeOnDrop::new(password);
+    let _maintenance = app
+        .state::<AppState>()
+        .transfers
+        .background_admission()
+        .map_err(GhostFTPError::from)?;
     let dir = app_data_dir(&app)?;
     // defer = true: the GUI has files open, so stage + swap on next startup.
     crate::backup::import(&dir, password.as_str(), Path::new(&path), true)

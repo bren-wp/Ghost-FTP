@@ -85,7 +85,14 @@ pub async fn check_manual_update() -> Result<Option<String>, String> {
 
 // Diagnostic intent only: the signed Tauri updater remains the trust boundary.
 // Never persist installer URLs, credentials or executable paths in this record.
-const UPDATE_ATTEMPT_KEY: &str = "nativeUpdateAttemptV1";
+pub(crate) const UPDATE_ATTEMPT_KEY: &str = "nativeUpdateAttemptV1";
+
+pub(crate) fn ensure_public_setting(key: &str) -> Result<(), String> {
+    if key == UPDATE_ATTEMPT_KEY {
+        return Err("Reserved native update state".into());
+    }
+    Ok(())
+}
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -150,23 +157,56 @@ pub fn update_recovery_notice(
 /// intentionally retained after success or uncertain installation failure.
 #[tauri::command]
 pub async fn begin_update_maintenance(
+    app: tauri::AppHandle,
     state: tauri::State<'_, crate::AppState>,
     target: String,
 ) -> Result<(), String> {
     let current = env!("CARGO_PKG_VERSION");
     update_attempt(current, &target)?;
-    state
+    use tauri::Manager;
+    let guard = state
         .transfers
         .begin_update_maintenance()
         .await
         .map_err(|error| error.to_string())?;
-    // Fail closed on persistence failure: no installer invocation is allowed.
-    record_attempt(&state.db, current, &target)
+    // Check independent subsystems while no new work can acquire admission.
+    // Failed preparation drops the guard and never invokes the installer.
+    state
+        .foldersync
+        .ensure_update_idle()
+        .await
+        .map_err(|error| error.to_string())?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+    crate::backup::ensure_no_pending_restore(&dir).map_err(|error| error.to_string())?;
+    record_attempt(&state.db, current, &target)?;
+    state.transfers.retain_update_maintenance(guard).await;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_update_record_is_not_a_public_setting() {
+        assert!(ensure_public_setting(UPDATE_ATTEMPT_KEY).is_err());
+        assert!(ensure_public_setting("appTheme").is_ok());
+    }
+
+    #[test]
+    fn pending_restore_prevents_update_without_removing_staged_files() {
+        let dir = std::env::temp_dir().join(format!("ghostftp-update-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        assert!(crate::backup::ensure_no_pending_restore(&dir).is_ok());
+        let staged = dir.join("ghostftp.db.restore");
+        std::fs::write(&staged, b"staged").unwrap();
+        assert!(crate::backup::ensure_no_pending_restore(&dir).is_err());
+        assert_eq!(std::fs::read(&staged).unwrap(), b"staged");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn recovery_intent_survives_database_reopen_without_mutating_user_data() {
