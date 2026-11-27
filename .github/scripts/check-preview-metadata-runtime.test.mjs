@@ -21,6 +21,12 @@ const PINNED = {
 };
 const VERSION_METADATA = JSON.parse(fs.readFileSync(path.join(ROOT, "version.json"), "utf8"));
 const PREVIOUS_PUBLISHED = VERSION_METADATA.previousPublishedVersion;
+// Independent expected policy boundary: historical releases remain Preview;
+// v0.99.90 and later must be Stable regardless of package signing.
+function stableExpected(version) {
+  const [major, minor, patch] = version.split(".").map(Number);
+  return major > 0 || minor > 99 || (minor === 99 && patch >= 90);
+}
 const RECENT = {
   "0.99.37": "12656d9c78189b916ca3bf04fbb281a84e066013",
   "0.99.38": "6a192fbb41cc6af89e0ad75432156f97c869253d",
@@ -173,19 +179,27 @@ test("release corrector quarantines incomplete v0.99.24 and verifies historical 
     // The corrector checks recent historical editions and the rolling
     // predecessor/current pair, not every intervening archived version.
     const shouldRepair = ["0.99.37", "0.99.38", PREVIOUS_PUBLISHED].includes(version);
-    assert.equal(release.prerelease, shouldRepair, version+" unexpected classification");
-    if (shouldRepair) assert.equal(release.name,"Ghost FTP "+version+" Preview");
+    const expectedPreview = shouldRepair && !stableExpected(version);
+    assert.equal(release.prerelease, expectedPreview, version+" unexpected classification");
+    if (shouldRepair) assert.equal(release.name, "Ghost FTP "+version+(expectedPreview ? " Preview" : ""));
     assert.equal(release.assets.length,expectedReleaseAssets(version).required.length);
     assert.equal(release.target_commitish,RECENT[version]);
   }
   assert.match(result.stdout, /not yet publicly visible/, "the next unpublished version may be absent on push");
 });
 
-test("manual Preview metadata recovery repairs a published predecessor after external classification drift", () => {
-  const {result, recent, newer} = runScenario(null, "manual");
+test("manual metadata recovery repairs a published predecessor after external classification drift", () => {
+  const expectedPreview = !stableExpected(PREVIOUS_PUBLISHED);
+  const {result, recent, newer} = runScenario(data => {
+    const file = path.join(data, PREVIOUS_PUBLISHED + ".json");
+    const release = JSON.parse(fs.readFileSync(file, "utf8"));
+    release.prerelease = !expectedPreview;
+    release.name = "Incorrect classification";
+    fs.writeFileSync(file, JSON.stringify(release));
+  }, "manual");
   assert.equal(result.status, 0, [result.stdout, result.stderr, result.error].join("\n"));
-  assert.equal(recent[PREVIOUS_PUBLISHED].prerelease, true);
-  assert.equal(recent[PREVIOUS_PUBLISHED].name, "Ghost FTP " + PREVIOUS_PUBLISHED + " Preview");
+  assert.equal(recent[PREVIOUS_PUBLISHED].prerelease, expectedPreview);
+  assert.equal(recent[PREVIOUS_PUBLISHED].name, "Ghost FTP " + PREVIOUS_PUBLISHED + (expectedPreview ? " Preview" : ""));
   assert.equal(recent[PREVIOUS_PUBLISHED].assets.length, expectedReleaseAssets(PREVIOUS_PUBLISHED).required.length);
   assert.equal(newer.prerelease, true, "legacy release still receives verified correction");
 });
