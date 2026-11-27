@@ -32,6 +32,10 @@ export function expectedReleaseAssets(version) {
   ensure(selected.schema === 1, "unsupported release artifact contract schema");
   const expand = (template) => template.replaceAll("{version}", version);
   const required = selected.required.map(expand);
+  const [major, minor, patch] = version.split(".").map(Number);
+  if (major > 0 || minor > 99 || (minor === 99 && patch >= 90)) {
+    required.push(`GhostFTP-v${version}-Update-Web-Root.zip`);
+  }
   const optional = selected.optional_updater.map(expand);
   ensure(required.length > 0, "empty required asset inventory");
   ensure(new Set([...required, ...optional]).size === required.length + optional.length,

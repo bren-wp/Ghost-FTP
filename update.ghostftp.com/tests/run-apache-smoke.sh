@@ -9,7 +9,8 @@ cleanup() {
 }
 trap cleanup EXIT
 mkdir "$work/public"
-python3 "$root/updates/scripts/pack-web-root.py" "$work/root.zip"
+cp "${1:?deployment ZIP required}" "$work/root.zip"
+version="${2:?version required}"
 unzip -q "$work/root.zip" -d "$work/public"
 php -l "$work/public/index.php"
 php -l "$work/public/updates/index.php"
@@ -45,4 +46,4 @@ for attempt in $(seq 1 20); do
   if curl --silent --fail http://127.0.0.1:18087/ >/dev/null; then break; fi
   sleep 0.2
 done
-python3 "$root/update.ghostftp.com/tests/smoke.py" http://127.0.0.1:18087
+python3 "$root/update.ghostftp.com/tests/smoke.py" http://127.0.0.1:18087 "$version"

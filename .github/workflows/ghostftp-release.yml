@@ -339,6 +339,13 @@ jobs:
           unzip -p "dist/GhostFTP-v$VERSION-Update-Service.zip" updates/latest.json             > "$RUNNER_TEMP/ghostftp-latest-from-package.json"
           cmp "$RUNNER_TEMP/ghostftp-latest-from-package.json"             "dist/GhostFTP-v$VERSION-latest.json"
 
+      - name: Build self-contained update web root from exact-source installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum "GhostFTP-Windows-x64-Setup-v$VERSION.exe" "GhostFTP-Windows-x64-Setup-v$VERSION.msi" "GhostFTP-Linux-amd64-v$VERSION.deb" "GhostFTP-Linux-x86_64-v$VERSION.rpm") > "$RUNNER_TEMP/web-installer-sums.txt"
+          python3 updates/scripts/pack-web-root.py "dist/GhostFTP-v$VERSION-Update-Web-Root.zip" --version "$VERSION" --assets dist --checksums "$RUNNER_TEMP/web-installer-sums.txt"
+
       - name: Verify native packages match their advertised Windows/Linux formats
         shell: bash
         run: |

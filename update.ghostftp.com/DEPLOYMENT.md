@@ -1,12 +1,7 @@
-# Update center bootstrap
+# Self-contained update web root
 
-This is a manual Preview download center pinned to the published v0.99.89 release, not an automatic release resolver. The publish log for 45914252814 confirms the absence of signed updater artifacts. Both /latest.json and /updates/latest.json deliberately return HTTP 204 with no body and no-store. Never replace that response with a placeholder manifest.
+The root archive contains only public PHP/CSS/icon files, a local catalogue, SHA-256 checksums and the actual Windows EXE/MSI and Linux DEB/RPM installers. No Portable or AppImage downloads and no external download links. Never publish an archive without all four validated installers.
 
-Build the root ZIP from the repository root with:
-    python3 updates/scripts/pack-web-root.py GhostFTP-Update-Web-Root-bootstrap-v0.99.89.zip
+The release pipeline generates a new root archive from the same exact-source installers before publication. The PR quality job also creates a tested archive from the most recent published predecessor. Deploy the ZIP into the document root over HTTPS, using a fresh staging directory and an atomic host-level directory switch. Do not mix versions. PHP 8, Apache 2.4, rewrite and headers modules are required.
 
-Create the update.ghostftp.com subdomain in your hosting panel, configure its DNS and valid TLS certificate, and extract the ZIP directly into the document root. PHP 8, Apache 2.4, mod_rewrite, mod_headers and AllowOverride for Options, FileInfo, Indexes and AuthConfig are required. Do not copy this operator document or the tests into the public directory.
-
-Verify both endpoint aliases return 204 and no-store. Verify the EN/HR page, exact GitHub download URLs, CSP and directory listing protection. Keep the existing ghostftp.com/updates/latest.json endpoint unchanged until its live compatibility is verified. HSTS is a hosting-level step after verifying HTTPS.
-
-Next gate: verified release-driven deployment or a bounded release resolver, exact-version signed manifest and signature checks, installed-client upgrade acceptance and old endpoint compatibility. Do not enable automatic installs or change the embedded verification key before these gates pass.
+The existing signed updater endpoint is not changed. The two web aliases deliberately return 204 until a signed, compatible local updater implementation is accepted. Manual packages do not enable unattended installation. Keep old client compatibility until native acceptance is verified.
