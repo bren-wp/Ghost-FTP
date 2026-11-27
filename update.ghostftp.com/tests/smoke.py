@@ -96,6 +96,10 @@ if len(sys.argv) > 3:
     root = Path(sys.argv[3]) / "downloads"
     for filename, replacement in [
         ("SHA256SUMS.txt", b"invalid checksum catalog\n"),
+        ("SHA256SUMS.txt", (sums + sums.splitlines()[0] + "\n").encode()),
+        ("SHA256SUMS.txt", sums.replace(sorted(expected)[0], "unexpected.exe").encode()),
+        ("catalog.json", b"not JSON"),
+        ("catalog.json", json.dumps({"version": "4294967296.0.0", "packages": {}}).encode()),
         ("SHA256SUMS.txt", sums.replace(sums[0], "1" if sums[0] != "1" else "0", 1).encode()),
         ("catalog.json", json.dumps({"version": version}).encode()),
     ]:
